@@ -10,27 +10,37 @@ const btnNext = document.querySelector('.btn-next');
 const dotsRail = document.querySelector('.dots-rail');
 const sections = Array.from(document.querySelectorAll('.text-section'));
 const menuCap = document.querySelector('.menu-rail__cap');
-const scrollElement = document.scrollingElement || document.documentElement;
 
 let currentMode = root.dataset.mode || body.dataset.mode || 'desktop';
 let activeSectionId = sections[0]?.id ?? null;
 let previousFocus = null;
 let trapListenerAttached = false;
 let observer = null;
-let swipeState = null;
 
 function detectMode() {
   const width = window.innerWidth;
-  const pointerFine = window.matchMedia('(pointer: fine)').matches;
-  const coarse = window.matchMedia('(pointer: coarse)').matches;
-  const hasTouch = coarse || navigator.maxTouchPoints > 0;
+  const height = window.innerHeight;
+  const portrait = height >= width;
+  const pointerFine = window.matchMedia('(any-pointer: fine)').matches;
+  const pointerCoarse = window.matchMedia('(any-pointer: coarse)').matches;
+  const hasTouch = pointerCoarse || navigator.maxTouchPoints > 0;
 
-  if (width >= 1440 || (width >= 1280 && pointerFine && !hasTouch)) {
+  if (hasTouch && portrait && width <= 1100) {
+    return 'handheld';
+  }
+
+  if (width >= 1440) {
     return 'desktop';
   }
+
+  if (width >= 1280 && (pointerFine || !hasTouch)) {
+    return 'desktop';
+  }
+
   if (width >= 1024) {
     return 'tablet-wide';
   }
+
   return 'handheld';
 }
 
@@ -314,134 +324,8 @@ function initMenuInteractions() {
   });
 }
 
-function findTouch(event) {
-  if (!swipeState) return null;
-  const { identifier } = swipeState;
-  for (const touch of event.changedTouches) {
-    if (touch.identifier === identifier) {
-      return touch;
-    }
-  }
-  return null;
-}
-
 function initGestures() {
-  function resetSwipe() {
-    swipeState = null;
-  }
-
-  function recordSwipe(type, touch, extra = {}) {
-    swipeState = {
-      type,
-      startX: touch.clientX,
-      startY: touch.clientY,
-      identifier: touch.identifier,
-      prevented: false,
-      ...extra,
-    };
-  }
-
-  function shouldPrevent(state) {
-    if (!state) return false;
-    if (state.type === 'tablet-open') {
-      return state.dx > 16 && Math.abs(state.dy) < 60;
-    }
-    if (state.type === 'dock-open') {
-      return state.dy < -24 && Math.abs(state.dx) < 80;
-    }
-    if (state.type === 'menu-close') {
-      if (!state.capZone) return false;
-      if (state.fromCap && Math.abs(state.dy) < 20 && Math.abs(state.dx) < 20) {
-        return false;
-      }
-      return state.dy > 16;
-    }
-    return false;
-  }
-
-  function onTouchStart(event) {
-    const touch = event.changedTouches[0];
-    if (!touch) return;
-
-    if (currentMode === 'tablet-wide' && touch.clientX <= 24 && !body.classList.contains('menu-open')) {
-      if (scrollElement.scrollTop > 0) {
-        resetSwipe();
-        return;
-      }
-      recordSwipe('tablet-open', touch);
-      return;
-    }
-
-    if (currentMode !== 'handheld') {
-      resetSwipe();
-      return;
-    }
-
-    if (touch.target.closest('.dock')) {
-      recordSwipe('dock-open', touch);
-      return;
-    }
-
-    if (!body.classList.contains('menu-open') || !menuRail?.contains(touch.target)) {
-      resetSwipe();
-      return;
-    }
-
-    const railRect = menuRail.getBoundingClientRect();
-    const offsetY = touch.clientY - railRect.top;
-    const capRect = menuCap?.getBoundingClientRect();
-    const capHeight = capRect ? Math.max(capRect.height, 48) : 64;
-    const inCapZone = offsetY <= capHeight;
-    const fromCap = !!capRect && touch.clientY >= capRect.top && touch.clientY <= capRect.bottom;
-
-    if (!inCapZone) {
-      resetSwipe();
-      return;
-    }
-
-    recordSwipe('menu-close', touch, { capZone: inCapZone, fromCap });
-  }
-
-  function onTouchMove(event) {
-    const touch = findTouch(event);
-    if (!touch || !swipeState) return;
-    swipeState.dx = touch.clientX - swipeState.startX;
-    swipeState.dy = touch.clientY - swipeState.startY;
-    if (!swipeState.prevented && shouldPrevent(swipeState)) {
-      event.preventDefault();
-      swipeState.prevented = true;
-    }
-  }
-
-  function onTouchEnd(event) {
-    const touch = findTouch(event);
-    if (!touch || !swipeState) {
-      resetSwipe();
-      return;
-    }
-    const { type, dx = 0, dy = 0, fromCap, capZone } = swipeState;
-    if (type === 'tablet-open' && dx >= 28 && Math.abs(dy) < 80) {
-      event.preventDefault();
-      openMenu({ focusOrigin: menuHandle });
-    } else if (type === 'dock-open' && dy <= -40 && Math.abs(dx) < 80) {
-      event.preventDefault();
-      openMenu({ focusOrigin: dockHandle });
-    } else if (type === 'menu-close') {
-      if (capZone && fromCap && Math.abs(dx) < 18 && Math.abs(dy) < 18) {
-        event.preventDefault();
-        closeMenu({ focusOrigin: dockHandle });
-      } else if (dy >= 50) {
-        event.preventDefault();
-        closeMenu({ focusOrigin: dockHandle });
-      }
-    }
-    resetSwipe();
-  }
-
-  window.addEventListener('touchstart', onTouchStart, { passive: false });
-  window.addEventListener('touchmove', onTouchMove, { passive: false });
-  window.addEventListener('touchend', onTouchEnd, { passive: false });
-  window.addEventListener('touchcancel', resetSwipe, { passive: true });
+  // Жесты отключены для тестирования реакций по клику и hover на подписи ручки меню.
 }
 
 function initMenuLinks() {
