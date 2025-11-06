@@ -4,9 +4,23 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>UI-каркас адаптивов</title>
+    <script>
+      (function () {
+        var d = document, r = d.documentElement;
+        var w = window.innerWidth || r.clientWidth;
+        var fine = window.matchMedia('(pointer: fine)').matches;
+        var coarse = window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
+        var m = w >= 1440 || (w >= 1280 && fine && !coarse) ? 'desktop' : w >= 1024 ? 'tablet-wide' : 'handheld';
+        r.setAttribute('data-mode', m);
+        r.dataset.mode = m;
+        d.addEventListener('DOMContentLoaded', function () {
+          d.body.dataset.mode = m;
+        });
+      })();
+    </script>
     <link rel="stylesheet" href="styles.css" />
   </head>
-  <body data-mode="desktop">
+  <body>
     <header class="header" role="banner">
       <div class="header__logo" aria-label="Логотип">Логотип</div>
       <div class="header__hand" aria-hidden="true">🤚</div>
@@ -17,6 +31,7 @@
     </header>
 
     <aside class="menu-rail" aria-label="Оглавление курса">
+      <div class="menu-rail__cap" aria-hidden="true"></div>
       <button class="menu-handle" type="button" aria-controls="site-menu" aria-expanded="false">
         <span class="menu-handle__label">Оглавление</span>
       </button>
