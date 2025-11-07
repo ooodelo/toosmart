@@ -1,8 +1,19 @@
 :root {
   color-scheme: light;
   --content-width: 540px;
-  --main-columns-desktop: 1fr var(--content-width) clamp(320px, 28vw, 420px) 1fr;
-  --main-columns-tablet: 1fr var(--content-width) clamp(280px, 30vw, 360px) 1fr;
+  --stack-width-desktop: clamp(320px, 28vw, 420px);
+  --stack-width-tablet: clamp(280px, 30vw, 360px);
+  --stack-width: var(--stack-width-desktop);
+  --main-columns-desktop: minmax(
+      0,
+      max(0px, calc(50vw - var(--content-width) / 2 - var(--gap-page)))
+    )
+    var(--content-width) var(--stack-width-desktop) 1fr;
+  --main-columns-tablet: minmax(
+      0,
+      max(0px, calc(50vw - var(--content-width) / 2 - var(--gap-page)))
+    )
+    var(--content-width) var(--stack-width-tablet) 1fr;
   --main-columns: var(--main-columns-desktop);
   --text-box-width-desktop: 540px;
   --text-box-width-tablet: 540px;
@@ -13,7 +24,7 @@
     )
   );
   --text-box-width: var(--text-box-width-desktop);
-  --text-box-left: calc(50% - var(--content-width) / 2);
+  --text-box-left: calc(50vw - var(--content-width) / 2);
   --gap-page: 32px;
   --stack-gap: 20px;
   --rail-closed: 70px;
@@ -374,11 +385,11 @@ body.menu-open .backdrop {
   left: 0;
   right: 0;
   bottom: 0;
-  height: var(--handheld-dock);
+  height: var(--handheld-dock-footprint);
   background: var(--surface-alt);
   border-top: 1px solid var(--border-color);
   display: none;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   padding: 0 env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px)
     env(safe-area-inset-left, 0px);
@@ -387,14 +398,14 @@ body.menu-open .backdrop {
 
 .dock-handle {
   width: 100%;
-  height: 100%;
+  height: var(--handheld-dock);
   padding: 0 24px;
   font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 16px 16px 0 0;
+  border-radius: 0;
 }
 
 body.is-slid .header,
@@ -423,6 +434,7 @@ body[data-mode="desktop"] .dots-rail {
 body[data-mode="desktop"] {
   --main-columns: var(--main-columns-desktop);
   --text-box-width: var(--text-box-width-desktop);
+  --stack-width: var(--stack-width-desktop);
 }
 
 body[data-mode="desktop"] .main {
@@ -453,6 +465,7 @@ body[data-mode="desktop"] .stack {
 body[data-mode="tablet-wide"] {
   --main-columns: var(--main-columns-tablet);
   --text-box-width: var(--text-box-width-tablet);
+  --stack-width: var(--stack-width-tablet);
 }
 
 body[data-mode="tablet-wide"] .dots-rail {
@@ -546,19 +559,20 @@ body[data-mode="handheld"] .dots-rail {
 }
 
 body[data-mode="handheld"] .menu-rail {
-  width: min(
-    calc(100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)),
-    420px
-  );
-  border-radius: 20px 20px 0 0;
-  bottom: var(--handheld-dock-footprint);
+  width: auto;
+  left: 0;
+  right: 0;
   top: auto;
-  height: calc(min(100svh, 100dvh) - var(--handheld-dock-footprint));
-  transform: translate3d(-50%, 100%, 0);
-  left: 50%;
-  right: auto;
+  bottom: 0;
+  margin: 0;
+  border-radius: 24px 24px 0 0;
+  transform: translate3d(0, 100%, 0);
+  height: min(100svh, 100dvh);
   pointer-events: none;
-  padding-left: 0;
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  padding-bottom: calc(var(--handheld-dock-footprint) + 16px);
+  padding-top: 12px;
   border-right: none;
   display: flex;
   flex-direction: column;
@@ -572,6 +586,7 @@ body[data-mode="handheld"] .menu-rail__cap {
   flex: 0 0 auto;
   width: 100%;
   cursor: pointer;
+  margin: 0 16px 4px;
 }
 
 body[data-mode="handheld"] .menu-rail__cap::after {
@@ -584,7 +599,7 @@ body[data-mode="handheld"] .menu-rail__cap::after {
 
 body[data-mode="handheld"].menu-open .menu-rail,
 body[data-mode="handheld"].is-slid .menu-rail {
-  transform: translate3d(-50%, 0, 0);
+  transform: translate3d(0, 0, 0);
   pointer-events: auto;
 }
 
@@ -593,8 +608,8 @@ body[data-mode="handheld"] .menu-handle {
 }
 
 body[data-mode="handheld"] .site-menu {
-  height: 100%;
   flex: 1 1 auto;
+  margin: 0 16px;
 }
 
 body[data-mode="handheld"] .dock {
