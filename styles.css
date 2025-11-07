@@ -12,6 +12,7 @@
   --stack-top: 16px;
   --stack-bottom: 16px;
   --btn-next-footprint: 88px;
+  --section-scroll-margin: 120px;
   --t-rail: 220ms;
   --t-backdrop: 160ms;
   --rail-ease: cubic-bezier(0.4, 0, 0.2, 1);
@@ -40,7 +41,6 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  transition: transform var(--t-rail) var(--rail-ease);
 }
 
 html {
@@ -232,7 +232,7 @@ body.is-slid .menu-rail {
   background: var(--surface);
   border-radius: 12px;
   border: 1px solid var(--border-color);
-  scroll-margin-top: 120px;
+  scroll-margin-top: var(--section-scroll-margin, 120px);
 }
 
 .text-section h2 {
@@ -345,11 +345,13 @@ body.is-slid .menu-rail {
   visibility: hidden;
   transition: opacity var(--t-backdrop) var(--rail-ease), visibility var(--t-backdrop) var(--rail-ease);
   z-index: 1400;
+  pointer-events: none;
 }
 
 body.menu-open .backdrop {
   opacity: 1;
   visibility: visible;
+  pointer-events: auto;
 }
 
 .dock {
@@ -576,7 +578,7 @@ body[data-mode="handheld"].is-slid .header {
   transform: translateX(0);
 }
 
-body[data-mode="handheld"] .backdrop {
+body[data-mode="handheld"].menu-open .backdrop {
   pointer-events: auto;
 }
 
