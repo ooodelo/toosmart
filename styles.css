@@ -437,16 +437,20 @@ body[data-mode="desktop"] {
   --main-columns: var(--main-columns-desktop);
   --text-box-width: var(--text-box-width-desktop);
   --stack-width: var(--stack-width-desktop);
-  --text-box-left: calc(50vw - var(--content-width-desktop) / 2);
+  --text-box-left: calc(50vw - var(--text-box-width-desktop) / 2);
 }
 
 body[data-mode="desktop"] .main {
-  grid-template-areas: "left panel stack right";
+  display: flex;
+  justify-content: center;
+  position: relative;
+  padding-left: 0;
+  padding-right: 0;
 }
 
 body[data-mode="desktop"] .panel {
-  grid-area: panel;
-  grid-column: unset;
+  /* Блок текста центрируется благодаря flex родителя */
+  position: relative;
 }
 
 body[data-mode="desktop"] .text-box {
@@ -466,15 +470,17 @@ body[data-mode="desktop"] .btn-next {
 }
 
 body[data-mode="desktop"] .stack {
-  grid-area: stack;
-  grid-column: unset;
+  /* Позиционируем справа от текстового блока */
+  position: absolute;
+  left: 50%;
+  margin-left: calc(var(--text-box-width) / 2 + var(--gap-page));
 }
 
 body[data-mode="tablet-wide"] {
   --main-columns: var(--main-columns-tablet);
   --text-box-width: var(--text-box-width-tablet);
   --stack-width: var(--stack-width-tablet);
-  --text-box-left: calc(50vw - var(--content-width-tablet) / 2);
+  --text-box-left: calc(50vw - var(--text-box-width-tablet) / 2);
 }
 
 body[data-mode="tablet-wide"] .dots-rail {
@@ -482,12 +488,16 @@ body[data-mode="tablet-wide"] .dots-rail {
 }
 
 body[data-mode="tablet-wide"] .main {
-  grid-template-areas: "left panel stack right";
+  display: flex;
+  justify-content: center;
+  position: relative;
+  padding-left: 0;
+  padding-right: 0;
 }
 
 body[data-mode="tablet-wide"] .panel {
-  grid-area: panel;
-  grid-column: unset;
+  /* Блок текста центрируется благодаря flex родителя */
+  position: relative;
 }
 
 body[data-mode="tablet-wide"] .text-box {
@@ -507,8 +517,10 @@ body[data-mode="tablet-wide"] .btn-next {
 }
 
 body[data-mode="tablet-wide"] .stack {
-  grid-area: stack;
-  grid-column: unset;
+  /* Позиционируем справа от текстового блока */
+  position: absolute;
+  left: 50%;
+  margin-left: calc(var(--text-box-width) / 2 + var(--gap-page));
 }
 
 body[data-mode="tablet-wide"] .header {
