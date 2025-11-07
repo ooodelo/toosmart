@@ -1,5 +1,9 @@
 const root = document.documentElement;
 const body = document.body;
+const initialMode = window.__INITIAL_MODE__;
+if (typeof initialMode === 'string') {
+  delete window.__INITIAL_MODE__;
+}
 const menuRail = document.querySelector('.menu-rail');
 const menuHandle = document.querySelector('.menu-handle');
 const siteMenu = document.querySelector('.site-menu');
@@ -11,44 +15,30 @@ const dotsRail = document.querySelector('.dots-rail');
 const sections = Array.from(document.querySelectorAll('.text-section'));
 const menuCap = document.querySelector('.menu-rail__cap');
 
-let currentMode = root.dataset.mode || body.dataset.mode || 'desktop';
+let currentMode = body.dataset.mode || initialMode || 'desktop';
 let activeSectionId = sections[0]?.id ?? null;
 let previousFocus = null;
 let trapListenerAttached = false;
 let observer = null;
 
 function detectMode() {
-  const width = window.innerWidth;
-  const height = window.innerHeight;
-  const portrait = height >= width;
-  const pointerFine = window.matchMedia('(any-pointer: fine)').matches;
-  const pointerCoarse = window.matchMedia('(any-pointer: coarse)').matches;
-  const hasTouch = pointerCoarse || navigator.maxTouchPoints > 0;
+  const width = window.innerWidth || root.clientWidth;
 
-  if (hasTouch && portrait && width <= 1100) {
+  if (width < 1024) {
     return 'handheld';
   }
 
-  if (width >= 1440) {
-    return 'desktop';
-  }
-
-  if (width >= 1280 && (pointerFine || !hasTouch)) {
-    return 'desktop';
-  }
-
-  if (width >= 1024) {
+  if (width <= 1366) {
     return 'tablet-wide';
   }
 
-  return 'handheld';
+  return 'desktop';
 }
 
 function updateMode() {
   const nextMode = detectMode();
   const prevMode = currentMode;
   currentMode = nextMode;
-  root.dataset.mode = nextMode;
   body.dataset.mode = nextMode;
 
   if (prevMode !== nextMode) {
