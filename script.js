@@ -714,17 +714,32 @@ window.toggleModeDebug = function (enable) {
 
   if (window.DEBUG_MODE_DETECTION) {
     console.log('[DEBUG] Mode detection logging enabled');
-    console.log('[DEBUG] Current mode:', currentMode);
-    console.log('[DEBUG] Viewport:', {
+    console.log('[DEBUG] Current stored mode:', currentMode);
+
+    // Показываем все источники ширины
+    const sources = {
       innerWidth: window.innerWidth,
-      innerHeight: window.innerHeight,
+      rootClientWidth: root?.clientWidth,
       outerWidth: window.outerWidth,
-      outerHeight: window.outerHeight,
       screenWidth: window.screen?.width,
-      screenHeight: window.screen?.height,
-    });
+    };
+    console.log('[DEBUG] Width sources:', sources);
+
+    // Показываем какой источник будет использован
+    const sourcesArray = [sources.innerWidth, sources.rootClientWidth, sources.outerWidth, sources.screenWidth];
+    let usedWidth = null;
+    for (const value of sourcesArray) {
+      if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+        usedWidth = value;
+        break;
+      }
+    }
+    console.log('[DEBUG] Width used for detection:', usedWidth);
+
     // Принудительно запускаем определение режима для вывода в консоль
-    detectMode();
+    const detectedMode = detectMode();
+    console.log('[DEBUG] Detected mode:', detectedMode);
+    console.log('[DEBUG] Mode mismatch:', currentMode !== detectedMode);
   } else {
     console.log('[DEBUG] Mode detection logging disabled');
   }
