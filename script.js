@@ -483,7 +483,8 @@ function initMenuLinks() {
         target.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
       if (currentMode !== 'desktop') {
-        closeMenu({ focusOrigin: menuHandle });
+        const origin = currentMode === 'handheld' ? dockHandle : menuHandle;
+        closeMenu({ focusOrigin: origin });
       }
     });
   });
