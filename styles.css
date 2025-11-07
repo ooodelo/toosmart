@@ -12,12 +12,12 @@
   --stack-width-tablet: clamp(280px, 30vw, 360px);
   --stack-width: var(--stack-width-desktop);
   --main-columns-desktop:
-    max(0px, calc(50vw - var(--gap-page) * 2 - var(--content-width-desktop) / 2))
-    var(--content-width-desktop)
+    max(0px, calc(50vw - var(--gap-page) - var(--text-box-width-desktop) / 2))
+    var(--text-box-width-desktop)
     minmax(0px, var(--stack-width-desktop));
   --main-columns-tablet:
-    max(0px, calc(50vw - var(--gap-page) * 2 - var(--content-width-tablet) / 2))
-    var(--content-width-tablet)
+    max(0px, calc(50vw - var(--gap-page) - var(--text-box-width-tablet) / 2))
+    var(--text-box-width-tablet)
     minmax(0px, var(--stack-width-tablet));
   --main-columns: var(--main-columns-desktop);
   --text-box-width-desktop: 680px;
@@ -230,7 +230,7 @@ body[data-input="pointer"].is-slid .menu-rail {
   display: grid;
   grid-template-columns: 1fr;
   align-items: start;
-  justify-items: center;
+  justify-items: start;
   position: relative;
 }
 
