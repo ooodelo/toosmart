@@ -127,12 +127,34 @@ function updateMode() {
   body.dataset.mode = nextMode;
 
   if (prevMode !== nextMode) {
+    // Полный сброс всех состояний при смене режима
     body.classList.remove('is-slid');
-    if (nextMode !== 'desktop' && body.classList.contains('menu-open')) {
-      closeMenu({ focusOrigin: null });
+    body.classList.remove('menu-open');
+
+    // Сброс атрибутов меню
+    if (siteMenu) {
+      siteMenu.removeAttribute('role');
+      siteMenu.removeAttribute('aria-modal');
     }
+
+    // Отключение trap
+    detachTrap();
+
+    // Обновление aria-expanded для всех handles
+    updateAriaExpanded(false);
+
+    // Восстановление фокуса если был сохранен
+    if (previousFocus && document.body.contains(previousFocus)) {
+      previousFocus.focus({ preventScroll: true });
+      previousFocus = null;
+    }
+
     configureDots();
+
+    // Принудительный reflow для применения изменений
+    void body.offsetHeight;
   }
+
   lockScroll();
   scheduleLayoutMetricsUpdate();
 }
@@ -331,6 +353,13 @@ function openMenu({ focusOrigin = menuHandle } = {}) {
     const targetFocus = focusable.find((el) => el !== focusOrigin) || siteMenu;
     requestAnimationFrame(() => targetFocus.focus({ preventScroll: true }));
     attachTrap();
+  } else {
+    // На desktop обновляем позицию dots после анимации меню
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        updateDotsPosition();
+      });
+    });
   }
   updateAriaExpanded(true);
   lockScroll();
@@ -349,6 +378,15 @@ function closeMenu({ focusOrigin = menuHandle } = {}) {
     previousFocus = null;
   } else if (focusOrigin && focusOrigin instanceof HTMLElement) {
     focusOrigin.focus({ preventScroll: true });
+  }
+
+  // На desktop обновляем позицию dots после анимации закрытия меню
+  if (currentMode === 'desktop') {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        updateDotsPosition();
+      });
+    });
   }
 }
 
@@ -407,14 +445,32 @@ function initMenuInteractions() {
   menuRail?.addEventListener('mouseenter', () => {
     if (currentMode !== 'desktop') return;
     body.classList.add('is-slid');
+    // Обновляем позицию dots после анимации slide
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        updateDotsPosition();
+      });
+    });
   });
   menuRail?.addEventListener('mouseleave', () => {
     if (currentMode !== 'desktop') return;
     body.classList.remove('is-slid');
+    // Обновляем позицию dots после анимации slide
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        updateDotsPosition();
+      });
+    });
   });
   menuRail?.addEventListener('focusin', () => {
     if (currentMode !== 'desktop') return;
     body.classList.add('is-slid');
+    // Обновляем позицию dots после анимации slide
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        updateDotsPosition();
+      });
+    });
   });
   menuRail?.addEventListener('focusout', (event) => {
     if (currentMode !== 'desktop') return;
@@ -422,14 +478,32 @@ function initMenuInteractions() {
     const next = event.relatedTarget;
     if (next && menuRail.contains(next)) return;
     body.classList.remove('is-slid');
+    // Обновляем позицию dots после анимации slide
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        updateDotsPosition();
+      });
+    });
   });
   panel?.addEventListener('mouseenter', () => {
     if (currentMode !== 'desktop') return;
     body.classList.remove('is-slid');
+    // Обновляем позицию dots после анимации slide
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        updateDotsPosition();
+      });
+    });
   });
   panel?.addEventListener('focusin', () => {
     if (currentMode !== 'desktop') return;
     body.classList.remove('is-slid');
+    // Обновляем позицию dots после анимации slide
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        updateDotsPosition();
+      });
+    });
   });
   dockHandle?.addEventListener('click', () => {
     if (currentMode !== 'handheld') return;
@@ -498,39 +572,86 @@ function init() {
   initMenuLinks();
   btnNext?.addEventListener('click', handleNext);
 
-  // Debounced resize handler для оптимизации производительности
-  const handleResize = debounce(() => {
-    const prevMode = currentMode;
-    updateMode();
-    if (currentMode !== prevMode && currentMode !== 'desktop') {
-      closeMenu({ focusOrigin: menuHandle });
+  let resizeRaf = null;
+
+  // Более быстрая обработка resize через RAF вместо debounce
+  const handleResize = () => {
+    if (resizeRaf !== null) {
+      cancelAnimationFrame(resizeRaf);
     }
-    if (currentMode === 'desktop') {
-      updateDotsPosition();
-      setupSectionObserver();
-    } else {
-      teardownObserver();
-    }
-    scheduleLayoutMetricsUpdate();
-  }, 150);
+
+    resizeRaf = requestAnimationFrame(() => {
+      resizeRaf = null;
+      const prevMode = currentMode;
+      updateMode();
+
+      if (prevMode !== currentMode) {
+        // При смене режима обновляем dots и observer
+        if (currentMode === 'desktop') {
+          updateDotsPosition();
+          setupSectionObserver();
+        } else {
+          teardownObserver();
+        }
+      } else if (currentMode === 'desktop') {
+        // Если режим не изменился, но мы в desktop - обновляем позицию dots
+        updateDotsPosition();
+      }
+
+      scheduleLayoutMetricsUpdate();
+    });
+  };
 
   window.addEventListener('resize', handleResize);
 
-  // Orientationchange без setTimeout - используем matchMedia для точности
+  // Orientationchange
   const handleOrientationChange = () => {
-    updateMode();
-    if (currentMode !== 'desktop') {
-      closeMenu({ focusOrigin: menuHandle });
-      teardownObserver();
-    }
-    if (currentMode === 'desktop') {
-      updateDotsPosition();
-      setupSectionObserver();
-    }
-    scheduleLayoutMetricsUpdate();
+    // Даем браузеру время обновить размеры перед проверкой
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        updateMode();
+
+        if (currentMode === 'desktop') {
+          updateDotsPosition();
+          setupSectionObserver();
+        } else {
+          teardownObserver();
+        }
+
+        scheduleLayoutMetricsUpdate();
+      });
+    });
   };
 
   window.addEventListener('orientationchange', handleOrientationChange);
+
+  // Добавляем обработку media queries для более точного отслеживания
+  if (window.matchMedia) {
+    const mql1024 = window.matchMedia('(min-width: 1024px)');
+    const mql1280 = window.matchMedia('(min-width: 1280px)');
+    const mql1440 = window.matchMedia('(min-width: 1440px)');
+
+    const handleMediaChange = () => {
+      requestAnimationFrame(() => {
+        const prevMode = currentMode;
+        updateMode();
+
+        if (prevMode !== currentMode) {
+          if (currentMode === 'desktop') {
+            updateDotsPosition();
+            setupSectionObserver();
+          } else {
+            teardownObserver();
+          }
+          scheduleLayoutMetricsUpdate();
+        }
+      });
+    };
+
+    mql1024.addEventListener('change', handleMediaChange);
+    mql1280.addEventListener('change', handleMediaChange);
+    mql1440.addEventListener('change', handleMediaChange);
+  }
 }
 
 init();

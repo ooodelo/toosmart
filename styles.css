@@ -4,16 +4,8 @@
   --stack-width-desktop: clamp(320px, 28vw, 420px);
   --stack-width-tablet: clamp(280px, 30vw, 360px);
   --stack-width: var(--stack-width-desktop);
-  --main-columns-desktop: minmax(
-      0,
-      max(0px, calc(50vw - var(--content-width) / 2 - var(--gap-page)))
-    )
-    var(--content-width) var(--stack-width-desktop) 1fr;
-  --main-columns-tablet: minmax(
-      0,
-      max(0px, calc(50vw - var(--content-width) / 2 - var(--gap-page)))
-    )
-    var(--content-width) var(--stack-width-tablet) 1fr;
+  --main-columns-desktop: 1fr var(--content-width) var(--stack-width-desktop) 1fr;
+  --main-columns-tablet: 1fr var(--content-width) var(--stack-width-tablet) 1fr;
   --main-columns: var(--main-columns-desktop);
   --text-box-width-desktop: 540px;
   --text-box-width-tablet: 540px;
@@ -232,6 +224,9 @@ body.is-slid .menu-rail {
   flex-direction: column;
   align-items: center;
   gap: 24px;
+  width: 100%;
+  max-width: var(--content-width);
+  justify-self: center;
 }
 
 body[data-mode="handheld"] .panel {
