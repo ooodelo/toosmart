@@ -10,3 +10,11 @@
 ## Notes
 - The scroll listener continues to run in all modes but exits early for non-desktop, which is harmless yet slightly wasteful. 【F:script.js†L277-L290】
 - If the number of `.text-section` elements changes dynamically, `configureDots()` is not called again, so the UI would desynchronize; static markup avoids the issue for now. 【F:script.js†L84-L107】
+
+# Audit: Grid Layout Tasks 6.1–6.3
+
+| ID | Requirement | Status | Findings |
+| --- | --- | --- | --- |
+| 6.1 | Grid columns update atomically per `data-mode` without CLS | ✅ | `.main` now reads its template from `--main-columns`, and each mode adjusts that variable instead of redefining the grid. Switching to tablet-wide updates the columns via the custom property, so the layout reflows in a single style recalculation. 【F:styles.css†L44-L53】【F:styles.css†L386-L404】 |
+| 6.2 | Remove media-query overrides that conflict with `data-mode` | ✅ | The previous `@media (max-width: 1023px)` override has been removed; handheld and tablet-wide layouts are controlled exclusively through attribute selectors, preventing the dual-control conflict. Only a `prefers-reduced-motion` query remains. 【F:styles.css†L419-L522】【F:styles.css†L526-L540】 |
+| 6.3 | Handheld stack column drops sticky behavior entirely | ✅ | In handheld mode the `.stack` column is set to `position: static` and `top: auto`, with width and padding adjusted for the single-column flow, so no sticky offset remains. 【F:styles.css†L419-L447】 |

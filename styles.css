@@ -1,6 +1,7 @@
 :root {
   color-scheme: light;
   --content-width: 540px;
+  --main-columns: 1fr var(--content-width) clamp(320px, 28vw, 420px) 1fr;
   --text-box-left: calc(50% - var(--content-width) / 2);
   --gap-page: 32px;
   --stack-gap: 20px;
@@ -54,7 +55,7 @@ html[data-lock="scroll"] {
 
 .main {
   display: grid;
-  grid-template-columns: 1fr var(--content-width) clamp(320px, 28vw, 420px) 1fr;
+  grid-template-columns: var(--main-columns);
   column-gap: var(--gap-page);
   padding: calc(var(--gap-page) * 1.5) var(--gap-page) calc(var(--gap-page) * 2);
 }
@@ -394,8 +395,8 @@ body[data-mode="desktop"] .dots-rail {
   display: flex;
 }
 
-body[data-mode="tablet-wide"] .main {
-  grid-template-columns: 1fr var(--content-width) clamp(280px, 30vw, 360px) 1fr;
+body[data-mode="tablet-wide"] {
+  --main-columns: 1fr var(--content-width) clamp(280px, 30vw, 360px) 1fr;
 }
 
 body[data-mode="tablet-wide"] .dots-rail {
@@ -446,6 +447,7 @@ body[data-mode="handheld"] .stack {
   margin-top: 16px;
   padding: var(--gap-page);
   max-height: none;
+  top: auto;
 }
 
 body[data-mode="handheld"] .stack-list {
