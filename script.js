@@ -1,3 +1,33 @@
+/**
+ * АРХИТЕКТУРА: Разделение режимов верстки и типов ввода
+ *
+ * 1. data-mode (Layout Mode) - режим верстки, зависит от ширины окна и touch-capability:
+ *    - 'handheld': < 1024px (мобильные телефоны, маленькие планшеты в портрете)
+ *    - 'tablet-wide': 1024-1439px non-touch ИЛИ >= 1024px touch (планшеты, touch-десктопы)
+ *    - 'desktop': >= 1440px non-touch (обычные десктопы)
+ *
+ *    Правило: Touch-устройства ВСЕГДА получают максимум tablet-wide, даже при 1920px.
+ *
+ * 2. data-input (Input Capabilities) - тип ввода, определяет интерактивность:
+ *    - 'touch': устройства с сенсорным вводом (свайпы, клики)
+ *    - 'pointer': устройства с мышью (hover-эффекты)
+ *
+ *    Используется ТОЛЬКО для rail menu интерактивности:
+ *    - handheld + touch: меню снизу, открывается тапом
+ *    - tablet-wide + touch: меню слева, открывается свайпом/тапом
+ *    - tablet-wide + pointer: меню слева, открывается hover
+ *    - desktop + pointer: меню слева, hover для slide
+ *
+ * Примеры:
+ *    iPhone 15 (393px, touch) → mode=handheld, input=touch
+ *    iPad Pro портрет (1024px, touch) → mode=tablet-wide, input=touch
+ *    iPad Pro ландшафт (1440px, touch) → mode=tablet-wide, input=touch (!)
+ *    Desktop 27" touch (1920px, touch) → mode=tablet-wide, input=touch (!)
+ *    Laptop 13" (1280px, pointer) → mode=tablet-wide, input=pointer
+ *    Desktop 27" (1920px, pointer) → mode=desktop, input=pointer
+ *    Dev Tools iPhone (375px, pointer) → mode=handheld, input=pointer (верстка правильная!)
+ */
+
 const root = document.documentElement;
 const body = document.body;
 const initialMode = window.__INITIAL_MODE__;
@@ -18,6 +48,7 @@ const sections = Array.from(document.querySelectorAll('.text-section'));
 const menuCap = document.querySelector('.menu-rail__cap');
 
 let currentMode = body.dataset.mode || initialMode || 'desktop';
+let currentInput = body.dataset.input || 'pointer';
 let activeSectionId = sections[0]?.id ?? null;
 let previousFocus = null;
 let trapListenerAttached = false;
@@ -46,52 +77,57 @@ function debounce(func, wait) {
   };
 }
 
-function classifyMode(width) {
-  // Определяем возможности устройства
-  const hasHover = window.matchMedia && window.matchMedia('(hover: hover)').matches;
-  const hasAnyCoarse = window.matchMedia && window.matchMedia('(any-pointer: coarse)').matches;
+/**
+ * Определяет тип ввода (input capability)
+ * @returns {'touch' | 'pointer'} - тип устройства ввода
+ */
+function detectInput() {
+  // Проверяем наличие сенсорного ввода
+  const hasCoarsePointer = window.matchMedia && window.matchMedia('(any-pointer: coarse)').matches;
   const hasTouchPoints = navigator.maxTouchPoints > 0;
-  const isTouchDevice = hasAnyCoarse || hasTouchPoints;
+  const isTouchDevice = hasCoarsePointer || hasTouchPoints;
 
-  // Определяем iPad (включая iPadOS 13+ которые притворяются Mac)
-  const ua = navigator.userAgent;
-  const isIpad = /iPad/.test(ua) || (/Macintosh/.test(ua) && hasTouchPoints);
+  if (window.DEBUG_MODE_DETECTION) {
+    console.log('[DEBUG] detectInput():', {
+      hasCoarsePointer,
+      hasTouchPoints,
+      result: isTouchDevice ? 'touch' : 'pointer',
+    });
+  }
+
+  return isTouchDevice ? 'touch' : 'pointer';
+}
+
+/**
+ * Классифицирует режим верстки на основе ширины и типа ввода
+ * @param {number} width - ширина viewport
+ * @returns {'handheld' | 'tablet-wide' | 'desktop'} - режим верстки
+ */
+function classifyMode(width) {
+  const isTouchDevice = detectInput() === 'touch';
 
   let mode;
 
-  if (width < 1024) {
-    mode = 'handheld';
-  } else if (width < 1440) {
-    // Диапазон 1024-1439px
-    // iPad всегда tablet-wide
-    if (isIpad) {
+  // Touch устройства: всегда максимум tablet-wide (даже при 1920px!)
+  if (isTouchDevice) {
+    mode = width < 1024 ? 'handheld' : 'tablet-wide';
+  }
+  // Non-touch устройства: полный диапазон режимов
+  else {
+    if (width < 1024) {
+      mode = 'handheld';
+    } else if (width < 1440) {
       mode = 'tablet-wide';
-    }
-    // Сенсорное устройство без hover → tablet-wide
-    else if (isTouchDevice && !hasHover) {
-      mode = 'tablet-wide';
-    }
-    // Desktop только при 1280+, с hover и без touch
-    else if (width >= 1280 && hasHover && !isTouchDevice) {
-      mode = 'desktop';
     } else {
-      mode = 'tablet-wide';
+      mode = 'desktop';
     }
-  } else {
-    // ≥1440px - iPad все равно tablet-wide
-    mode = isIpad ? 'tablet-wide' : 'desktop';
   }
 
-  if (DEBUG_MODE_DETECTION) {
-    console.log('[MODE DETECTION]', {
+  if (window.DEBUG_MODE_DETECTION) {
+    console.log('[DEBUG] classifyMode():', {
       width,
-      mode,
-      hasHover,
-      hasAnyCoarse,
-      hasTouchPoints,
       isTouchDevice,
-      isIpad,
-      userAgent: ua,
+      mode,
     });
   }
 
@@ -130,11 +166,30 @@ function scheduleLayoutMetricsUpdate() {
   });
 }
 
+/**
+ * Определяет режим верстки на основе текущей ширины viewport
+ * @returns {'handheld' | 'tablet-wide' | 'desktop'} - режим верстки
+ */
 function detectMode() {
-  const sources = [window.innerWidth, root?.clientWidth, window.outerWidth, window.screen?.width];
+  // Приоритет источников ширины:
+  // 1. visualViewport.width - самый точный, учитывает zoom и виртуальную клавиатуру
+  // 2. root.clientWidth - надежный для Safari Dev Tools
+  // 3. window.innerWidth - стандартный fallback
+  // 4. window.outerWidth - крайний fallback
+  // 5. screen.width - последний fallback
+  const sources = [
+    window.visualViewport?.width,
+    root?.clientWidth,
+    window.innerWidth,
+    window.outerWidth,
+    window.screen?.width,
+  ];
 
   for (const value of sources) {
     if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+      if (window.DEBUG_MODE_DETECTION) {
+        console.log('[DEBUG] detectMode() using width:', value);
+      }
       return classifyMode(value);
     }
   }
@@ -154,22 +209,44 @@ function detectMode() {
   return 'tablet-wide';
 }
 
+/**
+ * Обновляет режим верстки (data-mode) и тип ввода (data-input)
+ */
 function updateMode() {
   const nextMode = detectMode();
+  const nextInput = detectInput();
   const prevMode = currentMode;
-  currentMode = nextMode;
-  body.dataset.mode = nextMode;
+  const prevInput = currentInput;
 
-  if (DEBUG_MODE_DETECTION && prevMode !== nextMode) {
-    console.log('[MODE CHANGE]', {
-      from: prevMode,
-      to: nextMode,
-      viewport: {
-        innerWidth: window.innerWidth,
-        outerWidth: window.outerWidth,
-        screenWidth: window.screen?.width,
-      },
-    });
+  currentMode = nextMode;
+  currentInput = nextInput;
+  body.dataset.mode = nextMode;
+  body.dataset.input = nextInput;
+
+  if (window.DEBUG_MODE_DETECTION) {
+    if (prevMode !== nextMode || prevInput !== nextInput) {
+      console.log('[MODE CHANGE] 🔄', {
+        mode: { from: prevMode, to: nextMode },
+        input: { from: prevInput, to: nextInput },
+        viewport: {
+          visualViewportWidth: window.visualViewport?.width,
+          rootClientWidth: root?.clientWidth,
+          innerWidth: window.innerWidth,
+          outerWidth: window.outerWidth,
+          screenWidth: window.screen?.width,
+        },
+      });
+    } else {
+      console.log('[MODE UPDATE] ✓', {
+        mode: currentMode,
+        input: currentInput,
+        viewport: {
+          visualViewportWidth: window.visualViewport?.width,
+          rootClientWidth: root?.clientWidth,
+          innerWidth: window.innerWidth,
+        },
+      });
+    }
   }
 
   if (prevMode !== nextMode) {
@@ -713,33 +790,56 @@ window.toggleModeDebug = function (enable) {
   }
 
   if (window.DEBUG_MODE_DETECTION) {
-    console.log('[DEBUG] Mode detection logging enabled');
-    console.log('[DEBUG] Current stored mode:', currentMode);
+    console.log('[DEBUG] Mode detection logging enabled ✓');
+    console.log('[DEBUG] Current state:', {
+      mode: currentMode,
+      input: currentInput,
+    });
 
-    // Показываем все источники ширины
+    // Показываем все источники ширины (в порядке приоритета)
     const sources = {
-      innerWidth: window.innerWidth,
+      visualViewportWidth: window.visualViewport?.width,
       rootClientWidth: root?.clientWidth,
+      innerWidth: window.innerWidth,
       outerWidth: window.outerWidth,
       screenWidth: window.screen?.width,
     };
-    console.log('[DEBUG] Width sources:', sources);
+    console.log('[DEBUG] Width sources (priority order):', sources);
 
     // Показываем какой источник будет использован
-    const sourcesArray = [sources.innerWidth, sources.rootClientWidth, sources.outerWidth, sources.screenWidth];
+    const sourcesArray = [
+      sources.visualViewportWidth,
+      sources.rootClientWidth,
+      sources.innerWidth,
+      sources.outerWidth,
+      sources.screenWidth,
+    ];
     let usedWidth = null;
-    for (const value of sourcesArray) {
+    let usedSource = null;
+    const sourceNames = ['visualViewportWidth', 'rootClientWidth', 'innerWidth', 'outerWidth', 'screenWidth'];
+    for (let i = 0; i < sourcesArray.length; i++) {
+      const value = sourcesArray[i];
       if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
         usedWidth = value;
+        usedSource = sourceNames[i];
         break;
       }
     }
-    console.log('[DEBUG] Width used for detection:', usedWidth);
+    console.log('[DEBUG] Width used for detection:', usedWidth, `(from ${usedSource})`);
 
-    // Принудительно запускаем определение режима для вывода в консоль
+    // Принудительно запускаем определение для вывода в консоль
+    const detectedInput = detectInput();
     const detectedMode = detectMode();
-    console.log('[DEBUG] Detected mode:', detectedMode);
-    console.log('[DEBUG] Mode mismatch:', currentMode !== detectedMode);
+    console.log('[DEBUG] Detected state:', {
+      mode: detectedMode,
+      input: detectedInput,
+    });
+    console.log('[DEBUG] State mismatch:', {
+      mode: currentMode !== detectedMode,
+      input: currentInput !== detectedInput,
+    });
+
+    console.log('[DEBUG] Now resize the window to see automatic mode/input changes...');
   } else {
     console.log('[DEBUG] Mode detection logging disabled');
   }
