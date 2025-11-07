@@ -4,6 +4,15 @@
   --main-columns-desktop: 1fr var(--content-width) clamp(320px, 28vw, 420px) 1fr;
   --main-columns-tablet: 1fr var(--content-width) clamp(280px, 30vw, 360px) 1fr;
   --main-columns: var(--main-columns-desktop);
+  --text-box-width-desktop: 540px;
+  --text-box-width-tablet: 540px;
+  --text-box-width-handheld: max(
+    280px,
+    calc(
+      100vw - var(--gap-page) * 2 - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)
+    )
+  );
+  --text-box-width: var(--text-box-width-desktop);
   --text-box-left: calc(50% - var(--content-width) / 2);
   --gap-page: 32px;
   --stack-gap: 20px;
@@ -21,6 +30,7 @@
   --surface-alt: #ededed;
   --text-color: #222;
   --handheld-dock: 64px;
+  --handheld-dock-footprint: calc(var(--handheld-dock) + env(safe-area-inset-bottom, 0px));
 }
 
 * {
@@ -41,6 +51,7 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  --text-box-width: var(--text-box-width-desktop);
 }
 
 html {
@@ -208,16 +219,20 @@ body.is-slid .menu-rail {
   background: #fff;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
+  align-items: center;
   gap: 24px;
 }
 
+body[data-mode="handheld"] .panel {
+  align-items: stretch;
+}
+
 .text-box {
+  width: min(100%, var(--text-box-width, var(--content-width)));
   max-width: var(--content-width);
-  width: 100%;
   position: relative;
   background: #fff;
-  margin: 0 auto;
+  margin-inline: auto;
 }
 
 .text-box__intro {
@@ -365,14 +380,21 @@ body.menu-open .backdrop {
   display: none;
   align-items: center;
   justify-content: center;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding: 0 env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px)
+    env(safe-area-inset-left, 0px);
   z-index: 1600;
 }
 
 .dock-handle {
-  padding: 12px 24px;
+  width: 100%;
+  height: 100%;
+  padding: 0 24px;
   font-weight: 600;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px 16px 0 0;
 }
 
 body.is-slid .header,
@@ -400,6 +422,7 @@ body[data-mode="desktop"] .dots-rail {
 
 body[data-mode="desktop"] {
   --main-columns: var(--main-columns-desktop);
+  --text-box-width: var(--text-box-width-desktop);
 }
 
 body[data-mode="desktop"] .main {
@@ -429,6 +452,7 @@ body[data-mode="desktop"] .stack {
 
 body[data-mode="tablet-wide"] {
   --main-columns: var(--main-columns-tablet);
+  --text-box-width: var(--text-box-width-tablet);
 }
 
 body[data-mode="tablet-wide"] .dots-rail {
@@ -476,7 +500,7 @@ body[data-mode="tablet-wide"].menu-open .header {
 body[data-mode="handheld"] .main {
   display: flex;
   flex-direction: column;
-  padding-bottom: calc(var(--gap-page) + var(--btn-next-footprint) + var(--handheld-dock) + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(var(--gap-page) + var(--btn-next-footprint) + var(--handheld-dock-footprint));
 }
 
 body[data-mode="handheld"] .panel,
@@ -509,6 +533,10 @@ body[data-mode="handheld"] .stack {
   align-self: stretch;
 }
 
+body[data-mode="handheld"] {
+  --text-box-width: var(--text-box-width-handheld);
+}
+
 body[data-mode="handheld"] .stack-list {
   max-height: none;
 }
@@ -518,12 +546,15 @@ body[data-mode="handheld"] .dots-rail {
 }
 
 body[data-mode="handheld"] .menu-rail {
-  width: min(100vw, 420px);
+  width: min(
+    calc(100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)),
+    420px
+  );
   border-radius: 20px 20px 0 0;
-  bottom: auto;
+  bottom: var(--handheld-dock-footprint);
   top: auto;
-  height: min(100svh, 100dvh);
-  transform: translate(-50%, 100%);
+  height: calc(min(100svh, 100dvh) - var(--handheld-dock-footprint));
+  transform: translate3d(-50%, 100%, 0);
   left: 50%;
   right: auto;
   pointer-events: none;
@@ -553,7 +584,7 @@ body[data-mode="handheld"] .menu-rail__cap::after {
 
 body[data-mode="handheld"].menu-open .menu-rail,
 body[data-mode="handheld"].is-slid .menu-rail {
-  transform: translate(-50%, 0);
+  transform: translate3d(-50%, 0, 0);
   pointer-events: auto;
 }
 
@@ -563,6 +594,7 @@ body[data-mode="handheld"] .menu-handle {
 
 body[data-mode="handheld"] .site-menu {
   height: 100%;
+  flex: 1 1 auto;
 }
 
 body[data-mode="handheld"] .dock {
