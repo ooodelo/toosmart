@@ -1,22 +1,24 @@
 :root {
   color-scheme: light;
-  --content-width: 540px;
-  --stack-width-desktop: clamp(320px, 28vw, 420px);
-  --stack-width-tablet: clamp(280px, 30vw, 360px);
-  --stack-width: var(--stack-width-desktop);
-  --main-columns-desktop: 1fr var(--content-width) var(--stack-width-desktop) 1fr;
-  --main-columns-tablet: 1fr var(--content-width) var(--stack-width-tablet) 1fr;
-  --main-columns: var(--main-columns-desktop);
-  --text-box-width-desktop: 540px;
-  --text-box-width-tablet: 540px;
-  --text-box-width-handheld: max(
+  --content-width-desktop: 680px;
+  --content-width-tablet: 540px;
+  --content-width-handheld: max(
     280px,
     calc(
       100vw - var(--gap-page) * 2 - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)
     )
   );
+  --stack-width-desktop: clamp(320px, 28vw, 420px);
+  --stack-width-tablet: clamp(280px, 30vw, 360px);
+  --stack-width: var(--stack-width-desktop);
+  --main-columns-desktop: 1fr var(--content-width-desktop) var(--stack-width-desktop) 1fr;
+  --main-columns-tablet: 1fr var(--content-width-tablet) var(--stack-width-tablet) 1fr;
+  --main-columns: var(--main-columns-desktop);
+  --text-box-width-desktop: 680px;
+  --text-box-width-tablet: 540px;
+  --text-box-width-handheld: var(--content-width-handheld);
   --text-box-width: var(--text-box-width-desktop);
-  --text-box-left: calc(50vw - var(--content-width) / 2);
+  --text-box-left: calc(50vw - var(--content-width-desktop) / 2);
   --gap-page: 32px;
   --stack-gap: 20px;
   --rail-closed: 70px;
@@ -54,7 +56,6 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  --text-box-width: var(--text-box-width-desktop);
 }
 
 html {
@@ -224,9 +225,6 @@ body[data-input="pointer"].is-slid .menu-rail {
   flex-direction: column;
   align-items: center;
   gap: 24px;
-  width: 100%;
-  max-width: var(--content-width);
-  justify-self: center;
 }
 
 body[data-mode="handheld"] .panel {
@@ -234,8 +232,8 @@ body[data-mode="handheld"] .panel {
 }
 
 .text-box {
-  width: min(100%, var(--text-box-width, var(--content-width)));
-  max-width: var(--content-width);
+  width: 100%;
+  max-width: var(--text-box-width);
   position: relative;
   background: #fff;
   margin-inline: auto;
@@ -430,6 +428,7 @@ body[data-mode="desktop"] {
   --main-columns: var(--main-columns-desktop);
   --text-box-width: var(--text-box-width-desktop);
   --stack-width: var(--stack-width-desktop);
+  --text-box-left: calc(50vw - var(--content-width-desktop) / 2);
 }
 
 body[data-mode="desktop"] .main {
@@ -461,6 +460,7 @@ body[data-mode="tablet-wide"] {
   --main-columns: var(--main-columns-tablet);
   --text-box-width: var(--text-box-width-tablet);
   --stack-width: var(--stack-width-tablet);
+  --text-box-left: calc(50vw - var(--content-width-tablet) / 2);
 }
 
 body[data-mode="tablet-wide"] .dots-rail {
