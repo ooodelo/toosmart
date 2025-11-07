@@ -11,8 +11,10 @@
   --stack-width-desktop: clamp(320px, 28vw, 420px);
   --stack-width-tablet: clamp(280px, 30vw, 360px);
   --stack-width: var(--stack-width-desktop);
-  --main-columns-desktop: 1fr var(--content-width-desktop) var(--stack-width-desktop) 1fr;
-  --main-columns-tablet: 1fr var(--content-width-tablet) var(--stack-width-tablet) 1fr;
+  --panel-width-desktop: 800px;
+  --panel-width-tablet: 660px;
+  --main-columns-desktop: 1fr var(--panel-width-desktop) var(--stack-width-desktop) 1fr;
+  --main-columns-tablet: 1fr var(--panel-width-tablet) var(--stack-width-tablet) 1fr;
   --main-columns: var(--main-columns-desktop);
   --text-box-width-desktop: 680px;
   --text-box-width-tablet: 540px;
@@ -239,7 +241,6 @@ body[data-mode="handheld"] .text-box {
   max-width: var(--text-box-width);
   position: relative;
   background: #fff;
-  margin-inline: auto;
 }
 
 .text-box__intro {
