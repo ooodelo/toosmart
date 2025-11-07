@@ -23,6 +23,10 @@ let previousFocus = null;
 let trapListenerAttached = false;
 let observer = null;
 let dotsPositionRaf = null;
+
+// Debug mode: установите в true для вывода информации о режимах в консоль
+// Включите в Safari Dev Tools: window.DEBUG_MODE_DETECTION = true
+const DEBUG_MODE_DETECTION = window.DEBUG_MODE_DETECTION || false;
 let layoutMetricsRaf = null;
 
 function parseCssNumber(value) {
@@ -43,25 +47,55 @@ function debounce(func, wait) {
 }
 
 function classifyMode(width) {
-  // Проверяем тип указателя для точного определения режима
-  const hasPointerFine = window.matchMedia && window.matchMedia('(pointer: fine)').matches;
-  const hasPointerCoarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+  // Определяем возможности устройства
+  const hasHover = window.matchMedia && window.matchMedia('(hover: hover)').matches;
+  const hasAnyCoarse = window.matchMedia && window.matchMedia('(any-pointer: coarse)').matches;
+  const hasTouchPoints = navigator.maxTouchPoints > 0;
+  const isTouchDevice = hasAnyCoarse || hasTouchPoints;
+
+  // Определяем iPad (включая iPadOS 13+ которые притворяются Mac)
+  const ua = navigator.userAgent;
+  const isIpad = /iPad/.test(ua) || (/Macintosh/.test(ua) && hasTouchPoints);
+
+  let mode;
 
   if (width < 1024) {
-    return 'handheld';
-  }
-
-  if (width < 1440) {
+    mode = 'handheld';
+  } else if (width < 1440) {
     // Диапазон 1024-1439px
-    // Desktop при 1280+ с pointer:fine, иначе tablet-wide
-    if (width >= 1280 && hasPointerFine && !hasPointerCoarse) {
-      return 'desktop';
+    // iPad всегда tablet-wide
+    if (isIpad) {
+      mode = 'tablet-wide';
     }
-    return 'tablet-wide';
+    // Сенсорное устройство без hover → tablet-wide
+    else if (isTouchDevice && !hasHover) {
+      mode = 'tablet-wide';
+    }
+    // Desktop только при 1280+, с hover и без touch
+    else if (width >= 1280 && hasHover && !isTouchDevice) {
+      mode = 'desktop';
+    } else {
+      mode = 'tablet-wide';
+    }
+  } else {
+    // ≥1440px - iPad все равно tablet-wide
+    mode = isIpad ? 'tablet-wide' : 'desktop';
   }
 
-  // ≥1440px всегда desktop
-  return 'desktop';
+  if (DEBUG_MODE_DETECTION) {
+    console.log('[MODE DETECTION]', {
+      width,
+      mode,
+      hasHover,
+      hasAnyCoarse,
+      hasTouchPoints,
+      isTouchDevice,
+      isIpad,
+      userAgent: ua,
+    });
+  }
+
+  return mode;
 }
 
 function updateLayoutMetrics() {
@@ -125,6 +159,18 @@ function updateMode() {
   const prevMode = currentMode;
   currentMode = nextMode;
   body.dataset.mode = nextMode;
+
+  if (DEBUG_MODE_DETECTION && prevMode !== nextMode) {
+    console.log('[MODE CHANGE]', {
+      from: prevMode,
+      to: nextMode,
+      viewport: {
+        innerWidth: window.innerWidth,
+        outerWidth: window.outerWidth,
+        screenWidth: window.screen?.width,
+      },
+    });
+  }
 
   if (prevMode !== nextMode) {
     // Полный сброс всех состояний при смене режима
@@ -657,3 +703,24 @@ function init() {
 init();
 scheduleLayoutMetricsUpdate();
 window.addEventListener('load', scheduleLayoutMetricsUpdate);
+
+// Глобальная функция для отладки режимов
+window.toggleModeDebug = function (enable) {
+  if (typeof enable === 'boolean') {
+    window.DEBUG_MODE_DETECTION = enable;
+  } else {
+    window.DEBUG_MODE_DETECTION = !window.DEBUG_MODE_DETECTION;
+  }
+  console.log(`[DEBUG] Mode detection logging ${window.DEBUG_MODE_DETECTION ? 'enabled' : 'disabled'}`);
+  console.log('[DEBUG] Current mode:', currentMode);
+  console.log('[DEBUG] Viewport:', {
+    innerWidth: window.innerWidth,
+    innerHeight: window.innerHeight,
+    outerWidth: window.outerWidth,
+    outerHeight: window.outerHeight,
+    screenWidth: window.screen?.width,
+    screenHeight: window.screen?.height,
+  });
+  // Принудительно запускаем определение режима для вывода в консоль
+  detectMode();
+};
