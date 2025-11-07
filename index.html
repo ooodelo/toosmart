@@ -2,7 +2,7 @@
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:;" />
     <title>UI-каркас адаптивов</title>
     <script>
@@ -13,11 +13,39 @@
         function detectInitialMode() {
           var w = window.innerWidth || r.clientWidth;
 
+          // Определяем возможности устройства
+          var hasHover = window.matchMedia && window.matchMedia('(hover: hover)').matches;
+          var hasAnyCoarse = window.matchMedia && window.matchMedia('(any-pointer: coarse)').matches;
+          var hasTouchPoints = navigator.maxTouchPoints > 0;
+          var isTouchDevice = hasAnyCoarse || hasTouchPoints;
+
+          // Определяем iPad (включая iPadOS 13+ которые притворяются Mac)
+          var ua = navigator.userAgent;
+          var isIpad = (/iPad/.test(ua) || (/Macintosh/.test(ua) && hasTouchPoints));
+
           if (w < 1024) {
             return 'handheld';
           }
 
-          if (w <= 1366) {
+          if (w < 1440) {
+            // Диапазон 1024-1439px
+            // iPad всегда tablet-wide
+            if (isIpad) {
+              return 'tablet-wide';
+            }
+            // Сенсорное устройство без hover → tablet-wide
+            if (isTouchDevice && !hasHover) {
+              return 'tablet-wide';
+            }
+            // Desktop только при 1280+, с hover и без touch
+            if (w >= 1280 && hasHover && !isTouchDevice) {
+              return 'desktop';
+            }
+            return 'tablet-wide';
+          }
+
+          // ≥1440px - iPad все равно tablet-wide
+          if (isIpad) {
             return 'tablet-wide';
           }
 
