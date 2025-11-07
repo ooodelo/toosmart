@@ -273,12 +273,7 @@ body.is-slid .menu-rail {
 }
 
 .btn-next {
-  grid-column: 2;
-  position: sticky;
-  bottom: 24px;
-  margin-top: 24px;
-  margin-left: auto;
-  margin-right: max(0px, (100% - var(--content-width)) / 2);
+  /* Базовые стили кнопки без позиционирования */
   padding: 12px 24px;
   background: var(--surface-alt);
   cursor: pointer;
@@ -286,6 +281,10 @@ body.is-slid .menu-rail {
   align-items: center;
   justify-content: center;
   font-size: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+
+  /* Позиционирование задаётся в режимах */
 }
 
 .stack {
@@ -395,12 +394,62 @@ body[data-mode="desktop"] .dots-rail {
   display: flex;
 }
 
+body[data-mode="desktop"] .main {
+  grid-template-areas: "left panel stack right";
+}
+
+body[data-mode="desktop"] .panel {
+  grid-area: panel;
+  grid-column: unset; /* Отменяем явное grid-column: 2 */
+}
+
+body[data-mode="desktop"] .btn-next {
+  grid-area: panel;
+  grid-column: unset;
+  align-self: end;
+  justify-self: end;
+  position: sticky;
+  bottom: 24px;
+  z-index: 10; /* Поверх текста при наложении */
+}
+
+body[data-mode="desktop"] .stack {
+  grid-area: stack;
+  grid-column: unset; /* Отменяем явное grid-column: 3 */
+  grid-row: 1; /* Гарантируем первую строку */
+}
+
 body[data-mode="tablet-wide"] {
   --main-columns: 1fr var(--content-width) clamp(280px, 30vw, 360px) 1fr;
 }
 
 body[data-mode="tablet-wide"] .dots-rail {
   display: none;
+}
+
+body[data-mode="tablet-wide"] .main {
+  grid-template-areas: "left panel stack right";
+}
+
+body[data-mode="tablet-wide"] .panel {
+  grid-area: panel;
+  grid-column: unset;
+}
+
+body[data-mode="tablet-wide"] .btn-next {
+  grid-area: panel;
+  grid-column: unset;
+  align-self: end;
+  justify-self: end;
+  position: sticky;
+  bottom: 24px;
+  z-index: 10;
+}
+
+body[data-mode="tablet-wide"] .stack {
+  grid-area: stack;
+  grid-column: unset;
+  grid-row: 1;
 }
 
 body[data-mode="tablet-wide"] .header {
