@@ -1,6 +1,7 @@
 :root {
   color-scheme: light;
   --content-width: 540px;
+  --text-box-left: calc(50% - var(--content-width) / 2);
   --gap-page: 32px;
   --stack-gap: 20px;
   --rail-closed: 70px;
@@ -242,9 +243,9 @@ body.is-slid .menu-rail {
 .dots-rail {
   position: fixed;
   top: 50%;
-  left: calc(50% - var(--content-width) / 2 - 48px);
+  left: calc(var(--text-box-left) - 48px);
   transform: translateY(-50%);
-  display: flex;
+  display: none;
   flex-direction: column;
   gap: 12px;
   padding: 12px;

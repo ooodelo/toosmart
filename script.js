@@ -5,6 +5,7 @@ if (typeof initialMode === 'string') {
   delete window.__INITIAL_MODE__;
 }
 const menuRail = document.querySelector('.menu-rail');
+const header = document.querySelector('.header');
 const menuHandle = document.querySelector('.menu-handle');
 const siteMenu = document.querySelector('.site-menu');
 const backdrop = document.querySelector('.backdrop');
@@ -12,6 +13,7 @@ const dockHandle = document.querySelector('.dock-handle');
 const panel = document.querySelector('.panel');
 const btnNext = document.querySelector('.btn-next');
 const dotsRail = document.querySelector('.dots-rail');
+const textBox = document.querySelector('.text-box');
 const sections = Array.from(document.querySelectorAll('.text-section'));
 const menuCap = document.querySelector('.menu-rail__cap');
 
@@ -20,6 +22,7 @@ let activeSectionId = sections[0]?.id ?? null;
 let previousFocus = null;
 let trapListenerAttached = false;
 let observer = null;
+let dotsPositionRaf = null;
 
 function detectMode() {
   const width = window.innerWidth || root.clientWidth;
@@ -51,13 +54,44 @@ function updateMode() {
   lockScroll();
 }
 
-function configureDots() {
-  dotsRail.innerHTML = '';
-  if (currentMode !== 'desktop' || sections.length < 2) {
-    observer?.disconnect();
+function teardownObserver() {
+  if (observer) {
+    observer.disconnect();
     observer = null;
+  }
+}
+
+function updateDotsPosition() {
+  if (!dotsRail || !textBox) return;
+  if (currentMode !== 'desktop') {
+    if (dotsPositionRaf !== null) {
+      cancelAnimationFrame(dotsPositionRaf);
+      dotsPositionRaf = null;
+    }
+    root.style.removeProperty('--text-box-left');
     return;
   }
+  if (dotsPositionRaf !== null) {
+    cancelAnimationFrame(dotsPositionRaf);
+  }
+  dotsPositionRaf = requestAnimationFrame(() => {
+    const rect = textBox.getBoundingClientRect();
+    root.style.setProperty('--text-box-left', `${rect.left}px`);
+    dotsPositionRaf = null;
+  });
+}
+
+function configureDots() {
+  if (!dotsRail) return;
+  dotsRail.innerHTML = '';
+  const shouldEnable = currentMode === 'desktop' && sections.length >= 2;
+  dotsRail.hidden = !shouldEnable;
+  if (!shouldEnable) {
+    updateDotsPosition();
+    teardownObserver();
+    return;
+  }
+  updateDotsPosition();
   sections.forEach((section) => {
     const dot = document.createElement('button');
     dot.type = 'button';
@@ -73,24 +107,23 @@ function configureDots() {
 }
 
 function setupSectionObserver() {
-  observer?.disconnect();
+  teardownObserver();
   if (currentMode !== 'desktop' || sections.length < 2) {
-    observer = null;
     return;
   }
+  const headerHeight = header?.offsetHeight ?? 0;
   observer = new IntersectionObserver(
-    (entries) => {
-      const visible = entries
-        .filter((entry) => entry.isIntersecting)
-        .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
-      if (visible.length > 0) {
-        setActiveSection(visible[0].target.id);
+    () => {
+      const index = getCurrentSectionIndex();
+      const current = sections[index];
+      if (current) {
+        setActiveSection(current.id);
       }
     },
     {
       root: null,
-      threshold: [0.2, 0.5, 0.75],
-      rootMargin: '-30% 0px -50% 0px',
+      threshold: [0, 0.25, 0.5, 0.75, 1],
+      rootMargin: `-${headerHeight}px 0px -35% 0px`,
     }
   );
   sections.forEach((section) => observer.observe(section));
@@ -118,7 +151,10 @@ function updateActiveDot() {
 function getCurrentSectionIndex() {
   let bestIndex = 0;
   let bestDistance = Number.POSITIVE_INFINITY;
-  const probeY = window.innerHeight * 0.35;
+  const viewportHeight = window.innerHeight || root.clientHeight;
+  const headerHeight = header?.offsetHeight ?? 0;
+  const availableHeight = Math.max(0, viewportHeight - headerHeight);
+  const probeY = headerHeight + availableHeight * 0.35;
   sections.forEach((section, index) => {
     const rect = section.getBoundingClientRect();
     if (rect.top <= probeY && rect.bottom >= probeY) {
@@ -126,7 +162,7 @@ function getCurrentSectionIndex() {
       bestDistance = -1;
       return;
     }
-    const distance = Math.abs(rect.top - probeY);
+    const distance = rect.top > probeY ? rect.top - probeY : probeY - rect.bottom;
     if (distance < bestDistance) {
       bestDistance = distance;
       bestIndex = index;
@@ -240,19 +276,18 @@ function lockScroll() {
 
 function initDots() {
   configureDots();
-  window.addEventListener('scroll', () => {
-    if (currentMode !== 'desktop') return;
-    const sorted = sections
-      .map((section) => ({
-        id: section.id,
-        rect: section.getBoundingClientRect(),
-      }))
-      .filter((item) => item.rect.top < window.innerHeight * 0.6 && item.rect.bottom > window.innerHeight * 0.3)
-      .sort((a, b) => a.rect.top - b.rect.top);
-    if (sorted.length > 0) {
-      setActiveSection(sorted[0].id);
-    }
-  });
+  window.addEventListener(
+    'scroll',
+    () => {
+      if (currentMode !== 'desktop') return;
+      const index = getCurrentSectionIndex();
+      const current = sections[index];
+      if (current) {
+        setActiveSection(current.id);
+      }
+    },
+    { passive: true }
+  );
 }
 
 function handleNext() {
@@ -347,12 +382,23 @@ function init() {
     if (currentMode !== prevMode && currentMode !== 'desktop') {
       closeMenu({ focusOrigin: menuHandle });
     }
+    if (currentMode === 'desktop') {
+      updateDotsPosition();
+      setupSectionObserver();
+    } else {
+      teardownObserver();
+    }
   });
   window.addEventListener('orientationchange', () => {
     setTimeout(() => {
       updateMode();
       if (currentMode !== 'desktop') {
         closeMenu({ focusOrigin: menuHandle });
+        teardownObserver();
+      }
+      if (currentMode === 'desktop') {
+        updateDotsPosition();
+        setupSectionObserver();
       }
     }, 100);
   });
