@@ -1,7 +1,7 @@
 :root {
   color-scheme: light;
-  --content-width-desktop: 680px;
-  --content-width-tablet: 540px;
+  --content-width-desktop: 800px;
+  --content-width-tablet: 660px;
   --content-width-handheld: max(
     280px,
     calc(
