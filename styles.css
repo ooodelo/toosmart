@@ -231,8 +231,11 @@ body[data-mode="handheld"] .panel {
   align-items: stretch;
 }
 
-.text-box {
+body[data-mode="handheld"] .text-box {
   width: 100%;
+}
+
+.text-box {
   max-width: var(--text-box-width);
   position: relative;
   background: #fff;
