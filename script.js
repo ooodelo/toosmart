@@ -30,13 +30,37 @@ function parseCssNumber(value) {
   return Number.isFinite(result) ? result : 0;
 }
 
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
 function classifyMode(width) {
+  // Проверяем тип указателя для точного определения режима
+  const hasPointerFine = window.matchMedia && window.matchMedia('(pointer: fine)').matches;
+  const hasPointerCoarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+
   if (width < 1024) {
     return 'handheld';
   }
-  if (width <= 1366) {
+
+  if (width < 1440) {
+    // Диапазон 1024-1439px
+    // Desktop при 1280+ с pointer:fine, иначе tablet-wide
+    if (width >= 1280 && hasPointerFine && !hasPointerCoarse) {
+      return 'desktop';
+    }
     return 'tablet-wide';
   }
+
+  // ≥1440px всегда desktop
   return 'desktop';
 }
 
@@ -83,7 +107,7 @@ function detectMode() {
 
   const mediaFallbacks = [
     ['handheld', '(max-width: 1023px)'],
-    ['tablet-wide', '(min-width: 1024px) and (max-width: 1366px)'],
+    ['tablet-wide', '(min-width: 1024px) and (max-width: 1439px)'],
     ['desktop', '(min-width: 1440px)'],
   ];
 
@@ -117,6 +141,17 @@ function teardownObserver() {
   if (observer) {
     observer.disconnect();
     observer = null;
+  }
+
+  // Отменяем все pending RAF для предотвращения утечек памяти
+  if (dotsPositionRaf !== null) {
+    cancelAnimationFrame(dotsPositionRaf);
+    dotsPositionRaf = null;
+  }
+
+  if (layoutMetricsRaf !== null) {
+    cancelAnimationFrame(layoutMetricsRaf);
+    layoutMetricsRaf = null;
   }
 }
 
@@ -167,9 +202,17 @@ function configureDots() {
 
 function setupSectionObserver() {
   teardownObserver();
+
+  // Проверка поддержки IntersectionObserver
+  if (!('IntersectionObserver' in window)) {
+    console.warn('IntersectionObserver not supported, dots navigation may not update automatically');
+    return;
+  }
+
   if (currentMode !== 'desktop' || sections.length < 2) {
     return;
   }
+
   const headerHeight = header?.offsetHeight ?? 0;
   observer = new IntersectionObserver(
     () => {
@@ -348,18 +391,7 @@ function lockScroll() {
 
 function initDots() {
   configureDots();
-  window.addEventListener(
-    'scroll',
-    () => {
-      if (currentMode !== 'desktop') return;
-      const index = getCurrentSectionIndex();
-      const current = sections[index];
-      if (current) {
-        setActiveSection(current.id);
-      }
-    },
-    { passive: true }
-  );
+  // IntersectionObserver уже обрабатывает активную секцию, scroll handler не нужен
 }
 
 function handleNext() {
@@ -423,7 +455,22 @@ function initMenuInteractions() {
 }
 
 function initGestures() {
-  // Жесты отключены для тестирования реакций по клику и hover на подписи ручки меню.
+  // Временная реализация жестов через клики/ховеры
+  // TODO: Реализовать настоящие touch events для production
+
+  // Edge-swipe для Tablet-Wide: клик по левому краю экрана (временная замена)
+  if (currentMode === 'tablet-wide') {
+    const edgeZoneWidth = 30; // px от левого края
+    document.addEventListener('click', (e) => {
+      if (currentMode !== 'tablet-wide') return;
+      if (e.clientX <= edgeZoneWidth && !body.classList.contains('menu-open')) {
+        openMenu({ focusOrigin: menuHandle });
+      }
+    });
+  }
+
+  // Для handheld открытие/закрытие уже работает через dock-handle и menu-cap клики
+  // Эти обработчики находятся в initMenuInteractions
 }
 
 function initMenuLinks() {
@@ -449,7 +496,9 @@ function init() {
   initGestures();
   initMenuLinks();
   btnNext?.addEventListener('click', handleNext);
-  window.addEventListener('resize', () => {
+
+  // Debounced resize handler для оптимизации производительности
+  const handleResize = debounce(() => {
     const prevMode = currentMode;
     updateMode();
     if (currentMode !== prevMode && currentMode !== 'desktop') {
@@ -462,21 +511,25 @@ function init() {
       teardownObserver();
     }
     scheduleLayoutMetricsUpdate();
-  });
-  window.addEventListener('orientationchange', () => {
-    setTimeout(() => {
-      updateMode();
-      if (currentMode !== 'desktop') {
-        closeMenu({ focusOrigin: menuHandle });
-        teardownObserver();
-      }
-      if (currentMode === 'desktop') {
-        updateDotsPosition();
-        setupSectionObserver();
-      }
-      scheduleLayoutMetricsUpdate();
-    }, 100);
-  });
+  }, 150);
+
+  window.addEventListener('resize', handleResize);
+
+  // Orientationchange без setTimeout - используем matchMedia для точности
+  const handleOrientationChange = () => {
+    updateMode();
+    if (currentMode !== 'desktop') {
+      closeMenu({ focusOrigin: menuHandle });
+      teardownObserver();
+    }
+    if (currentMode === 'desktop') {
+      updateDotsPosition();
+      setupSectionObserver();
+    }
+    scheduleLayoutMetricsUpdate();
+  };
+
+  window.addEventListener('orientationchange', handleOrientationChange);
 }
 
 init();
