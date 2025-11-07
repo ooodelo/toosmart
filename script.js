@@ -131,10 +131,15 @@ function scheduleLayoutMetricsUpdate() {
 }
 
 function detectMode() {
-  const sources = [window.innerWidth, root?.clientWidth, window.outerWidth, window.screen?.width];
+  // root.clientWidth - самый надежный источник для Safari Dev Tools
+  // window.innerWidth может быть некорректным при эмуляции
+  const sources = [root?.clientWidth, window.innerWidth, window.outerWidth, window.screen?.width];
 
   for (const value of sources) {
     if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+      if (window.DEBUG_MODE_DETECTION) {
+        console.log('[DEBUG] detectMode() using width:', value);
+      }
       return classifyMode(value);
     }
   }
@@ -160,16 +165,27 @@ function updateMode() {
   currentMode = nextMode;
   body.dataset.mode = nextMode;
 
-  if (DEBUG_MODE_DETECTION && prevMode !== nextMode) {
-    console.log('[MODE CHANGE]', {
-      from: prevMode,
-      to: nextMode,
-      viewport: {
-        innerWidth: window.innerWidth,
-        outerWidth: window.outerWidth,
-        screenWidth: window.screen?.width,
-      },
-    });
+  if (window.DEBUG_MODE_DETECTION) {
+    if (prevMode !== nextMode) {
+      console.log('[MODE CHANGE] 🔄', {
+        from: prevMode,
+        to: nextMode,
+        viewport: {
+          rootClientWidth: root?.clientWidth,
+          innerWidth: window.innerWidth,
+          outerWidth: window.outerWidth,
+          screenWidth: window.screen?.width,
+        },
+      });
+    } else {
+      console.log('[MODE UPDATE] ✓', {
+        mode: currentMode,
+        viewport: {
+          rootClientWidth: root?.clientWidth,
+          innerWidth: window.innerWidth,
+        },
+      });
+    }
   }
 
   if (prevMode !== nextMode) {
@@ -713,33 +729,39 @@ window.toggleModeDebug = function (enable) {
   }
 
   if (window.DEBUG_MODE_DETECTION) {
-    console.log('[DEBUG] Mode detection logging enabled');
+    console.log('[DEBUG] Mode detection logging enabled ✓');
     console.log('[DEBUG] Current stored mode:', currentMode);
 
-    // Показываем все источники ширины
+    // Показываем все источники ширины (в порядке приоритета)
     const sources = {
-      innerWidth: window.innerWidth,
       rootClientWidth: root?.clientWidth,
+      innerWidth: window.innerWidth,
       outerWidth: window.outerWidth,
       screenWidth: window.screen?.width,
     };
-    console.log('[DEBUG] Width sources:', sources);
+    console.log('[DEBUG] Width sources (priority order):', sources);
 
     // Показываем какой источник будет использован
-    const sourcesArray = [sources.innerWidth, sources.rootClientWidth, sources.outerWidth, sources.screenWidth];
+    const sourcesArray = [sources.rootClientWidth, sources.innerWidth, sources.outerWidth, sources.screenWidth];
     let usedWidth = null;
-    for (const value of sourcesArray) {
+    let usedSource = null;
+    const sourceNames = ['rootClientWidth', 'innerWidth', 'outerWidth', 'screenWidth'];
+    for (let i = 0; i < sourcesArray.length; i++) {
+      const value = sourcesArray[i];
       if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
         usedWidth = value;
+        usedSource = sourceNames[i];
         break;
       }
     }
-    console.log('[DEBUG] Width used for detection:', usedWidth);
+    console.log('[DEBUG] Width used for detection:', usedWidth, `(from ${usedSource})`);
 
     // Принудительно запускаем определение режима для вывода в консоль
     const detectedMode = detectMode();
     console.log('[DEBUG] Detected mode:', detectedMode);
     console.log('[DEBUG] Mode mismatch:', currentMode !== detectedMode);
+
+    console.log('[DEBUG] Now resize the window to see automatic mode changes...');
   } else {
     console.log('[DEBUG] Mode detection logging disabled');
   }
