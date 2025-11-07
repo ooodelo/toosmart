@@ -6,36 +6,41 @@
     <title>UI-каркас адаптивов</title>
     <script>
       (function () {
-        var d = document, r = d.documentElement;
+        var d = document;
+        var r = d.documentElement;
+
         function detectInitialMode() {
           var w = window.innerWidth || r.clientWidth;
-          var h = window.innerHeight || r.clientHeight;
-          var portrait = h >= w;
-          var fine = window.matchMedia('(any-pointer: fine)').matches;
-          var coarse = window.matchMedia('(any-pointer: coarse)').matches;
-          var hasTouch = coarse || navigator.maxTouchPoints > 0;
 
-          if (hasTouch && portrait && w <= 1100) {
+          if (w < 1024) {
             return 'handheld';
           }
-          if (w >= 1440) {
-            return 'desktop';
-          }
-          if (w >= 1280 && (fine || !hasTouch)) {
-            return 'desktop';
-          }
-          if (w >= 1024) {
+
+          if (w <= 1366) {
             return 'tablet-wide';
           }
-          return 'handheld';
+
+          return 'desktop';
         }
 
         var m = detectInitialMode();
-        r.setAttribute('data-mode', m);
-        r.dataset.mode = m;
-        d.addEventListener('DOMContentLoaded', function () {
+        window.__INITIAL_MODE__ = m;
+
+        function applyInitialMode() {
+          if (!d.body) {
+            return false;
+          }
           d.body.dataset.mode = m;
-        });
+          return true;
+        }
+
+        if (!applyInitialMode()) {
+          d.addEventListener('readystatechange', function onReady() {
+            if (d.readyState !== 'loading' && applyInitialMode()) {
+              d.removeEventListener('readystatechange', onReady);
+            }
+          });
+        }
       })();
     </script>
     <link rel="stylesheet" href="styles.css" />
