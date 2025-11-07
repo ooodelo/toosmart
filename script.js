@@ -275,7 +275,7 @@ function handleNext() {
 
 function initMenuInteractions() {
   menuHandle?.addEventListener('click', () => toggleMenu(menuHandle));
-  menuHandle?.addEventListener('mouseenter', () => {
+  menuRail?.addEventListener('mouseenter', () => {
     if (currentMode !== 'desktop') return;
     body.classList.add('is-slid');
   });
