@@ -221,13 +221,16 @@ body[data-input="pointer"].is-slid .menu-rail {
   border: none;
   padding: 24px;
   background: #fff;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 24px;
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: start;
+  justify-items: center;
+  position: relative;
 }
 
 body[data-mode="handheld"] .panel {
+  display: flex;
+  flex-direction: column;
   align-items: stretch;
 }
 
@@ -239,7 +242,9 @@ body[data-mode="handheld"] .text-box {
   max-width: var(--text-box-width);
   position: relative;
   background: #fff;
-  margin-inline: auto;
+  width: 100%;
+  grid-column: 1;
+  grid-row: 1;
 }
 
 .text-box__intro {
@@ -297,7 +302,7 @@ body[data-mode="handheld"] .text-box {
 }
 
 .btn-next {
-  /* Базовые стили кнопки без позиционирования */
+  /* Базовые стили кнопки */
   padding: 12px 24px;
   background: var(--surface-alt);
   cursor: pointer;
@@ -308,7 +313,8 @@ body[data-mode="handheld"] .text-box {
   border-radius: 12px;
   border: 1px solid var(--border-color);
 
-  /* Позиционирование задаётся в режимах */
+  /* Скрыта по умолчанию, показывается в режимах */
+  display: none;
 }
 
 .stack {
@@ -440,7 +446,7 @@ body[data-mode="desktop"] .main {
 
 body[data-mode="desktop"] .panel {
   grid-area: panel;
-  grid-column: unset; /* Отменяем явное grid-column: 2 */
+  grid-column: unset;
 }
 
 body[data-mode="desktop"] .text-box {
@@ -449,19 +455,19 @@ body[data-mode="desktop"] .text-box {
 }
 
 body[data-mode="desktop"] .btn-next {
-  grid-area: panel;
-  grid-column: unset;
+  display: inline-flex;
+  grid-row: 1;
+  grid-column: 1;
   align-self: end;
-  justify-self: end;
+  justify-self: center;
   position: sticky;
   bottom: 24px;
-  z-index: 10; /* Поверх текста при наложении */
+  z-index: 10;
 }
 
 body[data-mode="desktop"] .stack {
   grid-area: stack;
-  grid-column: unset; /* Отменяем явное grid-column: 3 */
-  grid-row: 1; /* Гарантируем первую строку */
+  grid-column: unset;
 }
 
 body[data-mode="tablet-wide"] {
@@ -490,10 +496,11 @@ body[data-mode="tablet-wide"] .text-box {
 }
 
 body[data-mode="tablet-wide"] .btn-next {
-  grid-area: panel;
-  grid-column: unset;
+  display: inline-flex;
+  grid-row: 1;
+  grid-column: 1;
   align-self: end;
-  justify-self: end;
+  justify-self: center;
   position: sticky;
   bottom: 24px;
   z-index: 10;
@@ -502,7 +509,6 @@ body[data-mode="tablet-wide"] .btn-next {
 body[data-mode="tablet-wide"] .stack {
   grid-area: stack;
   grid-column: unset;
-  grid-row: 1;
 }
 
 body[data-mode="tablet-wide"] .header {
@@ -536,7 +542,7 @@ body[data-mode="handheld"] .panel {
 }
 
 body[data-mode="handheld"] .btn-next {
-  display: block;
+  display: flex;
   margin: 16px auto;
   order: 2;
   width: min(320px, 100%);
