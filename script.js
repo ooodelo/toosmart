@@ -30,10 +30,22 @@ function parseCssNumber(value) {
   return Number.isFinite(result) ? result : 0;
 }
 
+function classifyMode(width) {
+  if (width < 1024) {
+    return 'handheld';
+  }
+  if (width <= 1366) {
+    return 'tablet-wide';
+  }
+  return 'desktop';
+}
+
 function updateLayoutMetrics() {
   const headerHeight = header?.offsetHeight ?? 0;
   const stackOffset = Math.max(0, headerHeight + 16);
   root.style.setProperty('--stack-top', `${stackOffset}px`);
+  const scrollMargin = Math.max(0, headerHeight + 24);
+  root.style.setProperty('--section-scroll-margin', `${scrollMargin}px`);
 
   if (!btnNext) {
     return;
@@ -61,17 +73,27 @@ function scheduleLayoutMetricsUpdate() {
 }
 
 function detectMode() {
-  const width = window.innerWidth || root.clientWidth;
+  const sources = [window.innerWidth, root?.clientWidth, window.outerWidth, window.screen?.width];
 
-  if (width < 1024) {
-    return 'handheld';
+  for (const value of sources) {
+    if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+      return classifyMode(value);
+    }
   }
 
-  if (width <= 1366) {
-    return 'tablet-wide';
+  const mediaFallbacks = [
+    ['handheld', '(max-width: 1023px)'],
+    ['tablet-wide', '(min-width: 1024px) and (max-width: 1366px)'],
+    ['desktop', '(min-width: 1440px)'],
+  ];
+
+  for (const [mode, query] of mediaFallbacks) {
+    if (typeof window.matchMedia === 'function' && window.matchMedia(query).matches) {
+      return mode;
+    }
   }
 
-  return 'desktop';
+  return 'tablet-wide';
 }
 
 function updateMode() {
@@ -314,7 +336,8 @@ function toggleMenu(origin) {
 }
 
 function lockScroll() {
-  if (currentMode === 'handheld' && body.classList.contains('menu-open')) {
+  const shouldLock = currentMode !== 'desktop' && body.classList.contains('menu-open');
+  if (shouldLock) {
     body.dataset.lock = 'scroll';
     root.dataset.lock = 'scroll';
   } else {
