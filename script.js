@@ -23,6 +23,42 @@ let previousFocus = null;
 let trapListenerAttached = false;
 let observer = null;
 let dotsPositionRaf = null;
+let layoutMetricsRaf = null;
+
+function parseCssNumber(value) {
+  const result = Number.parseFloat(value);
+  return Number.isFinite(result) ? result : 0;
+}
+
+function updateLayoutMetrics() {
+  const headerHeight = header?.offsetHeight ?? 0;
+  const stackOffset = Math.max(0, headerHeight + 16);
+  root.style.setProperty('--stack-top', `${stackOffset}px`);
+
+  if (!btnNext) {
+    return;
+  }
+
+  const styles = window.getComputedStyle(btnNext);
+  let footprint = btnNext.offsetHeight;
+
+  if (styles.position === 'sticky') {
+    footprint += parseCssNumber(styles.bottom);
+  } else {
+    footprint += parseCssNumber(styles.marginBottom);
+  }
+
+  footprint = Math.max(0, Math.round(footprint));
+  root.style.setProperty('--btn-next-footprint', `${footprint}px`);
+}
+
+function scheduleLayoutMetricsUpdate() {
+  if (layoutMetricsRaf !== null) return;
+  layoutMetricsRaf = requestAnimationFrame(() => {
+    layoutMetricsRaf = null;
+    updateLayoutMetrics();
+  });
+}
 
 function detectMode() {
   const width = window.innerWidth || root.clientWidth;
@@ -52,6 +88,7 @@ function updateMode() {
     configureDots();
   }
   lockScroll();
+  scheduleLayoutMetricsUpdate();
 }
 
 function teardownObserver() {
@@ -388,6 +425,7 @@ function init() {
     } else {
       teardownObserver();
     }
+    scheduleLayoutMetricsUpdate();
   });
   window.addEventListener('orientationchange', () => {
     setTimeout(() => {
@@ -400,8 +438,11 @@ function init() {
         updateDotsPosition();
         setupSectionObserver();
       }
+      scheduleLayoutMetricsUpdate();
     }, 100);
   });
 }
 
 init();
+scheduleLayoutMetricsUpdate();
+window.addEventListener('load', scheduleLayoutMetricsUpdate);

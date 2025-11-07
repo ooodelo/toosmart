@@ -8,6 +8,7 @@
   --rail-open: 320px;
   --stack-top: 16px;
   --stack-bottom: 16px;
+  --btn-next-footprint: 88px;
   --t-rail: 220ms;
   --t-backdrop: 160ms;
   --rail-ease: cubic-bezier(0.4, 0, 0.2, 1);
@@ -271,8 +272,10 @@ body.is-slid .menu-rail {
 }
 
 .btn-next {
+  grid-column: 2;
   position: sticky;
   bottom: 24px;
+  margin-top: 24px;
   margin-left: auto;
   margin-right: max(0px, (100% - var(--content-width)) / 2);
   padding: 12px 24px;
@@ -415,7 +418,7 @@ body[data-mode="tablet-wide"].menu-open .header {
 body[data-mode="handheld"] .main {
   display: flex;
   flex-direction: column;
-  padding-bottom: calc(var(--gap-page) * 2 + var(--handheld-dock) + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(var(--gap-page) + var(--btn-next-footprint) + var(--handheld-dock) + env(safe-area-inset-bottom, 0px));
 }
 
 body[data-mode="handheld"] .panel,
@@ -430,9 +433,12 @@ body[data-mode="handheld"] .panel {
 }
 
 body[data-mode="handheld"] .btn-next {
-  position: static;
   display: block;
   margin: 16px auto;
+  order: 2;
+  width: min(320px, 100%);
+  margin-left: auto;
+  margin-right: auto;
 }
 
 body[data-mode="handheld"] .stack {
