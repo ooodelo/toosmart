@@ -11,8 +11,14 @@
   --stack-width-desktop: clamp(320px, 28vw, 420px);
   --stack-width-tablet: clamp(280px, 30vw, 360px);
   --stack-width: var(--stack-width-desktop);
-  --main-columns-desktop: 1fr var(--content-width-desktop) var(--stack-width-desktop) 1fr;
-  --main-columns-tablet: 1fr var(--content-width-tablet) var(--stack-width-tablet) 1fr;
+  --main-columns-desktop:
+    max(0px, calc(50vw - var(--gap-page) * 2 - var(--content-width-desktop) / 2))
+    var(--content-width-desktop)
+    minmax(0px, var(--stack-width-desktop));
+  --main-columns-tablet:
+    max(0px, calc(50vw - var(--gap-page) * 2 - var(--content-width-tablet) / 2))
+    var(--content-width-tablet)
+    minmax(0px, var(--stack-width-tablet));
   --main-columns: var(--main-columns-desktop);
   --text-box-width-desktop: 680px;
   --text-box-width-tablet: 540px;
@@ -441,7 +447,7 @@ body[data-mode="desktop"] {
 }
 
 body[data-mode="desktop"] .main {
-  grid-template-areas: "left panel stack right";
+  grid-template-areas: "left panel stack";
 }
 
 body[data-mode="desktop"] .panel {
@@ -482,7 +488,7 @@ body[data-mode="tablet-wide"] .dots-rail {
 }
 
 body[data-mode="tablet-wide"] .main {
-  grid-template-areas: "left panel stack right";
+  grid-template-areas: "left panel stack";
 }
 
 body[data-mode="tablet-wide"] .panel {
