@@ -216,10 +216,14 @@ function getFocusableElements(container) {
   );
 }
 
+function isElementVisible(element) {
+  if (!element) return false;
+  return !!(element.offsetWidth || element.offsetHeight || element.getClientRects().length);
+}
+
 function trapFocus(event) {
-  if (!body.classList.contains('menu-open')) return;
-  if (currentMode === 'desktop') return;
-  if (event.key !== 'Tab') return;
+  const shouldTrap = currentMode !== 'desktop' && body.classList.contains('menu-open');
+  if (!shouldTrap || event.key !== 'Tab') return;
 
   const focusable = getFocusableElements(menuRail);
   if (focusable.length === 0) {
@@ -254,10 +258,10 @@ function detachTrap() {
 function openMenu({ focusOrigin = menuHandle } = {}) {
   body.classList.remove('is-slid');
   body.classList.add('menu-open');
+  previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   if (currentMode !== 'desktop') {
     siteMenu.setAttribute('role', 'dialog');
     siteMenu.setAttribute('aria-modal', 'true');
-    previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const focusable = getFocusableElements(menuRail);
     const targetFocus = focusable.find((el) => el !== focusOrigin) || siteMenu;
     requestAnimationFrame(() => targetFocus.focus({ preventScroll: true }));
@@ -286,10 +290,18 @@ function closeMenu({ focusOrigin = menuHandle } = {}) {
 function updateAriaExpanded(isOpen) {
   const expanded = String(isOpen);
   if (menuHandle) {
-    menuHandle.setAttribute('aria-expanded', expanded);
+    if (isElementVisible(menuHandle)) {
+      menuHandle.setAttribute('aria-expanded', expanded);
+    } else {
+      menuHandle.removeAttribute('aria-expanded');
+    }
   }
   if (dockHandle) {
-    dockHandle.setAttribute('aria-expanded', expanded);
+    if (isElementVisible(dockHandle)) {
+      dockHandle.setAttribute('aria-expanded', expanded);
+    } else {
+      dockHandle.removeAttribute('aria-expanded');
+    }
   }
 }
 
@@ -374,7 +386,8 @@ function initMenuInteractions() {
     closeMenu({ focusOrigin: origin });
   });
   menuCap?.addEventListener('click', () => {
-    if (currentMode !== 'handheld' || !body.classList.contains('menu-open')) return;
+    if (currentMode !== 'handheld') return;
+    if (!body.classList.contains('menu-open')) return;
     closeMenu({ focusOrigin: dockHandle });
   });
   document.addEventListener('keydown', (event) => {
