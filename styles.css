@@ -14,16 +14,34 @@
   --stack-min-width-tablet: 280px;
   --stack-min-width: var(--stack-min-width-desktop);
   --stack-width: var(--stack-width-desktop);
+  --main-gutter-desktop: max(
+    0px,
+    calc(
+      (
+        var(--content-width-desktop) - var(--text-box-width-desktop) - var(--stack-width-desktop) -
+          var(--gap-page) * 3
+      ) / 2
+    )
+  );
+  --main-gutter-tablet: max(
+    0px,
+    calc(
+      (
+        var(--content-width-tablet) - var(--text-box-width-tablet) - var(--stack-width-tablet) -
+          var(--gap-page) * 3
+      ) / 2
+    )
+  );
   --main-columns-desktop:
-    1fr
+    var(--main-gutter-desktop)
     var(--text-box-width-desktop)
     minmax(var(--stack-min-width-desktop), var(--stack-width-desktop))
-    1fr;
+    var(--main-gutter-desktop);
   --main-columns-tablet:
-    1fr
+    var(--main-gutter-tablet)
     var(--text-box-width-tablet)
     minmax(var(--stack-min-width-tablet), var(--stack-width-tablet))
-    1fr;
+    var(--main-gutter-tablet);
   --main-columns: var(--main-columns-desktop);
   --text-box-width-desktop: 680px;
   --text-box-width-tablet: 540px;
