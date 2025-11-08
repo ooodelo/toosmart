@@ -636,7 +636,9 @@ function init() {
   initMenuInteractions();
   attachEdgeGesture(); // Attach only if tablet-wide mode
   initMenuLinks();
-  btnNext?.addEventListener('click', handleNext);
+
+  const handleNextClick = () => handleNext();
+  btnNext?.addEventListener('click', handleNextClick);
 
   let resizeRaf = null;
 
@@ -667,6 +669,7 @@ function init() {
   window.addEventListener('orientationchange', handleOrientationChange);
 
   // Добавляем обработку media queries для более точного отслеживания
+  const mediaQueryListeners = [];
   if (window.matchMedia) {
     const mql1024 = window.matchMedia('(min-width: 1024px)');
     const mql1280 = window.matchMedia('(min-width: 1280px)');
@@ -681,7 +684,31 @@ function init() {
     mql1024.addEventListener('change', handleMediaChange);
     mql1280.addEventListener('change', handleMediaChange);
     mql1440.addEventListener('change', handleMediaChange);
+
+    mediaQueryListeners.push(
+      { mql: mql1024, handler: handleMediaChange },
+      { mql: mql1280, handler: handleMediaChange },
+      { mql: mql1440, handler: handleMediaChange }
+    );
   }
+
+  // Cleanup function для удаления всех listeners
+  return () => {
+    btnNext?.removeEventListener('click', handleNextClick);
+    window.removeEventListener('resize', handleResize);
+    window.removeEventListener('orientationchange', handleOrientationChange);
+
+    mediaQueryListeners.forEach(({ mql, handler }) => {
+      mql.removeEventListener('change', handler);
+    });
+
+    detachEdgeGesture();
+    teardownObserver();
+
+    if (resizeRaf !== null) {
+      cancelAnimationFrame(resizeRaf);
+    }
+  };
 }
 
 init();
