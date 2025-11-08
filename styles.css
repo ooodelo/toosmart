@@ -59,7 +59,7 @@ body {
   padding: 0;
   color: var(--text-color);
   font-family: "Inter", "Segoe UI", sans-serif;
-  background: #f5f3f0;
+  background: #eeefed;
   min-height: 100%;
 }
 
@@ -469,13 +469,7 @@ body[data-mode="desktop"] .text-box {
 
 body[data-mode="desktop"] .btn-next {
   display: inline-flex;
-  grid-column: 2;
-  grid-row: 1;
-  align-self: end;
-  justify-self: center;
-  position: sticky;
-  bottom: 24px;
-  z-index: 10;
+  margin: 48px auto 0;
 }
 
 body[data-mode="desktop"] .stack {
@@ -521,13 +515,7 @@ body[data-mode="tablet-wide"] .text-box {
 
 body[data-mode="tablet-wide"] .btn-next {
   display: inline-flex;
-  grid-column: 2;
-  grid-row: 1;
-  align-self: end;
-  justify-self: center;
-  position: sticky;
-  bottom: 24px;
-  z-index: 10;
+  margin: 48px auto 0;
 }
 
 body[data-mode="tablet-wide"] .stack {
