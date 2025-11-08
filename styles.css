@@ -461,6 +461,7 @@ body[data-mode="desktop"] .main {
 body[data-mode="desktop"] .panel {
   grid-column: 2;
   grid-row: 1;
+  justify-items: center;
 }
 
 body[data-mode="desktop"] .text-box {
@@ -513,6 +514,7 @@ body[data-mode="tablet-wide"] .main {
 body[data-mode="tablet-wide"] .panel {
   grid-column: 2;
   grid-row: 1;
+  justify-items: center;
 }
 
 body[data-mode="tablet-wide"] .text-box {
