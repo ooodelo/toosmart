@@ -1,53 +1,29 @@
 :root {
   color-scheme: light;
-  --content-width-desktop: 800px;
-  --content-width-tablet: 660px;
-  --content-width-handheld: max(
+
+  /* Ширины текстовых блоков */
+  --text-box-width-desktop: 680px;
+  --text-box-width-tablet: 540px;
+  --text-box-width-handheld: max(
     280px,
     calc(
       100vw - var(--gap-page) * 2 - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)
     )
   );
+  --text-box-width: var(--text-box-width-desktop);
+
+  /* Ширины блока рекомендаций */
   --stack-width-desktop: clamp(320px, 28vw, 420px);
   --stack-width-tablet: clamp(280px, 30vw, 360px);
   --stack-min-width-desktop: 320px;
   --stack-min-width-tablet: 280px;
-  --stack-min-width: var(--stack-min-width-desktop);
   --stack-width: var(--stack-width-desktop);
-  --main-gutter-desktop: max(
-    0px,
-    calc(
-      (
-        100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px) - var(--gap-page) * 2 -
-          var(--text-box-width-desktop) - var(--stack-width-desktop) - var(--gap-page) * 3
-      ) / 2
-    )
-  );
-  --main-gutter-tablet: max(
-    0px,
-    calc(
-      (
-        100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px) - var(--gap-page) * 2 -
-          var(--text-box-width-tablet) - var(--stack-width-tablet) - var(--gap-page) * 3
-      ) / 2
-    )
-  );
-  --main-columns-desktop:
-    var(--main-gutter-desktop)
-    var(--text-box-width-desktop)
-    minmax(var(--stack-min-width-desktop), var(--stack-width-desktop))
-    var(--main-gutter-desktop);
-  --main-columns-tablet:
-    var(--main-gutter-tablet)
-    var(--text-box-width-tablet)
-    minmax(var(--stack-min-width-tablet), var(--stack-width-tablet))
-    var(--main-gutter-tablet);
-  --main-columns: var(--main-columns-desktop);
-  --text-box-width-desktop: 680px;
-  --text-box-width-tablet: 540px;
-  --text-box-width-handheld: var(--content-width-handheld);
-  --text-box-width: var(--text-box-width-desktop);
+  --stack-min-width: var(--stack-min-width-desktop);
+
+  /* Для dots-rail позиционирования */
   --text-box-left: calc(50vw - var(--text-box-width-desktop) / 2);
+
+  /* Отступы и размеры */
   --gap-page: 32px;
   --stack-gap: 20px;
   --rail-closed: 70px;
@@ -56,13 +32,19 @@
   --stack-bottom: 16px;
   --btn-next-footprint: 88px;
   --section-scroll-margin: 120px;
+
+  /* Анимации */
   --t-rail: 220ms;
   --t-backdrop: 160ms;
   --rail-ease: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Цвета */
   --border-color: #d0d0d0;
   --surface: #f6f6f6;
   --surface-alt: #ededed;
   --text-color: #222;
+
+  /* Handheld */
   --handheld-dock: 64px;
   --handheld-dock-footprint: calc(var(--handheld-dock) + env(safe-area-inset-bottom, 0px));
 }
@@ -101,9 +83,9 @@ html[data-lock="scroll"] {
 
 .main {
   display: grid;
-  grid-template-columns: var(--main-columns, var(--main-columns-desktop));
-  column-gap: var(--gap-page);
+  column-gap: 0;
   padding: calc(var(--gap-page) * 1.5) var(--gap-page) calc(var(--gap-page) * 2);
+  container-type: inline-size;
 }
 
 .header {
@@ -463,7 +445,6 @@ body[data-mode="desktop"] .dots-rail {
 }
 
 body[data-mode="desktop"] {
-  --main-columns: var(--main-columns-desktop);
   --text-box-width: var(--text-box-width-desktop);
   --stack-width: var(--stack-width-desktop);
   --stack-min-width: var(--stack-min-width-desktop);
@@ -471,24 +452,21 @@ body[data-mode="desktop"] {
 }
 
 body[data-mode="desktop"] .main {
-  grid-template-areas: ". panel stack .";
+  grid-template-columns: 1fr 680px 1fr;
 }
 
 body[data-mode="desktop"] .panel {
-  grid-area: panel;
-  grid-column: unset;
+  grid-column: 2;
 }
 
 body[data-mode="desktop"] .text-box {
-  width: var(--text-box-width);
+  width: 680px;
   max-width: 100%;
 }
 
 body[data-mode="desktop"] .btn-next {
   display: inline-flex;
-  grid-row: 1;
-  grid-column: 1;
-  align-self: end;
+  grid-column: 2;
   justify-self: center;
   position: sticky;
   bottom: 24px;
@@ -496,15 +474,18 @@ body[data-mode="desktop"] .btn-next {
 }
 
 body[data-mode="desktop"] .stack {
-  grid-area: stack;
-  grid-column: unset;
+  grid-column: 3;
+  justify-self: center;
+  align-self: start;
+  position: sticky;
+  top: var(--stack-top);
+  width: var(--stack-width);
   min-width: var(--stack-min-width);
-  max-width: var(--stack-width);
-  width: 100%;
+  max-width: 100%;
+  max-height: calc(min(100svh, 100dvh) - var(--stack-top) - var(--stack-bottom));
 }
 
 body[data-mode="tablet-wide"] {
-  --main-columns: var(--main-columns-tablet);
   --text-box-width: var(--text-box-width-tablet);
   --stack-width: var(--stack-width-tablet);
   --stack-min-width: var(--stack-min-width-tablet);
@@ -516,24 +497,21 @@ body[data-mode="tablet-wide"] .dots-rail {
 }
 
 body[data-mode="tablet-wide"] .main {
-  grid-template-areas: ". panel stack .";
+  grid-template-columns: 1fr 540px 1fr;
 }
 
 body[data-mode="tablet-wide"] .panel {
-  grid-area: panel;
-  grid-column: unset;
+  grid-column: 2;
 }
 
 body[data-mode="tablet-wide"] .text-box {
-  width: var(--text-box-width);
+  width: 540px;
   max-width: 100%;
 }
 
 body[data-mode="tablet-wide"] .btn-next {
   display: inline-flex;
-  grid-row: 1;
-  grid-column: 1;
-  align-self: end;
+  grid-column: 2;
   justify-self: center;
   position: sticky;
   bottom: 24px;
@@ -541,11 +519,15 @@ body[data-mode="tablet-wide"] .btn-next {
 }
 
 body[data-mode="tablet-wide"] .stack {
-  grid-area: stack;
-  grid-column: unset;
+  grid-column: 3;
+  justify-self: center;
+  align-self: start;
+  position: sticky;
+  top: var(--stack-top);
+  width: var(--stack-width);
   min-width: var(--stack-min-width);
-  max-width: var(--stack-width);
-  width: 100%;
+  max-width: 100%;
+  max-height: calc(min(100svh, 100dvh) - var(--stack-top) - var(--stack-bottom));
 }
 
 body[data-mode="tablet-wide"] .header {
@@ -687,4 +669,18 @@ body[data-mode="handheld"].menu-open .backdrop {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ============================================
+   RTL SUPPORT
+   ============================================ */
+[dir="rtl"] body[data-mode="desktop"] .stack,
+[dir="rtl"] body[data-mode="tablet-wide"] .stack {
+  justify-self: center; /* центр работает в любом направлении */
+}
+
+/* Зеркалирование dots-rail для RTL */
+[dir="rtl"] .dots-rail {
+  left: auto;
+  right: calc(var(--text-box-left) - 48px);
 }
