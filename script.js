@@ -53,7 +53,6 @@ let activeSectionId = sections[0]?.id ?? null;
 let previousFocus = null;
 let trapListenerAttached = false;
 let observer = null;
-let dotsPositionRaf = null;
 
 // Debug mode: установите в true для вывода информации о режимах в консоль
 // Включите в Safari Dev Tools: window.DEBUG_MODE_DETECTION = true
@@ -289,35 +288,10 @@ function teardownObserver() {
   }
 
   // Отменяем все pending RAF для предотвращения утечек памяти
-  if (dotsPositionRaf !== null) {
-    cancelAnimationFrame(dotsPositionRaf);
-    dotsPositionRaf = null;
-  }
-
   if (layoutMetricsRaf !== null) {
     cancelAnimationFrame(layoutMetricsRaf);
     layoutMetricsRaf = null;
   }
-}
-
-function updateDotsPosition() {
-  if (!dotsRail || !textBox) return;
-  if (currentMode !== 'desktop') {
-    if (dotsPositionRaf !== null) {
-      cancelAnimationFrame(dotsPositionRaf);
-      dotsPositionRaf = null;
-    }
-    root.style.removeProperty('--text-box-left');
-    return;
-  }
-  if (dotsPositionRaf !== null) {
-    cancelAnimationFrame(dotsPositionRaf);
-  }
-  dotsPositionRaf = requestAnimationFrame(() => {
-    const rect = textBox.getBoundingClientRect();
-    root.style.setProperty('--text-box-left', `${rect.left}px`);
-    dotsPositionRaf = null;
-  });
 }
 
 function configureDots() {
@@ -326,11 +300,9 @@ function configureDots() {
   const shouldEnable = currentMode === 'desktop' && sections.length >= 2;
   dotsRail.hidden = !shouldEnable;
   if (!shouldEnable) {
-    updateDotsPosition();
     teardownObserver();
     return;
   }
-  updateDotsPosition();
   sections.forEach((section) => {
     const dot = document.createElement('button');
     dot.type = 'button';
@@ -476,13 +448,6 @@ function openMenu({ focusOrigin = menuHandle } = {}) {
     const targetFocus = focusable.find((el) => el !== focusOrigin) || siteMenu;
     requestAnimationFrame(() => targetFocus.focus({ preventScroll: true }));
     attachTrap();
-  } else {
-    // На desktop обновляем позицию dots после анимации меню
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        updateDotsPosition();
-      });
-    });
   }
   updateAriaExpanded(true);
   lockScroll();
@@ -501,15 +466,6 @@ function closeMenu({ focusOrigin = menuHandle } = {}) {
     previousFocus = null;
   } else if (focusOrigin && focusOrigin instanceof HTMLElement) {
     focusOrigin.focus({ preventScroll: true });
-  }
-
-  // На desktop обновляем позицию dots после анимации закрытия меню
-  if (currentMode === 'desktop') {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        updateDotsPosition();
-      });
-    });
   }
 }
 
@@ -566,67 +522,31 @@ function handleNext() {
 function initMenuInteractions() {
   menuHandle?.addEventListener('click', () => toggleMenu(menuHandle));
   menuRail?.addEventListener('mouseenter', () => {
-    if (currentMode !== 'desktop') return;
+    if (currentInput !== 'pointer') return;
     body.classList.add('is-slid');
-    // Обновляем позицию dots после анимации slide
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        updateDotsPosition();
-      });
-    });
   });
   menuRail?.addEventListener('mouseleave', () => {
-    if (currentMode !== 'desktop') return;
+    if (currentInput !== 'pointer') return;
     body.classList.remove('is-slid');
-    // Обновляем позицию dots после анимации slide
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        updateDotsPosition();
-      });
-    });
   });
   menuRail?.addEventListener('focusin', () => {
-    if (currentMode !== 'desktop') return;
+    if (currentInput !== 'pointer') return;
     body.classList.add('is-slid');
-    // Обновляем позицию dots после анимации slide
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        updateDotsPosition();
-      });
-    });
   });
   menuRail?.addEventListener('focusout', (event) => {
-    if (currentMode !== 'desktop') return;
+    if (currentInput !== 'pointer') return;
     if (body.classList.contains('menu-open')) return;
     const next = event.relatedTarget;
     if (next && menuRail.contains(next)) return;
     body.classList.remove('is-slid');
-    // Обновляем позицию dots после анимации slide
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        updateDotsPosition();
-      });
-    });
   });
   panel?.addEventListener('mouseenter', () => {
-    if (currentMode !== 'desktop') return;
+    if (currentInput !== 'pointer') return;
     body.classList.remove('is-slid');
-    // Обновляем позицию dots после анимации slide
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        updateDotsPosition();
-      });
-    });
   });
   panel?.addEventListener('focusin', () => {
-    if (currentMode !== 'desktop') return;
+    if (currentInput !== 'pointer') return;
     body.classList.remove('is-slid');
-    // Обновляем позицию dots после анимации slide
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        updateDotsPosition();
-      });
-    });
   });
   dockHandle?.addEventListener('click', () => {
     if (currentMode !== 'handheld') return;
@@ -709,16 +629,12 @@ function init() {
       updateMode();
 
       if (prevMode !== currentMode) {
-        // При смене режима обновляем dots и observer
+        // При смене режима обновляем observer
         if (currentMode === 'desktop') {
-          updateDotsPosition();
           setupSectionObserver();
         } else {
           teardownObserver();
         }
-      } else if (currentMode === 'desktop') {
-        // Если режим не изменился, но мы в desktop - обновляем позицию dots
-        updateDotsPosition();
       }
 
       scheduleLayoutMetricsUpdate();
@@ -735,7 +651,6 @@ function init() {
         updateMode();
 
         if (currentMode === 'desktop') {
-          updateDotsPosition();
           setupSectionObserver();
         } else {
           teardownObserver();
@@ -761,7 +676,6 @@ function init() {
 
         if (prevMode !== currentMode) {
           if (currentMode === 'desktop') {
-            updateDotsPosition();
             setupSectionObserver();
           } else {
             teardownObserver();
