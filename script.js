@@ -53,6 +53,7 @@ let activeSectionId = sections[0]?.id ?? null;
 let previousFocus = null;
 let trapListenerAttached = false;
 let observer = null;
+let edgeGestureHandler = null;
 
 // Debug mode: установите в true для вывода информации о режимах в консоль
 // Включите в Safari Dev Tools: window.DEBUG_MODE_DETECTION = true
@@ -62,18 +63,6 @@ let layoutMetricsRaf = null;
 function parseCssNumber(value) {
   const result = Number.parseFloat(value);
   return Number.isFinite(result) ? result : 0;
-}
-
-function debounce(func, wait) {
-  let timeout;
-  return function executedFunction(...args) {
-    const later = () => {
-      clearTimeout(timeout);
-      func(...args);
-    };
-    clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
-  };
 }
 
 /**
@@ -100,10 +89,11 @@ function detectInput() {
 /**
  * Классифицирует режим верстки на основе ширины и типа ввода
  * @param {number} width - ширина viewport
+ * @param {'touch' | 'pointer'} inputType - тип ввода
  * @returns {'handheld' | 'tablet-wide' | 'desktop'} - режим верстки
  */
-function classifyMode(width) {
-  const isTouchDevice = detectInput() === 'touch';
+function classifyMode(width, inputType) {
+  const isTouchDevice = inputType === 'touch';
 
   let mode;
 
@@ -167,9 +157,10 @@ function scheduleLayoutMetricsUpdate() {
 
 /**
  * Определяет режим верстки на основе текущей ширины viewport
+ * @param {'touch' | 'pointer'} inputType - тип ввода
  * @returns {'handheld' | 'tablet-wide' | 'desktop'} - режим верстки
  */
-function detectMode() {
+function detectMode(inputType) {
   // Приоритет источников ширины:
   // 1. visualViewport.width - самый точный, учитывает zoom и виртуальную клавиатуру
   // 2. root.clientWidth - надежный для Safari Dev Tools
@@ -189,7 +180,7 @@ function detectMode() {
       if (window.DEBUG_MODE_DETECTION) {
         console.log('[DEBUG] detectMode() using width:', value);
       }
-      return classifyMode(value);
+      return classifyMode(value, inputType);
     }
   }
 
@@ -212,8 +203,8 @@ function detectMode() {
  * Обновляет режим верстки (data-mode) и тип ввода (data-input)
  */
 function updateMode() {
-  const nextMode = detectMode();
   const nextInput = detectInput();
+  const nextMode = detectMode(nextInput);
   const prevMode = currentMode;
   const prevInput = currentInput;
 
@@ -272,6 +263,10 @@ function updateMode() {
     }
 
     configureDots();
+
+    // Управление edge-gesture lifecycle
+    detachEdgeGesture();
+    attachEdgeGesture();
 
     // Принудительный reflow для применения изменений
     void body.offsetHeight;
@@ -358,6 +353,7 @@ function updateActiveDot() {
   if (currentMode !== 'desktop') {
     return;
   }
+  if (!dotsRail) return;
   const dots = dotsRail.querySelectorAll('.dots-rail__dot');
   dots.forEach((dot, index) => {
     const section = sections[index];
@@ -391,6 +387,7 @@ function getCurrentSectionIndex() {
 }
 
 function getFocusableElements(container) {
+  if (!container) return [];
   return Array.from(
     container.querySelectorAll(
       'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
@@ -511,6 +508,24 @@ function initDots() {
   // IntersectionObserver уже обрабатывает активную секцию, scroll handler не нужен
 }
 
+/**
+ * Helper: обновляет режим и синхронизирует observer с layout
+ */
+function handleModeUpdate() {
+  const prevMode = currentMode;
+  updateMode();
+
+  if (prevMode !== currentMode) {
+    if (currentMode === 'desktop') {
+      setupSectionObserver();
+    } else {
+      teardownObserver();
+    }
+  }
+
+  scheduleLayoutMetricsUpdate();
+}
+
 function handleNext() {
   const currentIndex = getCurrentSectionIndex();
   const nextSection = sections[currentIndex + 1] || sections[0];
@@ -571,23 +586,31 @@ function initMenuInteractions() {
   });
 }
 
-function initGestures() {
-  // Временная реализация жестов через клики/ховеры
-  // TODO: Реализовать настоящие touch events для production
+/**
+ * Подключает edge-gesture для tablet-wide режима
+ */
+function attachEdgeGesture() {
+  if (currentMode !== 'tablet-wide') return;
+  if (edgeGestureHandler) return; // Already attached
 
-  // Edge-swipe для Tablet-Wide: клик по левому краю экрана (временная замена)
-  if (currentMode === 'tablet-wide') {
-    const edgeZoneWidth = 30; // px от левого края
-    document.addEventListener('click', (e) => {
-      if (currentMode !== 'tablet-wide') return;
-      if (e.clientX <= edgeZoneWidth && !body.classList.contains('menu-open')) {
-        openMenu({ focusOrigin: menuHandle });
-      }
-    });
-  }
+  const edgeZoneWidth = 30; // px от левого края
+  edgeGestureHandler = (e) => {
+    if (currentMode !== 'tablet-wide') return;
+    if (e.clientX <= edgeZoneWidth && !body.classList.contains('menu-open')) {
+      openMenu({ focusOrigin: menuHandle });
+    }
+  };
 
-  // Для handheld открытие/закрытие уже работает через dock-handle и menu-cap клики
-  // Эти обработчики находятся в initMenuInteractions
+  document.addEventListener('click', edgeGestureHandler);
+}
+
+/**
+ * Отключает edge-gesture
+ */
+function detachEdgeGesture() {
+  if (!edgeGestureHandler) return;
+  document.removeEventListener('click', edgeGestureHandler);
+  edgeGestureHandler = null;
 }
 
 function initMenuLinks() {
@@ -611,7 +634,7 @@ function init() {
   updateMode();
   initDots();
   initMenuInteractions();
-  initGestures();
+  attachEdgeGesture(); // Attach only if tablet-wide mode
   initMenuLinks();
   btnNext?.addEventListener('click', handleNext);
 
@@ -625,19 +648,7 @@ function init() {
 
     resizeRaf = requestAnimationFrame(() => {
       resizeRaf = null;
-      const prevMode = currentMode;
-      updateMode();
-
-      if (prevMode !== currentMode) {
-        // При смене режима обновляем observer
-        if (currentMode === 'desktop') {
-          setupSectionObserver();
-        } else {
-          teardownObserver();
-        }
-      }
-
-      scheduleLayoutMetricsUpdate();
+      handleModeUpdate();
     });
   };
 
@@ -648,15 +659,7 @@ function init() {
     // Даем браузеру время обновить размеры перед проверкой
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        updateMode();
-
-        if (currentMode === 'desktop') {
-          setupSectionObserver();
-        } else {
-          teardownObserver();
-        }
-
-        scheduleLayoutMetricsUpdate();
+        handleModeUpdate();
       });
     });
   };
@@ -671,17 +674,7 @@ function init() {
 
     const handleMediaChange = () => {
       requestAnimationFrame(() => {
-        const prevMode = currentMode;
-        updateMode();
-
-        if (prevMode !== currentMode) {
-          if (currentMode === 'desktop') {
-            setupSectionObserver();
-          } else {
-            teardownObserver();
-          }
-          scheduleLayoutMetricsUpdate();
-        }
+        handleModeUpdate();
       });
     };
 
@@ -743,7 +736,7 @@ window.toggleModeDebug = function (enable) {
 
     // Принудительно запускаем определение для вывода в консоль
     const detectedInput = detectInput();
-    const detectedMode = detectMode();
+    const detectedMode = detectMode(detectedInput);
     console.log('[DEBUG] Detected state:', {
       mode: detectedMode,
       input: detectedInput,
