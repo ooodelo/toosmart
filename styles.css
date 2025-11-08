@@ -18,8 +18,8 @@
     0px,
     calc(
       (
-        var(--content-width-desktop) - var(--text-box-width-desktop) - var(--stack-width-desktop) -
-          var(--gap-page) * 3
+        100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px) - var(--gap-page) * 2 -
+          var(--text-box-width-desktop) - var(--stack-width-desktop) - var(--gap-page) * 3
       ) / 2
     )
   );
@@ -27,8 +27,8 @@
     0px,
     calc(
       (
-        var(--content-width-tablet) - var(--text-box-width-tablet) - var(--stack-width-tablet) -
-          var(--gap-page) * 3
+        100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px) - var(--gap-page) * 2 -
+          var(--text-box-width-tablet) - var(--stack-width-tablet) - var(--gap-page) * 3
       ) / 2
     )
   );
