@@ -59,7 +59,7 @@ body {
   padding: 0;
   color: var(--text-color);
   font-family: "Inter", "Segoe UI", sans-serif;
-  background: #f0f1f2;
+  background: #f5f3f0;
   min-height: 100%;
 }
 
@@ -460,12 +460,11 @@ body[data-mode="desktop"] .main {
 body[data-mode="desktop"] .panel {
   grid-column: 2;
   grid-row: 1;
+  padding: 0;
 }
 
 body[data-mode="desktop"] .text-box {
-  width: var(--text-box-width-desktop);
-  max-width: 100%;
-  justify-self: center;
+  width: 100%;
 }
 
 body[data-mode="desktop"] .btn-next {
@@ -513,12 +512,11 @@ body[data-mode="tablet-wide"] .main {
 body[data-mode="tablet-wide"] .panel {
   grid-column: 2;
   grid-row: 1;
+  padding: 0;
 }
 
 body[data-mode="tablet-wide"] .text-box {
-  width: var(--text-box-width-tablet);
-  max-width: 100%;
-  justify-self: center;
+  width: 100%;
 }
 
 body[data-mode="tablet-wide"] .btn-next {
