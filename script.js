@@ -53,7 +53,7 @@ let activeSectionId = sections[0]?.id ?? null;
 let previousFocus = null;
 let trapListenerAttached = false;
 let observer = null;
-let dotsPositionRaf = null;
+let edgeGestureHandler = null;
 
 // Debug mode: установите в true для вывода информации о режимах в консоль
 // Включите в Safari Dev Tools: window.DEBUG_MODE_DETECTION = true
@@ -63,18 +63,6 @@ let layoutMetricsRaf = null;
 function parseCssNumber(value) {
   const result = Number.parseFloat(value);
   return Number.isFinite(result) ? result : 0;
-}
-
-function debounce(func, wait) {
-  let timeout;
-  return function executedFunction(...args) {
-    const later = () => {
-      clearTimeout(timeout);
-      func(...args);
-    };
-    clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
-  };
 }
 
 /**
@@ -101,10 +89,11 @@ function detectInput() {
 /**
  * Классифицирует режим верстки на основе ширины и типа ввода
  * @param {number} width - ширина viewport
+ * @param {'touch' | 'pointer'} inputType - тип ввода
  * @returns {'handheld' | 'tablet-wide' | 'desktop'} - режим верстки
  */
-function classifyMode(width) {
-  const isTouchDevice = detectInput() === 'touch';
+function classifyMode(width, inputType) {
+  const isTouchDevice = inputType === 'touch';
 
   let mode;
 
@@ -168,9 +157,10 @@ function scheduleLayoutMetricsUpdate() {
 
 /**
  * Определяет режим верстки на основе текущей ширины viewport
+ * @param {'touch' | 'pointer'} inputType - тип ввода
  * @returns {'handheld' | 'tablet-wide' | 'desktop'} - режим верстки
  */
-function detectMode() {
+function detectMode(inputType) {
   // Приоритет источников ширины:
   // 1. visualViewport.width - самый точный, учитывает zoom и виртуальную клавиатуру
   // 2. root.clientWidth - надежный для Safari Dev Tools
@@ -190,7 +180,7 @@ function detectMode() {
       if (window.DEBUG_MODE_DETECTION) {
         console.log('[DEBUG] detectMode() using width:', value);
       }
-      return classifyMode(value);
+      return classifyMode(value, inputType);
     }
   }
 
@@ -213,8 +203,8 @@ function detectMode() {
  * Обновляет режим верстки (data-mode) и тип ввода (data-input)
  */
 function updateMode() {
-  const nextMode = detectMode();
   const nextInput = detectInput();
+  const nextMode = detectMode(nextInput);
   const prevMode = currentMode;
   const prevInput = currentInput;
 
@@ -274,6 +264,10 @@ function updateMode() {
 
     configureDots();
 
+    // Управление edge-gesture lifecycle
+    detachEdgeGesture();
+    attachEdgeGesture();
+
     // Принудительный reflow для применения изменений
     void body.offsetHeight;
   }
@@ -289,35 +283,10 @@ function teardownObserver() {
   }
 
   // Отменяем все pending RAF для предотвращения утечек памяти
-  if (dotsPositionRaf !== null) {
-    cancelAnimationFrame(dotsPositionRaf);
-    dotsPositionRaf = null;
-  }
-
   if (layoutMetricsRaf !== null) {
     cancelAnimationFrame(layoutMetricsRaf);
     layoutMetricsRaf = null;
   }
-}
-
-function updateDotsPosition() {
-  if (!dotsRail || !textBox) return;
-  if (currentMode !== 'desktop') {
-    if (dotsPositionRaf !== null) {
-      cancelAnimationFrame(dotsPositionRaf);
-      dotsPositionRaf = null;
-    }
-    root.style.removeProperty('--text-box-left');
-    return;
-  }
-  if (dotsPositionRaf !== null) {
-    cancelAnimationFrame(dotsPositionRaf);
-  }
-  dotsPositionRaf = requestAnimationFrame(() => {
-    const rect = textBox.getBoundingClientRect();
-    root.style.setProperty('--text-box-left', `${rect.left}px`);
-    dotsPositionRaf = null;
-  });
 }
 
 function configureDots() {
@@ -326,11 +295,9 @@ function configureDots() {
   const shouldEnable = currentMode === 'desktop' && sections.length >= 2;
   dotsRail.hidden = !shouldEnable;
   if (!shouldEnable) {
-    updateDotsPosition();
     teardownObserver();
     return;
   }
-  updateDotsPosition();
   sections.forEach((section) => {
     const dot = document.createElement('button');
     dot.type = 'button';
@@ -386,6 +353,7 @@ function updateActiveDot() {
   if (currentMode !== 'desktop') {
     return;
   }
+  if (!dotsRail) return;
   const dots = dotsRail.querySelectorAll('.dots-rail__dot');
   dots.forEach((dot, index) => {
     const section = sections[index];
@@ -419,6 +387,7 @@ function getCurrentSectionIndex() {
 }
 
 function getFocusableElements(container) {
+  if (!container) return [];
   return Array.from(
     container.querySelectorAll(
       'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
@@ -476,13 +445,6 @@ function openMenu({ focusOrigin = menuHandle } = {}) {
     const targetFocus = focusable.find((el) => el !== focusOrigin) || siteMenu;
     requestAnimationFrame(() => targetFocus.focus({ preventScroll: true }));
     attachTrap();
-  } else {
-    // На desktop обновляем позицию dots после анимации меню
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        updateDotsPosition();
-      });
-    });
   }
   updateAriaExpanded(true);
   lockScroll();
@@ -501,15 +463,6 @@ function closeMenu({ focusOrigin = menuHandle } = {}) {
     previousFocus = null;
   } else if (focusOrigin && focusOrigin instanceof HTMLElement) {
     focusOrigin.focus({ preventScroll: true });
-  }
-
-  // На desktop обновляем позицию dots после анимации закрытия меню
-  if (currentMode === 'desktop') {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        updateDotsPosition();
-      });
-    });
   }
 }
 
@@ -555,6 +508,24 @@ function initDots() {
   // IntersectionObserver уже обрабатывает активную секцию, scroll handler не нужен
 }
 
+/**
+ * Helper: обновляет режим и синхронизирует observer с layout
+ */
+function handleModeUpdate() {
+  const prevMode = currentMode;
+  updateMode();
+
+  if (prevMode !== currentMode) {
+    if (currentMode === 'desktop') {
+      setupSectionObserver();
+    } else {
+      teardownObserver();
+    }
+  }
+
+  scheduleLayoutMetricsUpdate();
+}
+
 function handleNext() {
   const currentIndex = getCurrentSectionIndex();
   const nextSection = sections[currentIndex + 1] || sections[0];
@@ -566,67 +537,31 @@ function handleNext() {
 function initMenuInteractions() {
   menuHandle?.addEventListener('click', () => toggleMenu(menuHandle));
   menuRail?.addEventListener('mouseenter', () => {
-    if (currentMode !== 'desktop') return;
+    if (currentInput !== 'pointer') return;
     body.classList.add('is-slid');
-    // Обновляем позицию dots после анимации slide
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        updateDotsPosition();
-      });
-    });
   });
   menuRail?.addEventListener('mouseleave', () => {
-    if (currentMode !== 'desktop') return;
+    if (currentInput !== 'pointer') return;
     body.classList.remove('is-slid');
-    // Обновляем позицию dots после анимации slide
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        updateDotsPosition();
-      });
-    });
   });
   menuRail?.addEventListener('focusin', () => {
-    if (currentMode !== 'desktop') return;
+    if (currentInput !== 'pointer') return;
     body.classList.add('is-slid');
-    // Обновляем позицию dots после анимации slide
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        updateDotsPosition();
-      });
-    });
   });
   menuRail?.addEventListener('focusout', (event) => {
-    if (currentMode !== 'desktop') return;
+    if (currentInput !== 'pointer') return;
     if (body.classList.contains('menu-open')) return;
     const next = event.relatedTarget;
     if (next && menuRail.contains(next)) return;
     body.classList.remove('is-slid');
-    // Обновляем позицию dots после анимации slide
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        updateDotsPosition();
-      });
-    });
   });
   panel?.addEventListener('mouseenter', () => {
-    if (currentMode !== 'desktop') return;
+    if (currentInput !== 'pointer') return;
     body.classList.remove('is-slid');
-    // Обновляем позицию dots после анимации slide
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        updateDotsPosition();
-      });
-    });
   });
   panel?.addEventListener('focusin', () => {
-    if (currentMode !== 'desktop') return;
+    if (currentInput !== 'pointer') return;
     body.classList.remove('is-slid');
-    // Обновляем позицию dots после анимации slide
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        updateDotsPosition();
-      });
-    });
   });
   dockHandle?.addEventListener('click', () => {
     if (currentMode !== 'handheld') return;
@@ -651,23 +586,31 @@ function initMenuInteractions() {
   });
 }
 
-function initGestures() {
-  // Временная реализация жестов через клики/ховеры
-  // TODO: Реализовать настоящие touch events для production
+/**
+ * Подключает edge-gesture для tablet-wide режима
+ */
+function attachEdgeGesture() {
+  if (currentMode !== 'tablet-wide') return;
+  if (edgeGestureHandler) return; // Already attached
 
-  // Edge-swipe для Tablet-Wide: клик по левому краю экрана (временная замена)
-  if (currentMode === 'tablet-wide') {
-    const edgeZoneWidth = 30; // px от левого края
-    document.addEventListener('click', (e) => {
-      if (currentMode !== 'tablet-wide') return;
-      if (e.clientX <= edgeZoneWidth && !body.classList.contains('menu-open')) {
-        openMenu({ focusOrigin: menuHandle });
-      }
-    });
-  }
+  const edgeZoneWidth = 30; // px от левого края
+  edgeGestureHandler = (e) => {
+    if (currentMode !== 'tablet-wide') return;
+    if (e.clientX <= edgeZoneWidth && !body.classList.contains('menu-open')) {
+      openMenu({ focusOrigin: menuHandle });
+    }
+  };
 
-  // Для handheld открытие/закрытие уже работает через dock-handle и menu-cap клики
-  // Эти обработчики находятся в initMenuInteractions
+  document.addEventListener('click', edgeGestureHandler);
+}
+
+/**
+ * Отключает edge-gesture
+ */
+function detachEdgeGesture() {
+  if (!edgeGestureHandler) return;
+  document.removeEventListener('click', edgeGestureHandler);
+  edgeGestureHandler = null;
 }
 
 function initMenuLinks() {
@@ -691,9 +634,11 @@ function init() {
   updateMode();
   initDots();
   initMenuInteractions();
-  initGestures();
+  attachEdgeGesture(); // Attach only if tablet-wide mode
   initMenuLinks();
-  btnNext?.addEventListener('click', handleNext);
+
+  const handleNextClick = () => handleNext();
+  btnNext?.addEventListener('click', handleNextClick);
 
   let resizeRaf = null;
 
@@ -705,23 +650,7 @@ function init() {
 
     resizeRaf = requestAnimationFrame(() => {
       resizeRaf = null;
-      const prevMode = currentMode;
-      updateMode();
-
-      if (prevMode !== currentMode) {
-        // При смене режима обновляем dots и observer
-        if (currentMode === 'desktop') {
-          updateDotsPosition();
-          setupSectionObserver();
-        } else {
-          teardownObserver();
-        }
-      } else if (currentMode === 'desktop') {
-        // Если режим не изменился, но мы в desktop - обновляем позицию dots
-        updateDotsPosition();
-      }
-
-      scheduleLayoutMetricsUpdate();
+      handleModeUpdate();
     });
   };
 
@@ -732,16 +661,7 @@ function init() {
     // Даем браузеру время обновить размеры перед проверкой
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        updateMode();
-
-        if (currentMode === 'desktop') {
-          updateDotsPosition();
-          setupSectionObserver();
-        } else {
-          teardownObserver();
-        }
-
-        scheduleLayoutMetricsUpdate();
+        handleModeUpdate();
       });
     });
   };
@@ -749,6 +669,7 @@ function init() {
   window.addEventListener('orientationchange', handleOrientationChange);
 
   // Добавляем обработку media queries для более точного отслеживания
+  const mediaQueryListeners = [];
   if (window.matchMedia) {
     const mql1024 = window.matchMedia('(min-width: 1024px)');
     const mql1280 = window.matchMedia('(min-width: 1280px)');
@@ -756,25 +677,38 @@ function init() {
 
     const handleMediaChange = () => {
       requestAnimationFrame(() => {
-        const prevMode = currentMode;
-        updateMode();
-
-        if (prevMode !== currentMode) {
-          if (currentMode === 'desktop') {
-            updateDotsPosition();
-            setupSectionObserver();
-          } else {
-            teardownObserver();
-          }
-          scheduleLayoutMetricsUpdate();
-        }
+        handleModeUpdate();
       });
     };
 
     mql1024.addEventListener('change', handleMediaChange);
     mql1280.addEventListener('change', handleMediaChange);
     mql1440.addEventListener('change', handleMediaChange);
+
+    mediaQueryListeners.push(
+      { mql: mql1024, handler: handleMediaChange },
+      { mql: mql1280, handler: handleMediaChange },
+      { mql: mql1440, handler: handleMediaChange }
+    );
   }
+
+  // Cleanup function для удаления всех listeners
+  return () => {
+    btnNext?.removeEventListener('click', handleNextClick);
+    window.removeEventListener('resize', handleResize);
+    window.removeEventListener('orientationchange', handleOrientationChange);
+
+    mediaQueryListeners.forEach(({ mql, handler }) => {
+      mql.removeEventListener('change', handler);
+    });
+
+    detachEdgeGesture();
+    teardownObserver();
+
+    if (resizeRaf !== null) {
+      cancelAnimationFrame(resizeRaf);
+    }
+  };
 }
 
 init();
@@ -829,7 +763,7 @@ window.toggleModeDebug = function (enable) {
 
     // Принудительно запускаем определение для вывода в консоль
     const detectedInput = detectInput();
-    const detectedMode = detectMode();
+    const detectedMode = detectMode(detectedInput);
     console.log('[DEBUG] Detected state:', {
       mode: detectedMode,
       input: detectedInput,

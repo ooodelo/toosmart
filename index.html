@@ -85,7 +85,9 @@
     </header>
 
     <aside class="menu-rail" aria-label="Оглавление курса">
-      <div class="menu-rail__cap" aria-hidden="true"></div>
+      <button class="menu-rail__cap" type="button" aria-label="Закрыть меню">
+        <span aria-hidden="true"></span>
+      </button>
       <button class="menu-handle" type="button" aria-controls="site-menu" aria-expanded="false">
         <span class="menu-handle__label">Оглавление</span>
       </button>
@@ -146,11 +148,11 @@
             <p>Во втором абзаце оцениваем плавность перехода к блоку рекомендаций после нажатия «Далее».</p>
             <p>Третий абзац завершает последовательность и готовит возвращение к оглавлению через меню.</p>
           </section>
+
+          <button class="btn-next" type="button">Далее</button>
         </article>
         <nav class="dots-rail" aria-label="Навигация по разделам"></nav>
       </section>
-
-      <button class="btn-next" type="button">Далее</button>
 
       <aside class="stack" aria-label="Рекомендации">
         <div class="stack__intro">
