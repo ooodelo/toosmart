@@ -59,7 +59,7 @@ body {
   padding: 0;
   color: var(--text-color);
   font-family: "Inter", "Segoe UI", sans-serif;
-  background: #f4f2ee;
+  background: #eff0ed;
   min-height: 100%;
 }
 
@@ -472,7 +472,6 @@ body[data-mode="desktop"] .btn-next {
   position: sticky;
   bottom: 24px;
   margin: 48px auto 0;
-  align-self: center;
 }
 
 body[data-mode="desktop"] .stack {
@@ -521,7 +520,6 @@ body[data-mode="tablet-wide"] .btn-next {
   position: sticky;
   bottom: 24px;
   margin: 48px auto 0;
-  align-self: center;
 }
 
 body[data-mode="tablet-wide"] .stack {
