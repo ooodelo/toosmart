@@ -639,67 +639,63 @@ function initMenuLinks() {
  * Механика:
  * 1. Показываем по 2 карточки (1 слайд)
  * 2. Всего 2 слайда (4 карточки)
- * 3. При scroll 0-50% → слайд 1
- * 4. При scroll 50-100% → слайд 2
- * 5. Плавная смена через opacity
- * 6. Индикатор прогресса из точек
+ * 3. Автоматическая смена каждые 6 секунд
+ * 4. Плавная смена через opacity
+ * 5. Индикатор прогресса из точек
+ * 6. Пауза при наведении мыши
  *
  * Работает на всех режимах (desktop, tablet-wide, handheld)
  */
 function initStackCarousel() {
+  const stack = document.querySelector('.stack');
   const slides = document.querySelectorAll('.stack-slide');
   const dots = document.querySelectorAll('.stack-dot');
 
   if (slides.length === 0) return;
 
   let currentSlide = 0;
-  let ticking = false;
+  let intervalId = null;
+  let isPaused = false;
+
+  // Интервал между сменами слайдов (миллисекунды)
+  const SLIDE_INTERVAL = 6000; // 6 секунд
 
   function setActiveSlide(index) {
-    if (index === currentSlide) return;
+    // Циклическое переключение
+    const safeIndex = index % slides.length;
 
-    currentSlide = index;
+    if (safeIndex === currentSlide) return;
+
+    currentSlide = safeIndex;
 
     // Обновляем слайды
     slides.forEach((slide, i) => {
-      slide.setAttribute('data-active', i === index ? 'true' : 'false');
+      slide.setAttribute('data-active', i === currentSlide ? 'true' : 'false');
     });
 
     // Обновляем точки
     dots.forEach((dot, i) => {
-      dot.setAttribute('data-active', i === index ? 'true' : 'false');
+      dot.setAttribute('data-active', i === currentSlide ? 'true' : 'false');
     });
   }
 
-  function updateCarousel() {
-    const scrollY = window.scrollY || window.pageYOffset;
-    const documentHeight = document.documentElement.scrollHeight;
-    const viewportHeight = window.innerHeight;
-    const maxScroll = documentHeight - viewportHeight;
-
-    if (maxScroll <= 0) {
-      setActiveSlide(0);
-      ticking = false;
-      return;
+  function nextSlide() {
+    if (!isPaused) {
+      setActiveSlide(currentSlide + 1);
     }
-
-    // Прогресс скролла от 0 до 1
-    const scrollProgress = scrollY / maxScroll;
-
-    // Определяем активный слайд
-    // 0-0.5 → слайд 0
-    // 0.5-1.0 → слайд 1
-    const slideIndex = Math.min(Math.floor(scrollProgress * slides.length), slides.length - 1);
-
-    setActiveSlide(slideIndex);
-
-    ticking = false;
   }
 
-  function requestTick() {
-    if (!ticking) {
-      requestAnimationFrame(updateCarousel);
-      ticking = true;
+  function startAutoplay() {
+    if (intervalId) {
+      clearInterval(intervalId);
+    }
+    intervalId = setInterval(nextSlide, SLIDE_INTERVAL);
+  }
+
+  function stopAutoplay() {
+    if (intervalId) {
+      clearInterval(intervalId);
+      intervalId = null;
     }
   }
 
@@ -707,28 +703,27 @@ function initStackCarousel() {
   dots.forEach((dot, index) => {
     dot.addEventListener('click', () => {
       setActiveSlide(index);
-
-      // Опционально: плавно скроллим к соответствующей позиции
-      const targetProgress = (index + 0.5) / slides.length;
-      const documentHeight = document.documentElement.scrollHeight;
-      const viewportHeight = window.innerHeight;
-      const targetScroll = targetProgress * (documentHeight - viewportHeight);
-
-      window.scrollTo({
-        top: targetScroll,
-        behavior: 'smooth'
-      });
+      // Перезапускаем таймер после ручного переключения
+      startAutoplay();
     });
   });
 
-  // Слушаем скролл
-  window.addEventListener('scroll', requestTick, { passive: true });
+  // Пауза при наведении мыши
+  if (stack) {
+    stack.addEventListener('mouseenter', () => {
+      isPaused = true;
+    });
 
-  // Обновляем при resize
-  window.addEventListener('resize', requestTick);
+    stack.addEventListener('mouseleave', () => {
+      isPaused = false;
+    });
+  }
 
   // Первоначальное обновление
   setActiveSlide(0);
+
+  // Запускаем автопроигрывание
+  startAutoplay();
 }
 
 function init() {
