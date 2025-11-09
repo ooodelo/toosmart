@@ -165,7 +165,7 @@ function scheduleLayoutMetricsUpdate() {
 /**
  * Определяет режим верстки на основе текущей ширины viewport
  * @param {'touch' | 'pointer'} inputType - тип ввода
- * @returns {'handheld' | 'tablet-wide' | 'desktop'} - режим верстки
+ * @returns {'mobile' | 'tablet' | 'desktop' | 'desktop-wide'} - режим верстки
  */
 function detectMode(inputType) {
   // Приоритет источников ширины:
@@ -575,38 +575,38 @@ function initMenuInteractions() {
     body.classList.remove('is-slid');
   });
   dockHandle?.addEventListener('click', () => {
-    if (currentMode !== 'handheld') return;
+    if (currentMode !== 'mobile') return;
     toggleMenu(dockHandle);
   });
   backdrop?.addEventListener('click', () => {
     if (!body.classList.contains('menu-open')) return;
-    const origin = currentMode === 'handheld' ? dockHandle : menuHandle;
+    const origin = currentMode === 'mobile' ? dockHandle : menuHandle;
     closeMenu({ focusOrigin: origin });
   });
   menuCap?.addEventListener('click', () => {
-    if (currentMode !== 'handheld') return;
+    if (currentMode !== 'mobile') return;
     if (!body.classList.contains('menu-open')) return;
     closeMenu({ focusOrigin: dockHandle });
   });
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && body.classList.contains('menu-open')) {
       event.preventDefault();
-      const origin = currentMode === 'handheld' ? dockHandle : menuHandle;
+      const origin = currentMode === 'mobile' ? dockHandle : menuHandle;
       closeMenu({ focusOrigin: origin });
     }
   });
 }
 
 /**
- * Подключает edge-gesture для tablet-wide режима
+ * Подключает edge-gesture для tablet режима
  */
 function attachEdgeGesture() {
-  if (currentMode !== 'tablet-wide') return;
+  if (currentMode !== 'tablet') return;
   if (edgeGestureHandler) return; // Already attached
 
   const edgeZoneWidth = 30; // px от левого края
   edgeGestureHandler = (e) => {
-    if (currentMode !== 'tablet-wide') return;
+    if (currentMode !== 'tablet') return;
     if (e.clientX <= edgeZoneWidth && !body.classList.contains('menu-open')) {
       openMenu({ focusOrigin: menuHandle });
     }
@@ -633,8 +633,8 @@ function initMenuLinks() {
       if (target) {
         target.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
-      if (currentMode !== 'desktop') {
-        const origin = currentMode === 'handheld' ? dockHandle : menuHandle;
+      if (currentMode === 'mobile' || currentMode === 'tablet') {
+        const origin = currentMode === 'mobile' ? dockHandle : menuHandle;
         closeMenu({ focusOrigin: origin });
       }
     });
@@ -652,7 +652,7 @@ function initMenuLinks() {
  * 5. Индикатор прогресса из точек
  * 6. Пауза при наведении мыши
  *
- * Работает на всех режимах (desktop, tablet-wide, handheld)
+ * Работает на всех режимах (mobile, tablet, desktop, desktop-wide)
  */
 function initStackCarousel() {
   const stack = document.querySelector('.stack');
@@ -738,7 +738,7 @@ function init() {
   updateMode();
   initDots();
   initMenuInteractions();
-  attachEdgeGesture(); // Attach only if tablet-wide mode
+  attachEdgeGesture(); // Attach only if tablet mode
   initMenuLinks();
   initStackCarousel(); // Карусель рекомендаций
 

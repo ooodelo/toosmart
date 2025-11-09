@@ -43,7 +43,6 @@
   --text-color: #222;
 
   /* Цвета контента */
-  --surface-content: #fff;
   --text-primary: #222;
   --text-secondary: #666;
   --code-inline-bg: var(--surface);
@@ -54,8 +53,8 @@
   --link-hover: #004499;
 
   /* Handheld */
-  --handheld-dock: 64px;
-  --handheld-dock-footprint: calc(var(--handheld-dock) + env(safe-area-inset-bottom, 0px));
+  --mobile-dock: 64px;
+  --mobile-dock-footprint: calc(var(--mobile-dock) + env(safe-area-inset-bottom, 0px));
 }
 
 * {
@@ -479,7 +478,6 @@ body[data-mode="mobile"] .text-box {
   padding: 12px 24px;
   background: var(--surface-alt);
   cursor: pointer;
-  display: inline-flex;
   align-items: center;
   justify-content: center;
   font-size: 16px;
@@ -493,7 +491,7 @@ body[data-mode="mobile"] .text-box {
 .stack {
   grid-column: 3;
   align-self: start;
-  position: relative; /* default - меняется на fixed в desktop/tablet-wide */
+  position: relative; /* default - меняется на sticky в desktop/desktop-wide */
   padding: 20px;
   display: flex;
   flex-direction: column;
@@ -614,7 +612,7 @@ body.menu-open .backdrop {
   left: 0;
   right: 0;
   bottom: 0;
-  height: var(--handheld-dock-footprint);
+  height: var(--mobile-dock-footprint);
   background: var(--surface-alt);
   border-top: 1px solid var(--border-color);
   display: none;
@@ -627,7 +625,7 @@ body.menu-open .backdrop {
 
 .dock-handle {
   width: 100%;
-  height: var(--handheld-dock);
+  height: var(--mobile-dock);
   padding: 0 24px;
   font-weight: 600;
   cursor: pointer;
@@ -658,6 +656,7 @@ body[data-mode="desktop"] .dock {
 
 body[data-mode="desktop"] .dots-rail {
   display: flex;
+  left: calc(var(--text-box-left) - 48px);
 }
 
 body[data-mode="desktop"] {
@@ -670,7 +669,7 @@ body[data-mode="desktop"] {
 
 body[data-mode="desktop"] .main {
   display: grid;
-  grid-template-columns: 1fr 580px 1fr;
+  grid-template-columns: 1fr var(--text-box-width-desktop) 1fr;
   grid-template-rows: 1fr;
   column-gap: 0;
 }
@@ -714,7 +713,7 @@ body[data-mode="desktop-wide"] {
 
 body[data-mode="desktop-wide"] .main {
   display: grid;
-  grid-template-columns: 1fr 660px 1fr;
+  grid-template-columns: 1fr var(--text-box-width-desktop-wide) 1fr;
   grid-template-rows: 1fr;
   column-gap: 0;
   max-width: 1400px;
@@ -790,7 +789,7 @@ body[data-mode="tablet"] .main {
 body[data-mode="tablet"] .panel {
   order: 1;
   width: 100%;
-  max-width: 520px;
+  max-width: var(--text-box-width-tablet);
   margin: 0 auto;
   padding: 0;
 }
@@ -812,7 +811,7 @@ body[data-mode="tablet"] .stack {
   order: 3;
   position: static;
   width: 100%;
-  max-width: 520px;
+  max-width: var(--text-box-width-tablet);
   margin: 32px auto 0;
   padding: var(--gap-page);
   height: auto;
@@ -835,7 +834,7 @@ body[data-mode="tablet"].menu-open .header {
 body[data-mode="mobile"] .main {
   display: flex;
   flex-direction: column;
-  padding-bottom: calc(var(--gap-page) + var(--btn-next-footprint) + var(--handheld-dock-footprint));
+  padding-bottom: calc(var(--gap-page) + var(--btn-next-footprint) + var(--mobile-dock-footprint));
 }
 
 body[data-mode="mobile"] .panel,
@@ -894,7 +893,7 @@ body[data-mode="mobile"] .menu-rail {
   pointer-events: none;
   padding-left: env(safe-area-inset-left, 0px);
   padding-right: env(safe-area-inset-right, 0px);
-  padding-bottom: calc(var(--handheld-dock-footprint) + 16px);
+  padding-bottom: calc(var(--mobile-dock-footprint) + 16px);
   padding-top: 12px;
   border-right: none;
   display: flex;

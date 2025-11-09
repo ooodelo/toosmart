@@ -19,37 +19,27 @@
           var hasTouchPoints = navigator.maxTouchPoints > 0;
           var isTouchDevice = hasAnyCoarse || hasTouchPoints;
 
-          // Определяем iPad (включая iPadOS 13+ которые притворяются Mac)
-          var ua = navigator.userAgent;
-          var isIpad = (/iPad/.test(ua) || (/Macintosh/.test(ua) && hasTouchPoints));
-
-          if (w < 1024) {
-            return 'handheld';
+          // Touch устройства: упрощенная схема (mobile/tablet/desktop)
+          if (isTouchDevice) {
+            if (w < 768) {
+              return 'mobile';
+            } else if (w < 900) {
+              return 'tablet';
+            } else {
+              return 'desktop'; // touch останавливается на desktop
+            }
           }
 
-          if (w < 1440) {
-            // Диапазон 1024-1439px
-            // iPad всегда tablet-wide
-            if (isIpad) {
-              return 'tablet-wide';
-            }
-            // Сенсорное устройство без hover → tablet-wide
-            if (isTouchDevice && !hasHover) {
-              return 'tablet-wide';
-            }
-            // Desktop только при 1280+, с hover и без touch
-            if (w >= 1280 && hasHover && !isTouchDevice) {
-              return 'desktop';
-            }
-            return 'tablet-wide';
+          // Non-touch устройства: полный диапазон режимов (все 4)
+          if (w < 768) {
+            return 'mobile';
+          } else if (w < 900) {
+            return 'tablet';
+          } else if (w < 1280) {
+            return 'desktop';
+          } else {
+            return 'desktop-wide';
           }
-
-          // ≥1440px - iPad все равно tablet-wide
-          if (isIpad) {
-            return 'tablet-wide';
-          }
-
-          return 'desktop';
         }
 
         var m = detectInitialMode();
