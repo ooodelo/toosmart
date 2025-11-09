@@ -708,7 +708,7 @@ body[data-mode="desktop"] .stack {
 
 body[data-mode="desktop-wide"] {
   --text-box-width: var(--text-box-width-desktop-wide);
-  --text-box-left: var(--text-box-left-desktop-wide);
+  --text-box-left: calc(50vw - var(--text-box-width-desktop-wide) / 2);
 }
 
 body[data-mode="desktop-wide"] .main {
