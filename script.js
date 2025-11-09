@@ -637,49 +637,56 @@ function initMenuLinks() {
  * Parallax scroll для блока рекомендаций
  *
  * Механика:
- * 1. Блок скроллится медленнее основного контента (коэффициент PARALLAX_SPEED)
- * 2. Когда низ блока достигает низа viewport → останавливается
- * 3. Текст продолжает скроллиться дальше
- * 4. При обратном скролле работает аналогично
+ * 1. Блок .stack фиксирован (position: fixed) - ВСЕГДА на экране
+ * 2. Контент внутри (.stack-list) двигается медленнее через transform
+ * 3. При scroll=0 → показываем верх контента
+ * 4. При scroll=max → показываем низ контента
+ * 5. Блок работает как "окно", через которое видны разные части списка
  *
  * Работает только на desktop и tablet-wide
  */
 function initParallaxStack() {
   const stack = document.querySelector('.stack');
-  if (!stack) return;
+  const stackList = document.querySelector('.stack-list');
+  if (!stack || !stackList) return;
 
-  // Коэффициент замедления (0.6 = в 2.5 раза медленнее)
-  // Можно настроить: 0.5 (быстрее), 0.7 (медленнее)
-  const PARALLAX_SPEED = 0.6;
+  // Коэффициент замедления (0.4 = в 2.5 раза медленнее)
+  const PARALLAX_SPEED = 0.4;
 
   let ticking = false;
 
   function updateParallax() {
     // Отключаем на handheld
     if (currentMode === 'handheld') {
-      stack.style.transform = 'none';
+      stackList.style.transform = 'none';
       return;
     }
 
     const scrollY = window.scrollY || window.pageYOffset;
-    const stackHeight = stack.offsetHeight;
+    const stackHeight = stack.offsetHeight; // высота "окна"
+    const contentHeight = stackList.scrollHeight; // высота контента внутри
+    const documentHeight = document.documentElement.scrollHeight;
     const viewportHeight = window.innerHeight;
 
-    // Вычисляем parallax offset
-    // Отрицательное значение двигает блок вверх медленнее
-    let parallaxOffset = -scrollY * (1 - PARALLAX_SPEED);
+    // Максимальный скролл страницы
+    const maxScroll = documentHeight - viewportHeight;
 
-    // Ограничение сверху: не выше начальной позиции
-    parallaxOffset = Math.min(0, parallaxOffset);
+    // Максимальное смещение контента (когда показываем низ)
+    const maxContentOffset = contentHeight - stackHeight;
 
-    // Ограничение снизу: остановка когда низ блока = низ viewport
-    if (stackHeight > viewportHeight) {
-      const maxOffset = -(stackHeight - viewportHeight);
-      parallaxOffset = Math.max(maxOffset, parallaxOffset);
+    if (maxScroll <= 0 || maxContentOffset <= 0) {
+      stackList.style.transform = 'none';
+      return;
     }
 
-    // Применяем transform
-    stack.style.transform = `translateY(${parallaxOffset}px)`;
+    // Вычисляем смещение контента пропорционально скроллу страницы
+    // При scrollY=0 → offset=0 (верх контента)
+    // При scrollY=max → offset=-maxContentOffset (низ контента)
+    const scrollProgress = scrollY / maxScroll;
+    const contentOffset = -scrollProgress * maxContentOffset * PARALLAX_SPEED;
+
+    // Применяем transform к контенту, а не к блоку
+    stackList.style.transform = `translateY(${contentOffset}px)`;
 
     ticking = false;
   }

@@ -485,13 +485,13 @@ body[data-mode="handheld"] .text-box {
 .stack {
   grid-column: 3;
   align-self: start;
-  position: relative; /* убираем sticky для parallax */
+  position: relative; /* default - меняется на fixed в desktop/tablet-wide */
   padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 16px;
   background: #fff;
-  will-change: transform; /* оптимизация для parallax */
+  overflow: hidden; /* скрываем контент который выходит за пределы */
 }
 
 .stack__intro {
@@ -509,13 +509,14 @@ body[data-mode="handheld"] .text-box {
 
 .stack-list {
   flex: 1 1 auto;
-  overflow: visible; /* без скролла - parallax */
+  overflow: visible;
   display: flex;
   flex-direction: column;
   gap: var(--stack-gap);
   margin: 0;
   padding: 0;
   list-style: none;
+  will-change: transform; /* контент двигается через parallax */
 }
 
 .stack-card {
@@ -634,14 +635,12 @@ body[data-mode="desktop"] .btn-next {
 }
 
 body[data-mode="desktop"] .stack {
-  grid-column: 3;
-  justify-self: stretch;
-  align-self: start;
-  position: relative; /* parallax вместо sticky */
-  margin-left: var(--stack-gap);
-  margin-right: var(--stack-gap);
-  width: auto;
-  max-width: var(--stack-width);
+  position: fixed; /* ВСЕГДА на экране для parallax */
+  top: var(--stack-top);
+  right: calc((100vw - 100%) / 2 + var(--gap-page));
+  width: var(--stack-width);
+  height: calc(100vh - var(--stack-top) - var(--stack-bottom));
+  height: calc(100dvh - var(--stack-top) - var(--stack-bottom));
 }
 
 body[data-mode="tablet-wide"] {
@@ -680,14 +679,12 @@ body[data-mode="tablet-wide"] .btn-next {
 }
 
 body[data-mode="tablet-wide"] .stack {
-  grid-column: 3;
-  justify-self: stretch;
-  align-self: start;
-  position: relative; /* parallax вместо sticky */
-  margin-left: var(--stack-gap);
-  margin-right: var(--stack-gap);
-  width: auto;
-  max-width: var(--stack-width);
+  position: fixed; /* ВСЕГДА на экране для parallax */
+  top: var(--stack-top);
+  right: calc((100vw - 100%) / 2 + var(--gap-page));
+  width: var(--stack-width);
+  height: calc(100vh - var(--stack-top) - var(--stack-bottom));
+  height: calc(100dvh - var(--stack-top) - var(--stack-bottom));
 }
 
 body[data-mode="tablet-wide"] .header {
