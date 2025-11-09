@@ -82,6 +82,10 @@ body {
 
 html {
   scroll-behavior: smooth;
+
+  /* Проблема 2: Отключение Safari bounce (резиновый эффект) */
+  -ms-scroll-chaining: none; /* IE 10+, старый Edge */
+  overscroll-behavior-y: none; /* Chrome 65+, Firefox 59+, Safari 16+ */
 }
 
 body[data-lock="scroll"] {
@@ -206,6 +210,10 @@ body[data-input="pointer"].is-slid .menu-rail {
   padding: 16px;
   pointer-events: auto;
   background: #fff;
+
+  /* Проблема 1: Остановка scroll chaining */
+  -ms-scroll-chaining: none; /* IE 10+, старый Edge, Win 8+ */
+  overscroll-behavior: contain; /* Chrome 65+, Firefox 59+, Safari 16+ */
 }
 
 .site-menu__intro {
@@ -661,7 +669,7 @@ body[data-mode="desktop"] {
 }
 
 body[data-mode="desktop"] .main {
-  grid-template-columns: 1fr var(--text-box-width-desktop) 1fr;
+  grid-template-columns: 1fr var(--text-box-width-desktop) clamp(240px, 28vw, 420px);
   grid-template-rows: 1fr;
 }
 
@@ -689,10 +697,9 @@ body[data-mode="desktop"] .stack {
   align-self: start;
   position: sticky;
   top: var(--stack-top);
-  margin-left: var(--stack-gap);
-  margin-right: var(--stack-gap);
+  margin-left: max(16px, var(--stack-gap));
+  margin-right: max(16px, var(--stack-gap));
   width: auto;
-  max-width: var(--stack-width);
   height: calc(100vh - var(--stack-top) - var(--stack-bottom));
   height: calc(100dvh - var(--stack-top) - var(--stack-bottom));
 }
@@ -710,13 +717,16 @@ body[data-mode="tablet-wide"] .dots-rail {
 }
 
 body[data-mode="tablet-wide"] .main {
-  grid-template-columns: 1fr var(--text-box-width-tablet) 1fr;
-  grid-template-rows: 1fr;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: calc(var(--gap-page) * 2);
 }
 
 body[data-mode="tablet-wide"] .panel {
-  grid-column: 2;
-  grid-row: 1;
+  order: 1;
+  width: 100%;
+  max-width: 680px;
+  margin: 0 auto;
   padding: 0;
 }
 
@@ -730,20 +740,18 @@ body[data-mode="tablet-wide"] .btn-next {
   position: sticky;
   bottom: 24px;
   margin: 48px auto 0;
+  order: 2;
 }
 
 body[data-mode="tablet-wide"] .stack {
-  grid-column: 3;
-  justify-self: stretch;
-  align-self: start;
-  position: sticky;
-  top: var(--stack-top);
-  margin-left: var(--stack-gap);
-  margin-right: var(--stack-gap);
-  width: auto;
-  max-width: var(--stack-width);
-  height: calc(100vh - var(--stack-top) - var(--stack-bottom));
-  height: calc(100dvh - var(--stack-top) - var(--stack-bottom));
+  order: 3;
+  position: static;
+  width: 100%;
+  max-width: 680px;
+  margin: 32px auto 0;
+  padding: var(--gap-page);
+  height: auto;
+  align-self: center;
 }
 
 body[data-mode="tablet-wide"] .header {

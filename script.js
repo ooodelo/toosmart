@@ -3,8 +3,8 @@
  *
  * 1. data-mode (Layout Mode) - режим верстки, зависит от ширины окна и touch-capability:
  *    - 'handheld': < 1024px (мобильные телефоны, маленькие планшеты в портрете)
- *    - 'tablet-wide': 1024-1439px non-touch ИЛИ >= 1024px touch (планшеты, touch-десктопы)
- *    - 'desktop': >= 1440px non-touch (обычные десктопы)
+ *    - 'tablet-wide': 1024-1279px non-touch ИЛИ >= 1024px touch (планшеты, touch-десктопы)
+ *    - 'desktop': >= 1280px non-touch (обычные десктопы)
  *
  *    Правило: Touch-устройства ВСЕГДА получают максимум tablet-wide, даже при 1920px.
  *
@@ -105,7 +105,7 @@ function classifyMode(width, inputType) {
   else {
     if (width < 1024) {
       mode = 'handheld';
-    } else if (width < 1440) {
+    } else if (width < 1280) {
       mode = 'tablet-wide';
     } else {
       mode = 'desktop';
@@ -186,8 +186,8 @@ function detectMode(inputType) {
 
   const mediaFallbacks = [
     ['handheld', '(max-width: 1023px)'],
-    ['tablet-wide', '(min-width: 1024px) and (max-width: 1439px)'],
-    ['desktop', '(min-width: 1440px)'],
+    ['tablet-wide', '(min-width: 1024px) and (max-width: 1279px)'],
+    ['desktop', '(min-width: 1280px)'],
   ];
 
   for (const [mode, query] of mediaFallbacks) {
