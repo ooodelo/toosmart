@@ -2,30 +2,29 @@
  * АРХИТЕКТУРА: Разделение режимов верстки и типов ввода
  *
  * 1. data-mode (Layout Mode) - режим верстки, зависит от ширины окна и touch-capability:
- *    - 'handheld': < 1024px (мобильные телефоны, маленькие планшеты в портрете)
- *    - 'tablet-wide': 1024-1279px non-touch ИЛИ >= 1024px touch (планшеты, touch-десктопы)
- *    - 'desktop': >= 1280px non-touch (обычные десктопы)
+ *    - 'mobile': < 768px (телефоны)
+ *    - 'tablet': 768-899px (планшеты)
+ *    - 'desktop': 900-1279px (ноутбуки)
+ *    - 'desktop-wide': >= 1280px (большие мониторы)
  *
- *    Правило: Touch-устройства ВСЕГДА получают максимум tablet-wide, даже при 1920px.
+ *    Правило: Touch-устройства используют упрощенную схему (mobile/tablet/desktop), без desktop-wide.
  *
  * 2. data-input (Input Capabilities) - тип ввода, определяет интерактивность:
  *    - 'touch': устройства с сенсорным вводом (свайпы, клики)
  *    - 'pointer': устройства с мышью (hover-эффекты)
  *
  *    Используется ТОЛЬКО для rail menu интерактивности:
- *    - handheld + touch: меню снизу, открывается тапом
- *    - tablet-wide + touch: меню слева, открывается свайпом/тапом
- *    - tablet-wide + pointer: меню слева, открывается hover
- *    - desktop + pointer: меню слева, hover для slide
+ *    - mobile + touch: меню снизу, открывается тапом
+ *    - tablet + touch: меню overlay, открывается тапом
+ *    - desktop + touch/pointer: меню overlay, открывается тапом/hover
  *
  * Примеры:
- *    iPhone 15 (393px, touch) → mode=handheld, input=touch
- *    iPad Pro портрет (1024px, touch) → mode=tablet-wide, input=touch
- *    iPad Pro ландшафт (1440px, touch) → mode=tablet-wide, input=touch (!)
- *    Desktop 27" touch (1920px, touch) → mode=tablet-wide, input=touch (!)
- *    Laptop 13" (1280px, pointer) → mode=tablet-wide, input=pointer
- *    Desktop 27" (1920px, pointer) → mode=desktop, input=pointer
- *    Dev Tools iPhone (375px, pointer) → mode=handheld, input=pointer (верстка правильная!)
+ *    iPhone 15 (393px, touch) → mode=mobile, input=touch
+ *    iPad Pro портрет (768px, touch) → mode=tablet, input=touch
+ *    iPad Pro ландшафт (1024px, touch) → mode=desktop, input=touch
+ *    Laptop 13" (1280px, pointer) → mode=desktop-wide, input=pointer
+ *    Desktop 27" (1920px, pointer) → mode=desktop-wide, input=pointer
+ *    Dev Tools iPhone (375px, pointer) → mode=mobile, input=pointer
  */
 
 const root = document.documentElement;
@@ -90,25 +89,33 @@ function detectInput() {
  * Классифицирует режим верстки на основе ширины и типа ввода
  * @param {number} width - ширина viewport
  * @param {'touch' | 'pointer'} inputType - тип ввода
- * @returns {'handheld' | 'tablet-wide' | 'desktop'} - режим верстки
+ * @returns {'mobile' | 'tablet' | 'desktop' | 'desktop-wide'} - режим верстки
  */
 function classifyMode(width, inputType) {
   const isTouchDevice = inputType === 'touch';
 
   let mode;
 
-  // Touch устройства: всегда максимум tablet-wide (даже при 1920px!)
+  // Touch устройства: упрощенная схема (mobile/tablet/desktop)
   if (isTouchDevice) {
-    mode = width < 1024 ? 'handheld' : 'tablet-wide';
-  }
-  // Non-touch устройства: полный диапазон режимов
-  else {
-    if (width < 1024) {
-      mode = 'handheld';
-    } else if (width < 1280) {
-      mode = 'tablet-wide';
+    if (width < 768) {
+      mode = 'mobile';
+    } else if (width < 900) {
+      mode = 'tablet';
     } else {
+      mode = 'desktop'; // touch останавливается на desktop
+    }
+  }
+  // Non-touch устройства: полный диапазон режимов (все 4)
+  else {
+    if (width < 768) {
+      mode = 'mobile';
+    } else if (width < 900) {
+      mode = 'tablet';
+    } else if (width < 1280) {
       mode = 'desktop';
+    } else {
+      mode = 'desktop-wide';
     }
   }
 
@@ -185,9 +192,10 @@ function detectMode(inputType) {
   }
 
   const mediaFallbacks = [
-    ['handheld', '(max-width: 1023px)'],
-    ['tablet-wide', '(min-width: 1024px) and (max-width: 1279px)'],
-    ['desktop', '(min-width: 1280px)'],
+    ['mobile', '(max-width: 767px)'],
+    ['tablet', '(min-width: 768px) and (max-width: 899px)'],
+    ['desktop', '(min-width: 900px) and (max-width: 1279px)'],
+    ['desktop-wide', '(min-width: 1280px)'],
   ];
 
   for (const [mode, query] of mediaFallbacks) {
@@ -196,7 +204,7 @@ function detectMode(inputType) {
     }
   }
 
-  return 'tablet-wide';
+  return 'desktop';
 }
 
 /**

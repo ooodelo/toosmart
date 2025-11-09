@@ -2,14 +2,10 @@
   color-scheme: light;
 
   /* Ширины текстовых блоков */
-  --text-box-width-desktop: 680px;
-  --text-box-width-tablet: 540px;
-  --text-box-width-handheld: max(
-    280px,
-    calc(
-      100vw - var(--gap-page) * 2 - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)
-    )
-  );
+  --text-box-width-mobile: 500px;
+  --text-box-width-tablet: 520px;
+  --text-box-width-desktop: 580px;
+  --text-box-width-desktop-wide: 660px;
   --text-box-width: var(--text-box-width-desktop);
 
   /* Ширины блока рекомендаций */
@@ -21,7 +17,9 @@
   --stack-min-width: var(--stack-min-width-desktop);
 
   /* Для dots-rail позиционирования */
-  --text-box-left: calc(50vw - var(--text-box-width-desktop) / 2);
+  --text-box-left-desktop: calc(50% - var(--text-box-width-desktop) / 2);
+  --text-box-left-desktop-wide: calc(50% - var(--text-box-width-desktop-wide) / 2);
+  --text-box-left: var(--text-box-left-desktop);
 
   /* Отступы и размеры */
   --gap-page: 32px;
@@ -284,13 +282,15 @@ body[data-input="pointer"].is-slid .menu-rail {
   position: relative;
 }
 
-body[data-mode="handheld"] .panel {
+body[data-mode="mobile"] .panel {
   display: flex;
   flex-direction: column;
   align-items: stretch;
 }
 
-body[data-mode="handheld"] .text-box {
+body[data-mode="mobile"] .text-box {
+  max-width: var(--text-box-width-mobile);
+  margin: 0 auto;
   width: 100%;
 }
 
@@ -669,8 +669,10 @@ body[data-mode="desktop"] {
 }
 
 body[data-mode="desktop"] .main {
-  grid-template-columns: 1fr var(--text-box-width-desktop) clamp(240px, 28vw, 420px);
+  display: grid;
+  grid-template-columns: 1fr 580px 1fr;
   grid-template-rows: 1fr;
+  column-gap: 0;
 }
 
 body[data-mode="desktop"] .panel {
@@ -693,18 +695,81 @@ body[data-mode="desktop"] .btn-next {
 
 body[data-mode="desktop"] .stack {
   grid-column: 3;
-  justify-self: stretch;
+  justify-self: center;
   align-self: start;
   position: sticky;
   top: var(--stack-top);
-  margin-left: max(16px, var(--stack-gap));
-  margin-right: max(16px, var(--stack-gap));
-  width: auto;
+  margin: 0;
+  padding: 20px;
+  width: 100%;
+  max-width: 100%;
   height: calc(100vh - var(--stack-top) - var(--stack-bottom));
   height: calc(100dvh - var(--stack-top) - var(--stack-bottom));
 }
 
-body[data-mode="tablet-wide"] {
+body[data-mode="desktop-wide"] {
+  --text-box-width: var(--text-box-width-desktop-wide);
+  --text-box-left: var(--text-box-left-desktop-wide);
+}
+
+body[data-mode="desktop-wide"] .main {
+  display: grid;
+  grid-template-columns: 1fr 660px 1fr;
+  grid-template-rows: 1fr;
+  column-gap: 0;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+body[data-mode="desktop-wide"] .panel {
+  grid-column: 2;
+  grid-row: 1;
+  padding: 0;
+}
+
+body[data-mode="desktop-wide"] .text-box {
+  width: 100%;
+}
+
+body[data-mode="desktop-wide"] .btn-next {
+  display: flex;
+  width: fit-content;
+  position: sticky;
+  bottom: 24px;
+  margin: 48px auto 0;
+}
+
+body[data-mode="desktop-wide"] .stack {
+  grid-column: 3;
+  justify-self: center;
+  align-self: start;
+  position: sticky;
+  top: var(--stack-top);
+  margin: 0;
+  padding: 20px;
+  width: 100%;
+  max-width: 400px;
+  height: calc(100vh - var(--stack-top) - var(--stack-bottom));
+  height: calc(100dvh - var(--stack-top) - var(--stack-bottom));
+}
+
+body[data-mode="desktop-wide"] .dots-rail {
+  display: flex;
+  left: calc(var(--text-box-left) - 48px);
+}
+
+/* Компактный стиль carousel для узкого sidebar на desktop (900-1000px) */
+@media (min-width: 900px) and (max-width: 1000px) {
+  body[data-mode="desktop"] .stack-card h3 {
+    font-size: 16px;
+  }
+
+  body[data-mode="desktop"] .stack-card p {
+    font-size: 13px;
+  }
+}
+
+body[data-mode="tablet"] {
   --text-box-width: var(--text-box-width-tablet);
   --stack-width: var(--stack-width-tablet);
   --stack-min-width: var(--stack-min-width-tablet);
@@ -712,29 +777,29 @@ body[data-mode="tablet-wide"] {
   --text-box-left: calc(50vw - var(--text-box-width-tablet) / 2);
 }
 
-body[data-mode="tablet-wide"] .dots-rail {
+body[data-mode="tablet"] .dots-rail {
   display: none;
 }
 
-body[data-mode="tablet-wide"] .main {
+body[data-mode="tablet"] .main {
   display: flex;
   flex-direction: column;
   padding-bottom: calc(var(--gap-page) * 2);
 }
 
-body[data-mode="tablet-wide"] .panel {
+body[data-mode="tablet"] .panel {
   order: 1;
   width: 100%;
-  max-width: 680px;
+  max-width: 520px;
   margin: 0 auto;
   padding: 0;
 }
 
-body[data-mode="tablet-wide"] .text-box {
+body[data-mode="tablet"] .text-box {
   width: 100%;
 }
 
-body[data-mode="tablet-wide"] .btn-next {
+body[data-mode="tablet"] .btn-next {
   display: flex;
   width: fit-content;
   position: sticky;
@@ -743,48 +808,48 @@ body[data-mode="tablet-wide"] .btn-next {
   order: 2;
 }
 
-body[data-mode="tablet-wide"] .stack {
+body[data-mode="tablet"] .stack {
   order: 3;
   position: static;
   width: 100%;
-  max-width: 680px;
+  max-width: 520px;
   margin: 32px auto 0;
   padding: var(--gap-page);
   height: auto;
   align-self: center;
 }
 
-body[data-mode="tablet-wide"] .header {
+body[data-mode="tablet"] .header {
   transform: translateX(0);
 }
 
-body[data-mode="tablet-wide"] .header__links,
-body[data-mode="handheld"] .header__links {
+body[data-mode="tablet"] .header__links,
+body[data-mode="mobile"] .header__links {
   gap: 8px;
 }
 
-body[data-mode="tablet-wide"].menu-open .header {
+body[data-mode="tablet"].menu-open .header {
   transform: translateX(calc(var(--rail-open) - var(--rail-closed)));
 }
 
-body[data-mode="handheld"] .main {
+body[data-mode="mobile"] .main {
   display: flex;
   flex-direction: column;
   padding-bottom: calc(var(--gap-page) + var(--btn-next-footprint) + var(--handheld-dock-footprint));
 }
 
-body[data-mode="handheld"] .panel,
-body[data-mode="handheld"] .stack {
+body[data-mode="mobile"] .panel,
+body[data-mode="mobile"] .stack {
   position: static;
   width: 100%;
   padding: var(--gap-page);
 }
 
-body[data-mode="handheld"] .panel {
+body[data-mode="mobile"] .panel {
   order: 1;
 }
 
-body[data-mode="handheld"] .btn-next {
+body[data-mode="mobile"] .btn-next {
   display: flex;
   margin: 16px auto;
   order: 2;
@@ -793,7 +858,7 @@ body[data-mode="handheld"] .btn-next {
   margin-right: auto;
 }
 
-body[data-mode="handheld"] .stack {
+body[data-mode="mobile"] .stack {
   order: 3;
   margin-top: 16px;
   padding: var(--gap-page);
@@ -803,19 +868,19 @@ body[data-mode="handheld"] .stack {
   align-self: stretch;
 }
 
-body[data-mode="handheld"] {
-  --text-box-width: var(--text-box-width-handheld);
+body[data-mode="mobile"] {
+  --text-box-width: var(--text-box-width-mobile);
 }
 
-body[data-mode="handheld"] .stack-list {
+body[data-mode="mobile"] .stack-list {
   max-height: none;
 }
 
-body[data-mode="handheld"] .dots-rail {
+body[data-mode="mobile"] .dots-rail {
   display: none;
 }
 
-body[data-mode="handheld"] .menu-rail {
+body[data-mode="mobile"] .menu-rail {
   width: auto;
   left: 0;
   right: 0;
@@ -836,7 +901,7 @@ body[data-mode="handheld"] .menu-rail {
   flex-direction: column;
 }
 
-body[data-mode="handheld"] .menu-rail__cap {
+body[data-mode="mobile"] .menu-rail__cap {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -849,11 +914,11 @@ body[data-mode="handheld"] .menu-rail__cap {
   background: transparent;
 }
 
-body[data-mode="handheld"] .menu-rail__cap span {
+body[data-mode="mobile"] .menu-rail__cap span {
   display: flex;
 }
 
-body[data-mode="handheld"] .menu-rail__cap span::after {
+body[data-mode="mobile"] .menu-rail__cap span::after {
   content: "";
   width: 72px;
   height: 6px;
@@ -861,33 +926,33 @@ body[data-mode="handheld"] .menu-rail__cap span::after {
   background: var(--border-color);
 }
 
-body[data-mode="handheld"].menu-open .menu-rail {
+body[data-mode="mobile"].menu-open .menu-rail {
   transform: translate3d(0, 0, 0);
   pointer-events: auto;
 }
 
-body[data-mode="handheld"] .menu-handle {
+body[data-mode="mobile"] .menu-handle {
   display: none;
 }
 
-body[data-mode="handheld"] .site-menu {
+body[data-mode="mobile"] .site-menu {
   flex: 1 1 auto;
   margin: 0 16px;
 }
 
-body[data-mode="handheld"] .dock {
+body[data-mode="mobile"] .dock {
   display: flex;
 }
 
-body[data-mode="handheld"] .header {
+body[data-mode="mobile"] .header {
   transform: translateX(0);
 }
 
-body[data-mode="handheld"].menu-open .header {
+body[data-mode="mobile"].menu-open .header {
   transform: translateX(0);
 }
 
-body[data-mode="handheld"].menu-open .backdrop {
+body[data-mode="mobile"].menu-open .backdrop {
   pointer-events: auto;
 }
 
@@ -906,7 +971,7 @@ body[data-mode="handheld"].menu-open .backdrop {
    RTL SUPPORT
    ============================================ */
 [dir="rtl"] body[data-mode="desktop"] .stack,
-[dir="rtl"] body[data-mode="tablet-wide"] .stack {
+[dir="rtl"] body[data-mode="tablet"] .stack {
   justify-self: center; /* центр работает в любом направлении */
 }
 
