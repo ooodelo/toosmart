@@ -364,7 +364,7 @@
 
         <div class="stack-carousel">
           <!-- Слайд 1 -->
-          <div class="stack-slide" data-slide="0">
+          <div class="stack-slide" data-slide="0" data-active="true">
             <div class="stack-card">
               <h3>Почему вы переплачиваете за «эко»-средства в 3 раза</h3>
               <p>Разбираем состав популярных экологичных моющих средств и выясняем, что 80% из них содержат те же ПАВы, что и обычные, только с зелёной этикеткой и ценником в 500 рублей.</p>
@@ -376,7 +376,7 @@
           </div>
 
           <!-- Слайд 2 -->
-          <div class="stack-slide" data-slide="1">
+          <div class="stack-slide" data-slide="1" data-active="false">
             <div class="stack-card">
               <h3>Сода и уксус: почему этот «лайфхак» не работает</h3>
               <p>Миллионы людей смешивают соду с уксусом для чистки, не понимая, что получают... обычную воду. Химик объясняет, почему главный интернет-совет по уборке — полная ерунда.</p>
@@ -390,8 +390,8 @@
 
         <!-- Индикатор прогресса -->
         <div class="stack-indicator">
-          <button class="stack-dot" data-dot="0" aria-label="Слайд 1"></button>
-          <button class="stack-dot" data-dot="1" aria-label="Слайд 2"></button>
+          <button class="stack-dot" data-dot="0" data-active="true" aria-label="Слайд 1"></button>
+          <button class="stack-dot" data-dot="1" data-active="false" aria-label="Слайд 2"></button>
         </div>
       </aside>
     </main>
