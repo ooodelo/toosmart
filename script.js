@@ -634,84 +634,101 @@ function initMenuLinks() {
 }
 
 /**
- * Parallax scroll для блока рекомендаций
+ * Карусель рекомендаций
  *
  * Механика:
- * 1. Блок .stack фиксирован (position: fixed) - ВСЕГДА на экране
- * 2. Контент внутри (.stack-list) двигается медленнее через transform
- * 3. При scroll=0 → показываем верх контента
- * 4. При scroll=max → показываем низ контента
- * 5. Блок работает как "окно", через которое видны разные части списка
+ * 1. Показываем по 2 карточки (1 слайд)
+ * 2. Всего 2 слайда (4 карточки)
+ * 3. При scroll 0-50% → слайд 1
+ * 4. При scroll 50-100% → слайд 2
+ * 5. Плавная смена через opacity
+ * 6. Индикатор прогресса из точек
  *
- * Работает только на desktop и tablet-wide
+ * Работает на всех режимах (desktop, tablet-wide, handheld)
  */
-function initParallaxStack() {
-  const stack = document.querySelector('.stack');
-  const stackList = document.querySelector('.stack-list');
-  if (!stack || !stackList) return;
+function initStackCarousel() {
+  const slides = document.querySelectorAll('.stack-slide');
+  const dots = document.querySelectorAll('.stack-dot');
 
-  // Коэффициент движения контента
-  // 1.0 = контент полностью проходит за скролл страницы
-  // 1.5 = контент проходит быстрее (более активный parallax)
-  const PARALLAX_SPEED = 1.5;
+  if (slides.length === 0) return;
 
+  let currentSlide = 0;
   let ticking = false;
 
-  function updateParallax() {
-    // Отключаем на handheld
-    if (currentMode === 'handheld') {
-      stackList.style.transform = 'none';
-      return;
-    }
+  function setActiveSlide(index) {
+    if (index === currentSlide) return;
 
+    currentSlide = index;
+
+    // Обновляем слайды
+    slides.forEach((slide, i) => {
+      slide.setAttribute('data-active', i === index ? 'true' : 'false');
+    });
+
+    // Обновляем точки
+    dots.forEach((dot, i) => {
+      dot.setAttribute('data-active', i === index ? 'true' : 'false');
+    });
+  }
+
+  function updateCarousel() {
     const scrollY = window.scrollY || window.pageYOffset;
-    const stackHeight = stack.offsetHeight; // высота "окна"
-    const contentHeight = stackList.scrollHeight; // высота контента внутри
     const documentHeight = document.documentElement.scrollHeight;
     const viewportHeight = window.innerHeight;
-
-    // Максимальный скролл страницы
     const maxScroll = documentHeight - viewportHeight;
 
-    // Максимальное смещение контента (когда показываем низ)
-    const maxContentOffset = contentHeight - stackHeight;
-
-    if (maxScroll <= 0 || maxContentOffset <= 0) {
-      stackList.style.transform = 'none';
+    if (maxScroll <= 0) {
+      setActiveSlide(0);
+      ticking = false;
       return;
     }
 
-    // Вычисляем смещение контента пропорционально скроллу страницы
+    // Прогресс скролла от 0 до 1
     const scrollProgress = scrollY / maxScroll;
-    let contentOffset = -scrollProgress * maxContentOffset * PARALLAX_SPEED;
 
-    // Ограничиваем: не выше верха и не ниже низа контента
-    contentOffset = Math.max(contentOffset, -maxContentOffset); // не уходим ниже низа
-    contentOffset = Math.min(contentOffset, 0); // не поднимаемся выше верха
+    // Определяем активный слайд
+    // 0-0.5 → слайд 0
+    // 0.5-1.0 → слайд 1
+    const slideIndex = Math.min(Math.floor(scrollProgress * slides.length), slides.length - 1);
 
-    // Применяем transform к контенту, а не к блоку
-    stackList.style.transform = `translateY(${contentOffset}px)`;
+    setActiveSlide(slideIndex);
 
     ticking = false;
   }
 
   function requestTick() {
     if (!ticking) {
-      requestAnimationFrame(updateParallax);
+      requestAnimationFrame(updateCarousel);
       ticking = true;
     }
   }
 
-  // Слушаем скролл (passive для производительности)
+  // Клики на точки для ручного переключения
+  dots.forEach((dot, index) => {
+    dot.addEventListener('click', () => {
+      setActiveSlide(index);
+
+      // Опционально: плавно скроллим к соответствующей позиции
+      const targetProgress = (index + 0.5) / slides.length;
+      const documentHeight = document.documentElement.scrollHeight;
+      const viewportHeight = window.innerHeight;
+      const targetScroll = targetProgress * (documentHeight - viewportHeight);
+
+      window.scrollTo({
+        top: targetScroll,
+        behavior: 'smooth'
+      });
+    });
+  });
+
+  // Слушаем скролл
   window.addEventListener('scroll', requestTick, { passive: true });
 
   // Обновляем при resize
-  window.addEventListener('resize', () => {
-    requestTick();
-  });
+  window.addEventListener('resize', requestTick);
 
   // Первоначальное обновление
-  updateParallax();
+  setActiveSlide(0);
 }
 
 function init() {
@@ -720,7 +737,7 @@ function init() {
   initMenuInteractions();
   attachEdgeGesture(); // Attach only if tablet-wide mode
   initMenuLinks();
-  initParallaxStack(); // Parallax эффект для рекомендаций
+  initStackCarousel(); // Карусель рекомендаций
 
   const handleNextClick = () => handleNext();
   btnNext?.addEventListener('click', handleNextClick);
