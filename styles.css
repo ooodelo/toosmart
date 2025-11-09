@@ -44,6 +44,17 @@
   --surface-alt: #ededed;
   --text-color: #222;
 
+  /* Цвета контента */
+  --surface-content: #fff;
+  --text-primary: #222;
+  --text-secondary: #666;
+  --code-inline-bg: var(--surface);
+  --code-inline-color: #c7254e;
+  --code-block-bg: #2d2d2d;
+  --code-block-color: #f8f8f2;
+  --link-color: #0066cc;
+  --link-hover: #004499;
+
   /* Handheld */
   --handheld-dock: 64px;
   --handheld-dock-footprint: calc(var(--handheld-dock) + env(safe-area-inset-bottom, 0px));
@@ -202,6 +213,13 @@ body[data-input="pointer"].is-slid .menu-rail {
   line-height: 1.6;
 }
 
+.site-menu__title {
+  margin: 0 0 20px 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
 .site-menu__list {
   list-style: none;
   margin: 0;
@@ -224,6 +242,26 @@ body[data-input="pointer"].is-slid .menu-rail {
 .site-menu__list a:hover {
   border-color: var(--border-color);
   background: var(--surface);
+}
+
+/* Вложенные списки (подразделы) */
+.site-menu__list ul {
+  list-style: none;
+  margin: 8px 0 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.site-menu__list ul a {
+  padding: 6px 12px 6px 24px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.site-menu__list ul a:hover {
+  color: var(--text-primary);
 }
 
 .panel {
@@ -281,6 +319,123 @@ body[data-mode="handheld"] .text-box {
   margin: 0 0 12px;
 }
 
+/* === MARKDOWN CONTENT STYLES === */
+
+/* Изображения */
+.text-section img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 24px auto;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+/* Подписи к изображениям */
+.text-section figcaption {
+  text-align: center;
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-top: 8px;
+  font-style: italic;
+}
+
+/* Код inline */
+.text-section code {
+  background: var(--code-inline-bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.9em;
+  color: var(--code-inline-color);
+}
+
+/* Блоки кода */
+.text-section pre {
+  background: var(--code-block-bg);
+  color: var(--code-block-color);
+  padding: 16px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 24px 0;
+}
+
+.text-section pre code {
+  background: none;
+  padding: 0;
+  color: inherit;
+  font-size: 1em;
+}
+
+/* Цитаты */
+.text-section blockquote {
+  margin: 20px 0;
+  padding: 12px 20px;
+  border-left: 4px solid var(--border-color);
+  background: var(--surface);
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+/* Таблицы */
+.text-section table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 24px 0;
+}
+
+.text-section th,
+.text-section td {
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  text-align: left;
+}
+
+.text-section th {
+  background: var(--surface);
+  font-weight: 600;
+}
+
+/* Списки */
+.text-section ul,
+.text-section ol {
+  margin: 16px 0;
+  padding-left: 24px;
+  line-height: 1.8;
+}
+
+.text-section li {
+  margin: 8px 0;
+}
+
+/* Горизонтальная линия */
+.text-section hr {
+  border: none;
+  border-top: 1px solid var(--border-color);
+  margin: 32px 0;
+}
+
+/* Заголовки H3, H4 */
+.text-section h3 {
+  margin: 32px 0 16px;
+  font-size: 1.3em;
+}
+
+.text-section h4 {
+  margin: 24px 0 12px;
+  font-size: 1.1em;
+}
+
+/* Ссылки в тексте */
+.text-section a {
+  color: var(--link-color);
+  text-decoration: underline;
+}
+
+.text-section a:hover {
+  color: var(--link-hover);
+}
+
 .dots-rail {
   position: fixed;
   top: 50%;
@@ -330,16 +485,13 @@ body[data-mode="handheld"] .text-box {
 .stack {
   grid-column: 3;
   align-self: start;
-  position: sticky;
-  top: var(--stack-top);
-  max-height: calc(100vh - var(--stack-top) - var(--stack-bottom)); /* iOS 15 fallback */
-  max-height: calc(100dvh - var(--stack-top) - var(--stack-bottom)); /* iOS 16+ */
+  position: relative; /* убираем sticky для parallax */
   padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 16px;
   background: #fff;
-  min-height: 0;
+  will-change: transform; /* оптимизация для parallax */
 }
 
 .stack__intro {
@@ -348,16 +500,22 @@ body[data-mode="handheld"] .text-box {
   background: var(--surface);
 }
 
+.stack__title {
+  margin: 0 0 16px 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
 .stack-list {
   flex: 1 1 auto;
-  overflow: auto;
+  overflow: visible; /* без скролла - parallax */
   display: flex;
   flex-direction: column;
   gap: var(--stack-gap);
   margin: 0;
   padding: 0;
   list-style: none;
-  min-height: 0;
 }
 
 .stack-card {
@@ -479,14 +637,11 @@ body[data-mode="desktop"] .stack {
   grid-column: 3;
   justify-self: stretch;
   align-self: start;
-  position: sticky;
-  top: var(--stack-top);
+  position: relative; /* parallax вместо sticky */
   margin-left: var(--stack-gap);
   margin-right: var(--stack-gap);
   width: auto;
   max-width: var(--stack-width);
-  max-height: calc(100vh - var(--stack-top) - var(--stack-bottom)); /* iOS 15 fallback */
-  max-height: calc(100dvh - var(--stack-top) - var(--stack-bottom)); /* iOS 16+ */
 }
 
 body[data-mode="tablet-wide"] {
@@ -528,14 +683,11 @@ body[data-mode="tablet-wide"] .stack {
   grid-column: 3;
   justify-self: stretch;
   align-self: start;
-  position: sticky;
-  top: var(--stack-top);
+  position: relative; /* parallax вместо sticky */
   margin-left: var(--stack-gap);
   margin-right: var(--stack-gap);
   width: auto;
   max-width: var(--stack-width);
-  max-height: calc(100vh - var(--stack-top) - var(--stack-bottom)); /* iOS 15 fallback */
-  max-height: calc(100dvh - var(--stack-top) - var(--stack-bottom)); /* iOS 16+ */
 }
 
 body[data-mode="tablet-wide"] .header {

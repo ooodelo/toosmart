@@ -527,11 +527,14 @@ function handleModeUpdate() {
 }
 
 function handleNext() {
-  const currentIndex = getCurrentSectionIndex();
-  const nextSection = sections[currentIndex + 1] || sections[0];
-  activeSectionId = nextSection.id;
-  updateActiveDot();
-  nextSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // Получаем URL следующей страницы из data-атрибута кнопки
+  const nextPageUrl = btnNext?.dataset.nextPage;
+
+  if (nextPageUrl) {
+    window.location.href = nextPageUrl;
+  } else {
+    console.warn('Кнопка "Далее": не указан data-next-page');
+  }
 }
 
 function initMenuInteractions() {
@@ -630,12 +633,83 @@ function initMenuLinks() {
   });
 }
 
+/**
+ * Parallax scroll для блока рекомендаций
+ *
+ * Механика:
+ * 1. Блок скроллится медленнее основного контента (коэффициент PARALLAX_SPEED)
+ * 2. Когда низ блока достигает низа viewport → останавливается
+ * 3. Текст продолжает скроллиться дальше
+ * 4. При обратном скролле работает аналогично
+ *
+ * Работает только на desktop и tablet-wide
+ */
+function initParallaxStack() {
+  const stack = document.querySelector('.stack');
+  if (!stack) return;
+
+  // Коэффициент замедления (0.6 = в 2.5 раза медленнее)
+  // Можно настроить: 0.5 (быстрее), 0.7 (медленнее)
+  const PARALLAX_SPEED = 0.6;
+
+  let ticking = false;
+
+  function updateParallax() {
+    // Отключаем на handheld
+    if (currentMode === 'handheld') {
+      stack.style.transform = 'none';
+      return;
+    }
+
+    const scrollY = window.scrollY || window.pageYOffset;
+    const stackHeight = stack.offsetHeight;
+    const viewportHeight = window.innerHeight;
+
+    // Вычисляем parallax offset
+    // Отрицательное значение двигает блок вверх медленнее
+    let parallaxOffset = -scrollY * (1 - PARALLAX_SPEED);
+
+    // Ограничение сверху: не выше начальной позиции
+    parallaxOffset = Math.min(0, parallaxOffset);
+
+    // Ограничение снизу: остановка когда низ блока = низ viewport
+    if (stackHeight > viewportHeight) {
+      const maxOffset = -(stackHeight - viewportHeight);
+      parallaxOffset = Math.max(maxOffset, parallaxOffset);
+    }
+
+    // Применяем transform
+    stack.style.transform = `translateY(${parallaxOffset}px)`;
+
+    ticking = false;
+  }
+
+  function requestTick() {
+    if (!ticking) {
+      requestAnimationFrame(updateParallax);
+      ticking = true;
+    }
+  }
+
+  // Слушаем скролл (passive для производительности)
+  window.addEventListener('scroll', requestTick, { passive: true });
+
+  // Обновляем при resize
+  window.addEventListener('resize', () => {
+    requestTick();
+  });
+
+  // Первоначальное обновление
+  updateParallax();
+}
+
 function init() {
   updateMode();
   initDots();
   initMenuInteractions();
   attachEdgeGesture(); // Attach only if tablet-wide mode
   initMenuLinks();
+  initParallaxStack(); // Parallax эффект для рекомендаций
 
   const handleNextClick = () => handleNext();
   btnNext?.addEventListener('click', handleNextClick);
