@@ -650,8 +650,10 @@ function initParallaxStack() {
   const stackList = document.querySelector('.stack-list');
   if (!stack || !stackList) return;
 
-  // Коэффициент замедления (0.4 = в 2.5 раза медленнее)
-  const PARALLAX_SPEED = 0.4;
+  // Коэффициент движения контента
+  // 1.0 = контент полностью проходит за скролл страницы
+  // 1.5 = контент проходит быстрее (более активный parallax)
+  const PARALLAX_SPEED = 1.5;
 
   let ticking = false;
 
@@ -680,10 +682,12 @@ function initParallaxStack() {
     }
 
     // Вычисляем смещение контента пропорционально скроллу страницы
-    // При scrollY=0 → offset=0 (верх контента)
-    // При scrollY=max → offset=-maxContentOffset (низ контента)
     const scrollProgress = scrollY / maxScroll;
-    const contentOffset = -scrollProgress * maxContentOffset * PARALLAX_SPEED;
+    let contentOffset = -scrollProgress * maxContentOffset * PARALLAX_SPEED;
+
+    // Ограничиваем: не выше верха и не ниже низа контента
+    contentOffset = Math.max(contentOffset, -maxContentOffset); // не уходим ниже низа
+    contentOffset = Math.min(contentOffset, 0); // не поднимаемся выше верха
 
     // Применяем transform к контенту, а не к блоку
     stackList.style.transform = `translateY(${contentOffset}px)`;

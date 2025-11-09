@@ -635,10 +635,15 @@ body[data-mode="desktop"] .btn-next {
 }
 
 body[data-mode="desktop"] .stack {
-  position: fixed; /* ВСЕГДА на экране для parallax */
+  grid-column: 3;
+  justify-self: stretch;
+  align-self: start;
+  position: sticky;
   top: var(--stack-top);
-  right: calc((100vw - 100%) / 2 + var(--gap-page));
-  width: var(--stack-width);
+  margin-left: var(--stack-gap);
+  margin-right: var(--stack-gap);
+  width: auto;
+  max-width: var(--stack-width);
   height: calc(100vh - var(--stack-top) - var(--stack-bottom));
   height: calc(100dvh - var(--stack-top) - var(--stack-bottom));
 }
@@ -679,10 +684,15 @@ body[data-mode="tablet-wide"] .btn-next {
 }
 
 body[data-mode="tablet-wide"] .stack {
-  position: fixed; /* ВСЕГДА на экране для parallax */
+  grid-column: 3;
+  justify-self: stretch;
+  align-self: start;
+  position: sticky;
   top: var(--stack-top);
-  right: calc((100vw - 100%) / 2 + var(--gap-page));
-  width: var(--stack-width);
+  margin-left: var(--stack-gap);
+  margin-right: var(--stack-gap);
+  width: auto;
+  max-width: var(--stack-width);
   height: calc(100vh - var(--stack-top) - var(--stack-bottom));
   height: calc(100dvh - var(--stack-top) - var(--stack-bottom));
 }
