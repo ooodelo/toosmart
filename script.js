@@ -300,7 +300,7 @@ function teardownObserver() {
 function configureDots() {
   if (!dotsRail) return;
   dotsRail.innerHTML = '';
-  const shouldEnable = currentMode === 'desktop' && sections.length >= 2;
+  const shouldEnable = (currentMode === 'desktop' || currentMode === 'desktop-wide') && sections.length >= 2;
   dotsRail.hidden = !shouldEnable;
   if (!shouldEnable) {
     teardownObserver();
@@ -329,7 +329,7 @@ function setupSectionObserver() {
     return;
   }
 
-  if (currentMode !== 'desktop' || sections.length < 2) {
+  if ((currentMode !== 'desktop' && currentMode !== 'desktop-wide') || sections.length < 2) {
     return;
   }
 
@@ -358,7 +358,7 @@ function setActiveSection(id) {
 }
 
 function updateActiveDot() {
-  if (currentMode !== 'desktop') {
+  if (currentMode !== 'desktop' && currentMode !== 'desktop-wide') {
     return;
   }
   if (!dotsRail) return;
