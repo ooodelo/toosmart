@@ -32,9 +32,9 @@
   --section-scroll-margin: 120px;
 
   /* Анимации */
-  --t-rail: 220ms;
+  --t-rail: 600ms;
   --t-backdrop: 160ms;
-  --rail-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --rail-ease: cubic-bezier(0.4, 0.02, 0.2, 1);
 
   /* Цвета */
   --border-color: #d0d0d0;
@@ -112,7 +112,8 @@ html[data-lock="scroll"] {
   padding: 12px var(--gap-page);
   background: var(--surface);
   border-bottom: 1px solid var(--border-color);
-  transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 600ms cubic-bezier(0.4, 0.02, 0.2, 1);
+  overflow: visible;
 }
 
 /* Auto-hide header on scroll down (mobile & tablet) */
@@ -129,10 +130,15 @@ body[data-scroll="down"] .header {
 .panel,
 .btn-next,
 .site-menu,
-.stack-card,
 .text-box__intro,
 .stack__intro {
   border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: var(--surface);
+}
+
+.stack-card {
+  border-radius: 28px;
   border: 1px solid var(--border-color);
   background: var(--surface);
 }
@@ -152,6 +158,17 @@ body[data-scroll="down"] .header {
 .header__link {
   text-decoration: none;
   color: inherit;
+}
+
+/* Стили для картинки логотипа */
+.header__logo {
+  width: 130px;
+  height: 130px;
+  object-fit: contain;
+  margin-bottom: -50px;
+  padding: 0;
+  border: none;
+  background: transparent;
 }
 
 .menu-rail {
@@ -287,6 +304,7 @@ body[data-input="pointer"].is-slid .menu-rail {
   align-items: start;
   justify-items: start;
   position: relative;
+  border-top-left-radius: 28px;
 }
 
 body[data-mode="mobile"] .panel {
@@ -475,27 +493,28 @@ body[data-mode="mobile"] .text-section table {
   transform: translateY(-50%);
   display: none;
   flex-direction: column;
-  gap: 12px;
-  padding: 12px;
-  background: var(--surface);
-  border-radius: 12px;
-  border: 1px solid var(--border-color);
+  gap: 11px;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+  border: none;
   z-index: 150;
 }
 
 .dots-rail__dot {
-  width: 12px;
-  height: 12px;
+  width: 11px;
+  height: 11px;
   border-radius: 50%;
-  background: var(--border-color);
-  border: none;
+  background: transparent;
+  border: 1px solid #d9d9d9;
   cursor: pointer;
-  transition: transform 120ms ease, background 120ms ease;
+  transition: border-color 120ms ease, background 120ms ease;
 }
 
 .dots-rail__dot[aria-current="true"] {
-  background: var(--text-color);
-  transform: scale(1.2);
+  background-color: #4A4A4A;
+  border-color: #4A4A4A;
+  transform: scale(1);
 }
 
 .btn-next {
@@ -522,7 +541,28 @@ body[data-mode="mobile"] .text-section table {
   flex-direction: column;
   gap: 16px;
   background: #fff;
-  overflow: hidden; /* скрываем контент который выходит за пределы */
+  overflow: visible; /* позволяет ::before размытию выходить за пределы */
+}
+
+/* Размытый овальный фон позади рекомендаций */
+.stack::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(280px, 100%);
+  height: clamp(600px, 80vh, 860px);
+  background: rgba(213, 216, 232, 0.5);
+  border-radius: 9999px;
+  filter: blur(80px);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.stack > * {
+  position: relative;
+  z-index: 1;
 }
 
 .stack__intro {
@@ -534,7 +574,7 @@ body[data-mode="mobile"] .text-section table {
 .stack__title {
   margin: 0 0 16px 0;
   font-size: 22px;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--text-primary);
 }
 
@@ -549,7 +589,7 @@ body[data-mode="mobile"] .text-section table {
 .stack-slide {
   display: flex;
   flex-direction: column;
-  gap: var(--stack-gap);
+  gap: 45px;
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.5s ease, visibility 0.5s ease;
@@ -569,13 +609,12 @@ body[data-mode="mobile"] .text-section table {
   padding: 16px;
   background: var(--surface);
   line-height: 1.4;
-  border-radius: 8px;
 }
 
 .stack-card h3 {
   margin: 0 0 8px;
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 800;
 }
 
 .stack-card p {
@@ -849,6 +888,12 @@ body[data-mode="mobile"] .header__links {
 }
 
 body[data-mode="tablet"].menu-open .header {
+  transform: translateX(calc(var(--rail-open) - var(--rail-closed)));
+}
+
+/* Сдвиг header в desktop режимах при открытии меню */
+body[data-mode="desktop"].menu-open .header,
+body[data-mode="desktop-wide"].menu-open .header {
   transform: translateX(calc(var(--rail-open) - var(--rail-closed)));
 }
 
