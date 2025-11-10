@@ -202,12 +202,12 @@ body[data-scroll="down"] .header {
   align-items: stretch;
   background: #D9D9D9;
   border: none;
-  border-radius: 0;
+  border-radius: 0 28px 0 0;
   transform: translateX(calc(var(--rail-closed) - var(--rail-open)));
   transition: transform var(--t-rail) var(--rail-ease);
   pointer-events: auto;
   box-sizing: border-box;
-  overflow: hidden;
+  overflow: clip;
 }
 
 body.menu-open .menu-rail,
@@ -229,7 +229,7 @@ body[data-input="pointer"].is-slid .menu-rail {
   background: #D9D9D9;
   pointer-events: auto;
   border: none;
-  border-radius: 0 28px 0 0;
+  border-radius: 0;
   box-sizing: border-box;
   height: 100%;
 }
