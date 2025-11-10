@@ -725,6 +725,39 @@ function initStackCarousel() {
     stack.addEventListener('mouseleave', () => {
       isPaused = false;
     });
+
+    // Поддержка свайпов на тач-устройствах
+    let touchStartX = 0;
+    let touchEndX = 0;
+    const minSwipeDistance = 50; // минимальная дистанция для свайпа в пикселях
+
+    stack.addEventListener('touchstart', (e) => {
+      touchStartX = e.changedTouches[0].screenX;
+    }, { passive: true });
+
+    stack.addEventListener('touchend', (e) => {
+      touchEndX = e.changedTouches[0].screenX;
+      handleSwipe();
+    }, { passive: true });
+
+    function handleSwipe() {
+      const swipeDistance = touchStartX - touchEndX;
+
+      if (Math.abs(swipeDistance) < minSwipeDistance) {
+        return; // Свайп слишком короткий, игнорируем
+      }
+
+      if (swipeDistance > 0) {
+        // Свайп влево - следующий слайд
+        setActiveSlide(currentSlide + 1);
+      } else {
+        // Свайп вправо - предыдущий слайд
+        setActiveSlide(currentSlide - 1 + slides.length);
+      }
+
+      // Перезапускаем таймер после свайпа
+      startAutoplay();
+    }
   }
 
   // Первоначальное обновление
