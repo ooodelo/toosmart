@@ -111,10 +111,9 @@ html[data-lock="scroll"] {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 3px var(--gap-page);
+  padding: 0 var(--gap-page);
   background: #D9D9D9;
   border: none;
-  border-bottom-left-radius: 28px;
   transition: transform 600ms cubic-bezier(0.4, 0.02, 0.2, 1);
   overflow: visible;
 }
@@ -199,7 +198,7 @@ body[data-scroll="down"] .header {
   width: auto;
   object-fit: contain;
   margin-bottom: -60px;
-  margin-left: 70px;
+  margin-left: 0;
   padding: 0;
   border: none;
   background: transparent;
