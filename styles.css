@@ -119,16 +119,19 @@ html[data-lock="scroll"] {
   overflow: visible;
 }
 
-/* Вогнутое скругление в месте стыка header и menu-handle */
-.header::after {
+/* Вогнутое скругление в месте стыка header и menu-handle (только desktop/tablet) */
+body[data-mode="desktop"] .header::after,
+body[data-mode="desktop-wide"] .header::after,
+body[data-mode="tablet"] .header::after {
   content: "";
   position: absolute;
   bottom: 0;
-  left: 0;
+  left: var(--rail-closed);
   width: 28px;
   height: 28px;
-  background: radial-gradient(circle at top left, transparent 28px, #D9D9D9 28px);
+  background: radial-gradient(circle at top left, #F5F5F5 28px, transparent 28px);
   pointer-events: none;
+  z-index: 201;
 }
 
 /* Auto-hide header on scroll down (mobile & tablet) */
