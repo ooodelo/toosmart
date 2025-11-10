@@ -634,21 +634,69 @@ function attachMenuSwipes() {
   let touchStartY = 0;
   let touchEndX = 0;
   let touchEndY = 0;
+  let isSwiping = false;
+  let swipeDirection = null; // 'horizontal' или 'vertical'
+  let shouldHandleSwipe = false; // флаг для обработки свайпа в touchend
   const minSwipeDistance = 50; // минимальная дистанция для свайпа
   const edgeZone = 30; // зона от края экрана для открытия меню
+  const directionThreshold = 10; // порог для определения направления
 
   function handleTouchStart(e) {
-    touchStartX = e.changedTouches[0].screenX;
-    touchStartY = e.changedTouches[0].screenY;
+    touchStartX = e.changedTouches[0].clientX;
+    touchStartY = e.changedTouches[0].clientY;
+    isSwiping = false;
+    swipeDirection = null;
+    shouldHandleSwipe = false;
+  }
+
+  function handleTouchMove(e) {
+    if (!isSwiping) {
+      const deltaX = Math.abs(e.changedTouches[0].clientX - touchStartX);
+      const deltaY = Math.abs(e.changedTouches[0].clientY - touchStartY);
+
+      // Определяем направление при первом значительном движении
+      if (deltaX > directionThreshold || deltaY > directionThreshold) {
+        isSwiping = true;
+        swipeDirection = deltaX > deltaY ? 'horizontal' : 'vertical';
+
+        // Определяем, нужно ли нам обрабатывать этот свайп
+        const swipeDistanceX = e.changedTouches[0].clientX - touchStartX;
+
+        // Свайп от левого края для открытия меню
+        const isOpenSwipe = swipeDistanceX > 0 &&
+                           touchStartX <= edgeZone &&
+                           !body.classList.contains('menu-open') &&
+                           (currentMode === 'mobile' || currentMode === 'tablet');
+
+        // Свайп влево для закрытия открытого меню
+        const isCloseSwipe = swipeDistanceX < 0 &&
+                            body.classList.contains('menu-open') &&
+                            (currentMode === 'mobile' || currentMode === 'tablet');
+
+        shouldHandleSwipe = (isOpenSwipe || isCloseSwipe) && swipeDirection === 'horizontal';
+      }
+    }
+
+    // Предотвращаем вертикальный скролл если это наш горизонтальный свайп для меню
+    if (shouldHandleSwipe && swipeDirection === 'horizontal') {
+      e.preventDefault();
+    }
   }
 
   function handleTouchEnd(e) {
-    touchEndX = e.changedTouches[0].screenX;
-    touchEndY = e.changedTouches[0].screenY;
-    handleSwipe(e);
+    touchEndX = e.changedTouches[0].clientX;
+    touchEndY = e.changedTouches[0].clientY;
+
+    if (shouldHandleSwipe && swipeDirection === 'horizontal') {
+      handleSwipe();
+    }
+
+    isSwiping = false;
+    swipeDirection = null;
+    shouldHandleSwipe = false;
   }
 
-  function handleSwipe(e) {
+  function handleSwipe() {
     const swipeDistanceX = touchEndX - touchStartX;
     const swipeDistanceY = Math.abs(touchEndY - touchStartY);
 
@@ -662,7 +710,6 @@ function attachMenuSwipes() {
         touchStartX <= edgeZone &&
         !body.classList.contains('menu-open') &&
         (currentMode === 'mobile' || currentMode === 'tablet')) {
-      e.preventDefault();
       const origin = currentMode === 'mobile' ? dockHandle : menuHandle;
       openMenu({ focusOrigin: origin });
       return;
@@ -672,7 +719,6 @@ function attachMenuSwipes() {
     if (swipeDistanceX < -minSwipeDistance &&
         body.classList.contains('menu-open') &&
         (currentMode === 'mobile' || currentMode === 'tablet')) {
-      e.preventDefault();
       const origin = currentMode === 'mobile' ? dockHandle : menuHandle;
       closeMenu({ focusOrigin: origin });
       return;
@@ -681,7 +727,8 @@ function attachMenuSwipes() {
 
   // Слушаем свайпы на всем документе
   document.addEventListener('touchstart', handleTouchStart, { passive: true });
-  document.addEventListener('touchend', handleTouchEnd, { passive: false });
+  document.addEventListener('touchmove', handleTouchMove, { passive: false });
+  document.addEventListener('touchend', handleTouchEnd, { passive: true });
 }
 
 function initMenuLinks() {
@@ -786,18 +833,52 @@ function initStackCarousel() {
       isPaused = false;
     });
 
-    // Поддержка свайпов на тач-устройствах
+    // Поддержка свайпов на тач-устройствах с предотвращением вертикального скролла
     let touchStartX = 0;
+    let touchStartY = 0;
     let touchEndX = 0;
-    const minSwipeDistance = 50; // минимальная дистанция для свайпа в пикселях
+    let touchEndY = 0;
+    let isSwiping = false;
+    let swipeDirection = null; // 'horizontal' или 'vertical'
+    const minSwipeDistance = 50; // минимальная дистанция для переключения слайда
+    const directionThreshold = 10; // порог для определения направления
 
     stack.addEventListener('touchstart', (e) => {
-      touchStartX = e.changedTouches[0].screenX;
+      touchStartX = e.changedTouches[0].clientX;
+      touchStartY = e.changedTouches[0].clientY;
+      isSwiping = false;
+      swipeDirection = null;
     }, { passive: true });
 
+    stack.addEventListener('touchmove', (e) => {
+      if (!isSwiping) {
+        const deltaX = Math.abs(e.changedTouches[0].clientX - touchStartX);
+        const deltaY = Math.abs(e.changedTouches[0].clientY - touchStartY);
+
+        // Определяем направление при первом значительном движении
+        if (deltaX > directionThreshold || deltaY > directionThreshold) {
+          isSwiping = true;
+          swipeDirection = deltaX > deltaY ? 'horizontal' : 'vertical';
+        }
+      }
+
+      // Если свайп горизонтальный - предотвращаем вертикальный скролл
+      if (swipeDirection === 'horizontal') {
+        e.preventDefault();
+      }
+    }, { passive: false }); // passive: false чтобы preventDefault работал
+
     stack.addEventListener('touchend', (e) => {
-      touchEndX = e.changedTouches[0].screenX;
-      handleSwipe();
+      touchEndX = e.changedTouches[0].clientX;
+      touchEndY = e.changedTouches[0].clientY;
+
+      // Обрабатываем свайп только если это был горизонтальный жест
+      if (swipeDirection === 'horizontal') {
+        handleSwipe();
+      }
+
+      isSwiping = false;
+      swipeDirection = null;
     }, { passive: true });
 
     function handleSwipe() {
