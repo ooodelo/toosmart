@@ -113,7 +113,7 @@ html[data-lock="scroll"] {
   gap: 16px;
   padding: 12px var(--gap-page);
   background: var(--surface);
-  border-bottom: 1px solid var(--border-color);
+  border: none;
   transition: transform 600ms cubic-bezier(0.4, 0.02, 0.2, 1);
   overflow: visible;
 }
@@ -123,15 +123,12 @@ body[data-scroll="down"] .header {
   transform: translateY(-100%);
 }
 
-.header__logo,
+/* Элементы с рамками и скруглением */
 .header__hand,
 .header__link,
 .menu-handle,
 .dock-handle,
-.stack,
-.panel,
 .btn-next,
-.site-menu,
 .text-box__intro,
 .stack__intro {
   border-radius: 12px;
@@ -139,10 +136,30 @@ body[data-scroll="down"] .header {
   background: var(--surface);
 }
 
+/* Карточки рекомендаций с большим радиусом */
 .stack-card {
   border-radius: 28px;
   border: 1px solid var(--border-color);
   background: var(--surface);
+}
+
+/* Элементы БЕЗ рамок */
+.header__logo {
+  border: none;
+  background: transparent;
+}
+
+.stack {
+  border: none;
+}
+
+.panel {
+  border: none;
+}
+
+.site-menu {
+  border: none;
+  background: transparent;
 }
 
 .header__logo,
@@ -183,8 +200,8 @@ body[data-scroll="down"] .header {
   grid-template-rows: minmax(0, 1fr);
   align-items: stretch;
   background: #D9D9D9;
-  border-right: 1px solid var(--border-color);
-  border-radius: 0 12px 12px 0;
+  border: none;
+  border-radius: 0;
   transform: translateX(calc(var(--rail-closed) - var(--rail-open)));
   transition: transform var(--t-rail) var(--rail-ease);
   pointer-events: auto;
@@ -233,7 +250,7 @@ body[data-input="pointer"].is-slid .menu-rail {
   overflow: auto;
   padding: 16px;
   pointer-events: auto;
-  background: #fff;
+  background: transparent;
 
   /* Проблема 1: Остановка scroll chaining */
   -ms-scroll-chaining: none; /* IE 10+, старый Edge, Win 8+ */
@@ -298,7 +315,6 @@ body[data-input="pointer"].is-slid .menu-rail {
 
 .panel {
   grid-column: 2;
-  border: none;
   padding: 24px;
   background: #F5F5F5;
   display: grid;
@@ -542,7 +558,7 @@ body[data-mode="mobile"] .text-section table {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  background: #fff;
+  background: transparent;
   overflow: visible; /* позволяет ::before размытию выходить за пределы */
 }
 
