@@ -162,10 +162,10 @@ body[data-scroll="down"] .header {
 
 /* Стили для картинки логотипа */
 .header__logo {
-  width: 130px;
-  height: 130px;
+  height: 150px;
+  width: auto;
   object-fit: contain;
-  margin-bottom: -50px;
+  margin-bottom: -60px;
   padding: 0;
   border: none;
   background: transparent;
