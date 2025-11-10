@@ -1,0 +1,43 @@
+/* progress widget — black circle -> black pill "Далее" */
+:root{
+  --pw-s: 36px;       /* circle size */
+  --pw-w: 184px;      /* pill width */
+  --pw-h: 44px;       /* pill height */
+}
+#pw-root{position:fixed;left:50%;bottom:5px;transform:translateX(-50%);width:var(--pw-w);height:var(--pw-h);z-index:2147483647;pointer-events:auto;-webkit-tap-highlight-color:transparent; cursor:default; -webkit-user-select:none; user-select:none;}
+#pw-root .pw-visual{position:relative;width:100%;height:100%;display:grid;place-items:center;overflow:visible;}
+#pw-root .pw-bg{position:absolute;inset:0;background:#000;border-radius:calc(var(--pw-h)/2);transform-origin:center center;will-change:transform;}
+#pw-root .pw-pct,
+#pw-root .pw-next{position:absolute;inset:0;display:grid;place-items:center;z-index:2;color:#fff;font:700 14px/1 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial;opacity:0;}
+#pw-root .pw-pct{position:absolute;inset:0;display:grid;place-items:center;z-index:2;color:#fff;font:700 10px/1 ui-monospace,Menlo,Consolas,monospace;letter-spacing:.2px;opacity:1;}
+#pw-root .pw-next{position:absolute;inset:0;display:grid;place-items:center;z-index:2;color:#fff;font:700 14px/1 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial;opacity:0;}
+
+@media (prefers-reduced-motion: reduce){
+  #pw-root *{ animation: none !important; transition: none !important; }
+}
+
+#pw-root .pw-dot{
+  position:absolute; left:50%; top:50%;
+  width: var(--pw-h); height: var(--pw-h);
+  transform: translate(-50%,-50%) scale(1);
+  background:#000; border-radius:50%;
+  will-change:transform, opacity;
+}
+
+#pw-root .pw-pill{
+  position:absolute; left:50%; top:50%;
+  width: var(--pw-w); height: var(--pw-h);
+  transform: translate(-50%,-50%) scaleX(0.001);
+  transform-origin:center;
+  background:#000; border-radius: calc(var(--pw-h)/2);
+  opacity:0;
+  will-change:transform, opacity;
+}
+
+#pw-root.is-done{cursor:pointer}
+
+#pw-root .pw-visual,
+#pw-root .pw-dot,
+#pw-root .pw-pill,
+#pw-root .pw-pct,
+#pw-root .pw-next{ pointer-events:none; -webkit-user-select:none; user-select:none; }
