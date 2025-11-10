@@ -646,12 +646,6 @@ body.menu-open .backdrop {
   padding: 0 env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px)
     env(safe-area-inset-left, 0px);
   z-index: 1600;
-  transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Auto-hide dock on scroll down (mobile only) */
-body[data-scroll="down"] .dock {
-  transform: translateY(100%);
 }
 
 .dock-handle {
