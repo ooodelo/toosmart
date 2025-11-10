@@ -119,6 +119,18 @@ html[data-lock="scroll"] {
   overflow: visible;
 }
 
+/* Вогнутое скругление в месте стыка header и menu-handle */
+.header::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 28px;
+  height: 28px;
+  background: radial-gradient(circle at top left, transparent 28px, #D9D9D9 28px);
+  pointer-events: none;
+}
+
 /* Auto-hide header on scroll down (mobile & tablet) */
 body[data-scroll="down"] .header {
   transform: translateY(-100%);
