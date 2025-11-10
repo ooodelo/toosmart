@@ -626,7 +626,7 @@ function detachEdgeGesture() {
 
 /**
  * Добавляет поддержку свайпов для меню на тач-устройствах
- * Mobile: вертикальные свайпы (снизу вверх - открыть, сверху вниз - закрыть)
+ * Mobile: вертикальные свайпы (снизу вверх - открыть, сверху вниз от cap - закрыть)
  * Tablet: горизонтальные свайпы (слева направо - открыть, справа налево - закрыть)
  */
 function attachMenuSwipes() {
@@ -639,9 +639,15 @@ function attachMenuSwipes() {
   let isSwiping = false;
   let swipeDirection = null; // 'horizontal' или 'vertical'
   let shouldHandleSwipe = false; // флаг для обработки свайпа в touchend
-  const minSwipeDistance = 50; // минимальная дистанция для свайпа
-  const edgeZone = 50; // зона от края экрана для открытия меню
-  const directionThreshold = 10; // порог для определения направления
+  let startedOnMenuCap = false; // свайп начался на cap
+
+  // Настройки свайпов (оптимизированы для лучшего UX)
+  const minSwipeDistanceOpen = 60; // дистанция для открытия (немного больше для предотвращения случайных срабатываний)
+  const minSwipeDistanceClose = 80; // дистанция для закрытия (больше, чтобы не конфликтовать со скроллом)
+  const edgeZoneBottom = 80; // зона внизу для открытия меню (больше для удобства)
+  const edgeZoneLeft = 50; // зона слева для tablet
+  const closeZoneTop = 120; // зона вверху меню для закрытия (cap + немного ниже)
+  const directionThreshold = 15; // порог для определения направления (больше для надежности)
 
   function handleTouchStart(e) {
     touchStartX = e.changedTouches[0].clientX;
@@ -649,6 +655,13 @@ function attachMenuSwipes() {
     isSwiping = false;
     swipeDirection = null;
     shouldHandleSwipe = false;
+
+    // Проверяем, начался ли свайп на menu-cap (для мобильного режима)
+    const target = e.target;
+    startedOnMenuCap = target && (
+      target.classList.contains('menu-rail__cap') ||
+      target.closest('.menu-rail__cap')
+    );
   }
 
   function handleTouchMove(e) {
@@ -671,12 +684,14 @@ function attachMenuSwipes() {
         if (currentMode === 'mobile' && swipeDirection === 'vertical') {
           // Свайп снизу вверх для открытия меню (начало в нижней зоне экрана)
           const isOpenSwipe = swipeDistanceY < 0 && // движение вверх
-                             touchStartY > (viewportHeight - edgeZone) && // начало внизу
+                             touchStartY > (viewportHeight - edgeZoneBottom) && // начало внизу
                              !body.classList.contains('menu-open');
 
-          // Свайп сверху вниз для закрытия меню (когда меню открыто)
+          // Свайп сверху вниз для закрытия меню
+          // ВАЖНО: только если свайп начался на cap ИЛИ в верхней зоне меню
           const isCloseSwipe = swipeDistanceY > 0 && // движение вниз
-                              body.classList.contains('menu-open');
+                              body.classList.contains('menu-open') &&
+                              (startedOnMenuCap || touchStartY < closeZoneTop);
 
           shouldHandleSwipe = isOpenSwipe || isCloseSwipe;
         }
@@ -685,7 +700,7 @@ function attachMenuSwipes() {
         if (currentMode === 'tablet' && swipeDirection === 'horizontal') {
           // Свайп слева направо для открытия меню (начало у левого края)
           const isOpenSwipe = swipeDistanceX > 0 && // движение вправо
-                             touchStartX <= edgeZone && // начало у левого края
+                             touchStartX <= edgeZoneLeft && // начало у левого края
                              !body.classList.contains('menu-open');
 
           // Свайп справа налево для закрытия меню (когда меню открыто)
@@ -714,6 +729,7 @@ function attachMenuSwipes() {
     isSwiping = false;
     swipeDirection = null;
     shouldHandleSwipe = false;
+    startedOnMenuCap = false;
   }
 
   function handleSwipe() {
@@ -724,16 +740,18 @@ function attachMenuSwipes() {
     // MOBILE: вертикальные свайпы
     if (currentMode === 'mobile') {
       // Свайп снизу вверх - открыть меню
-      if (swipeDistanceY < -minSwipeDistance &&
-          touchStartY > (viewportHeight - edgeZone) &&
+      if (swipeDistanceY < -minSwipeDistanceOpen &&
+          touchStartY > (viewportHeight - edgeZoneBottom) &&
           !body.classList.contains('menu-open')) {
         openMenu({ focusOrigin: dockHandle });
         return;
       }
 
       // Свайп сверху вниз - закрыть меню
-      if (swipeDistanceY > minSwipeDistance &&
-          body.classList.contains('menu-open')) {
+      // ВАЖНО: только если начался на cap или в верхней зоне, и достаточно длинный
+      if (swipeDistanceY > minSwipeDistanceClose &&
+          body.classList.contains('menu-open') &&
+          (startedOnMenuCap || touchStartY < closeZoneTop)) {
         closeMenu({ focusOrigin: dockHandle });
         return;
       }
@@ -742,15 +760,15 @@ function attachMenuSwipes() {
     // TABLET: горизонтальные свайпы
     if (currentMode === 'tablet') {
       // Свайп слева направо от края - открыть меню
-      if (swipeDistanceX > minSwipeDistance &&
-          touchStartX <= edgeZone &&
+      if (swipeDistanceX > minSwipeDistanceOpen &&
+          touchStartX <= edgeZoneLeft &&
           !body.classList.contains('menu-open')) {
         openMenu({ focusOrigin: menuHandle });
         return;
       }
 
       // Свайп справа налево - закрыть меню
-      if (swipeDistanceX < -minSwipeDistance &&
+      if (swipeDistanceX < -minSwipeDistanceClose &&
           body.classList.contains('menu-open')) {
         closeMenu({ focusOrigin: menuHandle });
         return;
