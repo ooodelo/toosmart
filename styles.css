@@ -843,10 +843,6 @@ body[data-mode="tablet"] .stack {
   align-self: center;
 }
 
-body[data-mode="tablet"] .header {
-  transform: translateX(0);
-}
-
 body[data-mode="tablet"] .header__links,
 body[data-mode="mobile"] .header__links {
   gap: 8px;
@@ -971,13 +967,8 @@ body[data-mode="mobile"] .dock {
 }
 
 body[data-mode="mobile"] .header {
-  transform: translateX(0);
   padding-left: 16px;
   padding-right: 16px;
-}
-
-body[data-mode="mobile"].menu-open .header {
-  transform: translateX(0);
 }
 
 body[data-mode="mobile"].menu-open .backdrop {
