@@ -111,7 +111,7 @@ html[data-lock="scroll"] {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 0 var(--gap-page);
+  padding: 5px var(--gap-page) 0;
   background: #D9D9D9;
   border: none;
   transition: transform 600ms cubic-bezier(0.4, 0.02, 0.2, 1);
@@ -197,7 +197,7 @@ body[data-scroll="down"] .header {
   height: 150px;
   width: auto;
   object-fit: contain;
-  margin-top: -10px;
+  margin-top: -15px;
   margin-bottom: -60px;
   margin-left: 30px;
   padding: 0;
