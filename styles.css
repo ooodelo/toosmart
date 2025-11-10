@@ -114,8 +114,24 @@ html[data-lock="scroll"] {
   padding: 12px var(--gap-page);
   background: #D9D9D9;
   border: none;
+  border-bottom-left-radius: 28px;
   transition: transform 600ms cubic-bezier(0.4, 0.02, 0.2, 1);
   overflow: visible;
+}
+
+/* Вогнутое скругление в месте стыка header и menu-handle */
+body[data-mode="desktop"] .header::after,
+body[data-mode="desktop-wide"] .header::after,
+body[data-mode="tablet"] .header::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: var(--rail-closed);
+  width: 28px;
+  height: 28px;
+  background: radial-gradient(circle at bottom right, transparent 28px, #D9D9D9 28px);
+  pointer-events: none;
+  z-index: 201;
 }
 
 /* Auto-hide header on scroll down (mobile & tablet) */
