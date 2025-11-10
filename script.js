@@ -959,12 +959,77 @@ function initStackCarousel() {
   startAutoplay();
 }
 
+/**
+ * Скрытие/показ header и dock при скролле (стандартная индустриальная механика)
+ * Mobile & Tablet: при скролле вниз - скрывает, при скролле вверх - показывает
+ * Desktop: функция не работает (header всегда видим)
+ */
+function attachScrollHideHeader() {
+  let lastScrollY = window.pageYOffset || document.documentElement.scrollTop;
+  let scrollTicking = false;
+  const scrollThreshold = 10; // минимальная дистанция для срабатывания (px)
+  const scrollTopThreshold = 100; // не скрывать если в самом верху страницы
+
+  function updateScrollDirection() {
+    // Динамически проверяем режим - работает только на mobile/tablet
+    if (currentMode !== 'mobile' && currentMode !== 'tablet') {
+      // На desktop режимах удаляем атрибут (все показывается)
+      if (body.hasAttribute('data-scroll')) {
+        body.removeAttribute('data-scroll');
+      }
+      scrollTicking = false;
+      lastScrollY = window.pageYOffset || document.documentElement.scrollTop;
+      return;
+    }
+
+    const currentScrollY = window.pageYOffset || document.documentElement.scrollTop;
+    const scrollDiff = currentScrollY - lastScrollY;
+
+    // Игнорируем малые изменения
+    if (Math.abs(scrollDiff) < scrollThreshold) {
+      scrollTicking = false;
+      return;
+    }
+
+    // Определяем направление и обновляем data-атрибут
+    if (scrollDiff > 0 && currentScrollY > scrollTopThreshold) {
+      // Скролл вниз и не в самом верху - скрываем header/dock
+      if (body.dataset.scroll !== 'down') {
+        body.dataset.scroll = 'down';
+      }
+    } else if (scrollDiff < 0) {
+      // Скролл вверх - показываем header/dock
+      if (body.dataset.scroll !== 'up') {
+        body.dataset.scroll = 'up';
+      }
+    }
+
+    // Если в самом верху - убираем атрибут (все показывается)
+    if (currentScrollY <= scrollTopThreshold) {
+      body.removeAttribute('data-scroll');
+    }
+
+    lastScrollY = currentScrollY;
+    scrollTicking = false;
+  }
+
+  function onScroll() {
+    if (!scrollTicking) {
+      requestAnimationFrame(updateScrollDirection);
+      scrollTicking = true;
+    }
+  }
+
+  window.addEventListener('scroll', onScroll, { passive: true });
+}
+
 function init() {
   updateMode();
   initDots();
   initMenuInteractions();
   attachEdgeGesture(); // Attach only if tablet mode
   attachMenuSwipes(); // Swipe support for touch devices
+  attachScrollHideHeader(); // Auto-hide header/dock on scroll
   initMenuLinks();
   initStackCarousel(); // Карусель рекомендаций
 
