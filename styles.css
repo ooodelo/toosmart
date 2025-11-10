@@ -257,15 +257,14 @@ body[data-mode="tablet"] .menu-handle::before {
   content: "";
   position: absolute;
   right: 15px;
-  top: 50%;
-  transform: translateY(-50%);
+  top: calc(50% - 22px);
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: linear-gradient(135deg, rgba(0,0,0,0.15) 0%, transparent 50%, rgba(255,255,255,0.1) 100%), #D9D9D9;
+  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.2), transparent 40%, rgba(0,0,0,0.15)), #C0C0C0;
   box-shadow:
-    0 14px 0 0 #D9D9D9,
-    0 28px 0 0 #D9D9D9;
+    0 14px 0 0 #C0C0C0,
+    0 28px 0 0 #C0C0C0;
 }
 
 .menu-handle__label {
@@ -550,7 +549,7 @@ body[data-mode="mobile"] .text-section table {
   transform: translateY(-50%);
   display: none;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
   padding: 0;
   background: transparent;
   border-radius: 0;
