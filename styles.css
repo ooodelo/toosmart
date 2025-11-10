@@ -119,20 +119,6 @@ html[data-lock="scroll"] {
   overflow: visible;
 }
 
-/* Вогнутое скругление в месте стыка header и menu-handle (только desktop/tablet) */
-body[data-mode="desktop"] .header::after,
-body[data-mode="desktop-wide"] .header::after,
-body[data-mode="tablet"] .header::after {
-  content: "";
-  position: absolute;
-  top: 100%;
-  left: var(--rail-closed);
-  width: 28px;
-  height: 28px;
-  background: radial-gradient(circle at bottom right, transparent 28px, #D9D9D9 28px);
-  pointer-events: none;
-  z-index: 201;
-}
 
 /* Auto-hide header on scroll down (mobile & tablet) */
 body[data-scroll="down"] .header {
@@ -243,7 +229,7 @@ body[data-input="pointer"].is-slid .menu-rail {
   background: #D9D9D9;
   pointer-events: auto;
   border: none;
-  border-radius: 0;
+  border-radius: 0 28px 0 0;
   box-sizing: border-box;
   height: 100%;
 }
