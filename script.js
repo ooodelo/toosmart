@@ -624,6 +624,66 @@ function detachEdgeGesture() {
   edgeGestureHandler = null;
 }
 
+/**
+ * Добавляет поддержку свайпов для меню на тач-устройствах
+ */
+function attachMenuSwipes() {
+  if (currentInput !== 'touch') return;
+
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let touchEndX = 0;
+  let touchEndY = 0;
+  const minSwipeDistance = 50; // минимальная дистанция для свайпа
+  const edgeZone = 30; // зона от края экрана для открытия меню
+
+  function handleTouchStart(e) {
+    touchStartX = e.changedTouches[0].screenX;
+    touchStartY = e.changedTouches[0].screenY;
+  }
+
+  function handleTouchEnd(e) {
+    touchEndX = e.changedTouches[0].screenX;
+    touchEndY = e.changedTouches[0].screenY;
+    handleSwipe(e);
+  }
+
+  function handleSwipe(e) {
+    const swipeDistanceX = touchEndX - touchStartX;
+    const swipeDistanceY = Math.abs(touchEndY - touchStartY);
+
+    // Проверяем что это горизонтальный свайп (не вертикальный скролл)
+    if (swipeDistanceY > Math.abs(swipeDistanceX)) {
+      return;
+    }
+
+    // Свайп слева направо от края экрана - открыть меню
+    if (swipeDistanceX > minSwipeDistance &&
+        touchStartX <= edgeZone &&
+        !body.classList.contains('menu-open') &&
+        (currentMode === 'mobile' || currentMode === 'tablet')) {
+      e.preventDefault();
+      const origin = currentMode === 'mobile' ? dockHandle : menuHandle;
+      openMenu({ focusOrigin: origin });
+      return;
+    }
+
+    // Свайп справа налево - закрыть меню (если оно открыто)
+    if (swipeDistanceX < -minSwipeDistance &&
+        body.classList.contains('menu-open') &&
+        (currentMode === 'mobile' || currentMode === 'tablet')) {
+      e.preventDefault();
+      const origin = currentMode === 'mobile' ? dockHandle : menuHandle;
+      closeMenu({ focusOrigin: origin });
+      return;
+    }
+  }
+
+  // Слушаем свайпы на всем документе
+  document.addEventListener('touchstart', handleTouchStart, { passive: true });
+  document.addEventListener('touchend', handleTouchEnd, { passive: false });
+}
+
 function initMenuLinks() {
   const links = menuRail.querySelectorAll('a[href^="#"]');
   links.forEach((link) => {
@@ -772,6 +832,7 @@ function init() {
   initDots();
   initMenuInteractions();
   attachEdgeGesture(); // Attach only if tablet mode
+  attachMenuSwipes(); // Swipe support for touch devices
   initMenuLinks();
   initStackCarousel(); // Карусель рекомендаций
 
