@@ -129,7 +129,6 @@ body[data-scroll="down"] .header {
 .header__link,
 .dock-handle,
 .btn-next,
-.text-box__intro,
 .stack__intro {
   border-radius: 12px;
   border: 1px solid var(--border-color);
@@ -368,6 +367,9 @@ body[data-mode="mobile"] .text-section table {
   padding: 16px;
   margin-bottom: 24px;
   line-height: 1.6;
+  background: var(--surface);
+  border-radius: 12px;
+  border: none;
 }
 
 .text-section {
@@ -375,7 +377,7 @@ body[data-mode="mobile"] .text-section table {
   margin-bottom: 32px;
   background: var(--surface);
   border-radius: 12px;
-  border: 1px solid var(--border-color);
+  border: none;
   scroll-margin-top: var(--section-scroll-margin, 120px);
 }
 
