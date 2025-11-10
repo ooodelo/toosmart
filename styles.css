@@ -834,6 +834,8 @@ body[data-mode="tablet"].menu-open .header {
 body[data-mode="mobile"] .main {
   display: flex;
   flex-direction: column;
+  padding-left: 16px;
+  padding-right: 16px;
   padding-bottom: calc(var(--gap-page) + var(--btn-next-footprint) + var(--mobile-dock-footprint));
 }
 
@@ -841,7 +843,7 @@ body[data-mode="mobile"] .panel,
 body[data-mode="mobile"] .stack {
   position: static;
   width: 100%;
-  padding: var(--gap-page);
+  padding: 14px;
 }
 
 body[data-mode="mobile"] .panel {
@@ -860,7 +862,6 @@ body[data-mode="mobile"] .btn-next {
 body[data-mode="mobile"] .stack {
   order: 3;
   margin-top: 16px;
-  padding: var(--gap-page);
   max-height: none;
   top: auto;
   bottom: auto;
