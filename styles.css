@@ -199,7 +199,7 @@ body[data-scroll="down"] .header {
   object-fit: contain;
   margin-top: -5px;
   margin-bottom: -60px;
-  margin-left: -30px;
+  margin-left: 30px;
   padding: 0;
   border: none;
   background: transparent;
