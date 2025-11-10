@@ -2,30 +2,29 @@
  * АРХИТЕКТУРА: Разделение режимов верстки и типов ввода
  *
  * 1. data-mode (Layout Mode) - режим верстки, зависит от ширины окна и touch-capability:
- *    - 'handheld': < 1024px (мобильные телефоны, маленькие планшеты в портрете)
- *    - 'tablet-wide': 1024-1439px non-touch ИЛИ >= 1024px touch (планшеты, touch-десктопы)
- *    - 'desktop': >= 1440px non-touch (обычные десктопы)
+ *    - 'mobile': < 768px (телефоны)
+ *    - 'tablet': 768-899px (планшеты)
+ *    - 'desktop': 900-1279px (ноутбуки)
+ *    - 'desktop-wide': >= 1280px (большие мониторы)
  *
- *    Правило: Touch-устройства ВСЕГДА получают максимум tablet-wide, даже при 1920px.
+ *    Правило: Touch-устройства используют упрощенную схему (mobile/tablet/desktop), без desktop-wide.
  *
  * 2. data-input (Input Capabilities) - тип ввода, определяет интерактивность:
  *    - 'touch': устройства с сенсорным вводом (свайпы, клики)
  *    - 'pointer': устройства с мышью (hover-эффекты)
  *
  *    Используется ТОЛЬКО для rail menu интерактивности:
- *    - handheld + touch: меню снизу, открывается тапом
- *    - tablet-wide + touch: меню слева, открывается свайпом/тапом
- *    - tablet-wide + pointer: меню слева, открывается hover
- *    - desktop + pointer: меню слева, hover для slide
+ *    - mobile + touch: меню снизу, открывается тапом
+ *    - tablet + touch: меню overlay, открывается тапом
+ *    - desktop + touch/pointer: меню overlay, открывается тапом/hover
  *
  * Примеры:
- *    iPhone 15 (393px, touch) → mode=handheld, input=touch
- *    iPad Pro портрет (1024px, touch) → mode=tablet-wide, input=touch
- *    iPad Pro ландшафт (1440px, touch) → mode=tablet-wide, input=touch (!)
- *    Desktop 27" touch (1920px, touch) → mode=tablet-wide, input=touch (!)
- *    Laptop 13" (1280px, pointer) → mode=tablet-wide, input=pointer
- *    Desktop 27" (1920px, pointer) → mode=desktop, input=pointer
- *    Dev Tools iPhone (375px, pointer) → mode=handheld, input=pointer (верстка правильная!)
+ *    iPhone 15 (393px, touch) → mode=mobile, input=touch
+ *    iPad Pro портрет (768px, touch) → mode=tablet, input=touch
+ *    iPad Pro ландшафт (1024px, touch) → mode=desktop, input=touch
+ *    Laptop 13" (1280px, pointer) → mode=desktop-wide, input=pointer
+ *    Desktop 27" (1920px, pointer) → mode=desktop-wide, input=pointer
+ *    Dev Tools iPhone (375px, pointer) → mode=mobile, input=pointer
  */
 
 const root = document.documentElement;
@@ -90,25 +89,33 @@ function detectInput() {
  * Классифицирует режим верстки на основе ширины и типа ввода
  * @param {number} width - ширина viewport
  * @param {'touch' | 'pointer'} inputType - тип ввода
- * @returns {'handheld' | 'tablet-wide' | 'desktop'} - режим верстки
+ * @returns {'mobile' | 'tablet' | 'desktop' | 'desktop-wide'} - режим верстки
  */
 function classifyMode(width, inputType) {
   const isTouchDevice = inputType === 'touch';
 
   let mode;
 
-  // Touch устройства: всегда максимум tablet-wide (даже при 1920px!)
+  // Touch устройства: упрощенная схема (mobile/tablet/desktop)
   if (isTouchDevice) {
-    mode = width < 1024 ? 'handheld' : 'tablet-wide';
-  }
-  // Non-touch устройства: полный диапазон режимов
-  else {
-    if (width < 1024) {
-      mode = 'handheld';
-    } else if (width < 1440) {
-      mode = 'tablet-wide';
+    if (width < 768) {
+      mode = 'mobile';
+    } else if (width < 900) {
+      mode = 'tablet';
     } else {
+      mode = 'desktop'; // touch останавливается на desktop
+    }
+  }
+  // Non-touch устройства: полный диапазон режимов (все 4)
+  else {
+    if (width < 768) {
+      mode = 'mobile';
+    } else if (width < 900) {
+      mode = 'tablet';
+    } else if (width < 1280) {
       mode = 'desktop';
+    } else {
+      mode = 'desktop-wide';
     }
   }
 
@@ -158,7 +165,7 @@ function scheduleLayoutMetricsUpdate() {
 /**
  * Определяет режим верстки на основе текущей ширины viewport
  * @param {'touch' | 'pointer'} inputType - тип ввода
- * @returns {'handheld' | 'tablet-wide' | 'desktop'} - режим верстки
+ * @returns {'mobile' | 'tablet' | 'desktop' | 'desktop-wide'} - режим верстки
  */
 function detectMode(inputType) {
   // Приоритет источников ширины:
@@ -185,9 +192,10 @@ function detectMode(inputType) {
   }
 
   const mediaFallbacks = [
-    ['handheld', '(max-width: 1023px)'],
-    ['tablet-wide', '(min-width: 1024px) and (max-width: 1439px)'],
-    ['desktop', '(min-width: 1440px)'],
+    ['mobile', '(max-width: 767px)'],
+    ['tablet', '(min-width: 768px) and (max-width: 899px)'],
+    ['desktop', '(min-width: 900px) and (max-width: 1279px)'],
+    ['desktop-wide', '(min-width: 1280px)'],
   ];
 
   for (const [mode, query] of mediaFallbacks) {
@@ -196,7 +204,7 @@ function detectMode(inputType) {
     }
   }
 
-  return 'tablet-wide';
+  return 'desktop';
 }
 
 /**
@@ -292,7 +300,7 @@ function teardownObserver() {
 function configureDots() {
   if (!dotsRail) return;
   dotsRail.innerHTML = '';
-  const shouldEnable = currentMode === 'desktop' && sections.length >= 2;
+  const shouldEnable = (currentMode === 'desktop' || currentMode === 'desktop-wide') && sections.length >= 2;
   dotsRail.hidden = !shouldEnable;
   if (!shouldEnable) {
     teardownObserver();
@@ -321,7 +329,7 @@ function setupSectionObserver() {
     return;
   }
 
-  if (currentMode !== 'desktop' || sections.length < 2) {
+  if ((currentMode !== 'desktop' && currentMode !== 'desktop-wide') || sections.length < 2) {
     return;
   }
 
@@ -350,7 +358,7 @@ function setActiveSection(id) {
 }
 
 function updateActiveDot() {
-  if (currentMode !== 'desktop') {
+  if (currentMode !== 'desktop' && currentMode !== 'desktop-wide') {
     return;
   }
   if (!dotsRail) return;
@@ -527,11 +535,14 @@ function handleModeUpdate() {
 }
 
 function handleNext() {
-  const currentIndex = getCurrentSectionIndex();
-  const nextSection = sections[currentIndex + 1] || sections[0];
-  activeSectionId = nextSection.id;
-  updateActiveDot();
-  nextSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // Получаем URL следующей страницы из data-атрибута кнопки
+  const nextPageUrl = btnNext?.dataset.nextPage;
+
+  if (nextPageUrl) {
+    window.location.href = nextPageUrl;
+  } else {
+    console.warn('Кнопка "Далее": не указан data-next-page');
+  }
 }
 
 function initMenuInteractions() {
@@ -564,38 +575,38 @@ function initMenuInteractions() {
     body.classList.remove('is-slid');
   });
   dockHandle?.addEventListener('click', () => {
-    if (currentMode !== 'handheld') return;
+    if (currentMode !== 'mobile') return;
     toggleMenu(dockHandle);
   });
   backdrop?.addEventListener('click', () => {
     if (!body.classList.contains('menu-open')) return;
-    const origin = currentMode === 'handheld' ? dockHandle : menuHandle;
+    const origin = currentMode === 'mobile' ? dockHandle : menuHandle;
     closeMenu({ focusOrigin: origin });
   });
   menuCap?.addEventListener('click', () => {
-    if (currentMode !== 'handheld') return;
+    if (currentMode !== 'mobile') return;
     if (!body.classList.contains('menu-open')) return;
     closeMenu({ focusOrigin: dockHandle });
   });
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && body.classList.contains('menu-open')) {
       event.preventDefault();
-      const origin = currentMode === 'handheld' ? dockHandle : menuHandle;
+      const origin = currentMode === 'mobile' ? dockHandle : menuHandle;
       closeMenu({ focusOrigin: origin });
     }
   });
 }
 
 /**
- * Подключает edge-gesture для tablet-wide режима
+ * Подключает edge-gesture для tablet режима
  */
 function attachEdgeGesture() {
-  if (currentMode !== 'tablet-wide') return;
+  if (currentMode !== 'tablet') return;
   if (edgeGestureHandler) return; // Already attached
 
   const edgeZoneWidth = 30; // px от левого края
   edgeGestureHandler = (e) => {
-    if (currentMode !== 'tablet-wide') return;
+    if (currentMode !== 'tablet') return;
     if (e.clientX <= edgeZoneWidth && !body.classList.contains('menu-open')) {
       openMenu({ focusOrigin: menuHandle });
     }
@@ -613,6 +624,164 @@ function detachEdgeGesture() {
   edgeGestureHandler = null;
 }
 
+/**
+ * Добавляет поддержку свайпов для меню на тач-устройствах
+ * Mobile: вертикальные свайпы (снизу вверх - открыть, сверху вниз от cap - закрыть)
+ * Tablet: горизонтальные свайпы (слева направо - открыть, справа налево - закрыть)
+ */
+function attachMenuSwipes() {
+  if (currentInput !== 'touch') return;
+
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let touchEndX = 0;
+  let touchEndY = 0;
+  let isSwiping = false;
+  let swipeDirection = null; // 'horizontal' или 'vertical'
+  let shouldHandleSwipe = false; // флаг для обработки свайпа в touchend
+  let startedOnMenuCap = false; // свайп начался на cap
+
+  // Настройки свайпов (оптимизированы для лучшего UX)
+  const minSwipeDistanceOpen = 60; // дистанция для открытия (немного больше для предотвращения случайных срабатываний)
+  const minSwipeDistanceClose = 80; // дистанция для закрытия (больше, чтобы не конфликтовать со скроллом)
+  const edgeZoneBottom = 80; // зона внизу для открытия меню (больше для удобства)
+  const edgeZoneLeft = 50; // зона слева для tablet
+  const closeZoneTop = 120; // зона вверху меню для закрытия (cap + немного ниже)
+  const directionThreshold = 15; // порог для определения направления (больше для надежности)
+
+  function handleTouchStart(e) {
+    touchStartX = e.changedTouches[0].clientX;
+    touchStartY = e.changedTouches[0].clientY;
+    isSwiping = false;
+    swipeDirection = null;
+    shouldHandleSwipe = false;
+
+    // Проверяем, начался ли свайп на menu-cap (для мобильного режима)
+    const target = e.target;
+    startedOnMenuCap = target && (
+      target.classList.contains('menu-rail__cap') ||
+      target.closest('.menu-rail__cap')
+    );
+  }
+
+  function handleTouchMove(e) {
+    if (!isSwiping) {
+      const deltaX = Math.abs(e.changedTouches[0].clientX - touchStartX);
+      const deltaY = Math.abs(e.changedTouches[0].clientY - touchStartY);
+
+      // Определяем направление при первом значительном движении
+      if (deltaX > directionThreshold || deltaY > directionThreshold) {
+        isSwiping = true;
+        swipeDirection = deltaX > deltaY ? 'horizontal' : 'vertical';
+
+        const currentX = e.changedTouches[0].clientX;
+        const currentY = e.changedTouches[0].clientY;
+        const swipeDistanceX = currentX - touchStartX;
+        const swipeDistanceY = currentY - touchStartY;
+        const viewportHeight = window.innerHeight;
+
+        // MOBILE: вертикальные свайпы
+        if (currentMode === 'mobile' && swipeDirection === 'vertical') {
+          // Свайп снизу вверх для открытия меню (начало в нижней зоне экрана)
+          const isOpenSwipe = swipeDistanceY < 0 && // движение вверх
+                             touchStartY > (viewportHeight - edgeZoneBottom) && // начало внизу
+                             !body.classList.contains('menu-open');
+
+          // Свайп сверху вниз для закрытия меню
+          // ВАЖНО: только если свайп начался на cap ИЛИ в верхней зоне меню
+          const isCloseSwipe = swipeDistanceY > 0 && // движение вниз
+                              body.classList.contains('menu-open') &&
+                              (startedOnMenuCap || touchStartY < closeZoneTop);
+
+          shouldHandleSwipe = isOpenSwipe || isCloseSwipe;
+        }
+
+        // TABLET: горизонтальные свайпы
+        if (currentMode === 'tablet' && swipeDirection === 'horizontal') {
+          // Свайп слева направо для открытия меню (начало у левого края)
+          const isOpenSwipe = swipeDistanceX > 0 && // движение вправо
+                             touchStartX <= edgeZoneLeft && // начало у левого края
+                             !body.classList.contains('menu-open');
+
+          // Свайп справа налево для закрытия меню (когда меню открыто)
+          const isCloseSwipe = swipeDistanceX < 0 && // движение влево
+                              body.classList.contains('menu-open');
+
+          shouldHandleSwipe = isOpenSwipe || isCloseSwipe;
+        }
+      }
+    }
+
+    // Предотвращаем скролл если это наш свайп для меню
+    if (shouldHandleSwipe) {
+      e.preventDefault();
+    }
+  }
+
+  function handleTouchEnd(e) {
+    touchEndX = e.changedTouches[0].clientX;
+    touchEndY = e.changedTouches[0].clientY;
+
+    if (shouldHandleSwipe) {
+      handleSwipe();
+    }
+
+    isSwiping = false;
+    swipeDirection = null;
+    shouldHandleSwipe = false;
+    startedOnMenuCap = false;
+  }
+
+  function handleSwipe() {
+    const swipeDistanceX = touchEndX - touchStartX;
+    const swipeDistanceY = touchEndY - touchStartY;
+    const viewportHeight = window.innerHeight;
+
+    // MOBILE: вертикальные свайпы
+    if (currentMode === 'mobile') {
+      // Свайп снизу вверх - открыть меню
+      if (swipeDistanceY < -minSwipeDistanceOpen &&
+          touchStartY > (viewportHeight - edgeZoneBottom) &&
+          !body.classList.contains('menu-open')) {
+        openMenu({ focusOrigin: dockHandle });
+        return;
+      }
+
+      // Свайп сверху вниз - закрыть меню
+      // ВАЖНО: только если начался на cap или в верхней зоне, и достаточно длинный
+      if (swipeDistanceY > minSwipeDistanceClose &&
+          body.classList.contains('menu-open') &&
+          (startedOnMenuCap || touchStartY < closeZoneTop)) {
+        closeMenu({ focusOrigin: dockHandle });
+        return;
+      }
+    }
+
+    // TABLET: горизонтальные свайпы
+    if (currentMode === 'tablet') {
+      // Свайп слева направо от края - открыть меню
+      if (swipeDistanceX > minSwipeDistanceOpen &&
+          touchStartX <= edgeZoneLeft &&
+          !body.classList.contains('menu-open')) {
+        openMenu({ focusOrigin: menuHandle });
+        return;
+      }
+
+      // Свайп справа налево - закрыть меню
+      if (swipeDistanceX < -minSwipeDistanceClose &&
+          body.classList.contains('menu-open')) {
+        closeMenu({ focusOrigin: menuHandle });
+        return;
+      }
+    }
+  }
+
+  // Слушаем свайпы на всем документе
+  document.addEventListener('touchstart', handleTouchStart, { passive: true });
+  document.addEventListener('touchmove', handleTouchMove, { passive: false });
+  document.addEventListener('touchend', handleTouchEnd, { passive: true });
+}
+
 function initMenuLinks() {
   const links = menuRail.querySelectorAll('a[href^="#"]');
   links.forEach((link) => {
@@ -622,20 +791,247 @@ function initMenuLinks() {
       if (target) {
         target.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
-      if (currentMode !== 'desktop') {
-        const origin = currentMode === 'handheld' ? dockHandle : menuHandle;
+      if (currentMode === 'mobile' || currentMode === 'tablet') {
+        const origin = currentMode === 'mobile' ? dockHandle : menuHandle;
         closeMenu({ focusOrigin: origin });
       }
     });
   });
 }
 
+/**
+ * Карусель рекомендаций
+ *
+ * Механика:
+ * 1. Показываем по 2 карточки (1 слайд)
+ * 2. Всего 2 слайда (4 карточки)
+ * 3. Автоматическая смена каждые 6 секунд
+ * 4. Плавная смена через opacity
+ * 5. Индикатор прогресса из точек
+ * 6. Пауза при наведении мыши
+ *
+ * Работает на всех режимах (mobile, tablet, desktop, desktop-wide)
+ */
+function initStackCarousel() {
+  const stack = document.querySelector('.stack');
+  const slides = document.querySelectorAll('.stack-slide');
+  const dots = document.querySelectorAll('.stack-dot');
+
+  if (slides.length === 0) return;
+
+  let currentSlide = 0;
+  let intervalId = null;
+  let isPaused = false;
+
+  // Интервал между сменами слайдов (миллисекунды)
+  const SLIDE_INTERVAL = 6000; // 6 секунд
+
+  function setActiveSlide(index) {
+    // Циклическое переключение
+    const safeIndex = index % slides.length;
+
+    if (safeIndex === currentSlide) return;
+
+    currentSlide = safeIndex;
+
+    // Обновляем слайды
+    slides.forEach((slide, i) => {
+      slide.setAttribute('data-active', i === currentSlide ? 'true' : 'false');
+    });
+
+    // Обновляем точки
+    dots.forEach((dot, i) => {
+      dot.setAttribute('data-active', i === currentSlide ? 'true' : 'false');
+    });
+  }
+
+  function nextSlide() {
+    if (!isPaused) {
+      setActiveSlide(currentSlide + 1);
+    }
+  }
+
+  function startAutoplay() {
+    if (intervalId) {
+      clearInterval(intervalId);
+    }
+    intervalId = setInterval(nextSlide, SLIDE_INTERVAL);
+  }
+
+  function stopAutoplay() {
+    if (intervalId) {
+      clearInterval(intervalId);
+      intervalId = null;
+    }
+  }
+
+  // Клики на точки для ручного переключения
+  dots.forEach((dot, index) => {
+    dot.addEventListener('click', () => {
+      setActiveSlide(index);
+      // Перезапускаем таймер после ручного переключения
+      startAutoplay();
+    });
+  });
+
+  // Пауза при наведении мыши
+  if (stack) {
+    stack.addEventListener('mouseenter', () => {
+      isPaused = true;
+    });
+
+    stack.addEventListener('mouseleave', () => {
+      isPaused = false;
+    });
+
+    // Поддержка свайпов на тач-устройствах с предотвращением вертикального скролла
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchEndX = 0;
+    let touchEndY = 0;
+    let isSwiping = false;
+    let swipeDirection = null; // 'horizontal' или 'vertical'
+    const minSwipeDistance = 50; // минимальная дистанция для переключения слайда
+    const directionThreshold = 10; // порог для определения направления
+
+    stack.addEventListener('touchstart', (e) => {
+      touchStartX = e.changedTouches[0].clientX;
+      touchStartY = e.changedTouches[0].clientY;
+      isSwiping = false;
+      swipeDirection = null;
+    }, { passive: true });
+
+    stack.addEventListener('touchmove', (e) => {
+      if (!isSwiping) {
+        const deltaX = Math.abs(e.changedTouches[0].clientX - touchStartX);
+        const deltaY = Math.abs(e.changedTouches[0].clientY - touchStartY);
+
+        // Определяем направление при первом значительном движении
+        if (deltaX > directionThreshold || deltaY > directionThreshold) {
+          isSwiping = true;
+          swipeDirection = deltaX > deltaY ? 'horizontal' : 'vertical';
+        }
+      }
+
+      // Если свайп горизонтальный - предотвращаем вертикальный скролл
+      if (swipeDirection === 'horizontal') {
+        e.preventDefault();
+      }
+    }, { passive: false }); // passive: false чтобы preventDefault работал
+
+    stack.addEventListener('touchend', (e) => {
+      touchEndX = e.changedTouches[0].clientX;
+      touchEndY = e.changedTouches[0].clientY;
+
+      // Обрабатываем свайп только если это был горизонтальный жест
+      if (swipeDirection === 'horizontal') {
+        handleSwipe();
+      }
+
+      isSwiping = false;
+      swipeDirection = null;
+    }, { passive: true });
+
+    function handleSwipe() {
+      const swipeDistance = touchStartX - touchEndX;
+
+      if (Math.abs(swipeDistance) < minSwipeDistance) {
+        return; // Свайп слишком короткий, игнорируем
+      }
+
+      if (swipeDistance > 0) {
+        // Свайп влево - следующий слайд
+        setActiveSlide(currentSlide + 1);
+      } else {
+        // Свайп вправо - предыдущий слайд
+        setActiveSlide(currentSlide - 1 + slides.length);
+      }
+
+      // Перезапускаем таймер после свайпа
+      startAutoplay();
+    }
+  }
+
+  // Первоначальное обновление
+  setActiveSlide(0);
+
+  // Запускаем автопроигрывание
+  startAutoplay();
+}
+
+/**
+ * Скрытие/показ header и dock при скролле (стандартная индустриальная механика)
+ * Mobile & Tablet: при скролле вниз - скрывает, при скролле вверх - показывает
+ * Desktop: функция не работает (header всегда видим)
+ */
+function attachScrollHideHeader() {
+  let lastScrollY = window.pageYOffset || document.documentElement.scrollTop;
+  let scrollTicking = false;
+  const scrollThreshold = 10; // минимальная дистанция для срабатывания (px)
+  const scrollTopThreshold = 100; // не скрывать если в самом верху страницы
+
+  function updateScrollDirection() {
+    // Динамически проверяем режим - работает только на mobile/tablet
+    if (currentMode !== 'mobile' && currentMode !== 'tablet') {
+      // На desktop режимах удаляем атрибут (все показывается)
+      if (body.hasAttribute('data-scroll')) {
+        body.removeAttribute('data-scroll');
+      }
+      scrollTicking = false;
+      lastScrollY = window.pageYOffset || document.documentElement.scrollTop;
+      return;
+    }
+
+    const currentScrollY = window.pageYOffset || document.documentElement.scrollTop;
+    const scrollDiff = currentScrollY - lastScrollY;
+
+    // Игнорируем малые изменения
+    if (Math.abs(scrollDiff) < scrollThreshold) {
+      scrollTicking = false;
+      return;
+    }
+
+    // Определяем направление и обновляем data-атрибут
+    if (scrollDiff > 0 && currentScrollY > scrollTopThreshold) {
+      // Скролл вниз и не в самом верху - скрываем header/dock
+      if (body.dataset.scroll !== 'down') {
+        body.dataset.scroll = 'down';
+      }
+    } else if (scrollDiff < 0) {
+      // Скролл вверх - показываем header/dock
+      if (body.dataset.scroll !== 'up') {
+        body.dataset.scroll = 'up';
+      }
+    }
+
+    // Если в самом верху - убираем атрибут (все показывается)
+    if (currentScrollY <= scrollTopThreshold) {
+      body.removeAttribute('data-scroll');
+    }
+
+    lastScrollY = currentScrollY;
+    scrollTicking = false;
+  }
+
+  function onScroll() {
+    if (!scrollTicking) {
+      requestAnimationFrame(updateScrollDirection);
+      scrollTicking = true;
+    }
+  }
+
+  window.addEventListener('scroll', onScroll, { passive: true });
+}
+
 function init() {
   updateMode();
   initDots();
   initMenuInteractions();
-  attachEdgeGesture(); // Attach only if tablet-wide mode
+  attachEdgeGesture(); // Attach only if tablet mode
+  attachMenuSwipes(); // Swipe support for touch devices
+  attachScrollHideHeader(); // Auto-hide header/dock on scroll
   initMenuLinks();
+  initStackCarousel(); // Карусель рекомендаций
 
   const handleNextClick = () => handleNext();
   btnNext?.addEventListener('click', handleNextClick);

@@ -1,0 +1,23 @@
+{
+  "name": "toosmart",
+  "version": "1.0.0",
+  "description": "Статичный сайт для образовательных статей",
+  "main": "build.js",
+  "scripts": {
+    "build": "node build.js",
+    "dev": "npm run build && live-server public",
+    "clean": "rm -rf public/articles/* public/images/*"
+  },
+  "keywords": [
+    "markdown",
+    "static-site"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "marked": "^11.0.0"
+  },
+  "devDependencies": {
+    "live-server": "^1.2.2"
+  }
+}

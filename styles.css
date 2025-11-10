@@ -2,14 +2,10 @@
   color-scheme: light;
 
   /* Ширины текстовых блоков */
-  --text-box-width-desktop: 680px;
-  --text-box-width-tablet: 540px;
-  --text-box-width-handheld: max(
-    280px,
-    calc(
-      100vw - var(--gap-page) * 2 - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)
-    )
-  );
+  --text-box-width-mobile: 500px;
+  --text-box-width-tablet: 520px;
+  --text-box-width-desktop: 580px;
+  --text-box-width-desktop-wide: 660px;
   --text-box-width: var(--text-box-width-desktop);
 
   /* Ширины блока рекомендаций */
@@ -21,7 +17,9 @@
   --stack-min-width: var(--stack-min-width-desktop);
 
   /* Для dots-rail позиционирования */
-  --text-box-left: calc(50vw - var(--text-box-width-desktop) / 2);
+  --text-box-left-desktop: calc(50% - var(--text-box-width-desktop) / 2);
+  --text-box-left-desktop-wide: calc(50% - var(--text-box-width-desktop-wide) / 2);
+  --text-box-left: var(--text-box-left-desktop);
 
   /* Отступы и размеры */
   --gap-page: 32px;
@@ -44,9 +42,19 @@
   --surface-alt: #ededed;
   --text-color: #222;
 
+  /* Цвета контента */
+  --text-primary: #222;
+  --text-secondary: #666;
+  --code-inline-bg: var(--surface);
+  --code-inline-color: #c7254e;
+  --code-block-bg: #2d2d2d;
+  --code-block-color: #f8f8f2;
+  --link-color: #0066cc;
+  --link-hover: #004499;
+
   /* Handheld */
-  --handheld-dock: 64px;
-  --handheld-dock-footprint: calc(var(--handheld-dock) + env(safe-area-inset-bottom, 0px));
+  --mobile-dock: 64px;
+  --mobile-dock-footprint: calc(var(--mobile-dock) + env(safe-area-inset-bottom, 0px));
 }
 
 * {
@@ -59,7 +67,7 @@ body {
   padding: 0;
   color: var(--text-color);
   font-family: "Inter", "Segoe UI", sans-serif;
-  background: #f6f4f1;
+  background: #e8f4f8;
   min-height: 100%;
 }
 
@@ -67,10 +75,17 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  overflow-x: hidden;
+  max-width: 100vw;
+  position: relative;
 }
 
 html {
   scroll-behavior: smooth;
+
+  /* Проблема 2: Отключение Safari bounce (резиновый эффект) */
+  -ms-scroll-chaining: none; /* IE 10+, старый Edge */
+  overscroll-behavior-y: none; /* Chrome 65+, Firefox 59+, Safari 16+ */
 }
 
 body[data-lock="scroll"] {
@@ -97,7 +112,12 @@ html[data-lock="scroll"] {
   padding: 12px var(--gap-page);
   background: var(--surface);
   border-bottom: 1px solid var(--border-color);
-  transition: transform var(--t-rail) var(--rail-ease);
+  transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Auto-hide header on scroll down (mobile & tablet) */
+body[data-scroll="down"] .header {
+  transform: translateY(-100%);
 }
 
 .header__logo,
@@ -195,11 +215,22 @@ body[data-input="pointer"].is-slid .menu-rail {
   padding: 16px;
   pointer-events: auto;
   background: #fff;
+
+  /* Проблема 1: Остановка scroll chaining */
+  -ms-scroll-chaining: none; /* IE 10+, старый Edge, Win 8+ */
+  overscroll-behavior: contain; /* Chrome 65+, Firefox 59+, Safari 16+ */
 }
 
 .site-menu__intro {
   margin-bottom: 16px;
   line-height: 1.6;
+}
+
+.site-menu__title {
+  margin: 0 0 20px 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 .site-menu__list {
@@ -226,6 +257,26 @@ body[data-input="pointer"].is-slid .menu-rail {
   background: var(--surface);
 }
 
+/* Вложенные списки (подразделы) */
+.site-menu__list ul {
+  list-style: none;
+  margin: 8px 0 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.site-menu__list ul a {
+  padding: 6px 12px 6px 24px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.site-menu__list ul a:hover {
+  color: var(--text-primary);
+}
+
 .panel {
   grid-column: 2;
   border: none;
@@ -238,14 +289,33 @@ body[data-input="pointer"].is-slid .menu-rail {
   position: relative;
 }
 
-body[data-mode="handheld"] .panel {
+body[data-mode="mobile"] .panel {
   display: flex;
   flex-direction: column;
   align-items: stretch;
 }
 
-body[data-mode="handheld"] .text-box {
+body[data-mode="mobile"] .text-box {
+  max-width: 100%;
+  margin: 0;
   width: 100%;
+  overflow-x: hidden;
+}
+
+body[data-mode="mobile"] .text-section {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+body[data-mode="mobile"] .text-section pre {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+body[data-mode="mobile"] .text-section table {
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
 }
 
 .text-box {
@@ -279,6 +349,123 @@ body[data-mode="handheld"] .text-box {
 .text-section p {
   line-height: 1.6;
   margin: 0 0 12px;
+}
+
+/* === MARKDOWN CONTENT STYLES === */
+
+/* Изображения */
+.text-section img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 24px auto;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+/* Подписи к изображениям */
+.text-section figcaption {
+  text-align: center;
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-top: 8px;
+  font-style: italic;
+}
+
+/* Код inline */
+.text-section code {
+  background: var(--code-inline-bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.9em;
+  color: var(--code-inline-color);
+}
+
+/* Блоки кода */
+.text-section pre {
+  background: var(--code-block-bg);
+  color: var(--code-block-color);
+  padding: 16px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 24px 0;
+}
+
+.text-section pre code {
+  background: none;
+  padding: 0;
+  color: inherit;
+  font-size: 1em;
+}
+
+/* Цитаты */
+.text-section blockquote {
+  margin: 20px 0;
+  padding: 12px 20px;
+  border-left: 4px solid var(--border-color);
+  background: var(--surface);
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+/* Таблицы */
+.text-section table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 24px 0;
+}
+
+.text-section th,
+.text-section td {
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  text-align: left;
+}
+
+.text-section th {
+  background: var(--surface);
+  font-weight: 600;
+}
+
+/* Списки */
+.text-section ul,
+.text-section ol {
+  margin: 16px 0;
+  padding-left: 24px;
+  line-height: 1.8;
+}
+
+.text-section li {
+  margin: 8px 0;
+}
+
+/* Горизонтальная линия */
+.text-section hr {
+  border: none;
+  border-top: 1px solid var(--border-color);
+  margin: 32px 0;
+}
+
+/* Заголовки H3, H4 */
+.text-section h3 {
+  margin: 32px 0 16px;
+  font-size: 1.3em;
+}
+
+.text-section h4 {
+  margin: 24px 0 12px;
+  font-size: 1.1em;
+}
+
+/* Ссылки в тексте */
+.text-section a {
+  color: var(--link-color);
+  text-decoration: underline;
+}
+
+.text-section a:hover {
+  color: var(--link-hover);
 }
 
 .dots-rail {
@@ -316,7 +503,6 @@ body[data-mode="handheld"] .text-box {
   padding: 12px 24px;
   background: var(--surface-alt);
   cursor: pointer;
-  display: inline-flex;
   align-items: center;
   justify-content: center;
   font-size: 16px;
@@ -330,16 +516,13 @@ body[data-mode="handheld"] .text-box {
 .stack {
   grid-column: 3;
   align-self: start;
-  position: sticky;
-  top: var(--stack-top);
-  max-height: calc(100vh - var(--stack-top) - var(--stack-bottom)); /* iOS 15 fallback */
-  max-height: calc(100dvh - var(--stack-top) - var(--stack-bottom)); /* iOS 16+ */
+  position: relative; /* default - меняется на sticky в desktop/desktop-wide */
   padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 16px;
   background: #fff;
-  min-height: 0;
+  overflow: hidden; /* скрываем контент который выходит за пределы */
 }
 
 .stack__intro {
@@ -348,32 +531,88 @@ body[data-mode="handheld"] .text-box {
   background: var(--surface);
 }
 
-.stack-list {
+.stack__title {
+  margin: 0 0 16px 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* Карусель рекомендаций */
+.stack-carousel {
   flex: 1 1 auto;
-  overflow: auto;
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.stack-slide {
   display: flex;
   flex-direction: column;
   gap: var(--stack-gap);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  min-height: 0;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.5s ease, visibility 0.5s ease;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+}
+
+.stack-slide[data-active="true"] {
+  opacity: 1;
+  visibility: visible;
+  position: relative;
 }
 
 .stack-card {
   padding: 16px;
   background: var(--surface);
   line-height: 1.4;
+  border-radius: 8px;
 }
 
 .stack-card h3 {
   margin: 0 0 8px;
   font-size: 16px;
+  font-weight: 600;
 }
 
 .stack-card p {
   margin: 0;
   font-size: 14px;
+  color: var(--text-secondary);
+}
+
+/* Индикатор прогресса (точки) */
+.stack-indicator {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 8px 0;
+}
+
+.stack-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border-color);
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.3s ease;
+}
+
+.stack-dot:hover {
+  background: var(--text-secondary);
+  transform: scale(1.2);
+}
+
+.stack-dot[data-active="true"] {
+  background: var(--text-primary);
+  width: 24px;
+  border-radius: 4px;
 }
 
 .backdrop {
@@ -398,7 +637,7 @@ body.menu-open .backdrop {
   left: 0;
   right: 0;
   bottom: 0;
-  height: var(--handheld-dock-footprint);
+  height: var(--mobile-dock-footprint);
   background: var(--surface-alt);
   border-top: 1px solid var(--border-color);
   display: none;
@@ -411,7 +650,7 @@ body.menu-open .backdrop {
 
 .dock-handle {
   width: 100%;
-  height: var(--handheld-dock);
+  height: var(--mobile-dock);
   padding: 0 24px;
   font-weight: 600;
   cursor: pointer;
@@ -442,6 +681,7 @@ body[data-mode="desktop"] .dock {
 
 body[data-mode="desktop"] .dots-rail {
   display: flex;
+  left: calc(var(--text-box-left) - 48px);
 }
 
 body[data-mode="desktop"] {
@@ -453,8 +693,10 @@ body[data-mode="desktop"] {
 }
 
 body[data-mode="desktop"] .main {
+  display: grid;
   grid-template-columns: 1fr var(--text-box-width-desktop) 1fr;
   grid-template-rows: 1fr;
+  column-gap: 0;
 }
 
 body[data-mode="desktop"] .panel {
@@ -477,46 +719,43 @@ body[data-mode="desktop"] .btn-next {
 
 body[data-mode="desktop"] .stack {
   grid-column: 3;
-  justify-self: stretch;
+  justify-self: center;
   align-self: start;
   position: sticky;
   top: var(--stack-top);
-  margin-left: var(--stack-gap);
-  margin-right: var(--stack-gap);
-  width: auto;
-  max-width: var(--stack-width);
-  max-height: calc(100vh - var(--stack-top) - var(--stack-bottom)); /* iOS 15 fallback */
-  max-height: calc(100dvh - var(--stack-top) - var(--stack-bottom)); /* iOS 16+ */
+  margin: 0;
+  padding: 20px;
+  width: 100%;
+  max-width: 100%;
+  height: calc(100vh - var(--stack-top) - var(--stack-bottom));
+  height: calc(100dvh - var(--stack-top) - var(--stack-bottom));
 }
 
-body[data-mode="tablet-wide"] {
-  --text-box-width: var(--text-box-width-tablet);
-  --stack-width: var(--stack-width-tablet);
-  --stack-min-width: var(--stack-min-width-tablet);
-  --stack-gap: 32px;
-  --text-box-left: calc(50vw - var(--text-box-width-tablet) / 2);
+body[data-mode="desktop-wide"] {
+  --text-box-width: var(--text-box-width-desktop-wide);
+  --text-box-left: calc(50vw - var(--text-box-width-desktop-wide) / 2);
 }
 
-body[data-mode="tablet-wide"] .dots-rail {
-  display: none;
-}
-
-body[data-mode="tablet-wide"] .main {
-  grid-template-columns: 1fr var(--text-box-width-tablet) 1fr;
+body[data-mode="desktop-wide"] .main {
+  display: grid;
+  grid-template-columns: 1fr var(--text-box-width-desktop-wide) 1fr;
   grid-template-rows: 1fr;
+  column-gap: 0;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
-body[data-mode="tablet-wide"] .panel {
+body[data-mode="desktop-wide"] .panel {
   grid-column: 2;
   grid-row: 1;
   padding: 0;
 }
 
-body[data-mode="tablet-wide"] .text-box {
+body[data-mode="desktop-wide"] .text-box {
   width: 100%;
 }
 
-body[data-mode="tablet-wide"] .btn-next {
+body[data-mode="desktop-wide"] .btn-next {
   display: flex;
   width: fit-content;
   position: sticky;
@@ -524,51 +763,116 @@ body[data-mode="tablet-wide"] .btn-next {
   margin: 48px auto 0;
 }
 
-body[data-mode="tablet-wide"] .stack {
+body[data-mode="desktop-wide"] .stack {
   grid-column: 3;
-  justify-self: stretch;
+  justify-self: center;
   align-self: start;
   position: sticky;
   top: var(--stack-top);
-  margin-left: var(--stack-gap);
-  margin-right: var(--stack-gap);
-  width: auto;
-  max-width: var(--stack-width);
-  max-height: calc(100vh - var(--stack-top) - var(--stack-bottom)); /* iOS 15 fallback */
-  max-height: calc(100dvh - var(--stack-top) - var(--stack-bottom)); /* iOS 16+ */
+  margin: 0;
+  padding: 20px;
+  width: 100%;
+  max-width: 400px;
+  height: calc(100vh - var(--stack-top) - var(--stack-bottom));
+  height: calc(100dvh - var(--stack-top) - var(--stack-bottom));
 }
 
-body[data-mode="tablet-wide"] .header {
-  transform: translateX(0);
+body[data-mode="desktop-wide"] .dots-rail {
+  display: flex;
+  left: calc(var(--text-box-left) - 48px);
 }
 
-body[data-mode="tablet-wide"] .header__links,
-body[data-mode="handheld"] .header__links {
+/* Компактный стиль carousel для узкого sidebar на desktop (900-1000px) */
+@media (min-width: 900px) and (max-width: 1000px) {
+  body[data-mode="desktop"] .stack-card h3 {
+    font-size: 16px;
+  }
+
+  body[data-mode="desktop"] .stack-card p {
+    font-size: 13px;
+  }
+}
+
+body[data-mode="tablet"] {
+  --text-box-width: var(--text-box-width-tablet);
+  --stack-width: var(--stack-width-tablet);
+  --stack-min-width: var(--stack-min-width-tablet);
+  --stack-gap: 32px;
+  --text-box-left: calc(50vw - var(--text-box-width-tablet) / 2);
+}
+
+body[data-mode="tablet"] .dots-rail {
+  display: none;
+}
+
+body[data-mode="tablet"] .main {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: calc(var(--gap-page) * 2);
+}
+
+body[data-mode="tablet"] .panel {
+  order: 1;
+  width: 100%;
+  max-width: var(--text-box-width-tablet);
+  margin: 0 auto;
+  padding: 0;
+}
+
+body[data-mode="tablet"] .text-box {
+  width: 100%;
+}
+
+body[data-mode="tablet"] .btn-next {
+  display: flex;
+  width: fit-content;
+  position: sticky;
+  bottom: 24px;
+  margin: 48px auto 0;
+  order: 2;
+}
+
+body[data-mode="tablet"] .stack {
+  order: 3;
+  position: static;
+  width: 100%;
+  max-width: var(--text-box-width-tablet);
+  margin: 32px auto 0;
+  padding: var(--gap-page);
+  height: auto;
+  align-self: center;
+}
+
+body[data-mode="tablet"] .header__links,
+body[data-mode="mobile"] .header__links {
   gap: 8px;
 }
 
-body[data-mode="tablet-wide"].menu-open .header {
+body[data-mode="tablet"].menu-open .header {
   transform: translateX(calc(var(--rail-open) - var(--rail-closed)));
 }
 
-body[data-mode="handheld"] .main {
+body[data-mode="mobile"] .main {
   display: flex;
   flex-direction: column;
-  padding-bottom: calc(var(--gap-page) + var(--btn-next-footprint) + var(--handheld-dock-footprint));
+  padding: calc(var(--gap-page) * 1.5) 16px calc(var(--gap-page) + var(--btn-next-footprint) + var(--mobile-dock-footprint)) 16px;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
-body[data-mode="handheld"] .panel,
-body[data-mode="handheld"] .stack {
+body[data-mode="mobile"] .panel,
+body[data-mode="mobile"] .stack {
   position: static;
   width: 100%;
-  padding: var(--gap-page);
+  padding: 14px;
 }
 
-body[data-mode="handheld"] .panel {
+body[data-mode="mobile"] .panel {
   order: 1;
 }
 
-body[data-mode="handheld"] .btn-next {
+body[data-mode="mobile"] .btn-next {
   display: flex;
   margin: 16px auto;
   order: 2;
@@ -577,29 +881,28 @@ body[data-mode="handheld"] .btn-next {
   margin-right: auto;
 }
 
-body[data-mode="handheld"] .stack {
+body[data-mode="mobile"] .stack {
   order: 3;
   margin-top: 16px;
-  padding: var(--gap-page);
   max-height: none;
   top: auto;
   bottom: auto;
   align-self: stretch;
 }
 
-body[data-mode="handheld"] {
-  --text-box-width: var(--text-box-width-handheld);
+body[data-mode="mobile"] {
+  --text-box-width: var(--text-box-width-mobile);
 }
 
-body[data-mode="handheld"] .stack-list {
+body[data-mode="mobile"] .stack-list {
   max-height: none;
 }
 
-body[data-mode="handheld"] .dots-rail {
+body[data-mode="mobile"] .dots-rail {
   display: none;
 }
 
-body[data-mode="handheld"] .menu-rail {
+body[data-mode="mobile"] .menu-rail {
   width: auto;
   left: 0;
   right: 0;
@@ -613,14 +916,14 @@ body[data-mode="handheld"] .menu-rail {
   pointer-events: none;
   padding-left: env(safe-area-inset-left, 0px);
   padding-right: env(safe-area-inset-right, 0px);
-  padding-bottom: calc(var(--handheld-dock-footprint) + 16px);
+  padding-bottom: calc(var(--mobile-dock-footprint) + 16px);
   padding-top: 12px;
   border-right: none;
   display: flex;
   flex-direction: column;
 }
 
-body[data-mode="handheld"] .menu-rail__cap {
+body[data-mode="mobile"] .menu-rail__cap {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -633,11 +936,11 @@ body[data-mode="handheld"] .menu-rail__cap {
   background: transparent;
 }
 
-body[data-mode="handheld"] .menu-rail__cap span {
+body[data-mode="mobile"] .menu-rail__cap span {
   display: flex;
 }
 
-body[data-mode="handheld"] .menu-rail__cap span::after {
+body[data-mode="mobile"] .menu-rail__cap span::after {
   content: "";
   width: 72px;
   height: 6px;
@@ -645,33 +948,30 @@ body[data-mode="handheld"] .menu-rail__cap span::after {
   background: var(--border-color);
 }
 
-body[data-mode="handheld"].menu-open .menu-rail {
+body[data-mode="mobile"].menu-open .menu-rail {
   transform: translate3d(0, 0, 0);
   pointer-events: auto;
 }
 
-body[data-mode="handheld"] .menu-handle {
+body[data-mode="mobile"] .menu-handle {
   display: none;
 }
 
-body[data-mode="handheld"] .site-menu {
+body[data-mode="mobile"] .site-menu {
   flex: 1 1 auto;
   margin: 0 16px;
 }
 
-body[data-mode="handheld"] .dock {
+body[data-mode="mobile"] .dock {
   display: flex;
 }
 
-body[data-mode="handheld"] .header {
-  transform: translateX(0);
+body[data-mode="mobile"] .header {
+  padding-left: 16px;
+  padding-right: 16px;
 }
 
-body[data-mode="handheld"].menu-open .header {
-  transform: translateX(0);
-}
-
-body[data-mode="handheld"].menu-open .backdrop {
+body[data-mode="mobile"].menu-open .backdrop {
   pointer-events: auto;
 }
 
@@ -690,7 +990,7 @@ body[data-mode="handheld"].menu-open .backdrop {
    RTL SUPPORT
    ============================================ */
 [dir="rtl"] body[data-mode="desktop"] .stack,
-[dir="rtl"] body[data-mode="tablet-wide"] .stack {
+[dir="rtl"] body[data-mode="tablet"] .stack {
   justify-self: center; /* центр работает в любом направлении */
 }
 
