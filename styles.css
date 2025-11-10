@@ -130,6 +130,7 @@ body[data-mode="tablet"] .header::after {
   width: 28px;
   height: 28px;
   background: radial-gradient(circle at top left, transparent 28px, #D9D9D9 28px);
+  transform: rotate(180deg);
   pointer-events: none;
   z-index: 201;
 }
