@@ -129,8 +129,7 @@ body[data-mode="tablet"] .header::after {
   left: var(--rail-closed);
   width: 28px;
   height: 28px;
-  background: radial-gradient(circle at top left, transparent 28px, #D9D9D9 28px);
-  transform: rotate(180deg);
+  background: radial-gradient(circle at bottom right, transparent 28px, #D9D9D9 28px);
   pointer-events: none;
   z-index: 201;
 }
