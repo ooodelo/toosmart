@@ -67,7 +67,7 @@ body {
   padding: 0;
   color: var(--text-color);
   font-family: "Inter", "Segoe UI", sans-serif;
-  background: #f6f4f1;
+  background: #e8f4f8;
   min-height: 100%;
 }
 
@@ -76,6 +76,8 @@ body {
   flex-direction: column;
   min-height: 100vh;
   overflow-x: hidden;
+  max-width: 100vw;
+  position: relative;
 }
 
 html {
@@ -292,6 +294,23 @@ body[data-mode="mobile"] .text-box {
   max-width: 100%;
   margin: 0;
   width: 100%;
+  overflow-x: hidden;
+}
+
+body[data-mode="mobile"] .text-section {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+body[data-mode="mobile"] .text-section pre {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+body[data-mode="mobile"] .text-section table {
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
 }
 
 .text-box {
@@ -836,6 +855,9 @@ body[data-mode="mobile"] .main {
   display: flex;
   flex-direction: column;
   padding: calc(var(--gap-page) * 1.5) 16px calc(var(--gap-page) + var(--btn-next-footprint) + var(--mobile-dock-footprint)) 16px;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 body[data-mode="mobile"] .panel,
@@ -945,6 +967,8 @@ body[data-mode="mobile"] .dock {
 
 body[data-mode="mobile"] .header {
   transform: translateX(0);
+  padding-left: 16px;
+  padding-right: 16px;
 }
 
 body[data-mode="mobile"].menu-open .header {
