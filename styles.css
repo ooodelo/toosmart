@@ -127,7 +127,6 @@ body[data-scroll="down"] .header {
 /* Элементы с рамками и скруглением */
 .header__hand,
 .header__link,
-.menu-handle,
 .dock-handle,
 .btn-next,
 .text-box__intro,
@@ -186,6 +185,7 @@ body[data-scroll="down"] .header {
   width: auto;
   object-fit: contain;
   margin-bottom: -60px;
+  margin-left: 90px;
   padding: 0;
   border: none;
   background: transparent;
@@ -228,9 +228,9 @@ body[data-input="pointer"].is-slid .menu-rail {
   justify-content: center;
   padding: 16px 12px;
   cursor: pointer;
-  background: var(--surface-alt);
+  background: #D9D9D9;
   pointer-events: auto;
-  border-radius: 0 12px 12px 0;
+  border-radius: 0;
   box-sizing: border-box;
   height: 100%;
 }
