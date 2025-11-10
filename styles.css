@@ -75,6 +75,7 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
 html {
@@ -288,8 +289,8 @@ body[data-mode="mobile"] .panel {
 }
 
 body[data-mode="mobile"] .text-box {
-  max-width: var(--text-box-width-mobile);
-  margin: 0 auto;
+  max-width: 100%;
+  margin: 0;
   width: 100%;
 }
 
@@ -834,9 +835,7 @@ body[data-mode="tablet"].menu-open .header {
 body[data-mode="mobile"] .main {
   display: flex;
   flex-direction: column;
-  padding-left: 16px;
-  padding-right: 16px;
-  padding-bottom: calc(var(--gap-page) + var(--btn-next-footprint) + var(--mobile-dock-footprint));
+  padding: calc(var(--gap-page) * 1.5) 16px calc(var(--gap-page) + var(--btn-next-footprint) + var(--mobile-dock-footprint)) 16px;
 }
 
 body[data-mode="mobile"] .panel,
