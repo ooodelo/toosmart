@@ -220,11 +220,10 @@ body[data-input="pointer"].is-slid .menu-rail {
   writing-mode: vertical-rl;
   text-orientation: mixed;
   margin: 0;
-  width: 70px;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px 12px;
+  padding: 16px 0;
   cursor: pointer;
   background: #D9D9D9;
   pointer-events: auto;
