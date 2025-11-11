@@ -42,7 +42,6 @@ const siteMenu = document.querySelector('.site-menu');
 const backdrop = document.querySelector('.backdrop');
 const dockHandle = document.querySelector('.dock-handle');
 const panel = document.querySelector('.panel');
-const btnNext = document.querySelector('.btn-next');
 const dotsRail = document.querySelector('.dots-rail');
 const dotFlyout = document.querySelector('.dot-flyout');
 const textBox = document.querySelector('.text-box');
@@ -151,12 +150,14 @@ function updateLayoutMetrics() {
   const scrollMargin = Math.max(0, headerHeight + 24);
   root.style.setProperty('--section-scroll-margin', `${scrollMargin}px`);
 
-  if (!btnNext) {
+  // Вычисление footprint для Progress Widget
+  const pwRoot = document.querySelector('#pw-root');
+  if (!pwRoot) {
     return;
   }
 
-  const styles = window.getComputedStyle(btnNext);
-  let footprint = btnNext.offsetHeight;
+  const styles = window.getComputedStyle(pwRoot);
+  let footprint = pwRoot.offsetHeight;
 
   if (styles.position === 'sticky') {
     footprint += parseCssNumber(styles.bottom);
@@ -165,7 +166,7 @@ function updateLayoutMetrics() {
   }
 
   footprint = Math.max(0, Math.round(footprint));
-  root.style.setProperty('--btn-next-footprint', `${footprint}px`);
+  root.style.setProperty('--pw-footprint', `${footprint}px`);
 }
 
 function scheduleLayoutMetricsUpdate() {
@@ -823,17 +824,6 @@ function handleModeUpdate() {
   scheduleLayoutMetricsUpdate();
 }
 
-function handleNext() {
-  // Получаем URL следующей страницы из data-атрибута кнопки
-  const nextPageUrl = btnNext?.dataset.nextPage;
-
-  if (nextPageUrl) {
-    window.location.href = nextPageUrl;
-  } else {
-    console.warn('Кнопка "Далее": не указан data-next-page');
-  }
-}
-
 function initMenuInteractions() {
   menuHandle?.addEventListener('click', () => toggleMenu(menuHandle));
   menuRail?.addEventListener('mouseenter', () => {
@@ -1312,6 +1302,238 @@ function attachScrollHideHeader() {
   window.addEventListener('scroll', onScroll, { passive: true });
 }
 
+/**
+ * Progress Widget - виджет прогресса чтения
+ * Показывает круг с процентами (0-100%), при 100% морфится в кнопку "Далее"
+ */
+function initProgressWidget() {
+  // 1. Создание/получение элемента виджета
+  let root = document.getElementById('pw-root');
+  if (!root) {
+    root = document.createElement('aside');
+    root.id = 'pw-root';
+    root.setAttribute('role', 'button');
+    root.setAttribute('tabindex', '0');
+    root.setAttribute('aria-disabled', 'true');
+    root.setAttribute('aria-label', 'Прогресс чтения: 0%');
+
+    // Вставляем в article.text-box
+    const article = document.querySelector('.text-box');
+    if (article) {
+      article.appendChild(root);
+    } else {
+      document.body.appendChild(root); // Fallback
+    }
+  }
+
+  root.innerHTML = `<div class="pw-visual">
+    <div class="pw-dot"></div>
+    <div class="pw-pill"></div>
+    <div class="pw-pct"><span id="pwPct">0%</span></div>
+    <div class="pw-next">Далее</div>
+  </div>`;
+
+  // 2. Получение элементов
+  const dot = root.querySelector('.pw-dot');
+  const pill = root.querySelector('.pw-pill');
+  const pct = root.querySelector('.pw-pct');
+  const next = root.querySelector('.pw-next');
+  const pctSpan = root.querySelector('#pwPct');
+
+  const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const scroller = document.scrollingElement || document.documentElement;
+
+  // 3. Функции измерения прогресса
+  function clamp01(x) {
+    return x < 0 ? 0 : x > 1 ? 1 : x;
+  }
+
+  function measureProgress() {
+    const r = textBox.getBoundingClientRect();
+    const viewport = window.innerHeight;
+    const total = Math.max(textBox.scrollHeight, r.height) - viewport;
+    if (total <= 0) return 1;
+    const read = Math.min(Math.max(-r.top, 0), total);
+    return clamp01(read / total);
+  }
+
+  // 4. Определение URL следующей страницы
+  function detectNextUrl() {
+    // ПРИОРИТЕТ 1: data-next-page из article
+    const article = document.querySelector('.text-box');
+    const explicit = article?.dataset.nextPage ||
+                     document.body.dataset.nextPage ||
+                     root.getAttribute('data-next-url');
+    if (explicit && explicit !== '#') return explicit;
+
+    // ПРИОРИТЕТ 2: <link rel="next">
+    const linkNext = document.querySelector('link[rel=next][href]');
+    if (linkNext) return linkNext.getAttribute('href');
+
+    // ПРИОРИТЕТ 3: <a rel="next">
+    const anchorRel = document.querySelector('a[rel=next][href], a.next[href], nav .next a[href]');
+    if (anchorRel) return anchorRel.getAttribute('href');
+
+    // ПРИОРИТЕТ 4: текстовый поиск
+    const anchors = Array.from(document.querySelectorAll('a[href]'));
+    const keywords = ['далее', 'следующая', 'следующий', 'next', 'more'];
+    for (const a of anchors) {
+      const text = (a.textContent || '').trim().toLowerCase();
+      if (text && keywords.some(k => text.includes(k))) {
+        return a.getAttribute('href');
+      }
+    }
+
+    return '#';
+  }
+
+  const NEXT_URL = detectNextUrl();
+
+  // 5. Анимации
+  let aDot = null, aPill = null, aPct = null, aNext = null;
+  let doneState = false, ticking = false;
+
+  function killAnims() {
+    for (const a of [aDot, aPill, aPct, aNext]) {
+      try { a && a.cancel(); } catch(e) {}
+    }
+    aDot = aPill = aPct = aNext = null;
+  }
+
+  function playForward() {
+    if (prefersReduced) {
+      dot.style.opacity = '0';
+      pill.style.opacity = '1';
+      pill.style.transform = 'translate(-50%,-50%) scaleX(1)';
+      pct.style.opacity = '0';
+      next.style.opacity = '1';
+      return;
+    }
+    killAnims();
+    aDot = dot.animate(
+      [
+        { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 },
+        { transform: 'translate(-50%,-50%) scale(1.06)', opacity: 0.6, offset: 0.35 },
+        { transform: 'translate(-50%,-50%) scale(0.94)', opacity: 0 }
+      ],
+      { duration: 650, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' }
+    );
+    aPill = pill.animate(
+      [
+        { transform: 'translate(-50%,-50%) scaleX(0.001)', opacity: 0 },
+        { transform: 'translate(-50%,-50%) scaleX(1.06)', opacity: 1, offset: 0.7 },
+        { transform: 'translate(-50%,-50%) scaleX(1)', opacity: 1 }
+      ],
+      { duration: 900, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' }
+    );
+    aPct = pct.animate([{opacity:1},{opacity:0}], { duration: 320, easing: 'ease', fill: 'forwards', delay: 150 });
+    aNext = next.animate([{opacity:0},{opacity:1}], { duration: 420, easing: 'ease', fill: 'forwards', delay: 360 });
+  }
+
+  function playReverse() {
+    if (prefersReduced) {
+      dot.style.opacity = '1';
+      dot.style.transform = 'translate(-50%,-50%) scale(1)';
+      pill.style.opacity = '0';
+      pill.style.transform = 'translate(-50%,-50%) scaleX(0.001)';
+      pct.style.opacity = '1';
+      next.style.opacity = '0';
+      return;
+    }
+    killAnims();
+    aDot = dot.animate(
+      [
+        { transform: 'translate(-50%,-50%) scale(0.94)', opacity: 0 },
+        { transform: 'translate(-50%,-50%) scale(1.06)', opacity: 0.6, offset: 0.65 },
+        { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 }
+      ],
+      { duration: 650, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' }
+    );
+    aPill = pill.animate(
+      [
+        { transform: 'translate(-50%,-50%) scaleX(1)', opacity: 1 },
+        { transform: 'translate(-50%,-50%) scaleX(0.001)', opacity: 0 }
+      ],
+      { duration: 700, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' }
+    );
+    aPct = pct.animate([{opacity:0},{opacity:1}], { duration: 360, easing: 'ease', fill: 'forwards', delay: 360 });
+    aNext = next.animate([{opacity:1},{opacity:0}], { duration: 320, easing: 'ease', fill: 'forwards', delay: 120 });
+  }
+
+  // 6. Обновление на скролл
+  function onScroll() {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(update);
+  }
+
+  function update() {
+    ticking = false;
+    const p = measureProgress();
+    const perc = Math.round(p * 100);
+    pctSpan.textContent = perc + '%';
+    root.setAttribute('aria-label', 'Прогресс чтения: ' + perc + '%');
+
+    const shouldBeDone = perc >= 100;
+
+    if (shouldBeDone && !doneState) {
+      doneState = true;
+      root.classList.add('is-done');
+      root.setAttribute('aria-disabled', 'false');
+      root.setAttribute('aria-label', 'Кнопка: Далее');
+      playForward();
+    } else if (!shouldBeDone && doneState) {
+      doneState = false;
+      root.classList.remove('is-done');
+      root.setAttribute('aria-disabled', 'true');
+      root.setAttribute('aria-label', 'Прогресс чтения: ' + perc + '%');
+      playReverse();
+    } else {
+      if (!shouldBeDone) {
+        root.setAttribute('aria-label', 'Прогресс чтения: ' + perc + '%');
+      }
+    }
+  }
+
+  // 7. Клик
+  root.addEventListener('click', () => {
+    if (doneState) {
+      // При 100%: переход на следующую страницу
+      if (NEXT_URL && NEXT_URL !== '#') {
+        window.location.href = NEXT_URL;
+      } else {
+        console.warn('Progress Widget: следующая страница не найдена');
+      }
+    } else {
+      // До 100%: докрутить до конца
+      const endY = window.scrollY + (textBox.getBoundingClientRect().bottom - window.innerHeight + 1);
+      window.scrollTo({ top: endY, behavior: 'smooth' });
+    }
+  }, { passive: true });
+
+  // 8. Keyboard navigation
+  root.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      root.click();
+    }
+  });
+
+  // 9. Listeners
+  window.addEventListener('scroll', onScroll, { passive: true });
+
+  // 10. Инициализация
+  dot.style.opacity = '1';
+  pill.style.opacity = '0';
+  pill.style.transform = 'translate(-50%,-50%) scaleX(0.001)';
+  pct.style.opacity = '1';
+  next.style.opacity = '0';
+  update();
+
+  // Обновить layout metrics после создания виджета
+  scheduleLayoutMetricsUpdate();
+}
+
 function init() {
   // Feature detection
   detectBackdropFilter();
@@ -1325,9 +1547,7 @@ function init() {
   attachScrollHideHeader(); // Auto-hide header/dock on scroll
   initMenuLinks();
   initStackCarousel(); // Карусель рекомендаций
-
-  const handleNextClick = () => handleNext();
-  btnNext?.addEventListener('click', handleNextClick);
+  initProgressWidget(); // Progress Widget (круг с процентами → кнопка "Далее")
 
   let resizeRaf = null;
 
@@ -1383,7 +1603,6 @@ function init() {
 
   // Cleanup function для удаления всех listeners
   return () => {
-    btnNext?.removeEventListener('click', handleNextClick);
     window.removeEventListener('resize', handleResize);
     window.removeEventListener('orientationchange', handleOrientationChange);
 
