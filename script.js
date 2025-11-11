@@ -610,7 +610,7 @@ function initDotsFlyout() {
   }
 
   if (!shouldEnable) {
-    dotFlyout.hidden = true;
+    dotFlyout.setAttribute('hidden', '');
     detachFlyoutListeners();
     return;
   }
@@ -650,7 +650,7 @@ function initDotsFlyout() {
       clearTimeout(flyoutHideTimeout);
       flyoutHideTimeout = null;
     }
-    dotFlyout.hidden = false;
+    dotFlyout.removeAttribute('hidden');
   }
 
   function hideFlyout() {
@@ -658,7 +658,7 @@ function initDotsFlyout() {
       console.log('[FLYOUT] hideFlyout called');
     }
     flyoutHideTimeout = setTimeout(() => {
-      dotFlyout.hidden = true;
+      dotFlyout.setAttribute('hidden', '');
       flyoutHideTimeout = null;
     }, 120); // Задержка 120ms как в templates
   }
@@ -680,7 +680,7 @@ function initDotsFlyout() {
 
   // Keyboard navigation в flyout
   function handleFlyoutKeyboard(e) {
-    if (dotFlyout.hidden) return;
+    if (dotFlyout.hasAttribute('hidden')) return;
 
     const items = Array.from(dotFlyout.querySelectorAll('.dot-flyout__item'));
     if (items.length === 0) return;
@@ -709,7 +709,7 @@ function initDotsFlyout() {
 
   // Подсветка активного элемента в flyout
   function updateFlyoutActiveItem() {
-    if (dotFlyout.hidden) return;
+    if (dotFlyout.hasAttribute('hidden')) return;
 
     const items = dotFlyout.querySelectorAll('.dot-flyout__item');
     items.forEach(item => {
@@ -800,7 +800,7 @@ function handleModeUpdate() {
       teardownObserver();
       // Скрываем flyout в tablet/mobile
       if (dotFlyout) {
-        dotFlyout.hidden = true;
+        dotFlyout.setAttribute('hidden', '');
       }
     }
   }
