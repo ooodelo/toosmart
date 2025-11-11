@@ -27,6 +27,8 @@
  *    Dev Tools iPhone (375px, pointer) → mode=mobile, input=pointer
  */
 
+console.log('🚀 script.js loading...');
+
 const root = document.documentElement;
 const body = document.body;
 const initialMode = window.__INITIAL_MODE__;
