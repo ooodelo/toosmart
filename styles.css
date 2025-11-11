@@ -2,7 +2,7 @@
   color-scheme: light;
 
   /* Ширины текстовых блоков */
-  --text-box-width-mobile: 500px;
+  --text-box-width-mobile: 100%; /* Было: 500px - вызывало горизонтальный скролл */
   --text-box-width-tablet: 520px;
   --text-box-width-desktop: 580px;
   --text-box-width-desktop-wide: 660px;
@@ -78,7 +78,7 @@ body {
   flex-direction: column;
   min-height: 100vh;
   overflow-x: hidden;
-  max-width: 100vw;
+  max-width: 100%; /* Было: 100vw - включало scrollbar и вызывало overflow */
   position: relative;
 }
 
@@ -1349,7 +1349,7 @@ body[data-mode="mobile"] #pw-root {
   position: relative;
   margin: 16px auto;
   order: 2;
-  width: min(var(--pw-pill-width), 90vw);
+  width: min(var(--pw-pill-width), 90%);
 }
 
 /* Отключение анимаций для prefers-reduced-motion */
