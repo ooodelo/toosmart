@@ -66,6 +66,9 @@ let flyoutHandlers = {
 // Debug mode: установите в true для вывода информации о режимах в консоль
 // Включите в Safari Dev Tools: window.DEBUG_MODE_DETECTION = true
 const DEBUG_MODE_DETECTION = window.DEBUG_MODE_DETECTION || false;
+
+// TEMPORARY: Force debug for flyout
+const DEBUG_FLYOUT = true;
 let layoutMetricsRaf = null;
 
 function parseCssNumber(value) {
@@ -589,27 +592,38 @@ function detachFlyoutListeners() {
  * Инициализация flyout меню для navigation dots
  */
 function initDotsFlyout() {
+  if (DEBUG_FLYOUT) {
+    console.log('[FLYOUT] initDotsFlyout START', {
+      dotsRail: !!dotsRail,
+      dotFlyout: !!dotFlyout,
+      currentMode,
+      sectionsLength: sections.length
+    });
+  }
+
   if (!dotsRail || !dotFlyout) {
-    if (DEBUG_MODE_DETECTION) {
-      console.log('[FLYOUT] dotsRail or dotFlyout not found');
-    }
+    console.error('[FLYOUT] ERROR: dotsRail or dotFlyout not found!', {
+      dotsRail: !!dotsRail,
+      dotFlyout: !!dotFlyout
+    });
     return;
   }
 
   // Flyout показывается только в desktop/desktop-wide
   const shouldEnable = (currentMode === 'desktop' || currentMode === 'desktop-wide') && sections.length >= 2;
 
-  if (DEBUG_MODE_DETECTION) {
-    console.log('[FLYOUT] initDotsFlyout called:', {
+  if (DEBUG_FLYOUT) {
+    console.log('[FLYOUT] Should enable?', {
       currentMode,
       shouldEnable,
       sectionsCount: sections.length,
-      dotsRailExists: !!dotsRail,
-      dotFlyoutExists: !!dotFlyout
+      isDesktopOrWide: (currentMode === 'desktop' || currentMode === 'desktop-wide'),
+      hasEnoughSections: sections.length >= 2
     });
   }
 
   if (!shouldEnable) {
+    if (DEBUG_FLYOUT) console.log('[FLYOUT] Disabled - hiding');
     dotFlyout.setAttribute('hidden', '');
     detachFlyoutListeners();
     return;
@@ -636,30 +650,28 @@ function initDotsFlyout() {
       dotFlyout.appendChild(btn);
     });
 
-    if (DEBUG_MODE_DETECTION) {
+    if (DEBUG_FLYOUT) {
       console.log('[FLYOUT] Built menu with', sections.length, 'items');
     }
   }
 
   // Показ flyout с задержкой при закрытии
   function showFlyout() {
-    if (DEBUG_MODE_DETECTION) {
-      console.log('[FLYOUT] showFlyout called');
-    }
+    console.log('[FLYOUT] ⭐ showFlyout called!');
     if (flyoutHideTimeout) {
       clearTimeout(flyoutHideTimeout);
       flyoutHideTimeout = null;
     }
     dotFlyout.removeAttribute('hidden');
+    console.log('[FLYOUT] hidden attribute removed, current:', dotFlyout.getAttribute('hidden'));
   }
 
   function hideFlyout() {
-    if (DEBUG_MODE_DETECTION) {
-      console.log('[FLYOUT] hideFlyout called');
-    }
+    console.log('[FLYOUT] hideFlyout called');
     flyoutHideTimeout = setTimeout(() => {
       dotFlyout.setAttribute('hidden', '');
       flyoutHideTimeout = null;
+      console.log('[FLYOUT] hidden attribute set');
     }, 120); // Задержка 120ms как в templates
   }
 
@@ -747,8 +759,9 @@ function initDotsFlyout() {
 
   flyoutListenersAttached = true;
 
-  if (DEBUG_MODE_DETECTION) {
-    console.log('[FLYOUT] Event listeners attached');
+  if (DEBUG_FLYOUT) {
+    console.log('[FLYOUT] ✅ Event listeners attached successfully!');
+    console.log('[FLYOUT] Try hovering over dots now...');
   }
 
   // Обновление активного элемента при смене секции
