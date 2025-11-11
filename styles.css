@@ -237,7 +237,7 @@ body[data-input="pointer"].is-slid .menu-rail {
   text-orientation: mixed;
   margin: 0 0 0 -15px;
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 8px;
