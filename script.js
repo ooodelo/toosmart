@@ -55,6 +55,13 @@ let trapListenerAttached = false;
 let observer = null;
 let edgeGestureHandler = null;
 let flyoutHideTimeout = null;
+let flyoutListenersAttached = false;
+let flyoutHandlers = {
+  showFlyout: null,
+  hideFlyout: null,
+  handleFlyoutClick: null,
+  handleFlyoutKeyboard: null
+};
 
 // Debug mode: установите в true для вывода информации о режимах в консоль
 // Включите в Safari Dev Tools: window.DEBUG_MODE_DETECTION = true
@@ -560,16 +567,51 @@ function smoothScrollTo(element) {
 }
 
 /**
+ * Удаление event listeners для flyout
+ */
+function detachFlyoutListeners() {
+  if (!flyoutListenersAttached) return;
+  if (!dotsRail || !dotFlyout) return;
+
+  if (flyoutHandlers.showFlyout) {
+    dotsRail.removeEventListener('mouseenter', flyoutHandlers.showFlyout);
+    dotsRail.removeEventListener('mouseleave', flyoutHandlers.hideFlyout);
+    dotFlyout.removeEventListener('mouseenter', flyoutHandlers.showFlyout);
+    dotFlyout.removeEventListener('mouseleave', flyoutHandlers.hideFlyout);
+    dotFlyout.removeEventListener('click', flyoutHandlers.handleFlyoutClick);
+    document.removeEventListener('keydown', flyoutHandlers.handleFlyoutKeyboard);
+  }
+
+  flyoutListenersAttached = false;
+}
+
+/**
  * Инициализация flyout меню для navigation dots
  */
 function initDotsFlyout() {
-  if (!dotsRail || !dotFlyout) return;
+  if (!dotsRail || !dotFlyout) {
+    if (DEBUG_MODE_DETECTION) {
+      console.log('[FLYOUT] dotsRail or dotFlyout not found');
+    }
+    return;
+  }
 
   // Flyout показывается только в desktop/desktop-wide
   const shouldEnable = (currentMode === 'desktop' || currentMode === 'desktop-wide') && sections.length >= 2;
 
+  if (DEBUG_MODE_DETECTION) {
+    console.log('[FLYOUT] initDotsFlyout called:', {
+      currentMode,
+      shouldEnable,
+      sectionsCount: sections.length,
+      dotsRailExists: !!dotsRail,
+      dotFlyoutExists: !!dotFlyout
+    });
+  }
+
   if (!shouldEnable) {
     dotFlyout.hidden = true;
+    detachFlyoutListeners();
     return;
   }
 
@@ -593,10 +635,17 @@ function initDotsFlyout() {
 
       dotFlyout.appendChild(btn);
     });
+
+    if (DEBUG_MODE_DETECTION) {
+      console.log('[FLYOUT] Built menu with', sections.length, 'items');
+    }
   }
 
   // Показ flyout с задержкой при закрытии
   function showFlyout() {
+    if (DEBUG_MODE_DETECTION) {
+      console.log('[FLYOUT] showFlyout called');
+    }
     if (flyoutHideTimeout) {
       clearTimeout(flyoutHideTimeout);
       flyoutHideTimeout = null;
@@ -605,6 +654,9 @@ function initDotsFlyout() {
   }
 
   function hideFlyout() {
+    if (DEBUG_MODE_DETECTION) {
+      console.log('[FLYOUT] hideFlyout called');
+    }
     flyoutHideTimeout = setTimeout(() => {
       dotFlyout.hidden = true;
       flyoutHideTimeout = null;
@@ -667,8 +719,17 @@ function initDotsFlyout() {
     });
   }
 
-  // Event listeners
+  // Удаляем старые listeners перед добавлением новых
+  detachFlyoutListeners();
+
+  // Построение меню
   buildFlyoutMenu();
+
+  // Сохраняем ссылки на функции
+  flyoutHandlers.showFlyout = showFlyout;
+  flyoutHandlers.hideFlyout = hideFlyout;
+  flyoutHandlers.handleFlyoutClick = handleFlyoutClick;
+  flyoutHandlers.handleFlyoutKeyboard = handleFlyoutKeyboard;
 
   // Hover на dots-rail показывает flyout
   dotsRail.addEventListener('mouseenter', showFlyout);
@@ -683,6 +744,12 @@ function initDotsFlyout() {
 
   // Keyboard navigation
   document.addEventListener('keydown', handleFlyoutKeyboard);
+
+  flyoutListenersAttached = true;
+
+  if (DEBUG_MODE_DETECTION) {
+    console.log('[FLYOUT] Event listeners attached');
+  }
 
   // Обновление активного элемента при смене секции
   const originalSetActiveSection = window.setActiveSection || setActiveSection;
