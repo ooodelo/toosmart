@@ -972,15 +972,6 @@ body[data-mode="desktop"] .stack {
   height: calc(100dvh - var(--stack-top) - var(--stack-bottom));
 }
 
-/* Фикс позиционирования dots-rail в диапазоне 900-1150px */
-@media (min-width: 900px) and (max-width: 1150px) {
-  body[data-mode="desktop"] .dots-rail {
-    /* Гарантируем: активная точка (24px) + зазор (48px) = 72px от текста */
-    /* max() обеспечивает минимум 64px от края экрана */
-    left: max(64px, calc(var(--text-box-left) - 72px));
-  }
-}
-
 body[data-mode="desktop-wide"] {
   --text-box-width: var(--text-box-width-desktop-wide);
   --text-box-left: calc(50vw - var(--text-box-width-desktop-wide) / 2);
