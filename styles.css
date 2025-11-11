@@ -237,8 +237,10 @@ body[data-input="pointer"].is-slid .menu-rail {
   text-orientation: mixed;
   margin: 0 0 0 -15px;
   display: flex;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
+  gap: 8px;
   padding: 16px 0;
   cursor: pointer;
   background: #D9D9D9;
@@ -252,13 +254,9 @@ body[data-input="pointer"].is-slid .menu-rail {
 
 /* Контейнер для 4 точек drag hint */
 .menu-handle__dots {
-  position: absolute;
-  right: 15px;
-  top: 50%;
-  transform: translateY(-50%);
   display: none;
   flex-direction: column;
-  gap: 14px;
+  gap: 6px;
   pointer-events: none;
 }
 
