@@ -42,6 +42,7 @@ const dockHandle = document.querySelector('.dock-handle');
 const panel = document.querySelector('.panel');
 const btnNext = document.querySelector('.btn-next');
 const dotsRail = document.querySelector('.dots-rail');
+const dotFlyout = document.querySelector('.dot-flyout');
 const textBox = document.querySelector('.text-box');
 const sections = Array.from(document.querySelectorAll('.text-section'));
 const menuCap = document.querySelector('.menu-rail__cap');
@@ -53,6 +54,7 @@ let previousFocus = null;
 let trapListenerAttached = false;
 let observer = null;
 let edgeGestureHandler = null;
+let flyoutHideTimeout = null;
 
 // Debug mode: установите в true для вывода информации о режимах в консоль
 // Включите в Safari Dev Tools: window.DEBUG_MODE_DETECTION = true
@@ -271,6 +273,7 @@ function updateMode() {
     }
 
     configureDots();
+    initDotsFlyout(); // Обновляем flyout при смене режима
 
     // Управление edge-gesture lifecycle
     detachEdgeGesture();
@@ -517,6 +520,205 @@ function initDots() {
 }
 
 /**
+ * Smooth scroll с fallback для старых браузеров
+ * @param {HTMLElement} element - элемент для прокрутки
+ */
+function smoothScrollTo(element) {
+  if (!element) return;
+
+  // Проверка нативной поддержки smooth scroll
+  if ('scrollBehavior' in document.documentElement.style) {
+    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
+
+  // Fallback: плавная анимация через requestAnimationFrame
+  const targetPosition = element.getBoundingClientRect().top + window.pageYOffset;
+  const startPosition = window.pageYOffset;
+  const distance = targetPosition - startPosition;
+  const duration = 600; // ms
+  let startTime = null;
+
+  function animation(currentTime) {
+    if (startTime === null) startTime = currentTime;
+    const timeElapsed = currentTime - startTime;
+    const progress = Math.min(timeElapsed / duration, 1);
+
+    // Easing function (ease-in-out)
+    const ease = progress < 0.5
+      ? 2 * progress * progress
+      : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+    window.scrollTo(0, startPosition + distance * ease);
+
+    if (timeElapsed < duration) {
+      requestAnimationFrame(animation);
+    }
+  }
+
+  requestAnimationFrame(animation);
+}
+
+/**
+ * Инициализация flyout меню для navigation dots
+ */
+function initDotsFlyout() {
+  if (!dotsRail || !dotFlyout) return;
+
+  // Flyout показывается только в desktop/desktop-wide
+  const shouldEnable = (currentMode === 'desktop' || currentMode === 'desktop-wide') && sections.length >= 2;
+
+  if (!shouldEnable) {
+    dotFlyout.hidden = true;
+    return;
+  }
+
+  // Построение списка разделов
+  function buildFlyoutMenu() {
+    dotFlyout.innerHTML = '';
+
+    sections.forEach((section, index) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'dot-flyout__item';
+      btn.dataset.index = String(index);
+      btn.dataset.sectionId = section.id;
+
+      // Текст из data-section или h2
+      const sectionTitle = section.dataset.section ||
+                          section.querySelector('h2')?.textContent ||
+                          `Раздел ${index + 1}`;
+      btn.textContent = sectionTitle.trim();
+      btn.setAttribute('aria-controls', section.id);
+
+      dotFlyout.appendChild(btn);
+    });
+  }
+
+  // Показ flyout с задержкой при закрытии
+  function showFlyout() {
+    if (flyoutHideTimeout) {
+      clearTimeout(flyoutHideTimeout);
+      flyoutHideTimeout = null;
+    }
+    dotFlyout.hidden = false;
+  }
+
+  function hideFlyout() {
+    flyoutHideTimeout = setTimeout(() => {
+      dotFlyout.hidden = true;
+      flyoutHideTimeout = null;
+    }, 120); // Задержка 120ms как в templates
+  }
+
+  // Клик на элемент flyout → scroll к разделу
+  function handleFlyoutClick(e) {
+    const btn = e.target.closest('.dot-flyout__item');
+    if (!btn) return;
+
+    const sectionId = btn.dataset.sectionId;
+    const section = document.getElementById(sectionId);
+
+    if (section) {
+      smoothScrollTo(section);
+      // Обновляем активную секцию
+      setActiveSection(sectionId);
+    }
+  }
+
+  // Keyboard navigation в flyout
+  function handleFlyoutKeyboard(e) {
+    if (dotFlyout.hidden) return;
+
+    const items = Array.from(dotFlyout.querySelectorAll('.dot-flyout__item'));
+    if (items.length === 0) return;
+
+    const activeElement = document.activeElement;
+    const currentIndex = items.indexOf(activeElement);
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const nextIndex = currentIndex < items.length - 1 ? currentIndex + 1 : 0;
+      items[nextIndex].focus();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const prevIndex = currentIndex > 0 ? currentIndex - 1 : items.length - 1;
+      items[prevIndex].focus();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      hideFlyout();
+      // Возвращаем фокус на dots-rail
+      if (dotsRail) {
+        const firstDot = dotsRail.querySelector('.dots-rail__dot');
+        if (firstDot) firstDot.focus();
+      }
+    }
+  }
+
+  // Подсветка активного элемента в flyout
+  function updateFlyoutActiveItem() {
+    if (dotFlyout.hidden) return;
+
+    const items = dotFlyout.querySelectorAll('.dot-flyout__item');
+    items.forEach(item => {
+      const isActive = item.dataset.sectionId === activeSectionId;
+      item.classList.toggle('is-active', isActive);
+      item.setAttribute('aria-current', isActive ? 'true' : 'false');
+    });
+  }
+
+  // Event listeners
+  buildFlyoutMenu();
+
+  // Hover на dots-rail показывает flyout
+  dotsRail.addEventListener('mouseenter', showFlyout);
+  dotsRail.addEventListener('mouseleave', hideFlyout);
+
+  // Hover на flyout предотвращает закрытие
+  dotFlyout.addEventListener('mouseenter', showFlyout);
+  dotFlyout.addEventListener('mouseleave', hideFlyout);
+
+  // Клик на элементы flyout
+  dotFlyout.addEventListener('click', handleFlyoutClick);
+
+  // Keyboard navigation
+  document.addEventListener('keydown', handleFlyoutKeyboard);
+
+  // Обновление активного элемента при смене секции
+  const originalSetActiveSection = window.setActiveSection || setActiveSection;
+  window.setActiveSection = function(id) {
+    if (typeof originalSetActiveSection === 'function') {
+      originalSetActiveSection(id);
+    }
+    updateFlyoutActiveItem();
+  };
+
+  // Первоначальное обновление
+  updateFlyoutActiveItem();
+}
+
+/**
+ * Feature detection для backdrop-filter
+ * Добавляет класс 'no-backdrop-filter' если не поддерживается
+ */
+function detectBackdropFilter() {
+  const testEl = document.createElement('div');
+  testEl.style.cssText = 'backdrop-filter: blur(1px); -webkit-backdrop-filter: blur(1px);';
+  const supported = !!testEl.style.backdropFilter || !!testEl.style.webkitBackdropFilter;
+
+  if (!supported) {
+    root.classList.add('no-backdrop-filter');
+    if (DEBUG_MODE_DETECTION) {
+      console.log('[FEATURE] backdrop-filter not supported, using fallback');
+    }
+  } else if (DEBUG_MODE_DETECTION) {
+    console.log('[FEATURE] backdrop-filter supported ✓');
+  }
+
+  return supported;
+}
+
+/**
  * Helper: обновляет режим и синхронизирует observer с layout
  */
 function handleModeUpdate() {
@@ -524,10 +726,15 @@ function handleModeUpdate() {
   updateMode();
 
   if (prevMode !== currentMode) {
-    if (currentMode === 'desktop') {
+    if (currentMode === 'desktop' || currentMode === 'desktop-wide') {
       setupSectionObserver();
+      initDotsFlyout(); // Пересоздаем flyout при переходе в desktop
     } else {
       teardownObserver();
+      // Скрываем flyout в tablet/mobile
+      if (dotFlyout) {
+        dotFlyout.hidden = true;
+      }
     }
   }
 
@@ -1024,8 +1231,12 @@ function attachScrollHideHeader() {
 }
 
 function init() {
+  // Feature detection
+  detectBackdropFilter();
+
   updateMode();
   initDots();
+  initDotsFlyout(); // Flyout меню для navigation dots
   initMenuInteractions();
   attachEdgeGesture(); // Attach only if tablet mode
   attachMenuSwipes(); // Swipe support for touch devices
