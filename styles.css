@@ -80,6 +80,7 @@ body {
   overflow-x: hidden;
   max-width: 100%; /* Было: 100vw - включало scrollbar и вызывало overflow */
   position: relative;
+  overscroll-behavior-x: none; /* Отключить bounce эффект в горизонтали */
 }
 
 html {
@@ -88,6 +89,7 @@ html {
   /* Проблема 2: Отключение Safari bounce (резиновый эффект) */
   -ms-scroll-chaining: none; /* IE 10+, старый Edge */
   overscroll-behavior-y: none; /* Chrome 65+, Firefox 59+, Safari 16+ */
+  overscroll-behavior-x: none; /* Отключить bounce в горизонтали */
 }
 
 body[data-lock="scroll"] {
@@ -1067,9 +1069,12 @@ body[data-mode="tablet"] .stack {
   align-self: center;
 }
 
-body[data-mode="tablet"] .header__links,
-body[data-mode="mobile"] .header__links {
+body[data-mode="tablet"] .header__links {
   gap: 8px;
+}
+
+body[data-mode="mobile"] .header__links {
+  display: none; /* Скрыть ссылки на малых экранах для предотвращения overflow */
 }
 
 body[data-mode="tablet"].menu-open .header {
