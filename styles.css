@@ -556,7 +556,7 @@ body[data-mode="mobile"] .text-section table {
   top: 50%;
   left: calc(50% - var(--text-box-width) / 2 - 48px);
   transform: translateY(-50%);
-  display: none;
+  display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 12px;
@@ -565,6 +565,10 @@ body[data-mode="mobile"] .text-section table {
   border-radius: 0;
   border: none;
   z-index: 150;
+}
+
+.dots-rail[hidden] {
+  display: none;
 }
 
 .dots-rail__dot {
@@ -603,7 +607,8 @@ body[data-mode="mobile"] .text-section table {
 .dot-flyout {
   position: fixed;
   top: 50%;
-  left: calc(50% - var(--text-box-width) / 2 - 48px); /* Рядом с dots-rail */
+  /* Позиция: справа от dots-rail (между точками и текстом) */
+  left: calc(50% - var(--text-box-width) / 2 - 48px + 24px + 16px); /* rail_left + max_dot_width + gap */
   z-index: 9999;
 
   /* Transform с префиксами для старых браузеров */
