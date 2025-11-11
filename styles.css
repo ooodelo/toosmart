@@ -255,7 +255,7 @@ body[data-input="pointer"].is-slid .menu-rail {
 /* Контейнер для 4 точек drag hint */
 .menu-handle__dots {
   display: none;
-  flex-direction: column;
+  flex-direction: row;
   gap: 6px;
   pointer-events: none;
 }
