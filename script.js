@@ -306,10 +306,11 @@ function updateRailClosedWidth() {
   const menuHandle = document.querySelector('.menu-handle');
   if (!menuHandle) return;
 
-  // Измеряем фактическую ширину контента
+  // Измеряем фактическую ширину контента (offsetWidth = content + padding + border)
   const width = menuHandle.offsetWidth;
 
-  // Обновляем CSS переменную для использования в анимациях и позиционировании
+  // Обновляем CSS переменную для grid-колонки и анимаций
+  // Примечание: margin-left: -15px не учитывается, т.к. он выступает за пределы grid-колонки
   document.documentElement.style.setProperty('--rail-closed', `${width}px`);
 }
 
