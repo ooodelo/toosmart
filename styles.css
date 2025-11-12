@@ -164,10 +164,10 @@ body[data-scroll="down"] .header {
 .dock-handle {
   border-radius: 9999px; /* Максимальное закругление (pill shape) */
   border: none;
-  background: transparent;
-  box-shadow: none;
+  background: #FFF;
+  box-shadow: 0 4px 15px rgba(213, 216, 232, 0.7);
   text-transform: uppercase;
-  color: #FFF;
+  color: #202020;
   width: calc(var(--text-box-width) + 40px); /* Шире текста на 20px с каждой стороны */
   height: 50px;
 }
@@ -909,7 +909,7 @@ body[data-mode="mobile"] .dot-flyout {
 .backdrop {
   position: fixed;
   inset: 0;
-  background: rgb(20, 20, 20);
+  background: rgba(0, 0, 0, 0.3);
   opacity: 0;
   visibility: hidden;
   transition: opacity var(--t-backdrop) var(--rail-ease), visibility var(--t-backdrop) var(--rail-ease);
@@ -927,10 +927,10 @@ body.menu-open .backdrop {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 20px; /* Отступ 20px от низа экрана */
+  bottom: 0;
   height: var(--mobile-dock-footprint);
-  background: var(--surface-alt);
-  border-top: 1px solid var(--border-color);
+  background: transparent;
+  border: none;
   display: none;
   align-items: flex-start;
   justify-content: center;
@@ -941,6 +941,7 @@ body.menu-open .backdrop {
 
 .dock-handle {
   padding: 0 24px;
+  margin-bottom: 20px; /* Визуальный отступ от нижней границы экрана */
   font-weight: 600;
   cursor: pointer;
   display: flex;
@@ -1195,7 +1196,7 @@ body[data-mode="mobile"] .menu-rail__cap {
   cursor: pointer;
   margin: 0 16px 4px;
   border: none;
-  background: transparent;
+  background: rgba(20, 20, 20, 1);
 }
 
 body[data-mode="mobile"] .menu-rail__cap span {
