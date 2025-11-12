@@ -309,9 +309,17 @@ function updateRailClosedWidth() {
   // Измеряем фактическую ширину контента (offsetWidth = content + padding + border)
   const width = menuHandle.offsetWidth;
 
+  // Получаем margin-left (отрицательный: -15px)
+  const computedStyle = window.getComputedStyle(menuHandle);
+  const marginLeft = parseInt(computedStyle.marginLeft) || 0;
+
+  // --rail-closed должен компенсировать margin-left для правильного transform
+  // Эффективная ширина = offsetWidth + abs(marginLeft)
+  // Пример: 44px + 15px = 59px
+  const effectiveWidth = width + Math.abs(marginLeft);
+
   // Обновляем CSS переменную для grid-колонки и анимаций
-  // Примечание: margin-left: -15px не учитывается, т.к. он выступает за пределы grid-колонки
-  document.documentElement.style.setProperty('--rail-closed', `${width}px`);
+  document.documentElement.style.setProperty('--rail-closed', `${effectiveWidth}px`);
 }
 
 function teardownObserver() {
