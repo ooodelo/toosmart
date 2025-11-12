@@ -27,6 +27,8 @@
  *    Dev Tools iPhone (375px, pointer) → mode=mobile, input=pointer
  */
 
+console.log('🚀 script.js loading...');
+
 const root = document.documentElement;
 const body = document.body;
 const initialMode = window.__INITIAL_MODE__;
@@ -40,8 +42,8 @@ const siteMenu = document.querySelector('.site-menu');
 const backdrop = document.querySelector('.backdrop');
 const dockHandle = document.querySelector('.dock-handle');
 const panel = document.querySelector('.panel');
-const btnNext = document.querySelector('.btn-next');
 const dotsRail = document.querySelector('.dots-rail');
+const dotFlyout = document.querySelector('.dot-flyout');
 const textBox = document.querySelector('.text-box');
 const sections = Array.from(document.querySelectorAll('.text-section'));
 const menuCap = document.querySelector('.menu-rail__cap');
@@ -53,10 +55,21 @@ let previousFocus = null;
 let trapListenerAttached = false;
 let observer = null;
 let edgeGestureHandler = null;
+let flyoutHideTimeout = null;
+let flyoutListenersAttached = false;
+let flyoutHandlers = {
+  showFlyout: null,
+  hideFlyout: null,
+  handleFlyoutClick: null,
+  handleFlyoutKeyboard: null
+};
 
 // Debug mode: установите в true для вывода информации о режимах в консоль
 // Включите в Safari Dev Tools: window.DEBUG_MODE_DETECTION = true
 const DEBUG_MODE_DETECTION = window.DEBUG_MODE_DETECTION || false;
+
+// TEMPORARY: Force debug for flyout
+const DEBUG_FLYOUT = true;
 let layoutMetricsRaf = null;
 
 function parseCssNumber(value) {
@@ -137,12 +150,14 @@ function updateLayoutMetrics() {
   const scrollMargin = Math.max(0, headerHeight + 24);
   root.style.setProperty('--section-scroll-margin', `${scrollMargin}px`);
 
-  if (!btnNext) {
+  // Вычисление footprint для Progress Widget
+  const pwRoot = document.querySelector('#pw-root');
+  if (!pwRoot) {
     return;
   }
 
-  const styles = window.getComputedStyle(btnNext);
-  let footprint = btnNext.offsetHeight;
+  const styles = window.getComputedStyle(pwRoot);
+  let footprint = pwRoot.offsetHeight;
 
   if (styles.position === 'sticky') {
     footprint += parseCssNumber(styles.bottom);
@@ -151,7 +166,7 @@ function updateLayoutMetrics() {
   }
 
   footprint = Math.max(0, Math.round(footprint));
-  root.style.setProperty('--btn-next-footprint', `${footprint}px`);
+  root.style.setProperty('--pw-footprint', `${footprint}px`);
 }
 
 function scheduleLayoutMetricsUpdate() {
@@ -271,6 +286,7 @@ function updateMode() {
     }
 
     configureDots();
+    initDotsFlyout(); // Обновляем flyout при смене режима
 
     // Управление edge-gesture lifecycle
     detachEdgeGesture();
@@ -282,6 +298,21 @@ function updateMode() {
 
   lockScroll();
   scheduleLayoutMetricsUpdate();
+  updateRailClosedWidth();
+}
+
+// Обновление CSS переменной --rail-closed на основе фактической ширины menu-handle
+function updateRailClosedWidth() {
+  const menuHandle = document.querySelector('.menu-handle');
+  if (!menuHandle) return;
+
+  // Измеряем фактическую ширину menu-handle (offsetWidth = content + padding + border)
+  // Это и есть ширина второй grid-колонки в grid-template-columns
+  // margin-left НЕ влияет на ширину grid-колонки, только сдвигает элемент
+  const width = menuHandle.offsetWidth;
+
+  // Обновляем CSS переменную для grid-колонки и анимаций
+  document.documentElement.style.setProperty('--rail-closed', `${width}px`);
 }
 
 function teardownObserver() {
@@ -517,6 +548,275 @@ function initDots() {
 }
 
 /**
+ * Smooth scroll с fallback для старых браузеров
+ * @param {HTMLElement} element - элемент для прокрутки
+ */
+function smoothScrollTo(element) {
+  if (!element) return;
+
+  // Проверка нативной поддержки smooth scroll
+  if ('scrollBehavior' in document.documentElement.style) {
+    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
+
+  // Fallback: плавная анимация через requestAnimationFrame
+  const targetPosition = element.getBoundingClientRect().top + window.pageYOffset;
+  const startPosition = window.pageYOffset;
+  const distance = targetPosition - startPosition;
+  const duration = 600; // ms
+  let startTime = null;
+
+  function animation(currentTime) {
+    if (startTime === null) startTime = currentTime;
+    const timeElapsed = currentTime - startTime;
+    const progress = Math.min(timeElapsed / duration, 1);
+
+    // Easing function (ease-in-out)
+    const ease = progress < 0.5
+      ? 2 * progress * progress
+      : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+    window.scrollTo(0, startPosition + distance * ease);
+
+    if (timeElapsed < duration) {
+      requestAnimationFrame(animation);
+    }
+  }
+
+  requestAnimationFrame(animation);
+}
+
+/**
+ * Удаление event listeners для flyout
+ */
+function detachFlyoutListeners() {
+  if (!flyoutListenersAttached) return;
+  if (!dotsRail || !dotFlyout) return;
+
+  if (flyoutHandlers.showFlyout) {
+    dotsRail.removeEventListener('mouseenter', flyoutHandlers.showFlyout);
+    dotsRail.removeEventListener('mouseleave', flyoutHandlers.hideFlyout);
+    dotFlyout.removeEventListener('mouseenter', flyoutHandlers.showFlyout);
+    dotFlyout.removeEventListener('mouseleave', flyoutHandlers.hideFlyout);
+    dotFlyout.removeEventListener('click', flyoutHandlers.handleFlyoutClick);
+    document.removeEventListener('keydown', flyoutHandlers.handleFlyoutKeyboard);
+  }
+
+  flyoutListenersAttached = false;
+}
+
+/**
+ * Инициализация flyout меню для navigation dots
+ */
+function initDotsFlyout() {
+  if (DEBUG_FLYOUT) {
+    console.log('[FLYOUT] initDotsFlyout START', {
+      dotsRail: !!dotsRail,
+      dotFlyout: !!dotFlyout,
+      currentMode,
+      sectionsLength: sections.length
+    });
+  }
+
+  if (!dotsRail || !dotFlyout) {
+    console.error('[FLYOUT] ERROR: dotsRail or dotFlyout not found!', {
+      dotsRail: !!dotsRail,
+      dotFlyout: !!dotFlyout
+    });
+    return;
+  }
+
+  // Flyout показывается только в desktop/desktop-wide
+  const shouldEnable = (currentMode === 'desktop' || currentMode === 'desktop-wide') && sections.length >= 2;
+
+  if (DEBUG_FLYOUT) {
+    console.log('[FLYOUT] Should enable?', {
+      currentMode,
+      shouldEnable,
+      sectionsCount: sections.length,
+      isDesktopOrWide: (currentMode === 'desktop' || currentMode === 'desktop-wide'),
+      hasEnoughSections: sections.length >= 2
+    });
+  }
+
+  if (!shouldEnable) {
+    if (DEBUG_FLYOUT) console.log('[FLYOUT] Disabled - hiding');
+    dotFlyout.setAttribute('hidden', '');
+    detachFlyoutListeners();
+    return;
+  }
+
+  // Построение списка разделов
+  function buildFlyoutMenu() {
+    dotFlyout.innerHTML = '';
+
+    sections.forEach((section, index) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'dot-flyout__item';
+      btn.dataset.index = String(index);
+      btn.dataset.sectionId = section.id;
+
+      // Текст из data-section или h2
+      const sectionTitle = section.dataset.section ||
+                          section.querySelector('h2')?.textContent ||
+                          `Раздел ${index + 1}`;
+      btn.textContent = sectionTitle.trim();
+      btn.setAttribute('aria-controls', section.id);
+
+      dotFlyout.appendChild(btn);
+    });
+
+    if (DEBUG_FLYOUT) {
+      console.log('[FLYOUT] Built menu with', sections.length, 'items');
+    }
+  }
+
+  // Показ flyout с задержкой при закрытии
+  function showFlyout() {
+    console.log('[FLYOUT] ⭐ showFlyout called!');
+    if (flyoutHideTimeout) {
+      clearTimeout(flyoutHideTimeout);
+      flyoutHideTimeout = null;
+    }
+    dotFlyout.removeAttribute('hidden');
+    console.log('[FLYOUT] hidden attribute removed, current:', dotFlyout.getAttribute('hidden'));
+  }
+
+  function hideFlyout() {
+    console.log('[FLYOUT] hideFlyout called');
+    flyoutHideTimeout = setTimeout(() => {
+      dotFlyout.setAttribute('hidden', '');
+      flyoutHideTimeout = null;
+      console.log('[FLYOUT] hidden attribute set');
+    }, 120); // Задержка 120ms как в templates
+  }
+
+  // Клик на элемент flyout → scroll к разделу
+  function handleFlyoutClick(e) {
+    const btn = e.target.closest('.dot-flyout__item');
+    if (!btn) return;
+
+    const sectionId = btn.dataset.sectionId;
+    const section = document.getElementById(sectionId);
+
+    if (section) {
+      smoothScrollTo(section);
+      // Обновляем активную секцию
+      setActiveSection(sectionId);
+    }
+  }
+
+  // Keyboard navigation в flyout
+  function handleFlyoutKeyboard(e) {
+    if (dotFlyout.hasAttribute('hidden')) return;
+
+    const items = Array.from(dotFlyout.querySelectorAll('.dot-flyout__item'));
+    if (items.length === 0) return;
+
+    const activeElement = document.activeElement;
+    const currentIndex = items.indexOf(activeElement);
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const nextIndex = currentIndex < items.length - 1 ? currentIndex + 1 : 0;
+      items[nextIndex].focus();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const prevIndex = currentIndex > 0 ? currentIndex - 1 : items.length - 1;
+      items[prevIndex].focus();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      hideFlyout();
+      // Возвращаем фокус на dots-rail
+      if (dotsRail) {
+        const firstDot = dotsRail.querySelector('.dots-rail__dot');
+        if (firstDot) firstDot.focus();
+      }
+    }
+  }
+
+  // Подсветка активного элемента в flyout
+  function updateFlyoutActiveItem() {
+    if (dotFlyout.hasAttribute('hidden')) return;
+
+    const items = dotFlyout.querySelectorAll('.dot-flyout__item');
+    items.forEach(item => {
+      const isActive = item.dataset.sectionId === activeSectionId;
+      item.classList.toggle('is-active', isActive);
+      item.setAttribute('aria-current', isActive ? 'true' : 'false');
+    });
+  }
+
+  // Удаляем старые listeners перед добавлением новых
+  detachFlyoutListeners();
+
+  // Построение меню
+  buildFlyoutMenu();
+
+  // Сохраняем ссылки на функции
+  flyoutHandlers.showFlyout = showFlyout;
+  flyoutHandlers.hideFlyout = hideFlyout;
+  flyoutHandlers.handleFlyoutClick = handleFlyoutClick;
+  flyoutHandlers.handleFlyoutKeyboard = handleFlyoutKeyboard;
+
+  // Hover на dots-rail показывает flyout
+  dotsRail.addEventListener('mouseenter', showFlyout);
+  dotsRail.addEventListener('mouseleave', hideFlyout);
+
+  // Hover на flyout предотвращает закрытие
+  dotFlyout.addEventListener('mouseenter', showFlyout);
+  dotFlyout.addEventListener('mouseleave', hideFlyout);
+
+  // Клик на элементы flyout
+  dotFlyout.addEventListener('click', handleFlyoutClick);
+
+  // Keyboard navigation
+  document.addEventListener('keydown', handleFlyoutKeyboard);
+
+  flyoutListenersAttached = true;
+
+  if (DEBUG_FLYOUT) {
+    console.log('[FLYOUT] ✅ Event listeners attached successfully!');
+    console.log('[FLYOUT] Try hovering over dots now...');
+  }
+
+  // Обновление активного элемента при смене секции
+  const originalSetActiveSection = window.setActiveSection || setActiveSection;
+  window.setActiveSection = function(id) {
+    if (typeof originalSetActiveSection === 'function') {
+      originalSetActiveSection(id);
+    }
+    updateFlyoutActiveItem();
+  };
+
+  // Первоначальное обновление
+  updateFlyoutActiveItem();
+}
+
+/**
+ * Feature detection для backdrop-filter
+ * Добавляет класс 'no-backdrop-filter' если не поддерживается
+ */
+function detectBackdropFilter() {
+  const testEl = document.createElement('div');
+  testEl.style.cssText = 'backdrop-filter: blur(1px); -webkit-backdrop-filter: blur(1px);';
+  const supported = !!testEl.style.backdropFilter || !!testEl.style.webkitBackdropFilter;
+
+  if (!supported) {
+    root.classList.add('no-backdrop-filter');
+    if (DEBUG_MODE_DETECTION) {
+      console.log('[FEATURE] backdrop-filter not supported, using fallback');
+    }
+  } else if (DEBUG_MODE_DETECTION) {
+    console.log('[FEATURE] backdrop-filter supported ✓');
+  }
+
+  return supported;
+}
+
+/**
  * Helper: обновляет режим и синхронизирует observer с layout
  */
 function handleModeUpdate() {
@@ -524,25 +824,19 @@ function handleModeUpdate() {
   updateMode();
 
   if (prevMode !== currentMode) {
-    if (currentMode === 'desktop') {
+    if (currentMode === 'desktop' || currentMode === 'desktop-wide') {
       setupSectionObserver();
+      initDotsFlyout(); // Пересоздаем flyout при переходе в desktop
     } else {
       teardownObserver();
+      // Скрываем flyout в tablet/mobile
+      if (dotFlyout) {
+        dotFlyout.setAttribute('hidden', '');
+      }
     }
   }
 
   scheduleLayoutMetricsUpdate();
-}
-
-function handleNext() {
-  // Получаем URL следующей страницы из data-атрибута кнопки
-  const nextPageUrl = btnNext?.dataset.nextPage;
-
-  if (nextPageUrl) {
-    window.location.href = nextPageUrl;
-  } else {
-    console.warn('Кнопка "Далее": не указан data-next-page');
-  }
 }
 
 function initMenuInteractions() {
@@ -1023,18 +1317,252 @@ function attachScrollHideHeader() {
   window.addEventListener('scroll', onScroll, { passive: true });
 }
 
+/**
+ * Progress Widget - виджет прогресса чтения
+ * Показывает круг с процентами (0-100%), при 100% морфится в кнопку "Далее"
+ */
+function initProgressWidget() {
+  // 1. Создание/получение элемента виджета
+  let root = document.getElementById('pw-root');
+  if (!root) {
+    root = document.createElement('aside');
+    root.id = 'pw-root';
+    root.setAttribute('role', 'button');
+    root.setAttribute('tabindex', '0');
+    root.setAttribute('aria-disabled', 'true');
+    root.setAttribute('aria-label', 'Прогресс чтения: 0%');
+
+    // Вставляем в article.text-box
+    const article = document.querySelector('.text-box');
+    if (article) {
+      article.appendChild(root);
+    } else {
+      document.body.appendChild(root); // Fallback
+    }
+  }
+
+  root.innerHTML = `<div class="pw-visual">
+    <div class="pw-dot"></div>
+    <div class="pw-pill"></div>
+    <div class="pw-pct"><span id="pwPct">0%</span></div>
+    <div class="pw-next">Далее</div>
+  </div>`;
+
+  // 2. Получение элементов
+  const dot = root.querySelector('.pw-dot');
+  const pill = root.querySelector('.pw-pill');
+  const pct = root.querySelector('.pw-pct');
+  const next = root.querySelector('.pw-next');
+  const pctSpan = root.querySelector('#pwPct');
+
+  const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const scroller = document.scrollingElement || document.documentElement;
+
+  // 3. Функции измерения прогресса
+  function clamp01(x) {
+    return x < 0 ? 0 : x > 1 ? 1 : x;
+  }
+
+  function measureProgress() {
+    const r = textBox.getBoundingClientRect();
+    const viewport = window.innerHeight;
+    const total = Math.max(textBox.scrollHeight, r.height) - viewport;
+    if (total <= 0) return 1;
+    const read = Math.min(Math.max(-r.top, 0), total);
+    return clamp01(read / total);
+  }
+
+  // 4. Определение URL следующей страницы
+  function detectNextUrl() {
+    // ПРИОРИТЕТ 1: data-next-page из article
+    const article = document.querySelector('.text-box');
+    const explicit = article?.dataset.nextPage ||
+                     document.body.dataset.nextPage ||
+                     root.getAttribute('data-next-url');
+    if (explicit && explicit !== '#') return explicit;
+
+    // ПРИОРИТЕТ 2: <link rel="next">
+    const linkNext = document.querySelector('link[rel=next][href]');
+    if (linkNext) return linkNext.getAttribute('href');
+
+    // ПРИОРИТЕТ 3: <a rel="next">
+    const anchorRel = document.querySelector('a[rel=next][href], a.next[href], nav .next a[href]');
+    if (anchorRel) return anchorRel.getAttribute('href');
+
+    // ПРИОРИТЕТ 4: текстовый поиск
+    const anchors = Array.from(document.querySelectorAll('a[href]'));
+    const keywords = ['далее', 'следующая', 'следующий', 'next', 'more'];
+    for (const a of anchors) {
+      const text = (a.textContent || '').trim().toLowerCase();
+      if (text && keywords.some(k => text.includes(k))) {
+        return a.getAttribute('href');
+      }
+    }
+
+    return '#';
+  }
+
+  const NEXT_URL = detectNextUrl();
+
+  // 5. Анимации
+  let aDot = null, aPill = null, aPct = null, aNext = null;
+  let doneState = false, ticking = false;
+
+  function killAnims() {
+    for (const a of [aDot, aPill, aPct, aNext]) {
+      try { a && a.cancel(); } catch(e) {}
+    }
+    aDot = aPill = aPct = aNext = null;
+  }
+
+  function playForward() {
+    if (prefersReduced) {
+      dot.style.opacity = '0';
+      pill.style.opacity = '1';
+      pill.style.transform = 'translate(-50%,-50%) scaleX(1)';
+      pct.style.opacity = '0';
+      next.style.opacity = '1';
+      return;
+    }
+    killAnims();
+    aDot = dot.animate(
+      [
+        { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 },
+        { transform: 'translate(-50%,-50%) scale(1.06)', opacity: 0.6, offset: 0.35 },
+        { transform: 'translate(-50%,-50%) scale(0.94)', opacity: 0 }
+      ],
+      { duration: 650, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' }
+    );
+    aPill = pill.animate(
+      [
+        { transform: 'translate(-50%,-50%) scaleX(0.001)', opacity: 0 },
+        { transform: 'translate(-50%,-50%) scaleX(1.06)', opacity: 1, offset: 0.7 },
+        { transform: 'translate(-50%,-50%) scaleX(1)', opacity: 1 }
+      ],
+      { duration: 900, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' }
+    );
+    aPct = pct.animate([{opacity:1},{opacity:0}], { duration: 320, easing: 'ease', fill: 'forwards', delay: 150 });
+    aNext = next.animate([{opacity:0},{opacity:1}], { duration: 420, easing: 'ease', fill: 'forwards', delay: 360 });
+  }
+
+  function playReverse() {
+    if (prefersReduced) {
+      dot.style.opacity = '1';
+      dot.style.transform = 'translate(-50%,-50%) scale(1)';
+      pill.style.opacity = '0';
+      pill.style.transform = 'translate(-50%,-50%) scaleX(0.001)';
+      pct.style.opacity = '1';
+      next.style.opacity = '0';
+      return;
+    }
+    killAnims();
+    aDot = dot.animate(
+      [
+        { transform: 'translate(-50%,-50%) scale(0.94)', opacity: 0 },
+        { transform: 'translate(-50%,-50%) scale(1.06)', opacity: 0.6, offset: 0.65 },
+        { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 }
+      ],
+      { duration: 650, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' }
+    );
+    aPill = pill.animate(
+      [
+        { transform: 'translate(-50%,-50%) scaleX(1)', opacity: 1 },
+        { transform: 'translate(-50%,-50%) scaleX(0.001)', opacity: 0 }
+      ],
+      { duration: 700, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' }
+    );
+    aPct = pct.animate([{opacity:0},{opacity:1}], { duration: 360, easing: 'ease', fill: 'forwards', delay: 360 });
+    aNext = next.animate([{opacity:1},{opacity:0}], { duration: 320, easing: 'ease', fill: 'forwards', delay: 120 });
+  }
+
+  // 6. Обновление на скролл
+  function onScroll() {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(update);
+  }
+
+  function update() {
+    ticking = false;
+    const p = measureProgress();
+    const perc = Math.round(p * 100);
+    pctSpan.textContent = perc + '%';
+    root.setAttribute('aria-label', 'Прогресс чтения: ' + perc + '%');
+
+    const shouldBeDone = perc >= 100;
+
+    if (shouldBeDone && !doneState) {
+      doneState = true;
+      root.classList.add('is-done');
+      root.setAttribute('aria-disabled', 'false');
+      root.setAttribute('aria-label', 'Кнопка: Далее');
+      playForward();
+    } else if (!shouldBeDone && doneState) {
+      doneState = false;
+      root.classList.remove('is-done');
+      root.setAttribute('aria-disabled', 'true');
+      root.setAttribute('aria-label', 'Прогресс чтения: ' + perc + '%');
+      playReverse();
+    } else {
+      if (!shouldBeDone) {
+        root.setAttribute('aria-label', 'Прогресс чтения: ' + perc + '%');
+      }
+    }
+  }
+
+  // 7. Клик
+  root.addEventListener('click', () => {
+    if (doneState) {
+      // При 100%: переход на следующую страницу
+      if (NEXT_URL && NEXT_URL !== '#') {
+        window.location.href = NEXT_URL;
+      } else {
+        console.warn('Progress Widget: следующая страница не найдена');
+      }
+    } else {
+      // До 100%: докрутить до конца
+      const endY = window.scrollY + (textBox.getBoundingClientRect().bottom - window.innerHeight + 1);
+      window.scrollTo({ top: endY, behavior: 'smooth' });
+    }
+  }, { passive: true });
+
+  // 8. Keyboard navigation
+  root.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      root.click();
+    }
+  });
+
+  // 9. Listeners
+  window.addEventListener('scroll', onScroll, { passive: true });
+
+  // 10. Инициализация
+  dot.style.opacity = '1';
+  pill.style.opacity = '0';
+  pill.style.transform = 'translate(-50%,-50%) scaleX(0.001)';
+  pct.style.opacity = '1';
+  next.style.opacity = '0';
+  update();
+
+  // Обновить layout metrics после создания виджета
+  scheduleLayoutMetricsUpdate();
+}
+
 function init() {
-  updateMode();
+  // Feature detection
+  detectBackdropFilter();
+
+  updateMode(); // updateMode() уже вызывает updateRailClosedWidth()
   initDots();
+  initDotsFlyout(); // Flyout меню для navigation dots
   initMenuInteractions();
   attachEdgeGesture(); // Attach only if tablet mode
   attachMenuSwipes(); // Swipe support for touch devices
   attachScrollHideHeader(); // Auto-hide header/dock on scroll
   initMenuLinks();
   initStackCarousel(); // Карусель рекомендаций
-
-  const handleNextClick = () => handleNext();
-  btnNext?.addEventListener('click', handleNextClick);
+  initProgressWidget(); // Progress Widget (круг с процентами → кнопка "Далее")
 
   let resizeRaf = null;
 
@@ -1090,7 +1618,6 @@ function init() {
 
   // Cleanup function для удаления всех listeners
   return () => {
-    btnNext?.removeEventListener('click', handleNextClick);
     window.removeEventListener('resize', handleResize);
     window.removeEventListener('orientationchange', handleOrientationChange);
 

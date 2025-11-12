@@ -2,7 +2,7 @@
   color-scheme: light;
 
   /* Ширины текстовых блоков */
-  --text-box-width-mobile: 500px;
+  --text-box-width-mobile: 100%; /* Было: 500px - вызывало горизонтальный скролл */
   --text-box-width-tablet: 520px;
   --text-box-width-desktop: 580px;
   --text-box-width-desktop-wide: 660px;
@@ -24,27 +24,27 @@
   /* Отступы и размеры */
   --gap-page: 32px;
   --stack-gap: 20px;
-  --rail-closed: 70px;
+  --rail-closed: 42px; /* Начальное значение, обновляется динамически через JS */
   --rail-open: 320px;
   --stack-top: 16px;
   --stack-bottom: 16px;
-  --btn-next-footprint: 88px;
+  --pw-footprint: 44px;
   --section-scroll-margin: 120px;
 
   /* Анимации */
-  --t-rail: 220ms;
+  --t-rail: 600ms;
   --t-backdrop: 160ms;
-  --rail-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --rail-ease: cubic-bezier(0.4, 0.02, 0.2, 1);
 
-  /* Цвета */
-  --border-color: #d0d0d0;
-  --surface: #f6f6f6;
-  --surface-alt: #ededed;
-  --text-color: #222;
+  /* Цвета (из templates) */
+  --border-color: #d9d9d9;
+  --surface: #F5F5F5;
+  --surface-alt: #ececec;
+  --text-color: #111;
 
   /* Цвета контента */
-  --text-primary: #222;
-  --text-secondary: #666;
+  --text-primary: #111;
+  --text-secondary: #333;
   --code-inline-bg: var(--surface);
   --code-inline-color: #c7254e;
   --code-block-bg: #2d2d2d;
@@ -66,9 +66,11 @@ body {
   margin: 0;
   padding: 0;
   color: var(--text-color);
-  font-family: "Inter", "Segoe UI", sans-serif;
-  background: #e8f4f8;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: #F5F5F5;
   min-height: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
@@ -76,8 +78,9 @@ body {
   flex-direction: column;
   min-height: 100vh;
   overflow-x: hidden;
-  max-width: 100vw;
+  max-width: 100%; /* Было: 100vw - включало scrollbar и вызывало overflow */
   position: relative;
+  overscroll-behavior-x: none; /* Отключить bounce эффект в горизонтали */
 }
 
 html {
@@ -86,6 +89,7 @@ html {
   /* Проблема 2: Отключение Safari bounce (резиновый эффект) */
   -ms-scroll-chaining: none; /* IE 10+, старый Edge */
   overscroll-behavior-y: none; /* Chrome 65+, Firefox 59+, Safari 16+ */
+  overscroll-behavior-x: none; /* Отключить bounce в горизонтали */
 }
 
 body[data-lock="scroll"] {
@@ -109,10 +113,27 @@ html[data-lock="scroll"] {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 12px var(--gap-page);
-  background: var(--surface);
-  border-bottom: 1px solid var(--border-color);
-  transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 0 var(--gap-page);
+  height: 85px;
+  background: #D9D9D9;
+  border: none;
+  transition: transform 600ms cubic-bezier(0.4, 0.02, 0.2, 1);
+  overflow: visible;
+}
+
+/* Вогнутое скругление в месте стыка header и menu-handle */
+body[data-mode="desktop"] .header::after,
+body[data-mode="desktop-wide"] .header::after,
+body[data-mode="tablet"] .header::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: var(--rail-closed);
+  width: 28px;
+  height: 28px;
+  background: radial-gradient(circle at bottom right, transparent 28px, #D9D9D9 28px);
+  pointer-events: none;
+  z-index: 201;
 }
 
 /* Auto-hide header on scroll down (mobile & tablet) */
@@ -120,24 +141,37 @@ body[data-scroll="down"] .header {
   transform: translateY(-100%);
 }
 
-.header__logo,
+/* Элементы с рамками и скруглением */
 .header__hand,
 .header__link,
-.menu-handle,
 .dock-handle,
-.stack,
-.panel,
-.btn-next,
-.site-menu,
-.stack-card,
-.text-box__intro,
 .stack__intro {
   border-radius: 12px;
   border: 1px solid var(--border-color);
   background: var(--surface);
 }
 
-.header__logo,
+/* Карточки рекомендаций с большим радиусом */
+.stack-card {
+  border-radius: 28px;
+  border: 1px solid var(--border-color);
+  background: var(--surface);
+}
+
+/* Элементы БЕЗ рамок */
+.stack {
+  border: none;
+}
+
+.panel {
+  border: none;
+}
+
+.site-menu {
+  border: none;
+  background: transparent;
+}
+
 .header__hand,
 .header__link {
   padding: 10px 16px;
@@ -154,18 +188,34 @@ body[data-scroll="down"] .header {
   color: inherit;
 }
 
+/* Стили для картинки логотипа */
+.header__logo {
+  display: block;
+  height: 150px;
+  width: auto;
+  max-width: 150px;
+  object-fit: contain;
+  flex-shrink: 0;
+  margin-top: -15px;
+  margin-bottom: -60px;
+  margin-left: 2px;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
 .menu-rail {
   position: fixed;
   inset: 0 auto 0 0;
   width: var(--rail-open);
   z-index: 1500;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--rail-closed);
+  grid-template-columns: minmax(0, 1fr) var(--rail-closed); /* Ширина контролируется переменной */
   grid-template-rows: minmax(0, 1fr);
   align-items: stretch;
-  background: var(--surface-alt);
-  border-right: 1px solid var(--border-color);
-  border-radius: 0 12px 12px 0;
+  background: #D9D9D9;
+  border: none;
+  border-radius: 0;
   transform: translateX(calc(var(--rail-closed) - var(--rail-open)));
   transition: transform var(--t-rail) var(--rail-ease);
   pointer-events: auto;
@@ -182,24 +232,52 @@ body[data-input="pointer"].is-slid .menu-rail {
   grid-column: 2;
   grid-row: 1;
   writing-mode: vertical-rl;
-  text-orientation: mixed;
-  margin: 0;
-  inline-size: 100%;
-  max-inline-size: none;
+  text-orientation: upright; /* Буквы стоят вертикально, не повернуты */
+  margin: 0 0 0 -15px;
   display: flex;
+  flex-direction: column-reverse;
   align-items: center;
   justify-content: center;
-  padding: 16px 12px;
+  gap: 8px;
+  padding: 16px 5px 16px 10px; /* left: 10px (сдвиг), right: 5px (расстояние от точек до границы) */
   cursor: pointer;
-  background: var(--surface-alt);
+  background: #D9D9D9;
   pointer-events: auto;
-  border-radius: 0 12px 12px 0;
+  border: none;
+  border-radius: 0;
   box-sizing: border-box;
   height: 100%;
+  position: relative;
+}
+
+/* Контейнер для 4 точек drag hint */
+.menu-handle__dots {
+  display: none;
+  flex-direction: row;
+  gap: 6px;
+  pointer-events: none;
+}
+
+body[data-mode="desktop"] .menu-handle__dots,
+body[data-mode="desktop-wide"] .menu-handle__dots,
+body[data-mode="tablet"] .menu-handle__dots {
+  display: flex;
+}
+
+/* Каждая точка 6px диаметр с inner shadow */
+.menu-handle__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #D9D9D9;
+  box-shadow: inset 0 4px 2px rgba(0, 0, 0, 0.1);
 }
 
 .menu-handle__label {
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.27em;
+  margin-bottom: 2px;
 }
 
 .menu-rail__cap {
@@ -214,7 +292,7 @@ body[data-input="pointer"].is-slid .menu-rail {
   overflow: auto;
   padding: 16px;
   pointer-events: auto;
-  background: #fff;
+  background: transparent;
 
   /* Проблема 1: Остановка scroll chaining */
   -ms-scroll-chaining: none; /* IE 10+, старый Edge, Win 8+ */
@@ -279,14 +357,14 @@ body[data-input="pointer"].is-slid .menu-rail {
 
 .panel {
   grid-column: 2;
-  border: none;
   padding: 24px;
-  background: #fff;
+  background: #F5F5F5;
   display: grid;
   grid-template-columns: 1fr;
   align-items: start;
   justify-items: start;
   position: relative;
+  border-top-left-radius: 28px;
 }
 
 body[data-mode="mobile"] .panel {
@@ -321,7 +399,7 @@ body[data-mode="mobile"] .text-section table {
 .text-box {
   max-width: var(--text-box-width);
   position: relative;
-  background: #fff;
+  background: transparent;
   width: 100%;
   grid-column: 1;
   grid-row: 1;
@@ -331,6 +409,9 @@ body[data-mode="mobile"] .text-section table {
   padding: 16px;
   margin-bottom: 24px;
   line-height: 1.6;
+  background: var(--surface);
+  border-radius: 12px;
+  border: none;
 }
 
 .text-section {
@@ -338,7 +419,7 @@ body[data-mode="mobile"] .text-section table {
   margin-bottom: 32px;
   background: var(--surface);
   border-radius: 12px;
-  border: 1px solid var(--border-color);
+  border: none;
   scroll-margin-top: var(--section-scroll-margin, 120px);
 }
 
@@ -473,44 +554,191 @@ body[data-mode="mobile"] .text-section table {
   top: 50%;
   left: calc(50% - var(--text-box-width) / 2 - 48px);
   transform: translateY(-50%);
-  display: none;
+  display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 12px;
-  padding: 12px;
-  background: var(--surface);
-  border-radius: 12px;
-  border: 1px solid var(--border-color);
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+  border: none;
   z-index: 150;
 }
 
+.dots-rail[hidden] {
+  display: none;
+}
+
 .dots-rail__dot {
-  width: 12px;
-  height: 12px;
+  display: block;
+  width: 8px;
+  height: 8px;
+  max-width: 8px;
+  max-height: 8px;
+  min-width: 0;
+  min-height: 0;
+  flex-shrink: 0;
   border-radius: 50%;
   background: var(--border-color);
   border: none;
   cursor: pointer;
-  transition: transform 120ms ease, background 120ms ease;
+  padding: 0;
+  margin: 0;
+  line-height: 1;
+  font-size: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+  transition: width 300ms ease, border-radius 300ms ease, background-color 120ms ease, max-width 300ms ease;
 }
 
 .dots-rail__dot[aria-current="true"] {
-  background: var(--text-color);
-  transform: scale(1.2);
+  background-color: var(--text-primary);
+  width: 24px;
+  max-width: 24px;
+  height: 8px;
+  max-height: 8px;
+  border-radius: 4px;
 }
 
-.btn-next {
-  /* Базовые стили кнопки */
-  padding: 12px 24px;
-  background: var(--surface-alt);
-  cursor: pointer;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  border-radius: 12px;
-  border: 1px solid var(--border-color);
+/* ===== DOT FLYOUT MENU ===== */
+/* Базовые стили для всех браузеров (progressive enhancement) */
+.dot-flyout {
+  position: fixed;
+  top: 50%;
+  /* Позиция: справа от dots-rail (между точками и текстом) */
+  left: calc(50% - var(--text-box-width) / 2 - 48px + 24px + 16px); /* rail_left + max_dot_width + gap */
+  z-index: 9999;
 
-  /* Скрыта по умолчанию, показывается в режимах */
+  /* Transform с префиксами для старых браузеров */
+  -webkit-transform: translateY(-50%);
+  -ms-transform: translateY(-50%);
+  transform: translateY(-50%);
+
+  /* Layout: block fallback → grid для современных браузеров */
+  display: block;
+  min-width: 220px;
+  max-width: min(42vw, 360px);
+  max-height: min(70vh, 520px);
+  overflow: auto;
+  padding: 35px 25px; /* верх/низ: 35px, право/лево: 25px */
+
+  /* Визуальный стиль - базовый непрозрачный фон (работает везде) */
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid #AAA;
+  -webkit-border-radius: 28px;
+  border-radius: 28px;
+
+  /* Тень для глубины (вместо blur на старых браузерах) */
+  -webkit-box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.04);
+
+  /* Изоляция для backdrop-filter */
+  isolation: isolate;
+
+  /* Переходы с префиксами */
+  -webkit-transition: opacity 0.16s ease, visibility 0.16s ease;
+  transition: opacity 0.16s ease, visibility 0.16s ease;
+
+  /* Скрыт по умолчанию */
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Grid layout для современных браузеров */
+@supports (display: grid) {
+  .dot-flyout {
+    display: grid;
+    gap: 10px;
+  }
+}
+
+/* Progressive enhancement: blur эффект для поддерживающих браузеров */
+@supports (backdrop-filter: blur(40px)) or (-webkit-backdrop-filter: blur(40px)) {
+  .dot-flyout {
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: saturate(1.1) blur(40px);
+    -webkit-backdrop-filter: blur(10px) saturate(1.1);
+  }
+}
+
+/* Показ flyout */
+.dot-flyout:not([hidden]) {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+/* Fallback для gap (если grid не поддерживает gap) */
+@supports not (gap: 10px) {
+  .dot-flyout {
+    display: block;
+  }
+}
+
+/* Элементы flyout меню */
+.dot-flyout__item {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  margin: 0;
+  text-align: left;
+  font: inherit;
+  color: #111;
+  background: transparent;
+  border: 1px solid transparent;
+  -webkit-border-radius: 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  -webkit-transition: border-color 0.12s ease, background-color 0.12s ease;
+  transition: border-color 0.12s ease, background-color 0.12s ease;
+  line-height: 1.4;
+}
+
+/* Margin fallback для gap */
+@supports not (gap: 10px) {
+  .dot-flyout__item {
+    margin-bottom: 10px;
+  }
+
+  .dot-flyout__item:last-child {
+    margin-bottom: 0;
+  }
+}
+
+/* Hover и active состояния */
+.dot-flyout__item:hover,
+.dot-flyout__item:focus,
+.dot-flyout__item.is-active,
+.dot-flyout__item[aria-current="true"] {
+  border-color: #AAA;
+  outline: none;
+}
+
+/* Focus-visible для keyboard navigation */
+.dot-flyout__item:focus-visible {
+  outline: 2px solid #0066cc;
+  outline-offset: 2px;
+}
+
+/* Desktop-wide режим: другое позиционирование */
+body[data-mode="desktop-wide"] .dot-flyout {
+  left: calc(var(--text-box-left) - 48px);
+}
+
+/* Tablet и mobile: скрываем flyout (точки не показываются) */
+body[data-mode="tablet"] .dot-flyout,
+body[data-mode="mobile"] .dot-flyout {
   display: none;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .dot-flyout,
+  .dot-flyout__item {
+    -webkit-transition: none !important;
+    transition: none !important;
+  }
 }
 
 .stack {
@@ -521,8 +749,29 @@ body[data-mode="mobile"] .text-section table {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  background: #fff;
-  overflow: hidden; /* скрываем контент который выходит за пределы */
+  background: transparent;
+  overflow: visible; /* позволяет ::before размытию выходить за пределы */
+}
+
+/* Размытый овальный фон позади рекомендаций */
+.stack::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(280px, 100%);
+  height: clamp(600px, 80vh, 860px);
+  background: rgba(213, 216, 232, 0.5);
+  border-radius: 9999px;
+  filter: blur(80px);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.stack > * {
+  position: relative;
+  z-index: 1;
 }
 
 .stack__intro {
@@ -534,7 +783,7 @@ body[data-mode="mobile"] .text-section table {
 .stack__title {
   margin: 0 0 16px 0;
   font-size: 22px;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--text-primary);
 }
 
@@ -549,7 +798,7 @@ body[data-mode="mobile"] .text-section table {
 .stack-slide {
   display: flex;
   flex-direction: column;
-  gap: var(--stack-gap);
+  gap: 45px;
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.5s ease, visibility 0.5s ease;
@@ -569,13 +818,12 @@ body[data-mode="mobile"] .text-section table {
   padding: 16px;
   background: var(--surface);
   line-height: 1.4;
-  border-radius: 8px;
 }
 
 .stack-card h3 {
   margin: 0 0 8px;
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 800;
 }
 
 .stack-card p {
@@ -709,14 +957,6 @@ body[data-mode="desktop"] .text-box {
   width: 100%;
 }
 
-body[data-mode="desktop"] .btn-next {
-  display: flex;
-  width: fit-content;
-  position: sticky;
-  bottom: 24px;
-  margin: 48px auto 0;
-}
-
 body[data-mode="desktop"] .stack {
   grid-column: 3;
   justify-self: center;
@@ -753,14 +993,6 @@ body[data-mode="desktop-wide"] .panel {
 
 body[data-mode="desktop-wide"] .text-box {
   width: 100%;
-}
-
-body[data-mode="desktop-wide"] .btn-next {
-  display: flex;
-  width: fit-content;
-  position: sticky;
-  bottom: 24px;
-  margin: 48px auto 0;
 }
 
 body[data-mode="desktop-wide"] .stack {
@@ -823,18 +1055,9 @@ body[data-mode="tablet"] .text-box {
   width: 100%;
 }
 
-body[data-mode="tablet"] .btn-next {
-  display: flex;
-  width: fit-content;
-  position: sticky;
-  bottom: 24px;
-  margin: 48px auto 0;
-  order: 2;
-}
-
 body[data-mode="tablet"] .stack {
   order: 3;
-  position: static;
+  position: relative; /* Было: static. Фикс для позиционирования ::before псевдоэлемента */
   width: 100%;
   max-width: var(--text-box-width-tablet);
   margin: 32px auto 0;
@@ -843,42 +1066,47 @@ body[data-mode="tablet"] .stack {
   align-self: center;
 }
 
-body[data-mode="tablet"] .header__links,
-body[data-mode="mobile"] .header__links {
+body[data-mode="tablet"] .header__links {
   gap: 8px;
+}
+
+body[data-mode="mobile"] .header__links {
+  display: none; /* Скрыть ссылки на малых экранах для предотвращения overflow */
 }
 
 body[data-mode="tablet"].menu-open .header {
   transform: translateX(calc(var(--rail-open) - var(--rail-closed)));
 }
 
+/* Сдвиг header в desktop режимах при открытии меню */
+body[data-mode="desktop"].menu-open .header,
+body[data-mode="desktop-wide"].menu-open .header {
+  transform: translateX(calc(var(--rail-open) - var(--rail-closed)));
+}
+
 body[data-mode="mobile"] .main {
   display: flex;
   flex-direction: column;
-  padding: calc(var(--gap-page) * 1.5) 16px calc(var(--gap-page) + var(--btn-next-footprint) + var(--mobile-dock-footprint)) 16px;
+  padding: calc(var(--gap-page) * 1.5) 16px calc(var(--gap-page) + var(--pw-footprint) + var(--mobile-dock-footprint)) 16px;
   width: 100%;
   max-width: 100%;
   overflow-x: hidden;
 }
 
-body[data-mode="mobile"] .panel,
-body[data-mode="mobile"] .stack {
+body[data-mode="mobile"] .panel {
   position: static;
+  width: 100%;
+  padding: 14px;
+}
+
+body[data-mode="mobile"] .stack {
+  position: relative; /* Было: static - вызывало неправильное позиционирование ::before */
   width: 100%;
   padding: 14px;
 }
 
 body[data-mode="mobile"] .panel {
   order: 1;
-}
-
-body[data-mode="mobile"] .btn-next {
-  display: flex;
-  margin: 16px auto;
-  order: 2;
-  width: min(320px, 100%);
-  margin-left: auto;
-  margin-right: auto;
 }
 
 body[data-mode="mobile"] .stack {
@@ -998,4 +1226,147 @@ body[data-mode="mobile"].menu-open .backdrop {
 [dir="rtl"] .dots-rail {
   left: auto;
   right: calc(var(--text-box-left) - 48px);
+}
+
+/* ============================================
+   PROGRESS WIDGET (Круг с процентами → Кнопка "Далее")
+   ============================================ */
+
+/* CSS-переменные для виджета */
+:root {
+  --pw-circle-size: 44px;  /* Размер круга */
+  --pw-pill-width: 184px;   /* Ширина пилюли */
+  --pw-pill-height: 44px;   /* Высота пилюли */
+}
+
+/* Базовые стили контейнера виджета */
+#pw-root {
+  /* Позиционирование: по умолчанию relative для mobile */
+  position: relative;
+  width: var(--pw-pill-width);
+  height: var(--pw-pill-height);
+  margin: 16px auto;
+  z-index: 150;
+  pointer-events: auto;
+  cursor: default;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Визуальный контейнер */
+#pw-root .pw-visual {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  overflow: visible;
+}
+
+/* Круг (состояние 0-99%) */
+#pw-root .pw-dot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--pw-circle-size);
+  height: var(--pw-circle-size);
+  transform: translate(-50%, -50%) scale(1);
+  background: #000;
+  border-radius: 50%;
+  will-change: transform, opacity;
+}
+
+/* Пилюля (состояние 100%) */
+#pw-root .pw-pill {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--pw-pill-width);
+  height: var(--pw-pill-height);
+  transform: translate(-50%, -50%) scaleX(0.001);
+  transform-origin: center;
+  background: #000;
+  border-radius: calc(var(--pw-pill-height) / 2);
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+/* Текст процента */
+#pw-root .pw-pct {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  z-index: 2;
+  color: #fff;
+  font: 700 10px/1 ui-monospace, Menlo, Consolas, monospace;
+  letter-spacing: 0.2px;
+  opacity: 1;
+}
+
+/* Текст "Далее" */
+#pw-root .pw-next {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  z-index: 2;
+  color: #fff;
+  font: 700 14px/1 -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  opacity: 0;
+}
+
+/* Состояние "готово" (100%) */
+#pw-root.is-done {
+  cursor: pointer;
+}
+
+/* Убираем pointer events с внутренних элементов */
+#pw-root .pw-visual,
+#pw-root .pw-dot,
+#pw-root .pw-pill,
+#pw-root .pw-pct,
+#pw-root .pw-next {
+  pointer-events: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Адаптивные стили по режимам */
+
+/* Desktop / Desktop-wide: sticky позиционирование */
+body[data-mode="desktop"] #pw-root,
+body[data-mode="desktop-wide"] #pw-root {
+  position: sticky;
+  bottom: 24px;
+  margin: 48px auto 0;
+}
+
+/* Tablet: sticky позиционирование */
+body[data-mode="tablet"] #pw-root {
+  position: sticky;
+  bottom: 24px;
+  margin: 48px auto 0;
+  order: 2;
+}
+
+/* Mobile: relative, умещается на малых экранах */
+body[data-mode="mobile"] #pw-root {
+  position: relative;
+  margin: 16px auto;
+  order: 2;
+  width: min(var(--pw-pill-width), 90%);
+}
+
+/* Отключение анимаций для prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  #pw-root *,
+  #pw-root .pw-dot,
+  #pw-root .pw-pill,
+  #pw-root .pw-pct,
+  #pw-root .pw-next {
+    animation: none !important;
+    transition: none !important;
+  }
 }

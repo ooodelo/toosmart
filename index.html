@@ -66,7 +66,7 @@
   </head>
   <body>
     <header class="header" role="banner">
-      <div class="header__logo" aria-label="Логотип">Логотип</div>
+      <img src="PointingToClean.png" alt="Логотип" class="header__logo">
       <div class="header__hand" aria-hidden="true">🤚</div>
       <nav class="header__links" aria-label="Дополнительные ссылки">
         <a href="#" class="header__link">Помощь</a>
@@ -80,6 +80,12 @@
       </button>
       <button class="menu-handle" type="button" aria-controls="site-menu" aria-expanded="false">
         <span class="menu-handle__label">Структура курса</span>
+        <div class="menu-handle__dots" aria-hidden="true">
+          <div class="menu-handle__dot"></div>
+          <div class="menu-handle__dot"></div>
+          <div class="menu-handle__dot"></div>
+          <div class="menu-handle__dot"></div>
+        </div>
       </button>
       <div class="site-menu" id="site-menu" tabindex="-1">
         <h2 class="site-menu__title">Структура курса</h2>
@@ -176,7 +182,7 @@
 
     <main class="main">
       <section class="panel">
-        <article class="text-box" aria-label="Основной материал">
+        <article class="text-box" aria-label="Основной материал" data-next-page="">
           <div class="text-box__intro">
             Здесь расположен основной материал. Тестовое содержание имитирует структуру урока и помогает оценить ширину колонки, переносы строк, якоря разделов и взаимодействие с «точками».
           </div>
@@ -343,10 +349,9 @@
           </section>
 
           </div>
-
-          <button class="btn-next" type="button" data-next-page="">Далее</button>
         </article>
         <nav class="dots-rail" aria-label="Навигация по разделам"></nav>
+        <div class="dot-flyout" hidden role="navigation" aria-label="Оглавление разделов"></div>
       </section>
 
       <aside class="stack" aria-label="Рекомендации">
