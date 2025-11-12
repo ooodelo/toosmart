@@ -298,6 +298,19 @@ function updateMode() {
 
   lockScroll();
   scheduleLayoutMetricsUpdate();
+  updateRailClosedWidth();
+}
+
+// Обновление CSS переменной --rail-closed на основе фактической ширины menu-handle
+function updateRailClosedWidth() {
+  const menuHandle = document.querySelector('.menu-handle');
+  if (!menuHandle) return;
+
+  // Измеряем фактическую ширину контента
+  const width = menuHandle.offsetWidth;
+
+  // Обновляем CSS переменную для использования в анимациях и позиционировании
+  document.documentElement.style.setProperty('--rail-closed', `${width}px`);
 }
 
 function teardownObserver() {
@@ -1539,6 +1552,7 @@ function init() {
   detectBackdropFilter();
 
   updateMode();
+  updateRailClosedWidth(); // Измерить и установить фактическую ширину полоски меню
   initDots();
   initDotsFlyout(); // Flyout меню для navigation dots
   initMenuInteractions();
