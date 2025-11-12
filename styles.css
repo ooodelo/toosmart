@@ -163,10 +163,13 @@ body[data-scroll="down"] .header {
 /* dock-handle с отдельными стилями */
 .dock-handle {
   border-radius: 9999px; /* Максимальное закругление (pill shape) */
-  border: 1px solid var(--border-color);
-  background: var(--surface);
-  box-shadow: 0 4px 15px rgba(213, 216, 232, 0.7);
+  border: none;
+  background: transparent;
+  box-shadow: none;
   text-transform: uppercase;
+  color: #FFF;
+  width: calc(var(--text-box-width) + 40px); /* Шире текста на 20px с каждой стороны */
+  height: 50px;
 }
 
 /* Карточки рекомендаций с большим радиусом */
@@ -216,10 +219,10 @@ body[data-mode="mobile"] .header__logo {
   display: none;
 }
 
-/* Стили для SVG логотипа по центру (ширина = ширине текстового блока) */
+/* Стили для SVG логотипа по центру (ширина = ширине текстового блока минус padding) */
 .header__svg {
   display: block;
-  width: var(--text-box-width);  /* Адаптивная ширина по тексту */
+  width: calc(var(--text-box-width) - 48px);  /* Ширина текста минус padding панели (24px × 2) */
   height: auto;  /* Сохраняем пропорции */
   padding: 0;
   border: none;
@@ -906,7 +909,7 @@ body[data-mode="mobile"] .dot-flyout {
 .backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgb(20, 20, 20);
   opacity: 0;
   visibility: hidden;
   transition: opacity var(--t-backdrop) var(--rail-ease), visibility var(--t-backdrop) var(--rail-ease);
@@ -924,7 +927,7 @@ body.menu-open .backdrop {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 10px; /* Поднято на 10px от низа экрана */
+  bottom: 20px; /* Отступ 20px от низа экрана */
   height: var(--mobile-dock-footprint);
   background: var(--surface-alt);
   border-top: 1px solid var(--border-color);
@@ -937,15 +940,13 @@ body.menu-open .backdrop {
 }
 
 .dock-handle {
-  width: 100%;
-  height: var(--mobile-dock);
   padding: 0 24px;
   font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  /* border-radius определен выше (9999px) */
+  /* width, height, border-radius, color определены выше */
 }
 
 body[data-input="pointer"].is-slid .header,
