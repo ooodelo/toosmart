@@ -159,11 +159,6 @@ body[data-scroll="down"] .header {
 }
 
 /* Элементы БЕЗ рамок */
-.header__logo {
-  border: none;
-  background: transparent;
-}
-
 .stack {
   border: none;
 }
@@ -177,7 +172,6 @@ body[data-scroll="down"] .header {
   background: transparent;
 }
 
-.header__logo,
 .header__hand,
 .header__link {
   padding: 10px 16px;
@@ -196,9 +190,12 @@ body[data-scroll="down"] .header {
 
 /* Стили для картинки логотипа */
 .header__logo {
+  display: block;
   height: 150px;
   width: auto;
+  max-width: 150px;
   object-fit: contain;
+  flex-shrink: 0;
   margin-top: -15px;
   margin-bottom: -60px;
   margin-left: 2px;
