@@ -108,8 +108,9 @@ html[data-lock="scroll"] {
   z-index: 200;
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 12px var(--gap-page);
+  justify-content: center;
+  height: 65px;
+  padding: 0 var(--gap-page);
   background: var(--surface);
   border-bottom: 1px solid var(--border-color);
   transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -120,9 +121,12 @@ body[data-scroll="down"] .header {
   transform: translateY(-100%);
 }
 
-.header__logo,
-.header__hand,
-.header__link,
+.header__logo {
+  height: 40px;
+  width: auto;
+  display: block;
+}
+
 .menu-handle,
 .dock-handle,
 .stack,
@@ -135,23 +139,6 @@ body[data-scroll="down"] .header {
   border-radius: 12px;
   border: 1px solid var(--border-color);
   background: var(--surface);
-}
-
-.header__logo,
-.header__hand,
-.header__link {
-  padding: 10px 16px;
-}
-
-.header__links {
-  display: flex;
-  gap: 12px;
-  margin-left: auto;
-}
-
-.header__link {
-  text-decoration: none;
-  color: inherit;
 }
 
 .menu-rail {
