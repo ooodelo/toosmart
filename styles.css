@@ -24,8 +24,20 @@
   /* Отступы и размеры */
   --gap-page: 32px;
   --stack-gap: 20px;
-  --rail-closed: 42px; /* Начальное значение, обновляется динамически через JS */
+
+  /* === РАЗМЕРЫ МЕНЮ === */
+  /* Боковая полоска (menu-handle) - явные настройки */
+  --handle-content-width: 36px;   /* ширина контента (буквы + gap + точки) */
+  --handle-padding-left: 15px;    /* отступ слева от контента */
+  --handle-padding-right: 15px;   /* отступ справа от контента */
+  --handle-gap: 8px;              /* расстояние между буквами и точками */
+
+  /* Итоговая ширина боковой полоски = 15 + 36 + 15 = 66px */
+  --rail-closed: calc(var(--handle-padding-left) + var(--handle-content-width) + var(--handle-padding-right));
+
+  /* Ширина открытого меню */
   --rail-open: 320px;
+
   --stack-top: 16px;
   --stack-bottom: 16px;
   --pw-footprint: 44px;
@@ -233,13 +245,13 @@ body[data-input="pointer"].is-slid .menu-rail {
   grid-row: 1;
   writing-mode: vertical-rl;
   text-orientation: upright; /* Буквы стоят вертикально, не повернуты */
-  margin: 0 0 0 -15px;
   display: flex;
-  flex-direction: column-reverse;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 16px 5px 16px 10px; /* left: 10px (сдвиг), right: 5px (расстояние от точек до границы) */
+
+  /* Явные отступы через CSS переменные */
+  padding: 16px var(--handle-padding-right) 16px var(--handle-padding-left);
+
   cursor: pointer;
   background: #D9D9D9;
   pointer-events: auto;
@@ -250,12 +262,26 @@ body[data-input="pointer"].is-slid .menu-rail {
   position: relative;
 }
 
+/* Контейнер для контента (буквы + точки) с фиксированной шириной */
+.menu-handle__content {
+  /* Фиксированная ширина контента */
+  width: var(--handle-content-width);
+  min-width: var(--handle-content-width);
+  max-width: var(--handle-content-width);
+
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: var(--handle-gap);
+}
+
 /* Контейнер для 4 точек drag hint */
 .menu-handle__dots {
   display: none;
   flex-direction: row;
   gap: 6px;
   pointer-events: none;
+  flex-shrink: 0;
 }
 
 body[data-mode="desktop"] .menu-handle__dots,
@@ -277,7 +303,11 @@ body[data-mode="tablet"] .menu-handle__dots {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.27em;
-  margin-bottom: 2px;
+
+  /* Текст может обрезаться если не влезает в фиксированную ширину */
+  overflow: hidden;
+  text-overflow: clip;
+  flex-shrink: 1;
 }
 
 .menu-rail__cap {

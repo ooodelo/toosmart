@@ -298,21 +298,7 @@ function updateMode() {
 
   lockScroll();
   scheduleLayoutMetricsUpdate();
-  updateRailClosedWidth();
-}
-
-// Обновление CSS переменной --rail-closed на основе фактической ширины menu-handle
-function updateRailClosedWidth() {
-  const menuHandle = document.querySelector('.menu-handle');
-  if (!menuHandle) return;
-
-  // Измеряем фактическую ширину menu-handle (offsetWidth = content + padding + border)
-  // Это и есть ширина второй grid-колонки в grid-template-columns
-  // margin-left НЕ влияет на ширину grid-колонки, только сдвигает элемент
-  const width = menuHandle.offsetWidth;
-
-  // Обновляем CSS переменную для grid-колонки и анимаций
-  document.documentElement.style.setProperty('--rail-closed', `${width}px`);
+  // updateRailClosedWidth() больше не нужна - --rail-closed вычисляется через CSS calc()
 }
 
 function teardownObserver() {
@@ -1553,7 +1539,7 @@ function init() {
   // Feature detection
   detectBackdropFilter();
 
-  updateMode(); // updateMode() уже вызывает updateRailClosedWidth()
+  updateMode();
   initDots();
   initDotsFlyout(); // Flyout меню для navigation dots
   initMenuInteractions();
