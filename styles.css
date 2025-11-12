@@ -182,14 +182,34 @@ body[data-scroll="down"] .header {
   background: transparent;
 }
 
-/* Стили для SVG логотипа */
+/* Стили для PNG картинки логотипа (поверх всего) */
 .header__logo {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 1700; /* Поверх header (1600) и меню (1500) */
   display: block;
-  height: auto;
+  height: 150px;
   width: auto;
-  max-width: min(80vw, 600px); /* Адаптивная ширина, но не более 600px */
-  max-height: 50px; /* Фиксированная высота для компактности */
+  max-width: 150px;
   object-fit: contain;
+  flex-shrink: 0;
+  margin-top: -15px;
+  margin-bottom: -60px;
+  margin-left: 2px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  pointer-events: none; /* Не блокирует клики */
+}
+
+/* Стили для SVG логотипа по центру (реальный размер) */
+.header__svg {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: none; /* Без ограничений - реальный размер */
+  max-height: none; /* Без ограничений - реальный размер */
   padding: 0;
   border: none;
   background: transparent;
