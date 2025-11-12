@@ -154,11 +154,19 @@ body[data-scroll="down"] .header {
 }
 
 /* Элементы с рамками и скруглением */
-.dock-handle,
 .stack__intro {
   border-radius: 12px;
   border: 1px solid var(--border-color);
   background: var(--surface);
+}
+
+/* dock-handle с отдельными стилями */
+.dock-handle {
+  border-radius: 9999px; /* Максимальное закругление (pill shape) */
+  border: 1px solid var(--border-color);
+  background: var(--surface);
+  box-shadow: 0 4px 15px rgba(213, 216, 232, 0.7);
+  text-transform: uppercase;
 }
 
 /* Карточки рекомендаций с большим радиусом */
@@ -194,20 +202,25 @@ body[data-scroll="down"] .header {
   max-width: 150px;
   object-fit: contain;
   flex-shrink: 0;
-  margin-top: -15px;
+  margin-top: -5px;  /* Было -15px, сдвинуто на 10px вниз */
   margin-bottom: -60px;
-  margin-left: 2px;
+  margin-left: 12px; /* Было 2px, сдвинуто на 10px вправо */
   padding: 0;
   border: none;
   background: transparent;
   pointer-events: none; /* Не блокирует клики */
 }
 
-/* Стили для SVG логотипа по центру (реальный размер из viewBox: 1459×129) */
+/* Скрыть PNG картинку на mobile */
+body[data-mode="mobile"] .header__logo {
+  display: none;
+}
+
+/* Стили для SVG логотипа по центру (ширина = ширине текстового блока) */
 .header__svg {
   display: block;
-  width: 1459px;  /* Реальный размер из viewBox */
-  height: 129px;  /* Реальный размер из viewBox */
+  width: var(--text-box-width);  /* Адаптивная ширина по тексту */
+  height: auto;  /* Сохраняем пропорции */
   padding: 0;
   border: none;
   background: transparent;
@@ -911,7 +924,7 @@ body.menu-open .backdrop {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: 10px; /* Поднято на 10px от низа экрана */
   height: var(--mobile-dock-footprint);
   background: var(--surface-alt);
   border-top: 1px solid var(--border-color);
@@ -932,7 +945,7 @@ body.menu-open .backdrop {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 0;
+  /* border-radius определен выше (9999px) */
 }
 
 body[data-input="pointer"].is-slid .header,
