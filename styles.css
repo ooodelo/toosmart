@@ -154,6 +154,7 @@ body[data-scroll="down"] .header {
 }
 
 /* Элементы с рамками и скруглением */
+.header__link,
 .dock-handle,
 .stack__intro {
   border-radius: 12px;
@@ -213,6 +214,18 @@ body[data-scroll="down"] .header {
   padding: 0;
   border: none;
   background: transparent;
+}
+
+.header__link {
+  padding: 10px 16px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.header__links {
+  display: flex;
+  gap: 12px;
+  margin-left: auto;
 }
 
 .menu-rail {
@@ -1098,6 +1111,14 @@ body[data-mode="tablet"] .stack {
 
 body[data-mode="tablet"].menu-open .header {
   transform: translateX(calc(var(--rail-open) - var(--rail-closed)));
+}
+
+body[data-mode="tablet"] .header__links {
+  gap: 8px;
+}
+
+body[data-mode="mobile"] .header__links {
+  display: none; /* Скрыть ссылки на малых экранах для предотвращения overflow */
 }
 
 /* Сдвиг header в desktop режимах при открытии меню */
