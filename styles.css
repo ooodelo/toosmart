@@ -239,7 +239,7 @@ body[data-input="pointer"].is-slid .menu-rail {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 16px 1px 16px 10px; /* left: 10px (сдвиг), right: 1px (контроль итоговой ширины ~39px) */
+  padding: 16px 6px 16px 10px; /* left: 10px (сдвиг), right: 6px (контроль итоговой ширины ~44px) */
   cursor: pointer;
   background: #D9D9D9;
   pointer-events: auto;
@@ -620,7 +620,7 @@ body[data-mode="mobile"] .text-section table {
   max-width: min(42vw, 360px);
   max-height: min(70vh, 520px);
   overflow: auto;
-  padding: 16px 18px;
+  padding: 35px 25px; /* верх/низ: 35px, право/лево: 25px */
 
   /* Визуальный стиль - базовый непрозрачный фон (работает везде) */
   background: rgba(255, 255, 255, 0.98);
