@@ -306,20 +306,20 @@ function updateRailClosedWidth() {
   const menuHandle = document.querySelector('.menu-handle');
   if (!menuHandle) return;
 
-  // Измеряем фактическую ширину контента (offsetWidth = content + padding + border)
-  const width = menuHandle.offsetWidth;
+  // Используем getBoundingClientRect для точного измерения видимой ширины
+  // Это учитывает все трансформации, margin, padding и даёт реальную позицию элемента
+  const menuRail = document.querySelector('.menu-rail');
+  if (!menuRail) return;
 
-  // Получаем margin-left (отрицательный: -15px)
-  const computedStyle = window.getComputedStyle(menuHandle);
-  const marginLeft = parseInt(computedStyle.marginLeft) || 0;
+  const handleRect = menuHandle.getBoundingClientRect();
+  const railRect = menuRail.getBoundingClientRect();
 
-  // --rail-closed должен компенсировать margin-left для правильного transform
-  // Эффективная ширина = offsetWidth + abs(marginLeft)
-  // Пример: 44px + 15px = 59px
-  const effectiveWidth = width + Math.abs(marginLeft);
+  // Видимая ширина = правый край handle относительно левого края rail
+  // Это точно соответствует тому, что видит пользователь
+  const visibleWidth = handleRect.right - railRect.left;
 
   // Обновляем CSS переменную для grid-колонки и анимаций
-  document.documentElement.style.setProperty('--rail-closed', `${effectiveWidth}px`);
+  document.documentElement.style.setProperty('--rail-closed', `${Math.round(visibleWidth)}px`);
 }
 
 function teardownObserver() {
@@ -1560,8 +1560,7 @@ function init() {
   // Feature detection
   detectBackdropFilter();
 
-  updateMode();
-  updateRailClosedWidth(); // Измерить и установить фактическую ширину полоски меню
+  updateMode(); // updateMode() уже вызывает updateRailClosedWidth()
   initDots();
   initDotsFlyout(); // Flyout меню для navigation dots
   initMenuInteractions();
