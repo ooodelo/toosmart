@@ -121,10 +121,10 @@ html[data-lock="scroll"] {
 .header {
   position: sticky;
   top: 0;
-  z-index: 200;
+  z-index: 1600; /* Поверх меню (menu-rail z-index: 1500) */
   display: flex;
   align-items: center;
-  gap: 16px;
+  justify-content: center; /* Центрируем logo по горизонтали */
   padding: 0 var(--gap-page);
   height: 85px;
   background: #D9D9D9;
@@ -154,8 +154,6 @@ body[data-scroll="down"] .header {
 }
 
 /* Элементы с рамками и скруглением */
-.header__hand,
-.header__link,
 .dock-handle,
 .stack__intro {
   border-radius: 12px;
@@ -184,33 +182,14 @@ body[data-scroll="down"] .header {
   background: transparent;
 }
 
-.header__hand,
-.header__link {
-  padding: 10px 16px;
-}
-
-.header__links {
-  display: flex;
-  gap: 12px;
-  margin-left: auto;
-}
-
-.header__link {
-  text-decoration: none;
-  color: inherit;
-}
-
-/* Стили для картинки логотипа */
+/* Стили для SVG логотипа */
 .header__logo {
   display: block;
-  height: 150px;
+  height: auto;
   width: auto;
-  max-width: 150px;
+  max-width: min(80vw, 600px); /* Адаптивная ширина, но не более 600px */
+  max-height: 50px; /* Фиксированная высота для компактности */
   object-fit: contain;
-  flex-shrink: 0;
-  margin-top: -15px;
-  margin-bottom: -60px;
-  margin-left: 2px;
   padding: 0;
   border: none;
   background: transparent;
@@ -1096,13 +1075,6 @@ body[data-mode="tablet"] .stack {
   align-self: center;
 }
 
-body[data-mode="tablet"] .header__links {
-  gap: 8px;
-}
-
-body[data-mode="mobile"] .header__links {
-  display: none; /* Скрыть ссылки на малых экранах для предотвращения overflow */
-}
 
 body[data-mode="tablet"].menu-open .header {
   transform: translateX(calc(var(--rail-open) - var(--rail-closed)));
