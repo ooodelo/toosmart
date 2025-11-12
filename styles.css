@@ -24,7 +24,7 @@
   /* Отступы и размеры */
   --gap-page: 32px;
   --stack-gap: 20px;
-  --rail-closed: 70px;
+  --rail-closed: 50px;
   --rail-open: 320px;
   --stack-top: 16px;
   --stack-bottom: 16px;
@@ -200,6 +200,7 @@ body[data-input="pointer"].is-slid .menu-rail {
 
 .menu-handle__label {
   font-weight: 600;
+  transform: translateX(-5px);
 }
 
 .menu-rail__cap {
