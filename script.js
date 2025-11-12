@@ -306,20 +306,13 @@ function updateRailClosedWidth() {
   const menuHandle = document.querySelector('.menu-handle');
   if (!menuHandle) return;
 
-  // Используем getBoundingClientRect для точного измерения видимой ширины
-  // Это учитывает все трансформации, margin, padding и даёт реальную позицию элемента
-  const menuRail = document.querySelector('.menu-rail');
-  if (!menuRail) return;
-
-  const handleRect = menuHandle.getBoundingClientRect();
-  const railRect = menuRail.getBoundingClientRect();
-
-  // Видимая ширина = правый край handle относительно левого края rail
-  // Это точно соответствует тому, что видит пользователь
-  const visibleWidth = handleRect.right - railRect.left;
+  // Измеряем фактическую ширину menu-handle (offsetWidth = content + padding + border)
+  // Это и есть ширина второй grid-колонки в grid-template-columns
+  // margin-left НЕ влияет на ширину grid-колонки, только сдвигает элемент
+  const width = menuHandle.offsetWidth;
 
   // Обновляем CSS переменную для grid-колонки и анимаций
-  document.documentElement.style.setProperty('--rail-closed', `${Math.round(visibleWidth)}px`);
+  document.documentElement.style.setProperty('--rail-closed', `${width}px`);
 }
 
 function teardownObserver() {
