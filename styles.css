@@ -1450,7 +1450,8 @@ body[data-mode="mobile"] #pw-root.is-positioned-relative {
 }
 
 /* Когда меню открыто: виджет под меню и под кнопкой меню */
-body[data-mode="mobile"].menu-open #pw-root {
+body[data-mode="mobile"].menu-open #pw-root,
+body[data-mode="mobile"] #pw-root.is-menu-covered {
   z-index: 1400 !important; /* Ниже menu-rail (1500) и dock (1600) */
 }
 
