@@ -1427,20 +1427,25 @@ body[data-mode="mobile"] #pw-root {
   margin: 0;
   order: 2;
   width: min(var(--pw-pill-width), 90%);
-  transition: all 600ms cubic-bezier(0.4, 0.02, 0.2, 1); /* Плавная анимация */
+  /* Transition только для transform и left (не для position!) */
+  transition: transform 600ms cubic-bezier(0.4, 0.02, 0.2, 1) 950ms,
+              left 600ms cubic-bezier(0.4, 0.02, 0.2, 1) 950ms;
 }
 
-/* После 100%: переезд в центр и относительное позиционирование */
+/* После 100%: переезд в центр (оставляем fixed, анимируем только позицию) */
 body[data-mode="mobile"] #pw-root.is-done {
-  position: relative !important;
-  left: auto;
-  bottom: auto;
-  margin: 16px auto;
-  transform: translateX(0); /* Финальная позиция по центру */
+  /* Оставляем fixed - НЕ меняем на relative во время анимации! */
+  left: 50%;
+  transform: translateX(-50%); /* Центрируем через transform */
+  /* Position НЕ меняется - остается fixed */
 }
 
 /* Отключение анимаций для prefers-reduced-motion */
 @media (prefers-reduced-motion: reduce) {
+  body[data-mode="mobile"] #pw-root {
+    transition: none !important;
+  }
+
   #pw-root,
   #pw-root *,
   #pw-root .pw-dot,
