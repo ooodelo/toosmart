@@ -5,57 +5,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:;" />
     <title>UI-каркас адаптивов</title>
+    <script src="mode-utils.js"></script>
     <script>
       (function () {
-        var d = document;
-        var r = d.documentElement;
+        var win = window;
+        var d = win.document;
+        var ModeUtils = win.ModeUtils;
 
-        function detectInitialMode() {
-          var w = window.innerWidth || r.clientWidth;
-
-          // Определяем возможности устройства
-          var hasHover = window.matchMedia && window.matchMedia('(hover: hover)').matches;
-          var hasAnyCoarse = window.matchMedia && window.matchMedia('(any-pointer: coarse)').matches;
-          var hasTouchPoints = navigator.maxTouchPoints > 0;
-          var isTouchDevice = hasAnyCoarse || hasTouchPoints;
-
-          // Touch устройства: упрощенная схема (mobile/tablet/desktop)
-          if (isTouchDevice) {
-            if (w < 768) {
-              return 'mobile';
-            } else if (w < 900) {
-              return 'tablet';
-            } else {
-              return 'desktop'; // touch останавливается на desktop
-            }
-          }
-
-          // Non-touch устройства: полный диапазон режимов (все 4)
-          if (w < 768) {
-            return 'mobile';
-          } else if (w < 900) {
-            return 'tablet';
-          } else if (w < 1280) {
-            return 'desktop';
-          } else {
-            return 'desktop-wide';
-          }
+        if (!ModeUtils) {
+          return;
         }
 
-        var m = detectInitialMode();
-        window.__INITIAL_MODE__ = m;
+        var initialState = ModeUtils.detectInitialState(win, d);
+        var mode = initialState.mode;
+        var input = initialState.input;
 
-        function applyInitialMode() {
-          if (!d.body) {
+        win.__INITIAL_MODE__ = mode;
+        if (typeof input === 'string') {
+          win.__INITIAL_INPUT__ = input;
+        }
+
+        function applyInitialState() {
+          if (!ModeUtils.applyStateToBody(d, initialState)) {
             return false;
           }
-          d.body.dataset.mode = m;
           return true;
         }
 
-        if (!applyInitialMode()) {
+        if (!applyInitialState()) {
           d.addEventListener('readystatechange', function onReady() {
-            if (d.readyState !== 'loading' && applyInitialMode()) {
+            if (d.readyState !== 'loading' && applyInitialState()) {
               d.removeEventListener('readystatechange', onReady);
             }
           });

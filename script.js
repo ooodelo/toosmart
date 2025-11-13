@@ -29,11 +29,21 @@
 
 console.log('🚀 script.js loading...');
 
+const ModeUtils = window.ModeUtils;
+
+if (!ModeUtils) {
+  throw new Error('ModeUtils module is required for responsive mode detection.');
+}
+
 const root = document.documentElement;
 const body = document.body;
 const initialMode = window.__INITIAL_MODE__;
 if (typeof initialMode === 'string') {
   delete window.__INITIAL_MODE__;
+}
+const initialInput = window.__INITIAL_INPUT__;
+if (typeof initialInput === 'string') {
+  delete window.__INITIAL_INPUT__;
 }
 const menuRail = document.querySelector('.menu-rail');
 const header = document.querySelector('.header');
@@ -49,7 +59,11 @@ const sections = Array.from(document.querySelectorAll('.text-section'));
 const menuCap = document.querySelector('.menu-rail__cap');
 
 let currentMode = body.dataset.mode || initialMode || 'desktop';
-let currentInput = body.dataset.input || 'pointer';
+let currentInput = body.dataset.input || initialInput || 'pointer';
+
+if (!body.dataset.input && typeof initialInput === 'string') {
+  body.dataset.input = initialInput;
+}
 let activeSectionId = sections[0]?.id ?? null;
 let previousFocus = null;
 let trapListenerAttached = false;
@@ -77,70 +91,47 @@ function parseCssNumber(value) {
   return Number.isFinite(result) ? result : 0;
 }
 
-/**
- * Определяет тип ввода (input capability)
- * @returns {'touch' | 'pointer'} - тип устройства ввода
- */
 function detectInput() {
-  // Проверяем наличие сенсорного ввода
-  const hasCoarsePointer = window.matchMedia && window.matchMedia('(any-pointer: coarse)').matches;
-  const hasTouchPoints = navigator.maxTouchPoints > 0;
-  const isTouchDevice = hasCoarsePointer || hasTouchPoints;
+  const result = ModeUtils.detectInput(window);
 
   if (window.DEBUG_MODE_DETECTION) {
     console.log('[DEBUG] detectInput():', {
-      hasCoarsePointer,
-      hasTouchPoints,
-      result: isTouchDevice ? 'touch' : 'pointer',
+      result,
     });
   }
 
-  return isTouchDevice ? 'touch' : 'pointer';
+  return result;
 }
 
-/**
- * Классифицирует режим верстки на основе ширины и типа ввода
- * @param {number} width - ширина viewport
- * @param {'touch' | 'pointer'} inputType - тип ввода
- * @returns {'mobile' | 'tablet' | 'desktop' | 'desktop-wide'} - режим верстки
- */
-function classifyMode(width, inputType) {
-  const isTouchDevice = inputType === 'touch';
-
-  let mode;
-
-  // Touch устройства: упрощенная схема (mobile/tablet/desktop)
-  if (isTouchDevice) {
-    if (width < 768) {
-      mode = 'mobile';
-    } else if (width < 900) {
-      mode = 'tablet';
-    } else {
-      mode = 'desktop'; // touch останавливается на desktop
-    }
-  }
-  // Non-touch устройства: полный диапазон режимов (все 4)
-  else {
-    if (width < 768) {
-      mode = 'mobile';
-    } else if (width < 900) {
-      mode = 'tablet';
-    } else if (width < 1280) {
-      mode = 'desktop';
-    } else {
-      mode = 'desktop-wide';
-    }
-  }
+function detectMode(inputType) {
+  const sources = ModeUtils.getWidthSources(window, root);
+  const result = ModeUtils.detectMode(window, root, inputType);
 
   if (window.DEBUG_MODE_DETECTION) {
-    console.log('[DEBUG] classifyMode():', {
-      width,
-      isTouchDevice,
-      mode,
-    });
+    let selectedSource = null;
+    if (Array.isArray(sources)) {
+      for (const entry of sources) {
+        if (entry && typeof entry.value === 'number' && Number.isFinite(entry.value) && entry.value > 0) {
+          selectedSource = entry;
+          break;
+        }
+      }
+    }
+
+    const debugPayload = {
+      inputType,
+      result,
+    };
+
+    if (selectedSource) {
+      debugPayload.width = selectedSource.value;
+      debugPayload.widthSource = selectedSource.source;
+    }
+
+    console.log('[DEBUG] detectMode():', debugPayload);
   }
 
-  return mode;
+  return result;
 }
 
 function updateLayoutMetrics() {
@@ -175,51 +166,6 @@ function scheduleLayoutMetricsUpdate() {
     layoutMetricsRaf = null;
     updateLayoutMetrics();
   });
-}
-
-/**
- * Определяет режим верстки на основе текущей ширины viewport
- * @param {'touch' | 'pointer'} inputType - тип ввода
- * @returns {'mobile' | 'tablet' | 'desktop' | 'desktop-wide'} - режим верстки
- */
-function detectMode(inputType) {
-  // Приоритет источников ширины:
-  // 1. visualViewport.width - самый точный, учитывает zoom и виртуальную клавиатуру
-  // 2. root.clientWidth - надежный для Safari Dev Tools
-  // 3. window.innerWidth - стандартный fallback
-  // 4. window.outerWidth - крайний fallback
-  // 5. screen.width - последний fallback
-  const sources = [
-    window.visualViewport?.width,
-    root?.clientWidth,
-    window.innerWidth,
-    window.outerWidth,
-    window.screen?.width,
-  ];
-
-  for (const value of sources) {
-    if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
-      if (window.DEBUG_MODE_DETECTION) {
-        console.log('[DEBUG] detectMode() using width:', value);
-      }
-      return classifyMode(value, inputType);
-    }
-  }
-
-  const mediaFallbacks = [
-    ['mobile', '(max-width: 767px)'],
-    ['tablet', '(min-width: 768px) and (max-width: 899px)'],
-    ['desktop', '(min-width: 900px) and (max-width: 1279px)'],
-    ['desktop-wide', '(min-width: 1280px)'],
-  ];
-
-  for (const [mode, query] of mediaFallbacks) {
-    if (typeof window.matchMedia === 'function' && window.matchMedia(query).matches) {
-      return mode;
-    }
-  }
-
-  return 'desktop';
 }
 
 /**
