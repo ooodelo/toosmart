@@ -1507,9 +1507,16 @@ function initProgressWidget() {
       root.setAttribute('aria-disabled', 'false');
       root.setAttribute('aria-label', 'Кнопка: Далее');
       playForward();
+
+      // После завершения анимации (950ms задержка + 600ms анимация = 1550ms)
+      // меняем position с fixed на relative
+      setTimeout(() => {
+        root.classList.add('is-positioned-relative');
+      }, 1550);
     } else if (!shouldBeDone && doneState) {
       doneState = false;
       root.classList.remove('is-done');
+      root.classList.remove('is-positioned-relative');
       root.setAttribute('aria-disabled', 'true');
       root.setAttribute('aria-label', 'Прогресс чтения: ' + perc + '%');
       playReverse();
