@@ -983,7 +983,8 @@ body.menu-open .backdrop {
 .dock-handle {
   padding: 0 24px;
   margin-bottom: 20px; /* Визуальный отступ от нижней границы экрана */
-  font-weight: 600;
+  font-weight: 900;
+  letter-spacing: 0.08em;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1420,8 +1421,8 @@ body[data-mode="tablet"] #pw-root {
 /* Mobile: fixed слева пока < 100%, потом переезжает в центр */
 body[data-mode="mobile"] #pw-root {
   position: fixed !important;
-  left: 20px;
-  bottom: 100px; /* Выше dock кнопки */
+  left: 0; /* Прижато к левому краю экрана */
+  bottom: 45px; /* Центр dock-handle: margin-bottom (20px) + height/2 (25px) */
   z-index: 1700; /* Поверх всего (dock = 1600, header = 1600) */
   margin: 0;
   order: 2;
