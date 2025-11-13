@@ -462,6 +462,12 @@ function detachTrap() {
 function openMenu({ focusOrigin = menuHandle } = {}) {
   body.classList.remove('is-slid');
   body.classList.add('menu-open');
+
+  // В mobile/tablet режимах - показываем header (удаляем data-scroll)
+  if (currentMode === 'mobile' || currentMode === 'tablet') {
+    body.removeAttribute('data-scroll');
+  }
+
   previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   if (currentMode !== 'desktop') {
     siteMenu.setAttribute('role', 'dialog');

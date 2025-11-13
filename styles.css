@@ -832,7 +832,7 @@ body[data-mode="mobile"] .dot-flyout {
 
 /* Карусель рекомендаций */
 .stack-carousel {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   position: relative;
   overflow: hidden;
   min-height: 0;
@@ -1261,7 +1261,7 @@ body[data-mode="mobile"] .header {
   padding-right: 16px;
 }
 
-/* Мобильная версия: header не двигается при открытии меню */
+/* Мобильная версия: header всегда видим и не двигается при открытии меню */
 body[data-mode="mobile"].menu-open .header {
   transform: none !important;
 }
