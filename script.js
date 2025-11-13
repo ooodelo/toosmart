@@ -803,6 +803,34 @@ function smoothScrollTo(element) {
 }
 
 /**
+ * Безопасно обновляет hash в адресной строке, не теряя историю
+ * @param {string} hash
+ */
+function updateLocationHash(hash) {
+  if (typeof hash !== 'string') return;
+  const trimmed = hash.trim();
+  if (!trimmed || trimmed === '#') return;
+
+  const normalized = trimmed.startsWith('#') ? trimmed : `#${trimmed}`;
+  if (window.location.hash === normalized) {
+    // Совпадает с текущим hash — дополнительная запись в историю не нужна
+    return;
+  }
+
+  try {
+    if (typeof history.pushState === 'function') {
+      history.pushState(null, '', normalized);
+      return;
+    }
+  } catch (error) {
+    console.warn('[MenuLinks] Failed to pushState for hash update', error);
+  }
+
+  // Фолбэк для старых браузеров
+  window.location.hash = normalized;
+}
+
+/**
  * Удаление event listeners для flyout
  */
 function detachFlyoutListeners() {
@@ -1415,6 +1443,12 @@ function initMenuLinks() {
 
   links.forEach((link) => {
     const handler = (event) => {
+      if (event.defaultPrevented) return;
+      if (event.button !== 0) return; // только основная кнопка мыши
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+        return; // дать возможность открыть ссылку в новой вкладке
+      }
+
       event.preventDefault();
       const href = link.getAttribute('href');
       if (!href || href === '#') {
@@ -1422,7 +1456,11 @@ function initMenuLinks() {
       }
       const target = document.querySelector(href);
       if (target instanceof HTMLElement) {
-        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        smoothScrollTo(target);
+        updateLocationHash(href);
+        if (target.id) {
+          setActiveSection(target.id);
+        }
       }
       if (currentMode === 'mobile' || currentMode === 'tablet') {
         const origin = currentMode === 'mobile' ? dockHandle : menuHandle;
