@@ -157,6 +157,7 @@ body[data-scroll="down"] .header {
 body[data-mode="mobile"].menu-open .header,
 body[data-mode="tablet"].menu-open .header {
   transform: translateY(0) !important;
+  transition: none !important; /* Отключить анимацию - немедленное появление */
 }
 
 /* Элементы с рамками и скруглением */

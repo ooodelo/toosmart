@@ -469,6 +469,13 @@ function openMenu({ focusOrigin = menuHandle } = {}) {
   body.classList.remove('is-slid');
   body.classList.add('menu-open');
 
+  // Форсированное удаление data-scroll ПОСЛЕ добавления menu-open (двойная защита)
+  if (currentMode === 'mobile' || currentMode === 'tablet') {
+    requestAnimationFrame(() => {
+      body.removeAttribute('data-scroll');
+    });
+  }
+
   previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   if (currentMode !== 'desktop') {
     siteMenu.setAttribute('role', 'dialog');
@@ -1271,6 +1278,10 @@ function attachScrollHideHeader() {
 
     // Если меню открыто - не меняем состояние header (не скрываем/показываем)
     if (body.classList.contains('menu-open')) {
+      // Принудительно удаляем data-scroll если он каким-то образом установлен
+      if (body.hasAttribute('data-scroll')) {
+        body.removeAttribute('data-scroll');
+      }
       scrollTicking = false;
       return;
     }
