@@ -980,8 +980,13 @@ body.menu-open .backdrop {
   /* width, height, border-radius, color определены выше */
 }
 
-body[data-input="pointer"].is-slid .header,
-body.menu-open .header {
+/* Desktop/tablet: сдвиг header при открытии меню или is-slid */
+body[data-mode="desktop"][data-input="pointer"].is-slid .header,
+body[data-mode="desktop-wide"][data-input="pointer"].is-slid .header,
+body[data-mode="tablet"][data-input="pointer"].is-slid .header,
+body[data-mode="desktop"].menu-open .header,
+body[data-mode="desktop-wide"].menu-open .header,
+body[data-mode="tablet"].menu-open .header {
   transform: translateX(calc(var(--rail-open) - var(--rail-closed)));
 }
 
@@ -1136,17 +1141,6 @@ body[data-mode="tablet"] .stack {
   padding: var(--gap-page);
   height: auto;
   align-self: center;
-}
-
-
-body[data-mode="tablet"].menu-open .header {
-  transform: translateX(calc(var(--rail-open) - var(--rail-closed)));
-}
-
-/* Сдвиг header в desktop режимах при открытии меню */
-body[data-mode="desktop"].menu-open .header,
-body[data-mode="desktop-wide"].menu-open .header {
-  transform: translateX(calc(var(--rail-open) - var(--rail-closed)));
 }
 
 body[data-mode="mobile"] .main {
