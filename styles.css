@@ -156,6 +156,10 @@ body[data-scroll="down"] .header {
 /* КРИТИЧНО: header всегда виден при открытом меню (перекрывает data-scroll) */
 body[data-mode="mobile"].menu-open .header,
 body[data-mode="tablet"].menu-open .header {
+  position: fixed !important; /* Fixed чтобы гарантировать видимость поверх меню */
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
   transform: translateY(0) !important;
   transition: none !important; /* Отключить анимацию - немедленное появление */
 }
@@ -1200,13 +1204,12 @@ body[data-mode="mobile"] .menu-rail {
   width: auto;
   left: 0;
   right: 0;
-  top: auto;
+  top: 85px; /* Начинается ПОСЛЕ header (header height = 85px) */
   bottom: 0;
   margin: 0;
   border-radius: 24px 24px 0 0;
   transform: translate3d(0, 100%, 0);
-  height: 100vh; /* iOS 15 fallback */
-  height: 100dvh; /* iOS 16+ */
+  height: auto; /* Автоматическая высота от top до bottom */
   pointer-events: none;
   padding-left: env(safe-area-inset-left, 0px);
   padding-right: env(safe-area-inset-right, 0px);
