@@ -82,8 +82,18 @@ let flyoutHandlers = {
 // Включите в Safari Dev Tools: window.DEBUG_MODE_DETECTION = true
 const DEBUG_MODE_DETECTION = window.DEBUG_MODE_DETECTION || false;
 
-// TEMPORARY: Force debug for flyout
-const DEBUG_FLYOUT = true;
+// Debug: toggle flyout diagnostics via window.DEBUG_FLYOUT (defaults to false)
+const DEBUG_FLYOUT = typeof window.DEBUG_FLYOUT === 'boolean' ? window.DEBUG_FLYOUT : false;
+const flyoutLogger = (typeof window.DEBUG_FLYOUT_LOGGER === 'object' && window.DEBUG_FLYOUT_LOGGER)
+  ? window.DEBUG_FLYOUT_LOGGER
+  : console;
+
+function logFlyout(...args) {
+  if (!DEBUG_FLYOUT) return;
+  if (typeof flyoutLogger?.log === 'function') {
+    flyoutLogger.log(...args);
+  }
+}
 let layoutMetricsRaf = null;
 
 function parseCssNumber(value) {
@@ -556,14 +566,12 @@ function detachFlyoutListeners() {
  * Инициализация flyout меню для navigation dots
  */
 function initDotsFlyout() {
-  if (DEBUG_FLYOUT) {
-    console.log('[FLYOUT] initDotsFlyout START', {
-      dotsRail: !!dotsRail,
-      dotFlyout: !!dotFlyout,
-      currentMode,
-      sectionsLength: sections.length
-    });
-  }
+  logFlyout('[FLYOUT] initDotsFlyout START', {
+    dotsRail: !!dotsRail,
+    dotFlyout: !!dotFlyout,
+    currentMode,
+    sectionsLength: sections.length
+  });
 
   if (!dotsRail || !dotFlyout) {
     console.error('[FLYOUT] ERROR: dotsRail or dotFlyout not found!', {
@@ -576,18 +584,16 @@ function initDotsFlyout() {
   // Flyout показывается только в desktop/desktop-wide
   const shouldEnable = (currentMode === 'desktop' || currentMode === 'desktop-wide') && sections.length >= 2;
 
-  if (DEBUG_FLYOUT) {
-    console.log('[FLYOUT] Should enable?', {
-      currentMode,
-      shouldEnable,
-      sectionsCount: sections.length,
-      isDesktopOrWide: (currentMode === 'desktop' || currentMode === 'desktop-wide'),
-      hasEnoughSections: sections.length >= 2
-    });
-  }
+  logFlyout('[FLYOUT] Should enable?', {
+    currentMode,
+    shouldEnable,
+    sectionsCount: sections.length,
+    isDesktopOrWide: (currentMode === 'desktop' || currentMode === 'desktop-wide'),
+    hasEnoughSections: sections.length >= 2
+  });
 
   if (!shouldEnable) {
-    if (DEBUG_FLYOUT) console.log('[FLYOUT] Disabled - hiding');
+    logFlyout('[FLYOUT] Disabled - hiding');
     dotFlyout.setAttribute('hidden', '');
     detachFlyoutListeners();
     return;
@@ -614,28 +620,26 @@ function initDotsFlyout() {
       dotFlyout.appendChild(btn);
     });
 
-    if (DEBUG_FLYOUT) {
-      console.log('[FLYOUT] Built menu with', sections.length, 'items');
-    }
+    logFlyout('[FLYOUT] Built menu with', sections.length, 'items');
   }
 
   // Показ flyout с задержкой при закрытии
   function showFlyout() {
-    console.log('[FLYOUT] ⭐ showFlyout called!');
+    logFlyout('[FLYOUT] ⭐ showFlyout called!');
     if (flyoutHideTimeout) {
       clearTimeout(flyoutHideTimeout);
       flyoutHideTimeout = null;
     }
     dotFlyout.removeAttribute('hidden');
-    console.log('[FLYOUT] hidden attribute removed, current:', dotFlyout.getAttribute('hidden'));
+    logFlyout('[FLYOUT] hidden attribute removed, current:', dotFlyout.getAttribute('hidden'));
   }
 
   function hideFlyout() {
-    console.log('[FLYOUT] hideFlyout called');
+    logFlyout('[FLYOUT] hideFlyout called');
     flyoutHideTimeout = setTimeout(() => {
       dotFlyout.setAttribute('hidden', '');
       flyoutHideTimeout = null;
-      console.log('[FLYOUT] hidden attribute set');
+      logFlyout('[FLYOUT] hidden attribute set');
     }, 120); // Задержка 120ms как в templates
   }
 
@@ -723,10 +727,8 @@ function initDotsFlyout() {
 
   flyoutListenersAttached = true;
 
-  if (DEBUG_FLYOUT) {
-    console.log('[FLYOUT] ✅ Event listeners attached successfully!');
-    console.log('[FLYOUT] Try hovering over dots now...');
-  }
+  logFlyout('[FLYOUT] ✅ Event listeners attached successfully!');
+  logFlyout('[FLYOUT] Try hovering over dots now...');
 
   // Обновление активного элемента при смене секции
   const originalSetActiveSection = window.setActiveSection || setActiveSection;
