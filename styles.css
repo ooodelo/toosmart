@@ -805,7 +805,7 @@ body[data-mode="mobile"] .dot-flyout {
   transform: translate(-50%, -50%);
   width: min(280px, 100%);
   height: clamp(600px, 80vh, 860px);
-  background: rgba(213, 216, 232, 0.5);
+  background: rgba(213, 216, 232, 0.85);
   border-radius: 9999px;
   filter: blur(80px);
   z-index: 0;
@@ -841,7 +841,7 @@ body[data-mode="mobile"] .dot-flyout {
 .stack-slide {
   display: flex;
   flex-direction: column;
-  gap: 45px;
+  gap: 50px;
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.5s ease, visibility 0.5s ease;
@@ -858,21 +858,51 @@ body[data-mode="mobile"] .dot-flyout {
 }
 
 .stack-card {
-  padding: 16px;
+  height: 200px;
+  margin: 25px;
+  padding: 0;
   background: var(--surface);
-  line-height: 1.4;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.stack-card__image {
+  height: 40%;
+  background: transparent;
+  flex-shrink: 0;
+}
+
+.stack-card__content {
+  flex: 1;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .stack-card h3 {
-  margin: 0 0 8px;
+  margin: 0;
   font-size: 16px;
   font-weight: 800;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .stack-card p {
   margin: 0;
   font-size: 14px;
   color: var(--text-secondary);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 /* Индикатор прогресса (точки) */
@@ -880,7 +910,7 @@ body[data-mode="mobile"] .dot-flyout {
   display: flex;
   justify-content: center;
   gap: 8px;
-  margin-top: 16px;
+  margin-top: 50px;
   padding: 8px 0;
 }
 
@@ -1204,14 +1234,7 @@ body[data-mode="mobile"] .menu-rail__cap span {
 
 body[data-mode="mobile"] .menu-rail__cap span::after {
   content: "";
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: rgb(20, 20, 20);
-  box-shadow:
-    12px 0 0 rgb(20, 20, 20),
-    24px 0 0 rgb(20, 20, 20),
-    36px 0 0 rgb(20, 20, 20);
+  display: none;
 }
 
 body[data-mode="mobile"].menu-open .menu-rail {
