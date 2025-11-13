@@ -66,10 +66,10 @@ if (!body.dataset.input && typeof initialInput === 'string') {
 }
 let activeSectionId = sections[0]?.id ?? null;
 let previousFocus = null;
-let trapListenerAttached = false;
+let trapDisposer = null;
 let observer = null;
 let edgeGestureHandler = null;
-let flyoutHideTimeout = null;
+let flyoutHideTimeoutCancel = null;
 let flyoutListenersAttached = false;
 let flyoutHandlers = {
   showFlyout: null,
@@ -77,6 +77,10 @@ let flyoutHandlers = {
   handleFlyoutClick: null,
   handleFlyoutKeyboard: null
 };
+let flyoutDisposers = [];
+let restoreSetActiveSection = null;
+let menuSwipeDisposers = [];
+let edgeGestureDisposer = null;
 
 // Debug mode: установите в true для вывода информации о режимах в консоль
 // Включите в Safari Dev Tools: window.DEBUG_MODE_DETECTION = true
@@ -95,6 +99,232 @@ function logFlyout(...args) {
   }
 }
 let layoutMetricsRaf = null;
+
+const APP_GLOBAL_KEY = '__TOOSMART_APP__';
+
+function createLifecycleRegistry(label) {
+  const records = [];
+
+  function track(disposer, meta = {}) {
+    if (typeof disposer !== 'function') {
+      return () => {};
+    }
+
+    const record = {
+      meta: { label, ...meta },
+      active: true,
+      dispose: null,
+    };
+
+    record.dispose = () => {
+      if (!record.active) return;
+      record.active = false;
+      try {
+        disposer();
+      } catch (error) {
+        console.error('[Lifecycle] Failed to dispose resource', {
+          label,
+          meta: record.meta,
+          error,
+        });
+      }
+    };
+
+    records.push(record);
+    return () => record.dispose();
+  }
+
+  function disposeAll() {
+    for (let i = records.length - 1; i >= 0; i -= 1) {
+      records[i].dispose();
+    }
+  }
+
+  function report() {
+    return records.map((record) => ({
+      ...record.meta,
+      active: record.active,
+    }));
+  }
+
+  return {
+    track,
+    disposeAll,
+    report,
+    label,
+  };
+}
+
+let activeLifecycle = null;
+
+function getActiveLifecycle() {
+  return activeLifecycle;
+}
+
+function setActiveLifecycle(registry) {
+  activeLifecycle = registry;
+}
+
+function describeTarget(target) {
+  if (!target) return 'unknown';
+  if (target === window) return 'window';
+  if (target === document) return 'document';
+  if (target === document.documentElement) return 'documentElement';
+  if (target === document.body) return 'body';
+  if (target instanceof Element) {
+    if (target.id) return `#${target.id}`;
+    if (target.classList && target.classList.length) {
+      return `${target.tagName.toLowerCase()}.${Array.from(target.classList).join('.')}`;
+    }
+    return target.tagName ? target.tagName.toLowerCase() : 'element';
+  }
+  return String(target);
+}
+
+function normalizeListenerOptions(options) {
+  if (options === undefined) return undefined;
+  if (options === null) return null;
+  if (typeof options === 'boolean') {
+    return { capture: options };
+  }
+  if (typeof options === 'object') {
+    const normalized = {};
+    if ('capture' in options) normalized.capture = !!options.capture;
+    if ('once' in options) normalized.once = !!options.once;
+    if ('passive' in options) normalized.passive = !!options.passive;
+    return normalized;
+  }
+  return options;
+}
+
+function registerLifecycleDisposer(disposer, meta) {
+  const lifecycle = getActiveLifecycle();
+  if (!lifecycle) {
+    return () => {
+      try {
+        disposer?.();
+      } catch (error) {
+        console.error('[Lifecycle] Disposer failed outside lifecycle', { meta, error });
+      }
+    };
+  }
+
+  return lifecycle.track(() => {
+    try {
+      disposer?.();
+    } catch (error) {
+      console.error('[Lifecycle] Disposer failed', { meta, error });
+    }
+  }, meta);
+}
+
+function trackEvent(target, type, handler, options, meta = {}) {
+  if (!target || typeof target.addEventListener !== 'function') {
+    return () => {};
+  }
+
+  target.addEventListener(type, handler, options);
+
+  return registerLifecycleDisposer(() => {
+    if (target && typeof target.removeEventListener === 'function') {
+      target.removeEventListener(type, handler, options);
+    }
+  }, {
+    kind: 'event',
+    event: type,
+    target: describeTarget(target),
+    options: normalizeListenerOptions(options),
+    ...meta,
+  });
+}
+
+function trackMediaQuery(mql, handler, meta = {}) {
+  if (!mql || typeof handler !== 'function') {
+    return () => {};
+  }
+
+  let unsubscribe = null;
+  if (typeof mql.addEventListener === 'function') {
+    mql.addEventListener('change', handler);
+    unsubscribe = () => {
+      if (typeof mql.removeEventListener === 'function') {
+        mql.removeEventListener('change', handler);
+      }
+    };
+  } else if (typeof mql.addListener === 'function') {
+    mql.addListener(handler);
+    unsubscribe = () => {
+      if (typeof mql.removeListener === 'function') {
+        mql.removeListener(handler);
+      }
+    };
+  }
+
+  if (!unsubscribe) {
+    return () => {};
+  }
+
+  return registerLifecycleDisposer(() => {
+    unsubscribe();
+    unsubscribe = null;
+  }, {
+    kind: 'media-query',
+    target: '(media query)',
+    ...meta,
+  });
+}
+
+function trackTimeout(callback, delay, meta = {}) {
+  let cleared = false;
+  const wrapped = () => {
+    if (!cleared) {
+      cleared = true;
+      callback();
+    }
+  };
+  const id = window.setTimeout(wrapped, delay);
+
+  return registerLifecycleDisposer(() => {
+    if (!cleared) {
+      cleared = true;
+      window.clearTimeout(id);
+    }
+  }, {
+    kind: 'timeout',
+    delay,
+    ...meta,
+  });
+}
+
+function trackInterval(callback, delay, meta = {}) {
+  const id = window.setInterval(callback, delay);
+  let cleared = false;
+
+  return registerLifecycleDisposer(() => {
+    if (!cleared) {
+      cleared = true;
+      window.clearInterval(id);
+    }
+  }, {
+    kind: 'interval',
+    delay,
+    ...meta,
+  });
+}
+
+function trackObserver(observer, meta = {}) {
+  if (!observer || typeof observer.disconnect !== 'function') {
+    return () => {};
+  }
+
+  return registerLifecycleDisposer(() => {
+    observer.disconnect();
+  }, {
+    kind: 'observer',
+    ...meta,
+  });
+}
+
 
 function parseCssNumber(value) {
   const result = Number.parseFloat(value);
@@ -404,15 +634,17 @@ function trapFocus(event) {
 }
 
 function attachTrap() {
-  if (trapListenerAttached) return;
-  document.addEventListener('keydown', trapFocus);
-  trapListenerAttached = true;
+  if (trapDisposer) return;
+  trapDisposer = trackEvent(document, 'keydown', trapFocus, undefined, {
+    module: 'menu.focusTrap',
+  });
 }
 
 function detachTrap() {
-  if (!trapListenerAttached) return;
-  document.removeEventListener('keydown', trapFocus);
-  trapListenerAttached = false;
+  if (typeof trapDisposer === 'function') {
+    trapDisposer();
+    trapDisposer = null;
+  }
 }
 
 function openMenu({ focusOrigin = menuHandle } = {}) {
@@ -547,19 +779,23 @@ function smoothScrollTo(element) {
  * Удаление event listeners для flyout
  */
 function detachFlyoutListeners() {
-  if (!flyoutListenersAttached) return;
-  if (!dotsRail || !dotFlyout) return;
-
-  if (flyoutHandlers.showFlyout) {
-    dotsRail.removeEventListener('mouseenter', flyoutHandlers.showFlyout);
-    dotsRail.removeEventListener('mouseleave', flyoutHandlers.hideFlyout);
-    dotFlyout.removeEventListener('mouseenter', flyoutHandlers.showFlyout);
-    dotFlyout.removeEventListener('mouseleave', flyoutHandlers.hideFlyout);
-    dotFlyout.removeEventListener('click', flyoutHandlers.handleFlyoutClick);
-    document.removeEventListener('keydown', flyoutHandlers.handleFlyoutKeyboard);
+  if (flyoutDisposers.length === 0) {
+    return;
   }
 
+  for (const dispose of flyoutDisposers) {
+    try {
+      dispose();
+    } catch (error) {
+      console.error('[FLYOUT] Failed to dispose listener', error);
+    }
+  }
+  flyoutDisposers = [];
   flyoutListenersAttached = false;
+  if (typeof flyoutHideTimeoutCancel === 'function') {
+    flyoutHideTimeoutCancel();
+    flyoutHideTimeoutCancel = null;
+  }
 }
 
 /**
@@ -626,9 +862,9 @@ function initDotsFlyout() {
   // Показ flyout с задержкой при закрытии
   function showFlyout() {
     logFlyout('[FLYOUT] ⭐ showFlyout called!');
-    if (flyoutHideTimeout) {
-      clearTimeout(flyoutHideTimeout);
-      flyoutHideTimeout = null;
+    if (typeof flyoutHideTimeoutCancel === 'function') {
+      flyoutHideTimeoutCancel();
+      flyoutHideTimeoutCancel = null;
     }
     dotFlyout.removeAttribute('hidden');
     logFlyout('[FLYOUT] hidden attribute removed, current:', dotFlyout.getAttribute('hidden'));
@@ -636,11 +872,15 @@ function initDotsFlyout() {
 
   function hideFlyout() {
     logFlyout('[FLYOUT] hideFlyout called');
-    flyoutHideTimeout = setTimeout(() => {
+    if (typeof flyoutHideTimeoutCancel === 'function') {
+      flyoutHideTimeoutCancel();
+      flyoutHideTimeoutCancel = null;
+    }
+    flyoutHideTimeoutCancel = trackTimeout(() => {
       dotFlyout.setAttribute('hidden', '');
-      flyoutHideTimeout = null;
+      flyoutHideTimeoutCancel = null;
       logFlyout('[FLYOUT] hidden attribute set');
-    }, 120); // Задержка 120ms как в templates
+    }, 120, { module: 'dotsFlyout', detail: 'hide delay' }); // Задержка 120ms как в templates
   }
 
   // Клик на элемент flyout → scroll к разделу
@@ -712,18 +952,36 @@ function initDotsFlyout() {
   flyoutHandlers.handleFlyoutKeyboard = handleFlyoutKeyboard;
 
   // Hover на dots-rail показывает flyout
-  dotsRail.addEventListener('mouseenter', showFlyout);
-  dotsRail.addEventListener('mouseleave', hideFlyout);
+  flyoutDisposers.push(trackEvent(dotsRail, 'mouseenter', showFlyout, undefined, {
+    module: 'dotsFlyout',
+    target: describeTarget(dotsRail),
+  }));
+  flyoutDisposers.push(trackEvent(dotsRail, 'mouseleave', hideFlyout, undefined, {
+    module: 'dotsFlyout',
+    target: describeTarget(dotsRail),
+  }));
 
   // Hover на flyout предотвращает закрытие
-  dotFlyout.addEventListener('mouseenter', showFlyout);
-  dotFlyout.addEventListener('mouseleave', hideFlyout);
+  flyoutDisposers.push(trackEvent(dotFlyout, 'mouseenter', showFlyout, undefined, {
+    module: 'dotsFlyout',
+    target: describeTarget(dotFlyout),
+  }));
+  flyoutDisposers.push(trackEvent(dotFlyout, 'mouseleave', hideFlyout, undefined, {
+    module: 'dotsFlyout',
+    target: describeTarget(dotFlyout),
+  }));
 
   // Клик на элементы flyout
-  dotFlyout.addEventListener('click', handleFlyoutClick);
+  flyoutDisposers.push(trackEvent(dotFlyout, 'click', handleFlyoutClick, undefined, {
+    module: 'dotsFlyout',
+    target: describeTarget(dotFlyout),
+  }));
 
   // Keyboard navigation
-  document.addEventListener('keydown', handleFlyoutKeyboard);
+  flyoutDisposers.push(trackEvent(document, 'keydown', handleFlyoutKeyboard, undefined, {
+    module: 'dotsFlyout',
+    target: 'document',
+  }));
 
   flyoutListenersAttached = true;
 
@@ -731,16 +989,47 @@ function initDotsFlyout() {
   logFlyout('[FLYOUT] Try hovering over dots now...');
 
   // Обновление активного элемента при смене секции
-  const originalSetActiveSection = window.setActiveSection || setActiveSection;
+  if (restoreSetActiveSection) {
+    restoreSetActiveSection();
+    restoreSetActiveSection = null;
+  }
+
+  const previousGlobalSetActive = typeof window.setActiveSection === 'function'
+    ? window.setActiveSection
+    : null;
+  const baseSetActive = previousGlobalSetActive || setActiveSection;
+
   window.setActiveSection = function(id) {
-    if (typeof originalSetActiveSection === 'function') {
-      originalSetActiveSection(id);
+    if (typeof baseSetActive === 'function') {
+      baseSetActive(id);
     }
     updateFlyoutActiveItem();
   };
 
+  restoreSetActiveSection = () => {
+    if (previousGlobalSetActive) {
+      window.setActiveSection = previousGlobalSetActive;
+    } else {
+      delete window.setActiveSection;
+    }
+  };
+
+  registerLifecycleDisposer(() => {
+    if (restoreSetActiveSection) {
+      restoreSetActiveSection();
+      restoreSetActiveSection = null;
+    }
+  }, { module: 'dotsFlyout', kind: 'global', detail: 'restore setActiveSection bridge' });
+
   // Первоначальное обновление
   updateFlyoutActiveItem();
+
+  registerLifecycleDisposer(() => {
+    detachFlyoutListeners();
+    if (dotFlyout) {
+      dotFlyout.setAttribute('hidden', '');
+    }
+  }, { module: 'dotsFlyout', kind: 'cleanup' });
 }
 
 /**
@@ -788,55 +1077,84 @@ function handleModeUpdate() {
 }
 
 function initMenuInteractions() {
-  menuHandle?.addEventListener('click', () => toggleMenu(menuHandle));
-  menuRail?.addEventListener('mouseenter', () => {
-    if (currentInput !== 'pointer') return;
-    body.classList.add('is-slid');
-  });
-  menuRail?.addEventListener('mouseleave', () => {
-    if (currentInput !== 'pointer') return;
-    body.classList.remove('is-slid');
-  });
-  menuRail?.addEventListener('focusin', () => {
-    if (currentInput !== 'pointer') return;
-    body.classList.add('is-slid');
-  });
-  menuRail?.addEventListener('focusout', (event) => {
-    if (currentInput !== 'pointer') return;
-    if (body.classList.contains('menu-open')) return;
-    const next = event.relatedTarget;
-    if (next && menuRail.contains(next)) return;
-    body.classList.remove('is-slid');
-  });
-  panel?.addEventListener('mouseenter', () => {
-    if (currentInput !== 'pointer') return;
-    body.classList.remove('is-slid');
-  });
-  panel?.addEventListener('focusin', () => {
-    if (currentInput !== 'pointer') return;
-    body.classList.remove('is-slid');
-  });
-  dockHandle?.addEventListener('click', () => {
-    if (currentMode !== 'mobile') return;
-    toggleMenu(dockHandle);
-  });
-  backdrop?.addEventListener('click', () => {
-    if (!body.classList.contains('menu-open')) return;
-    const origin = currentMode === 'mobile' ? dockHandle : menuHandle;
-    closeMenu({ focusOrigin: origin });
-  });
-  menuCap?.addEventListener('click', () => {
-    if (currentMode !== 'mobile') return;
-    if (!body.classList.contains('menu-open')) return;
-    closeMenu({ focusOrigin: dockHandle });
-  });
-  document.addEventListener('keydown', (event) => {
+  if (menuHandle) {
+    trackEvent(menuHandle, 'click', () => toggleMenu(menuHandle), undefined, {
+      module: 'menu.interactions',
+    });
+  }
+
+  if (menuRail) {
+    trackEvent(menuRail, 'mouseenter', () => {
+      if (currentInput !== 'pointer') return;
+      body.classList.add('is-slid');
+    }, undefined, { module: 'menu.interactions', target: describeTarget(menuRail) });
+
+    trackEvent(menuRail, 'mouseleave', () => {
+      if (currentInput !== 'pointer') return;
+      body.classList.remove('is-slid');
+    }, undefined, { module: 'menu.interactions', target: describeTarget(menuRail) });
+
+    trackEvent(menuRail, 'focusin', () => {
+      if (currentInput !== 'pointer') return;
+      body.classList.add('is-slid');
+    }, undefined, { module: 'menu.interactions', target: describeTarget(menuRail) });
+
+    trackEvent(menuRail, 'focusout', (event) => {
+      if (currentInput !== 'pointer') return;
+      if (body.classList.contains('menu-open')) return;
+      const next = event.relatedTarget;
+      if (next && menuRail.contains(next)) return;
+      body.classList.remove('is-slid');
+    }, undefined, { module: 'menu.interactions', target: describeTarget(menuRail) });
+  }
+
+  if (panel) {
+    const panelTarget = describeTarget(panel);
+    trackEvent(panel, 'mouseenter', () => {
+      if (currentInput !== 'pointer') return;
+      body.classList.remove('is-slid');
+    }, undefined, { module: 'menu.interactions', target: panelTarget });
+
+    trackEvent(panel, 'focusin', () => {
+      if (currentInput !== 'pointer') return;
+      body.classList.remove('is-slid');
+    }, undefined, { module: 'menu.interactions', target: panelTarget });
+  }
+
+  if (dockHandle) {
+    trackEvent(dockHandle, 'click', () => {
+      if (currentMode !== 'mobile') return;
+      toggleMenu(dockHandle);
+    }, undefined, { module: 'menu.interactions', target: describeTarget(dockHandle) });
+  }
+
+  if (backdrop) {
+    trackEvent(backdrop, 'click', () => {
+      if (!body.classList.contains('menu-open')) return;
+      const origin = currentMode === 'mobile' ? dockHandle : menuHandle;
+      closeMenu({ focusOrigin: origin });
+    }, undefined, { module: 'menu.interactions', target: describeTarget(backdrop) });
+  }
+
+  if (menuCap) {
+    trackEvent(menuCap, 'click', () => {
+      if (currentMode !== 'mobile') return;
+      if (!body.classList.contains('menu-open')) return;
+      closeMenu({ focusOrigin: dockHandle });
+    }, undefined, { module: 'menu.interactions', target: describeTarget(menuCap) });
+  }
+
+  trackEvent(document, 'keydown', (event) => {
     if (event.key === 'Escape' && body.classList.contains('menu-open')) {
       event.preventDefault();
       const origin = currentMode === 'mobile' ? dockHandle : menuHandle;
       closeMenu({ focusOrigin: origin });
     }
-  });
+  }, undefined, { module: 'menu.interactions', target: 'document' });
+
+  registerLifecycleDisposer(() => {
+    body.classList.remove('is-slid');
+  }, { module: 'menu.interactions', kind: 'state-reset' });
 }
 
 /**
@@ -844,7 +1162,7 @@ function initMenuInteractions() {
  */
 function attachEdgeGesture() {
   if (currentMode !== 'tablet') return;
-  if (edgeGestureHandler) return; // Already attached
+  if (edgeGestureDisposer) return; // Already attached
 
   const edgeZoneWidth = 30; // px от левого края
   edgeGestureHandler = (e) => {
@@ -854,15 +1172,20 @@ function attachEdgeGesture() {
     }
   };
 
-  document.addEventListener('click', edgeGestureHandler);
+  edgeGestureDisposer = trackEvent(document, 'click', edgeGestureHandler, undefined, {
+    module: 'menu.edgeGesture',
+    target: 'document',
+  });
 }
 
 /**
  * Отключает edge-gesture
  */
 function detachEdgeGesture() {
-  if (!edgeGestureHandler) return;
-  document.removeEventListener('click', edgeGestureHandler);
+  if (typeof edgeGestureDisposer === 'function') {
+    edgeGestureDisposer();
+    edgeGestureDisposer = null;
+  }
   edgeGestureHandler = null;
 }
 
@@ -873,6 +1196,7 @@ function detachEdgeGesture() {
  */
 function attachMenuSwipes() {
   if (currentInput !== 'touch') return;
+  if (menuSwipeDisposers.length > 0) return;
 
   let touchStartX = 0;
   let touchStartY = 0;
@@ -1019,15 +1343,48 @@ function attachMenuSwipes() {
   }
 
   // Слушаем свайпы на всем документе
-  document.addEventListener('touchstart', handleTouchStart, { passive: true });
-  document.addEventListener('touchmove', handleTouchMove, { passive: false });
-  document.addEventListener('touchend', handleTouchEnd, { passive: true });
+  menuSwipeDisposers.push(trackEvent(document, 'touchstart', handleTouchStart, { passive: true }, {
+    module: 'menu.swipes',
+    target: 'document',
+  }));
+  menuSwipeDisposers.push(trackEvent(document, 'touchmove', handleTouchMove, { passive: false }, {
+    module: 'menu.swipes',
+    target: 'document',
+  }));
+  menuSwipeDisposers.push(trackEvent(document, 'touchend', handleTouchEnd, { passive: true }, {
+    module: 'menu.swipes',
+    target: 'document',
+  }));
+
+  registerLifecycleDisposer(() => {
+    detachMenuSwipes();
+  }, { module: 'menu.swipes', kind: 'cleanup' });
+}
+
+function detachMenuSwipes() {
+  if (menuSwipeDisposers.length === 0) {
+    return;
+  }
+  for (const dispose of menuSwipeDisposers) {
+    try {
+      dispose();
+    } catch (error) {
+      console.error('[MenuSwipes] Failed to dispose listener', error);
+    }
+  }
+  menuSwipeDisposers = [];
 }
 
 function initMenuLinks() {
+  if (!menuRail) return;
+
   const links = menuRail.querySelectorAll('a[href^="#"]');
+  if (links.length === 0) return;
+
+  const disposers = [];
+
   links.forEach((link) => {
-    link.addEventListener('click', (event) => {
+    const handler = (event) => {
       event.preventDefault();
       const target = document.querySelector(link.getAttribute('href'));
       if (target) {
@@ -1037,8 +1394,23 @@ function initMenuLinks() {
         const origin = currentMode === 'mobile' ? dockHandle : menuHandle;
         closeMenu({ focusOrigin: origin });
       }
-    });
+    };
+    disposers.push(trackEvent(link, 'click', handler, undefined, {
+      module: 'menu.links',
+      target: describeTarget(link),
+    }));
   });
+
+  registerLifecycleDisposer(() => {
+    while (disposers.length) {
+      const dispose = disposers.pop();
+      try {
+        dispose();
+      } catch (error) {
+        console.error('[MenuLinks] Failed to dispose listener', error);
+      }
+    }
+  }, { module: 'menu.links', kind: 'cleanup' });
 }
 
 /**
@@ -1062,11 +1434,13 @@ function initStackCarousel() {
   if (slides.length === 0) return;
 
   let currentSlide = 0;
-  let intervalId = null;
+  let intervalDisposer = null;
   let isPaused = false;
 
   // Интервал между сменами слайдов (миллисекунды)
   const SLIDE_INTERVAL = 6000; // 6 секунд
+
+  const disposers = [];
 
   function setActiveSlide(index) {
     // Циклическое переключение
@@ -1094,37 +1468,40 @@ function initStackCarousel() {
   }
 
   function startAutoplay() {
-    if (intervalId) {
-      clearInterval(intervalId);
+    if (intervalDisposer) {
+      intervalDisposer();
     }
-    intervalId = setInterval(nextSlide, SLIDE_INTERVAL);
+    intervalDisposer = trackInterval(nextSlide, SLIDE_INTERVAL, {
+      module: 'stackCarousel',
+      detail: 'autoplay',
+    });
   }
 
   function stopAutoplay() {
-    if (intervalId) {
-      clearInterval(intervalId);
-      intervalId = null;
+    if (intervalDisposer) {
+      intervalDisposer();
+      intervalDisposer = null;
     }
   }
 
   // Клики на точки для ручного переключения
   dots.forEach((dot, index) => {
-    dot.addEventListener('click', () => {
+    disposers.push(trackEvent(dot, 'click', () => {
       setActiveSlide(index);
       // Перезапускаем таймер после ручного переключения
       startAutoplay();
-    });
+    }, undefined, { module: 'stackCarousel', target: describeTarget(dot) }));
   });
 
   // Пауза при наведении мыши
   if (stack) {
-    stack.addEventListener('mouseenter', () => {
+    disposers.push(trackEvent(stack, 'mouseenter', () => {
       isPaused = true;
-    });
+    }, undefined, { module: 'stackCarousel', target: describeTarget(stack) }));
 
-    stack.addEventListener('mouseleave', () => {
+    disposers.push(trackEvent(stack, 'mouseleave', () => {
       isPaused = false;
-    });
+    }, undefined, { module: 'stackCarousel', target: describeTarget(stack) }));
 
     // Поддержка свайпов на тач-устройствах с предотвращением вертикального скролла
     let touchStartX = 0;
@@ -1136,14 +1513,14 @@ function initStackCarousel() {
     const minSwipeDistance = 50; // минимальная дистанция для переключения слайда
     const directionThreshold = 10; // порог для определения направления
 
-    stack.addEventListener('touchstart', (e) => {
+    disposers.push(trackEvent(stack, 'touchstart', (e) => {
       touchStartX = e.changedTouches[0].clientX;
       touchStartY = e.changedTouches[0].clientY;
       isSwiping = false;
       swipeDirection = null;
-    }, { passive: true });
+    }, { passive: true }, { module: 'stackCarousel', target: describeTarget(stack) }));
 
-    stack.addEventListener('touchmove', (e) => {
+    disposers.push(trackEvent(stack, 'touchmove', (e) => {
       if (!isSwiping) {
         const deltaX = Math.abs(e.changedTouches[0].clientX - touchStartX);
         const deltaY = Math.abs(e.changedTouches[0].clientY - touchStartY);
@@ -1159,9 +1536,9 @@ function initStackCarousel() {
       if (swipeDirection === 'horizontal') {
         e.preventDefault();
       }
-    }, { passive: false }); // passive: false чтобы preventDefault работал
+    }, { passive: false }, { module: 'stackCarousel', target: describeTarget(stack) })); // passive: false чтобы preventDefault работал
 
-    stack.addEventListener('touchend', (e) => {
+    disposers.push(trackEvent(stack, 'touchend', (e) => {
       touchEndX = e.changedTouches[0].clientX;
       touchEndY = e.changedTouches[0].clientY;
 
@@ -1172,7 +1549,7 @@ function initStackCarousel() {
 
       isSwiping = false;
       swipeDirection = null;
-    }, { passive: true });
+    }, { passive: true }, { module: 'stackCarousel', target: describeTarget(stack) }));
 
     function handleSwipe() {
       const swipeDistance = touchStartX - touchEndX;
@@ -1199,6 +1576,18 @@ function initStackCarousel() {
 
   // Запускаем автопроигрывание
   startAutoplay();
+
+  registerLifecycleDisposer(() => {
+    stopAutoplay();
+    while (disposers.length) {
+      const dispose = disposers.pop();
+      try {
+        dispose();
+      } catch (error) {
+        console.error('[StackCarousel] Failed to dispose listener', error);
+      }
+    }
+  }, { module: 'stackCarousel', kind: 'cleanup' });
 }
 
 /**
@@ -1272,7 +1661,15 @@ function attachScrollHideHeader() {
     }
   }
 
-  window.addEventListener('scroll', onScroll, { passive: true });
+  const disposeScroll = trackEvent(window, 'scroll', onScroll, { passive: true }, {
+    module: 'scroll.hideHeader',
+    target: 'window',
+  });
+
+  registerLifecycleDisposer(() => {
+    disposeScroll();
+    body.removeAttribute('data-scroll');
+  }, { module: 'scroll.hideHeader', kind: 'cleanup' });
 }
 
 /**
@@ -1365,13 +1762,13 @@ function initProgressWidget() {
   // 5. Анимации
   let aDot = null, aPill = null, aPct = null, aNext = null;
   let doneState = false, ticking = false;
-  let positionTimeoutId = null;
+  let positionTimeoutCancel = null;
   let transitionCleanup = null;
 
   function cancelPositionSchedulers() {
-    if (positionTimeoutId !== null) {
-      clearTimeout(positionTimeoutId);
-      positionTimeoutId = null;
+    if (typeof positionTimeoutCancel === 'function') {
+      positionTimeoutCancel();
+      positionTimeoutCancel = null;
     }
     if (typeof transitionCleanup === 'function') {
       transitionCleanup();
@@ -1412,21 +1809,27 @@ function initProgressWidget() {
       applyRelativePosition();
     };
 
+    const detachTransitionEnd = trackEvent(root, 'transitionend', onTransitionEnd, undefined, {
+      module: 'progressWidget',
+      target: describeTarget(root),
+    });
+    const detachTransitionCancel = trackEvent(root, 'transitioncancel', onTransitionCancel, undefined, {
+      module: 'progressWidget',
+      target: describeTarget(root),
+    });
+
     transitionCleanup = () => {
-      root.removeEventListener('transitionend', onTransitionEnd);
-      root.removeEventListener('transitioncancel', onTransitionCancel);
+      detachTransitionEnd();
+      detachTransitionCancel();
       transitionCleanup = null;
     };
 
-    root.addEventListener('transitionend', onTransitionEnd);
-    root.addEventListener('transitioncancel', onTransitionCancel);
-
     // Фолбэк, если transitionend не произойдёт (например, браузер не поддерживает)
-    positionTimeoutId = window.setTimeout(() => {
-      positionTimeoutId = null;
+    positionTimeoutCancel = trackTimeout(() => {
+      positionTimeoutCancel = null;
       cancelPositionSchedulers();
       applyRelativePosition();
-    }, 1700);
+    }, 1700, { module: 'progressWidget', detail: 'position fallback' });
   }
 
   function resetRelativePosition() {
@@ -1457,6 +1860,10 @@ function initProgressWidget() {
   });
 
   menuStateObserver.observe(body, { attributes: true, attributeFilter: ['class'] });
+  const disconnectMenuObserver = trackObserver(menuStateObserver, {
+    module: 'progressWidget',
+    target: 'body[class] mutation',
+  });
 
   function killAnims() {
     for (const a of [aDot, aPill, aPct, aNext]) {
@@ -1563,7 +1970,7 @@ function initProgressWidget() {
   }
 
   // 7. Клик
-  root.addEventListener('click', () => {
+  trackEvent(root, 'click', () => {
     if (doneState) {
       // При 100%: переход на следующую страницу
       if (NEXT_URL && NEXT_URL !== '#') {
@@ -1576,18 +1983,21 @@ function initProgressWidget() {
       const endY = window.scrollY + (textBox.getBoundingClientRect().bottom - window.innerHeight + 1);
       window.scrollTo({ top: endY, behavior: 'smooth' });
     }
-  }, { passive: true });
+  }, { passive: true }, { module: 'progressWidget', target: describeTarget(root) });
 
   // 8. Keyboard navigation
-  root.addEventListener('keydown', (e) => {
+  trackEvent(root, 'keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       root.click();
     }
-  });
+  }, undefined, { module: 'progressWidget', target: describeTarget(root) });
 
   // 9. Listeners
-  window.addEventListener('scroll', onScroll, { passive: true });
+  trackEvent(window, 'scroll', onScroll, { passive: true }, {
+    module: 'progressWidget',
+    target: 'window',
+  });
 
   // 10. Инициализация
   dot.style.opacity = '1';
@@ -1599,6 +2009,15 @@ function initProgressWidget() {
 
   // Обновить layout metrics после создания виджета
   scheduleLayoutMetricsUpdate();
+
+  registerLifecycleDisposer(() => {
+    cancelPositionSchedulers();
+    killAnims();
+    if (typeof disconnectMenuObserver === 'function') {
+      disconnectMenuObserver();
+    }
+    root.classList.remove('is-done', 'is-menu-covered', 'is-positioned-relative');
+  }, { module: 'progressWidget', kind: 'cleanup' });
 }
 
 function init() {
@@ -1618,6 +2037,13 @@ function init() {
 
   let resizeRaf = null;
 
+  const cancelResizeRaf = () => {
+    if (resizeRaf !== null) {
+      cancelAnimationFrame(resizeRaf);
+      resizeRaf = null;
+    }
+  };
+
   // Более быстрая обработка resize через RAF вместо debounce
   const handleResize = () => {
     if (resizeRaf !== null) {
@@ -1630,7 +2056,10 @@ function init() {
     });
   };
 
-  window.addEventListener('resize', handleResize);
+  trackEvent(window, 'resize', handleResize, undefined, {
+    module: 'layout.mode',
+    target: 'window',
+  });
 
   // Orientationchange
   const handleOrientationChange = () => {
@@ -1642,10 +2071,12 @@ function init() {
     });
   };
 
-  window.addEventListener('orientationchange', handleOrientationChange);
+  trackEvent(window, 'orientationchange', handleOrientationChange, undefined, {
+    module: 'layout.mode',
+    target: 'window',
+  });
 
   // Добавляем обработку media queries для более точного отслеживания
-  const mediaQueryListeners = [];
   if (window.matchMedia) {
     const mql1024 = window.matchMedia('(min-width: 1024px)');
     const mql1280 = window.matchMedia('(min-width: 1280px)');
@@ -1657,38 +2088,210 @@ function init() {
       });
     };
 
-    mql1024.addEventListener('change', handleMediaChange);
-    mql1280.addEventListener('change', handleMediaChange);
-    mql1440.addEventListener('change', handleMediaChange);
-
-    mediaQueryListeners.push(
-      { mql: mql1024, handler: handleMediaChange },
-      { mql: mql1280, handler: handleMediaChange },
-      { mql: mql1440, handler: handleMediaChange }
-    );
+    trackMediaQuery(mql1024, handleMediaChange, {
+      module: 'layout.mode',
+      query: '(min-width: 1024px)',
+    });
+    trackMediaQuery(mql1280, handleMediaChange, {
+      module: 'layout.mode',
+      query: '(min-width: 1280px)',
+    });
+    trackMediaQuery(mql1440, handleMediaChange, {
+      module: 'layout.mode',
+      query: '(min-width: 1440px)',
+    });
   }
 
-  // Cleanup function для удаления всех listeners
-  return () => {
-    window.removeEventListener('resize', handleResize);
-    window.removeEventListener('orientationchange', handleOrientationChange);
+  registerLifecycleDisposer(cancelResizeRaf, {
+    module: 'layout.mode',
+    kind: 'raf-throttle',
+  });
 
-    mediaQueryListeners.forEach(({ mql, handler }) => {
-      mql.removeEventListener('change', handler);
-    });
+  registerLifecycleDisposer(teardownObserver, {
+    module: 'sections.observer',
+  });
 
+  registerLifecycleDisposer(() => {
+    if (typeof flyoutHideTimeoutCancel === 'function') {
+      flyoutHideTimeoutCancel();
+      flyoutHideTimeoutCancel = null;
+    }
+  }, { module: 'dotsFlyout', detail: 'cancel hide timeout' });
+
+  registerLifecycleDisposer(() => {
     detachEdgeGesture();
-    teardownObserver();
+    detachMenuSwipes();
+    detachTrap();
+    detachFlyoutListeners();
+  }, { module: 'menu.lifecycle', kind: 'detach' });
 
-    if (resizeRaf !== null) {
-      cancelAnimationFrame(resizeRaf);
+  registerLifecycleDisposer(() => {
+    previousFocus = null;
+    body.classList.remove('menu-open', 'is-slid');
+    body.removeAttribute('data-scroll');
+    delete body.dataset.lock;
+    delete root.dataset.lock;
+    updateAriaExpanded(false);
+  }, { module: 'menu.lifecycle', kind: 'state-reset' });
+
+  registerLifecycleDisposer(() => {
+    if (layoutMetricsRaf !== null) {
+      cancelAnimationFrame(layoutMetricsRaf);
+      layoutMetricsRaf = null;
+    }
+  }, { module: 'layout.metrics', kind: 'raf' });
+
+  return (reason) => {
+    cancelResizeRaf();
+    detachEdgeGesture();
+    detachMenuSwipes();
+    detachTrap();
+    detachFlyoutListeners();
+    teardownObserver();
+    if (typeof flyoutHideTimeoutCancel === 'function') {
+      flyoutHideTimeoutCancel();
+      flyoutHideTimeoutCancel = null;
+    }
+    previousFocus = null;
+    if (reason && DEBUG_MODE_DETECTION) {
+      console.log('[Lifecycle] init() cleanup invoked', reason);
     }
   };
 }
 
-init();
+function bindPageLifecycle(dispose) {
+  const removers = [];
+
+  const safeDispose = (reason) => {
+    try {
+      dispose({ reason });
+    } catch (error) {
+      console.error('[Lifecycle] dispose failed from page lifecycle', { reason, error });
+    }
+  };
+
+  if (typeof window.addEventListener === 'function') {
+    const onPageHide = (event) => {
+      if (event?.persisted) {
+        return;
+      }
+      safeDispose('pagehide');
+    };
+    window.addEventListener('pagehide', onPageHide);
+    removers.push(() => window.removeEventListener('pagehide', onPageHide));
+
+    const onBeforeUnload = () => {
+      safeDispose('beforeunload');
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    removers.push(() => window.removeEventListener('beforeunload', onBeforeUnload));
+  }
+
+  if (typeof document?.addEventListener === 'function') {
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        safeDispose('visibilitychange');
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    removers.push(() => document.removeEventListener('visibilitychange', onVisibilityChange));
+  }
+
+  return () => {
+    while (removers.length) {
+      const remove = removers.pop();
+      try {
+        remove();
+      } catch (error) {
+        console.error('[Lifecycle] Failed to remove page lifecycle hook', error);
+      }
+    }
+  };
+}
+
+const previousApp = window[APP_GLOBAL_KEY];
+if (previousApp && typeof previousApp.dispose === 'function') {
+  try {
+    previousApp.dispose({ reason: 'reinit' });
+  } catch (error) {
+    console.error('[Lifecycle] Failed to dispose previous app instance', error);
+  }
+  if (typeof previousApp.teardown === 'function') {
+    try {
+      previousApp.teardown();
+    } catch (error) {
+      console.error('[Lifecycle] Failed to teardown previous app hooks', error);
+    }
+  }
+}
+
+const lifecycle = createLifecycleRegistry('toosmart:init');
+setActiveLifecycle(lifecycle);
+
+let initCleanup = null;
+try {
+  initCleanup = init();
+} catch (error) {
+  console.error('[Lifecycle] init() failed', error);
+}
+
+const disposeLoadListener = trackEvent(window, 'load', scheduleLayoutMetricsUpdate, undefined, {
+  module: 'layout.metrics',
+  target: 'window',
+});
+
 scheduleLayoutMetricsUpdate();
-window.addEventListener('load', scheduleLayoutMetricsUpdate);
+
+let removePageHooks = () => {};
+let disposed = false;
+
+const disposeApp = (payload = {}) => {
+  if (disposed) return;
+  disposed = true;
+
+  removePageHooks();
+  removePageHooks = () => {};
+
+  const cleanupReason = payload && typeof payload === 'object' ? payload : { reason: String(payload) };
+
+  try {
+    if (typeof initCleanup === 'function') {
+      initCleanup(cleanupReason);
+    }
+  } catch (error) {
+    console.error('[Lifecycle] init cleanup failed', { error, cleanupReason });
+  }
+
+  try {
+    disposeLoadListener();
+  } catch (error) {
+    console.error('[Lifecycle] Failed to remove load listener', error);
+  }
+
+  try {
+    lifecycle.disposeAll();
+  } catch (error) {
+    console.error('[Lifecycle] disposeAll failed', error);
+  }
+
+  setActiveLifecycle(null);
+};
+
+removePageHooks = bindPageLifecycle(disposeApp);
+
+const appApi = {
+  dispose: disposeApp,
+  teardown() {
+    removePageHooks();
+    removePageHooks = () => {};
+  },
+  getResources() {
+    return lifecycle.report();
+  },
+  audit: '2024-10-19',
+};
+
+window[APP_GLOBAL_KEY] = appApi;
 
 // Глобальная функция для отладки режимов
 window.toggleModeDebug = function (enable) {
