@@ -324,9 +324,9 @@ body[data-mode="tablet"] .menu-handle__dots {
 }
 
 .menu-handle__label {
-  font-weight: 600;
+  font-weight: 900;
   text-transform: uppercase;
-  letter-spacing: 0.27em;
+  letter-spacing: 0.35em;
 
   /* Текст может обрезаться если не влезает в фиксированную ширину */
   overflow: hidden;
