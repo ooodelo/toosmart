@@ -82,6 +82,10 @@ let restoreSetActiveSection = null;
 let menuSwipeDisposers = [];
 let edgeGestureDisposer = null;
 
+function isMenuAvailable() {
+  return Boolean(menuRail || siteMenu);
+}
+
 // Debug mode: установите в true для вывода информации о режимах в консоль
 // Включите в Safari Dev Tools: window.DEBUG_MODE_DETECTION = true
 const DEBUG_MODE_DETECTION = window.DEBUG_MODE_DETECTION || false;
@@ -648,6 +652,10 @@ function detachTrap() {
 }
 
 function openMenu({ focusOrigin = menuHandle } = {}) {
+  if (!isMenuAvailable()) {
+    return false;
+  }
+
   // В mobile/tablet режимах - показываем header (удаляем data-scroll) ПЕРЕД добавлением menu-open
   // Это критично для предотвращения мигания header
   if (currentMode === 'mobile' || currentMode === 'tablet') {
@@ -666,22 +674,36 @@ function openMenu({ focusOrigin = menuHandle } = {}) {
 
   previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   if (currentMode !== 'desktop') {
-    siteMenu.setAttribute('role', 'dialog');
-    siteMenu.setAttribute('aria-modal', 'true');
+    if (siteMenu) {
+      siteMenu.setAttribute('role', 'dialog');
+      siteMenu.setAttribute('aria-modal', 'true');
+    }
     const focusable = getFocusableElements(menuRail);
-    const targetFocus = focusable.find((el) => el !== focusOrigin) || siteMenu;
-    requestAnimationFrame(() => targetFocus.focus({ preventScroll: true }));
+    let targetFocus = focusable.find((el) => el !== focusOrigin);
+    if (!targetFocus && siteMenu instanceof HTMLElement) {
+      targetFocus = siteMenu;
+    }
+    if (targetFocus && typeof targetFocus.focus === 'function') {
+      requestAnimationFrame(() => targetFocus.focus({ preventScroll: true }));
+    }
     attachTrap();
   }
   updateAriaExpanded(true);
   lockScroll();
+  return true;
 }
 
 function closeMenu({ focusOrigin = menuHandle } = {}) {
+  if (!isMenuAvailable()) {
+    return false;
+  }
+
   body.classList.remove('menu-open');
   body.classList.remove('is-slid');
-  siteMenu.removeAttribute('role');
-  siteMenu.removeAttribute('aria-modal');
+  if (siteMenu) {
+    siteMenu.removeAttribute('role');
+    siteMenu.removeAttribute('aria-modal');
+  }
   detachTrap();
   updateAriaExpanded(false);
   lockScroll();
@@ -691,6 +713,7 @@ function closeMenu({ focusOrigin = menuHandle } = {}) {
   } else if (focusOrigin && focusOrigin instanceof HTMLElement) {
     focusOrigin.focus({ preventScroll: true });
   }
+  return true;
 }
 
 function updateAriaExpanded(isOpen) {
@@ -712,10 +735,14 @@ function updateAriaExpanded(isOpen) {
 }
 
 function toggleMenu(origin) {
+  if (!isMenuAvailable()) {
+    return false;
+  }
+
   if (body.classList.contains('menu-open')) {
-    closeMenu({ focusOrigin: origin });
+    return closeMenu({ focusOrigin: origin });
   } else {
-    openMenu({ focusOrigin: origin });
+    return openMenu({ focusOrigin: origin });
   }
 }
 
@@ -1162,6 +1189,7 @@ function initMenuInteractions() {
  */
 function attachEdgeGesture() {
   if (currentMode !== 'tablet') return;
+  if (!isMenuAvailable()) return;
   if (edgeGestureDisposer) return; // Already attached
 
   const edgeZoneWidth = 30; // px от левого края
@@ -1196,6 +1224,7 @@ function detachEdgeGesture() {
  */
 function attachMenuSwipes() {
   if (currentInput !== 'touch') return;
+  if (!isMenuAvailable()) return;
   if (menuSwipeDisposers.length > 0) return;
 
   let touchStartX = 0;
@@ -1377,6 +1406,7 @@ function detachMenuSwipes() {
 
 function initMenuLinks() {
   if (!menuRail) return;
+  if (!isMenuAvailable()) return;
 
   const links = menuRail.querySelectorAll('a[href^="#"]');
   if (links.length === 0) return;
@@ -1386,8 +1416,12 @@ function initMenuLinks() {
   links.forEach((link) => {
     const handler = (event) => {
       event.preventDefault();
-      const target = document.querySelector(link.getAttribute('href'));
-      if (target) {
+      const href = link.getAttribute('href');
+      if (!href || href === '#') {
+        return;
+      }
+      const target = document.querySelector(href);
+      if (target instanceof HTMLElement) {
         target.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
       if (currentMode === 'mobile' || currentMode === 'tablet') {
