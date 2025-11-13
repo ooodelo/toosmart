@@ -196,6 +196,7 @@ function normalizeListenerOptions(options) {
     if ('capture' in options) normalized.capture = !!options.capture;
     if ('once' in options) normalized.once = !!options.once;
     if ('passive' in options) normalized.passive = !!options.passive;
+    if ('signal' in options) normalized.signal = true;
     return normalized;
   }
   return options;
@@ -227,9 +228,33 @@ function trackEvent(target, type, handler, options, meta = {}) {
     return () => {};
   }
 
-  target.addEventListener(type, handler, options);
+  let controller = null;
+  let listenerOptions = options;
+  let added = false;
+
+  if (typeof AbortController === 'function') {
+    controller = new AbortController();
+    listenerOptions = mergeListenerOptionsWithSignal(options, controller.signal);
+    try {
+      target.addEventListener(type, handler, listenerOptions);
+      added = true;
+    } catch (error) {
+      // Safari < 13 и другие старые движки могут не поддерживать signal
+      controller = null;
+      listenerOptions = options;
+    }
+  }
+
+  if (!added) {
+    target.addEventListener(type, handler, options);
+  }
 
   return registerLifecycleDisposer(() => {
+    if (controller) {
+      controller.abort();
+      controller = null;
+      return;
+    }
     if (target && typeof target.removeEventListener === 'function') {
       target.removeEventListener(type, handler, options);
     }
@@ -237,9 +262,26 @@ function trackEvent(target, type, handler, options, meta = {}) {
     kind: 'event',
     event: type,
     target: describeTarget(target),
-    options: normalizeListenerOptions(options),
+    options: normalizeListenerOptions(listenerOptions ?? options),
     ...meta,
   });
+}
+
+function mergeListenerOptionsWithSignal(options, signal) {
+  if (!signal) return options;
+  if (options === undefined) {
+    return { signal };
+  }
+  if (typeof options === 'boolean') {
+    return { capture: options, signal };
+  }
+  if (options && typeof options === 'object') {
+    if ('signal' in options) {
+      return options;
+    }
+    return { ...options, signal };
+  }
+  return options;
 }
 
 function trackMediaQuery(mql, handler, meta = {}) {
@@ -1399,18 +1441,20 @@ function attachMenuSwipes() {
     }
   }
 
-  // Слушаем свайпы на всем документе
-  menuSwipeDisposers.push(trackEvent(document, 'touchstart', handleTouchStart, { passive: true }, {
+  const swipeTarget = body || document.documentElement || document;
+  const swipeTargetLabel = describeTarget(swipeTarget) || 'body';
+
+  menuSwipeDisposers.push(trackEvent(swipeTarget, 'touchstart', handleTouchStart, { passive: true }, {
     module: 'menu.swipes',
-    target: 'document',
+    target: swipeTargetLabel,
   }));
-  menuSwipeDisposers.push(trackEvent(document, 'touchmove', handleTouchMove, { passive: false }, {
+  menuSwipeDisposers.push(trackEvent(swipeTarget, 'touchmove', handleTouchMove, { passive: false }, {
     module: 'menu.swipes',
-    target: 'document',
+    target: swipeTargetLabel,
   }));
-  menuSwipeDisposers.push(trackEvent(document, 'touchend', handleTouchEnd, { passive: true }, {
+  menuSwipeDisposers.push(trackEvent(swipeTarget, 'touchend', handleTouchEnd, { passive: true }, {
     module: 'menu.swipes',
-    target: 'document',
+    target: swipeTargetLabel,
   }));
 
   registerLifecycleDisposer(() => {
