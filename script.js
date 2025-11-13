@@ -1262,6 +1262,12 @@ function attachScrollHideHeader() {
       return;
     }
 
+    // Если меню открыто - не меняем состояние header (не скрываем/показываем)
+    if (body.classList.contains('menu-open')) {
+      scrollTicking = false;
+      return;
+    }
+
     const currentScrollY = window.pageYOffset || document.documentElement.scrollTop;
     const scrollDiff = currentScrollY - lastScrollY;
 

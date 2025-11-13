@@ -841,6 +841,7 @@ body[data-mode="mobile"] .dot-flyout {
 .stack-slide {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 50px;
   opacity: 0;
   visibility: hidden;
@@ -859,7 +860,7 @@ body[data-mode="mobile"] .dot-flyout {
 
 .stack-card {
   height: 200px;
-  margin: 25px;
+  margin: 0 25px;
   padding: 0;
   background: var(--surface);
   display: flex;
@@ -1258,6 +1259,11 @@ body[data-mode="mobile"] .dock {
 body[data-mode="mobile"] .header {
   padding-left: 16px;
   padding-right: 16px;
+}
+
+/* Мобильная версия: header не двигается при открытии меню */
+body[data-mode="mobile"].menu-open .header {
+  transform: none !important;
 }
 
 body[data-mode="mobile"].menu-open .backdrop {
