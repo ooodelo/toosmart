@@ -1417,16 +1417,30 @@ body[data-mode="tablet"] #pw-root {
   order: 2;
 }
 
-/* Mobile: relative, умещается на малых экранах */
+/* Mobile: fixed слева пока < 100%, потом переезжает в центр */
 body[data-mode="mobile"] #pw-root {
-  position: relative;
-  margin: 16px auto;
+  position: fixed !important;
+  left: 20px;
+  bottom: 100px; /* Выше dock кнопки */
+  z-index: 1700; /* Поверх всего (dock = 1600, header = 1600) */
+  margin: 0;
   order: 2;
   width: min(var(--pw-pill-width), 90%);
+  transition: all 600ms cubic-bezier(0.4, 0.02, 0.2, 1); /* Плавная анимация */
+}
+
+/* После 100%: переезд в центр и относительное позиционирование */
+body[data-mode="mobile"] #pw-root.is-done {
+  position: relative !important;
+  left: auto;
+  bottom: auto;
+  margin: 16px auto;
+  transform: translateX(0); /* Финальная позиция по центру */
 }
 
 /* Отключение анимаций для prefers-reduced-motion */
 @media (prefers-reduced-motion: reduce) {
+  #pw-root,
   #pw-root *,
   #pw-root .pw-dot,
   #pw-root .pw-pill,
