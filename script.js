@@ -460,13 +460,14 @@ function detachTrap() {
 }
 
 function openMenu({ focusOrigin = menuHandle } = {}) {
-  body.classList.remove('is-slid');
-  body.classList.add('menu-open');
-
-  // В mobile/tablet режимах - показываем header (удаляем data-scroll)
+  // В mobile/tablet режимах - показываем header (удаляем data-scroll) ПЕРЕД добавлением menu-open
+  // Это критично для предотвращения мигания header
   if (currentMode === 'mobile' || currentMode === 'tablet') {
     body.removeAttribute('data-scroll');
   }
+
+  body.classList.remove('is-slid');
+  body.classList.add('menu-open');
 
   previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   if (currentMode !== 'desktop') {

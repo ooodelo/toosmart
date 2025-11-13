@@ -153,6 +153,12 @@ body[data-scroll="down"] .header {
   transform: translateY(-100%);
 }
 
+/* КРИТИЧНО: header всегда виден при открытом меню (перекрывает data-scroll) */
+body[data-mode="mobile"].menu-open .header,
+body[data-mode="tablet"].menu-open .header {
+  transform: translateY(0) !important;
+}
+
 /* Элементы с рамками и скруглением */
 .stack__intro {
   border-radius: 12px;
@@ -1253,11 +1259,6 @@ body[data-mode="mobile"] .dock {
 body[data-mode="mobile"] .header {
   padding-left: 16px;
   padding-right: 16px;
-}
-
-/* Мобильная версия: header всегда видим и не двигается при открытии меню */
-body[data-mode="mobile"].menu-open .header {
-  transform: none !important;
 }
 
 body[data-mode="mobile"].menu-open .backdrop {
