@@ -1417,6 +1417,98 @@ function initProgressWidget() {
   // 5. Анимации
   let aDot = null, aPill = null, aPct = null, aNext = null;
   let doneState = false, ticking = false;
+  let positionTimeoutId = null;
+  let transitionCleanup = null;
+
+  function cancelPositionSchedulers() {
+    if (positionTimeoutId !== null) {
+      clearTimeout(positionTimeoutId);
+      positionTimeoutId = null;
+    }
+    if (typeof transitionCleanup === 'function') {
+      transitionCleanup();
+      transitionCleanup = null;
+    }
+  }
+
+  function applyRelativePosition() {
+    if (!doneState) return;
+    if (!root.classList.contains('is-positioned-relative')) {
+      root.classList.add('is-positioned-relative');
+      scheduleLayoutMetricsUpdate();
+    }
+  }
+
+  function waitForFixedToSettle() {
+    cancelPositionSchedulers();
+
+    // В режимах без анимации (prefers-reduced-motion) или не mobile
+    // сразу переводим в relative.
+    if (prefersReduced || body.dataset.mode !== 'mobile') {
+      applyRelativePosition();
+      return;
+    }
+
+    const watchedProperties = new Set(['left', 'transform']);
+
+    const onTransitionEnd = (event) => {
+      if (event.target !== root) return;
+      if (!watchedProperties.has(event.propertyName)) return;
+      cancelPositionSchedulers();
+      applyRelativePosition();
+    };
+
+    const onTransitionCancel = (event) => {
+      if (event.target !== root) return;
+      cancelPositionSchedulers();
+      applyRelativePosition();
+    };
+
+    transitionCleanup = () => {
+      root.removeEventListener('transitionend', onTransitionEnd);
+      root.removeEventListener('transitioncancel', onTransitionCancel);
+      transitionCleanup = null;
+    };
+
+    root.addEventListener('transitionend', onTransitionEnd);
+    root.addEventListener('transitioncancel', onTransitionCancel);
+
+    // Фолбэк, если transitionend не произойдёт (например, браузер не поддерживает)
+    positionTimeoutId = window.setTimeout(() => {
+      positionTimeoutId = null;
+      cancelPositionSchedulers();
+      applyRelativePosition();
+    }, 1700);
+  }
+
+  function resetRelativePosition() {
+    const removed = root.classList.remove('is-positioned-relative');
+    cancelPositionSchedulers();
+    if (removed) {
+      scheduleLayoutMetricsUpdate();
+    }
+  }
+
+  function updateMenuOverlapState() {
+    if (body.classList.contains('menu-open')) {
+      root.classList.add('is-menu-covered');
+    } else {
+      root.classList.remove('is-menu-covered');
+    }
+  }
+
+  updateMenuOverlapState();
+
+  const menuStateObserver = new MutationObserver((records) => {
+    for (const record of records) {
+      if (record.attributeName === 'class') {
+        updateMenuOverlapState();
+        break;
+      }
+    }
+  });
+
+  menuStateObserver.observe(body, { attributes: true, attributeFilter: ['class'] });
 
   function killAnims() {
     for (const a of [aDot, aPill, aPct, aNext]) {
@@ -1507,19 +1599,14 @@ function initProgressWidget() {
       root.setAttribute('aria-disabled', 'false');
       root.setAttribute('aria-label', 'Кнопка: Далее');
       playForward();
-
-      // После завершения анимации (950ms задержка + 600ms анимация = 1550ms)
-      // меняем position с fixed на relative
-      setTimeout(() => {
-        root.classList.add('is-positioned-relative');
-      }, 1550);
+      waitForFixedToSettle();
     } else if (!shouldBeDone && doneState) {
       doneState = false;
       root.classList.remove('is-done');
-      root.classList.remove('is-positioned-relative');
       root.setAttribute('aria-disabled', 'true');
       root.setAttribute('aria-label', 'Прогресс чтения: ' + perc + '%');
       playReverse();
+      resetRelativePosition();
     } else {
       if (!shouldBeDone) {
         root.setAttribute('aria-label', 'Прогресс чтения: ' + perc + '%');
