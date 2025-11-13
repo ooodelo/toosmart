@@ -24,8 +24,20 @@
   /* Отступы и размеры */
   --gap-page: 32px;
   --stack-gap: 20px;
-  --rail-closed: 42px; /* Начальное значение, обновляется динамически через JS */
+
+  /* === РАЗМЕРЫ МЕНЮ === */
+  /* Боковая полоска (menu-handle) - явные настройки */
+  --handle-content-width: 36px;   /* ширина контента (буквы + gap + точки) */
+  --handle-padding-left: 15px;    /* отступ слева от контента */
+  --handle-padding-right: 15px;   /* отступ справа от контента */
+  --handle-gap: 8px;              /* расстояние между буквами и точками */
+
+  /* Итоговая ширина боковой полоски = 15 + 36 + 15 = 66px */
+  --rail-closed: calc(var(--handle-padding-left) + var(--handle-content-width) + var(--handle-padding-right));
+
+  /* Ширина открытого меню */
   --rail-open: 320px;
+
   --stack-top: 16px;
   --stack-bottom: 16px;
   --pw-footprint: 44px;
@@ -109,10 +121,10 @@ html[data-lock="scroll"] {
 .header {
   position: sticky;
   top: 0;
-  z-index: 200;
+  z-index: 1600; /* Поверх меню (menu-rail z-index: 1500) */
   display: flex;
   align-items: center;
-  gap: 16px;
+  justify-content: center; /* Центрируем logo по горизонтали */
   padding: 0 var(--gap-page);
   height: 85px;
   background: #D9D9D9;
@@ -141,14 +153,34 @@ body[data-scroll="down"] .header {
   transform: translateY(-100%);
 }
 
+/* КРИТИЧНО: header всегда виден при открытом меню (перекрывает data-scroll) */
+body[data-mode="mobile"].menu-open .header,
+body[data-mode="tablet"].menu-open .header {
+  position: fixed !important; /* Fixed чтобы гарантировать видимость поверх меню */
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  transform: translateY(0) !important;
+  transition: none !important; /* Отключить анимацию - немедленное появление */
+}
+
 /* Элементы с рамками и скруглением */
-.header__hand,
-.header__link,
-.dock-handle,
 .stack__intro {
   border-radius: 12px;
   border: 1px solid var(--border-color);
   background: var(--surface);
+}
+
+/* dock-handle с отдельными стилями */
+.dock-handle {
+  border-radius: 9999px; /* Максимальное закругление (pill shape) */
+  border: none;
+  background: #FFF;
+  box-shadow: 0 4px 15px rgba(213, 216, 232, 0.7);
+  text-transform: uppercase;
+  color: #202020;
+  width: calc(var(--text-box-width) + 40px); /* Шире текста на 20px с каждой стороны */
+  height: 50px;
 }
 
 /* Карточки рекомендаций с большим радиусом */
@@ -172,33 +204,37 @@ body[data-scroll="down"] .header {
   background: transparent;
 }
 
-.header__hand,
-.header__link {
-  padding: 10px 16px;
-}
-
-.header__links {
-  display: flex;
-  gap: 12px;
-  margin-left: auto;
-}
-
-.header__link {
-  text-decoration: none;
-  color: inherit;
-}
-
-/* Стили для картинки логотипа */
+/* Стили для PNG картинки логотипа (поверх всего) */
 .header__logo {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 1700; /* Поверх header (1600) и меню (1500) */
   display: block;
   height: 150px;
   width: auto;
   max-width: 150px;
   object-fit: contain;
   flex-shrink: 0;
-  margin-top: -15px;
+  margin-top: -5px;  /* Было -15px, сдвинуто на 10px вниз */
   margin-bottom: -60px;
-  margin-left: 2px;
+  margin-left: 12px; /* Было 2px, сдвинуто на 10px вправо */
+  padding: 0;
+  border: none;
+  background: transparent;
+  pointer-events: none; /* Не блокирует клики */
+}
+
+/* Скрыть PNG картинку на mobile */
+body[data-mode="mobile"] .header__logo {
+  display: none;
+}
+
+/* Стили для SVG логотипа по центру (ширина = ширине текстового блока минус padding) */
+.header__svg {
+  display: block;
+  width: calc(var(--text-box-width) - 48px);  /* Ширина текста минус padding панели (24px × 2) */
+  height: auto;  /* Сохраняем пропорции */
   padding: 0;
   border: none;
   background: transparent;
@@ -233,13 +269,13 @@ body[data-input="pointer"].is-slid .menu-rail {
   grid-row: 1;
   writing-mode: vertical-rl;
   text-orientation: upright; /* Буквы стоят вертикально, не повернуты */
-  margin: 0 0 0 -15px;
   display: flex;
-  flex-direction: column-reverse;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 16px 5px 16px 10px; /* left: 10px (сдвиг), right: 5px (расстояние от точек до границы) */
+
+  /* Явные отступы через CSS переменные */
+  padding: 16px var(--handle-padding-right) 16px var(--handle-padding-left);
+
   cursor: pointer;
   background: #D9D9D9;
   pointer-events: auto;
@@ -250,12 +286,26 @@ body[data-input="pointer"].is-slid .menu-rail {
   position: relative;
 }
 
+/* Контейнер для контента (буквы + точки) с фиксированной шириной */
+.menu-handle__content {
+  /* Фиксированная ширина контента */
+  width: var(--handle-content-width);
+  min-width: var(--handle-content-width);
+  max-width: var(--handle-content-width);
+
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: var(--handle-gap);
+}
+
 /* Контейнер для 4 точек drag hint */
 .menu-handle__dots {
   display: none;
   flex-direction: row;
   gap: 6px;
   pointer-events: none;
+  flex-shrink: 0;
 }
 
 body[data-mode="desktop"] .menu-handle__dots,
@@ -274,10 +324,14 @@ body[data-mode="tablet"] .menu-handle__dots {
 }
 
 .menu-handle__label {
-  font-weight: 600;
+  font-weight: 900;
   text-transform: uppercase;
-  letter-spacing: 0.27em;
-  margin-bottom: 2px;
+  letter-spacing: 0.35em;
+
+  /* Текст может обрезаться если не влезает в фиксированную ширину */
+  overflow: hidden;
+  text-overflow: clip;
+  flex-shrink: 1;
 }
 
 .menu-rail__cap {
@@ -762,7 +816,7 @@ body[data-mode="mobile"] .dot-flyout {
   transform: translate(-50%, -50%);
   width: min(280px, 100%);
   height: clamp(600px, 80vh, 860px);
-  background: rgba(213, 216, 232, 0.5);
+  background: rgba(213, 216, 232, 0.85);
   border-radius: 9999px;
   filter: blur(80px);
   z-index: 0;
@@ -789,7 +843,7 @@ body[data-mode="mobile"] .dot-flyout {
 
 /* Карусель рекомендаций */
 .stack-carousel {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   position: relative;
   overflow: hidden;
   min-height: 0;
@@ -798,7 +852,8 @@ body[data-mode="mobile"] .dot-flyout {
 .stack-slide {
   display: flex;
   flex-direction: column;
-  gap: 45px;
+  align-items: center;
+  gap: 50px;
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.5s ease, visibility 0.5s ease;
@@ -815,21 +870,51 @@ body[data-mode="mobile"] .dot-flyout {
 }
 
 .stack-card {
-  padding: 16px;
+  height: 200px;
+  margin: 0 25px;
+  padding: 0;
   background: var(--surface);
-  line-height: 1.4;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.stack-card__image {
+  height: 40%;
+  background: transparent;
+  flex-shrink: 0;
+}
+
+.stack-card__content {
+  flex: 1;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .stack-card h3 {
-  margin: 0 0 8px;
+  margin: 0;
   font-size: 16px;
   font-weight: 800;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .stack-card p {
   margin: 0;
   font-size: 14px;
   color: var(--text-secondary);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 /* Индикатор прогресса (точки) */
@@ -837,7 +922,7 @@ body[data-mode="mobile"] .dot-flyout {
   display: flex;
   justify-content: center;
   gap: 8px;
-  margin-top: 16px;
+  margin-top: 50px;
   padding: 8px 0;
 }
 
@@ -886,30 +971,34 @@ body.menu-open .backdrop {
   right: 0;
   bottom: 0;
   height: var(--mobile-dock-footprint);
-  background: var(--surface-alt);
-  border-top: 1px solid var(--border-color);
+  background: transparent;
+  border: none;
   display: none;
   align-items: flex-start;
   justify-content: center;
-  padding: 0 env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px)
-    env(safe-area-inset-left, 0px);
+  padding: 0 20px env(safe-area-inset-bottom, 0px) 20px; /* 20px отступы по бокам */
   z-index: 1600;
 }
 
 .dock-handle {
-  width: 100%;
-  height: var(--mobile-dock);
   padding: 0 24px;
-  font-weight: 600;
+  margin-bottom: 20px; /* Визуальный отступ от нижней границы экрана */
+  font-weight: 900;
+  letter-spacing: 0.08em;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 0;
+  /* width, height, border-radius, color определены выше */
 }
 
-body[data-input="pointer"].is-slid .header,
-body.menu-open .header {
+/* Desktop/tablet: сдвиг header при открытии меню или is-slid */
+body[data-mode="desktop"][data-input="pointer"].is-slid .header,
+body[data-mode="desktop-wide"][data-input="pointer"].is-slid .header,
+body[data-mode="tablet"][data-input="pointer"].is-slid .header,
+body[data-mode="desktop"].menu-open .header,
+body[data-mode="desktop-wide"].menu-open .header,
+body[data-mode="tablet"].menu-open .header {
   transform: translateX(calc(var(--rail-open) - var(--rail-closed)));
 }
 
@@ -1066,24 +1155,6 @@ body[data-mode="tablet"] .stack {
   align-self: center;
 }
 
-body[data-mode="tablet"] .header__links {
-  gap: 8px;
-}
-
-body[data-mode="mobile"] .header__links {
-  display: none; /* Скрыть ссылки на малых экранах для предотвращения overflow */
-}
-
-body[data-mode="tablet"].menu-open .header {
-  transform: translateX(calc(var(--rail-open) - var(--rail-closed)));
-}
-
-/* Сдвиг header в desktop режимах при открытии меню */
-body[data-mode="desktop"].menu-open .header,
-body[data-mode="desktop-wide"].menu-open .header {
-  transform: translateX(calc(var(--rail-open) - var(--rail-closed)));
-}
-
 body[data-mode="mobile"] .main {
   display: flex;
   flex-direction: column;
@@ -1134,13 +1205,12 @@ body[data-mode="mobile"] .menu-rail {
   width: auto;
   left: 0;
   right: 0;
-  top: auto;
+  top: 85px; /* Начинается ПОСЛЕ header (header height = 85px) */
   bottom: 0;
   margin: 0;
-  border-radius: 24px 24px 0 0;
+  border-radius: 0;
   transform: translate3d(0, 100%, 0);
-  height: 100vh; /* iOS 15 fallback */
-  height: 100dvh; /* iOS 16+ */
+  height: auto; /* Автоматическая высота от top до bottom */
   pointer-events: none;
   padding-left: env(safe-area-inset-left, 0px);
   padding-right: env(safe-area-inset-right, 0px);
@@ -1170,10 +1240,7 @@ body[data-mode="mobile"] .menu-rail__cap span {
 
 body[data-mode="mobile"] .menu-rail__cap span::after {
   content: "";
-  width: 72px;
-  height: 6px;
-  border-radius: 999px;
-  background: var(--border-color);
+  display: none;
 }
 
 body[data-mode="mobile"].menu-open .menu-rail {
@@ -1351,16 +1418,49 @@ body[data-mode="tablet"] #pw-root {
   order: 2;
 }
 
-/* Mobile: relative, умещается на малых экранах */
+/* Mobile: fixed слева пока < 100%, потом переезжает в центр */
 body[data-mode="mobile"] #pw-root {
-  position: relative;
-  margin: 16px auto;
+  position: fixed !important;
+  left: 0; /* Прижато к левому краю экрана */
+  bottom: 45px; /* Центр dock-handle: margin-bottom (20px) + height/2 (25px) */
+  z-index: 1700; /* Поверх всего (dock = 1600, header = 1600) */
+  margin: 0;
   order: 2;
   width: min(var(--pw-pill-width), 90%);
+  /* Transition только для transform и left (не для position!) */
+  transition: transform 600ms cubic-bezier(0.4, 0.02, 0.2, 1) 950ms,
+              left 600ms cubic-bezier(0.4, 0.02, 0.2, 1) 950ms;
+}
+
+/* После 100%: переезд в центр (оставляем fixed, анимируем только позицию) */
+body[data-mode="mobile"] #pw-root.is-done {
+  /* Оставляем fixed - НЕ меняем на relative во время анимации! */
+  left: 50%;
+  transform: translateX(-50%); /* Центрируем через transform */
+  /* Position НЕ меняется - остается fixed */
+}
+
+/* После завершения анимации: становится relative и в потоке документа */
+body[data-mode="mobile"] #pw-root.is-positioned-relative {
+  position: relative !important;
+  left: auto !important;
+  bottom: auto !important;
+  transform: none !important;
+  margin: 0 auto 20px auto; /* Центрируем через margin, отступ снизу */
+}
+
+/* Когда меню открыто: виджет под меню и под кнопкой меню */
+body[data-mode="mobile"].menu-open #pw-root {
+  z-index: 1400 !important; /* Ниже menu-rail (1500) и dock (1600) */
 }
 
 /* Отключение анимаций для prefers-reduced-motion */
 @media (prefers-reduced-motion: reduce) {
+  body[data-mode="mobile"] #pw-root {
+    transition: none !important;
+  }
+
+  #pw-root,
   #pw-root *,
   #pw-root .pw-dot,
   #pw-root .pw-pill,

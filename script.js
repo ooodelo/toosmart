@@ -298,21 +298,7 @@ function updateMode() {
 
   lockScroll();
   scheduleLayoutMetricsUpdate();
-  updateRailClosedWidth();
-}
-
-// Обновление CSS переменной --rail-closed на основе фактической ширины menu-handle
-function updateRailClosedWidth() {
-  const menuHandle = document.querySelector('.menu-handle');
-  if (!menuHandle) return;
-
-  // Измеряем фактическую ширину menu-handle (offsetWidth = content + padding + border)
-  // Это и есть ширина второй grid-колонки в grid-template-columns
-  // margin-left НЕ влияет на ширину grid-колонки, только сдвигает элемент
-  const width = menuHandle.offsetWidth;
-
-  // Обновляем CSS переменную для grid-колонки и анимаций
-  document.documentElement.style.setProperty('--rail-closed', `${width}px`);
+  // updateRailClosedWidth() больше не нужна - --rail-closed вычисляется через CSS calc()
 }
 
 function teardownObserver() {
@@ -474,8 +460,22 @@ function detachTrap() {
 }
 
 function openMenu({ focusOrigin = menuHandle } = {}) {
+  // В mobile/tablet режимах - показываем header (удаляем data-scroll) ПЕРЕД добавлением menu-open
+  // Это критично для предотвращения мигания header
+  if (currentMode === 'mobile' || currentMode === 'tablet') {
+    body.removeAttribute('data-scroll');
+  }
+
   body.classList.remove('is-slid');
   body.classList.add('menu-open');
+
+  // Форсированное удаление data-scroll ПОСЛЕ добавления menu-open (двойная защита)
+  if (currentMode === 'mobile' || currentMode === 'tablet') {
+    requestAnimationFrame(() => {
+      body.removeAttribute('data-scroll');
+    });
+  }
+
   previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   if (currentMode !== 'desktop') {
     siteMenu.setAttribute('role', 'dialog');
@@ -1276,6 +1276,16 @@ function attachScrollHideHeader() {
       return;
     }
 
+    // Если меню открыто - не меняем состояние header (не скрываем/показываем)
+    if (body.classList.contains('menu-open')) {
+      // Принудительно удаляем data-scroll если он каким-то образом установлен
+      if (body.hasAttribute('data-scroll')) {
+        body.removeAttribute('data-scroll');
+      }
+      scrollTicking = false;
+      return;
+    }
+
     const currentScrollY = window.pageYOffset || document.documentElement.scrollTop;
     const scrollDiff = currentScrollY - lastScrollY;
 
@@ -1497,9 +1507,16 @@ function initProgressWidget() {
       root.setAttribute('aria-disabled', 'false');
       root.setAttribute('aria-label', 'Кнопка: Далее');
       playForward();
+
+      // После завершения анимации (950ms задержка + 600ms анимация = 1550ms)
+      // меняем position с fixed на relative
+      setTimeout(() => {
+        root.classList.add('is-positioned-relative');
+      }, 1550);
     } else if (!shouldBeDone && doneState) {
       doneState = false;
       root.classList.remove('is-done');
+      root.classList.remove('is-positioned-relative');
       root.setAttribute('aria-disabled', 'true');
       root.setAttribute('aria-label', 'Прогресс чтения: ' + perc + '%');
       playReverse();
@@ -1553,7 +1570,7 @@ function init() {
   // Feature detection
   detectBackdropFilter();
 
-  updateMode(); // updateMode() уже вызывает updateRailClosedWidth()
+  updateMode();
   initDots();
   initDotsFlyout(); // Flyout меню для navigation dots
   initMenuInteractions();
