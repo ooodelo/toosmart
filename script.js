@@ -81,6 +81,11 @@ let flyoutDisposers = [];
 let restoreSetActiveSection = null;
 let menuSwipeDisposers = [];
 let edgeGestureDisposer = null;
+let scrollHideControls = {
+  suppress: () => {},
+  setMode: () => {},
+  detach: () => {},
+};
 
 function isMenuAvailable() {
   return Boolean(menuRail || siteMenu);
@@ -454,6 +459,13 @@ function scheduleLayoutMetricsUpdate() {
   });
 }
 
+function syncScrollHideMode() {
+  if (typeof scrollHideControls.setMode === 'function') {
+    const shouldEnable = currentMode === 'mobile' || currentMode === 'tablet';
+    scrollHideControls.setMode(shouldEnable);
+  }
+}
+
 /**
  * Обновляет режим верстки (data-mode) и тип ввода (data-input)
  */
@@ -467,6 +479,8 @@ function updateMode() {
   currentInput = nextInput;
   body.dataset.mode = nextMode;
   body.dataset.input = nextInput;
+
+  syncScrollHideMode();
 
   if (window.DEBUG_MODE_DETECTION) {
     if (prevMode !== nextMode || prevInput !== nextInput) {
@@ -702,6 +716,7 @@ function openMenu({ focusOrigin = menuHandle } = {}) {
   // Это критично для предотвращения мигания header
   if (currentMode === 'mobile' || currentMode === 'tablet') {
     body.removeAttribute('data-scroll');
+    scrollHideControls.suppress(true);
   }
 
   body.classList.remove('is-slid');
@@ -749,6 +764,9 @@ function closeMenu({ focusOrigin = menuHandle } = {}) {
   detachTrap();
   updateAriaExpanded(false);
   lockScroll();
+  if (currentMode === 'mobile' || currentMode === 'tablet') {
+    scrollHideControls.suppress(false);
+  }
   if (previousFocus) {
     previousFocus.focus({ preventScroll: true });
     previousFocus = null;
@@ -1716,52 +1734,53 @@ function attachScrollHideHeader() {
   let scrollTicking = false;
   const scrollThreshold = 10; // минимальная дистанция для срабатывания (px)
   const scrollTopThreshold = 100; // не скрывать если в самом верху страницы
+  let enabledForMode = currentMode === 'mobile' || currentMode === 'tablet';
+  let suppressed = false;
+  let disposeScroll = null;
+
+  const syncLastScroll = () => {
+    lastScrollY = window.pageYOffset || document.documentElement.scrollTop;
+  };
+
+  const resetAttributes = () => {
+    if (body.hasAttribute('data-scroll')) {
+      body.removeAttribute('data-scroll');
+    }
+  };
 
   function updateScrollDirection() {
-    // Динамически проверяем режим - работает только на mobile/tablet
-    if (currentMode !== 'mobile' && currentMode !== 'tablet') {
-      // На desktop режимах удаляем атрибут (все показывается)
-      if (body.hasAttribute('data-scroll')) {
-        body.removeAttribute('data-scroll');
-      }
+    if (!enabledForMode) {
+      resetAttributes();
       scrollTicking = false;
-      lastScrollY = window.pageYOffset || document.documentElement.scrollTop;
+      syncLastScroll();
       return;
     }
 
-    // Если меню открыто - не меняем состояние header (не скрываем/показываем)
-    if (body.classList.contains('menu-open')) {
-      // Принудительно удаляем data-scroll если он каким-то образом установлен
-      if (body.hasAttribute('data-scroll')) {
-        body.removeAttribute('data-scroll');
-      }
+    if (suppressed || body.classList.contains('menu-open')) {
+      resetAttributes();
       scrollTicking = false;
+      syncLastScroll();
       return;
     }
 
     const currentScrollY = window.pageYOffset || document.documentElement.scrollTop;
     const scrollDiff = currentScrollY - lastScrollY;
 
-    // Игнорируем малые изменения
     if (Math.abs(scrollDiff) < scrollThreshold) {
       scrollTicking = false;
       return;
     }
 
-    // Определяем направление и обновляем data-атрибут
     if (scrollDiff > 0 && currentScrollY > scrollTopThreshold) {
-      // Скролл вниз и не в самом верху - скрываем header/dock
       if (body.dataset.scroll !== 'down') {
         body.dataset.scroll = 'down';
       }
     } else if (scrollDiff < 0) {
-      // Скролл вверх - показываем header/dock
       if (body.dataset.scroll !== 'up') {
         body.dataset.scroll = 'up';
       }
     }
 
-    // Если в самом верху - убираем атрибут (все показывается)
     if (currentScrollY <= scrollTopThreshold) {
       body.removeAttribute('data-scroll');
     }
@@ -1777,14 +1796,68 @@ function attachScrollHideHeader() {
     }
   }
 
-  const disposeScroll = trackEvent(window, 'scroll', onScroll, { passive: true }, {
+  function setModeEnabled(shouldEnable) {
+    const next = Boolean(shouldEnable);
+    if (enabledForMode === next) {
+      if (!next) {
+        resetAttributes();
+        syncLastScroll();
+      }
+      return;
+    }
+
+    enabledForMode = next;
+    resetAttributes();
+    syncLastScroll();
+    if (!enabledForMode) {
+      suppressed = false;
+    }
+  }
+
+  function setSuppressed(next) {
+    const shouldSuppress = Boolean(next);
+    if (suppressed === shouldSuppress) {
+      if (shouldSuppress) {
+        resetAttributes();
+        syncLastScroll();
+      }
+      return;
+    }
+
+    suppressed = shouldSuppress;
+    resetAttributes();
+    syncLastScroll();
+  }
+
+  function detach() {
+    if (typeof disposeScroll === 'function') {
+      disposeScroll();
+      disposeScroll = null;
+    }
+    resetAttributes();
+    scrollTicking = false;
+  }
+
+  disposeScroll = trackEvent(window, 'scroll', onScroll, { passive: true }, {
     module: 'scroll.hideHeader',
     target: 'window',
   });
 
+  scrollHideControls = {
+    suppress: setSuppressed,
+    setMode: setModeEnabled,
+    detach,
+  };
+
+  setModeEnabled(enabledForMode);
+
   registerLifecycleDisposer(() => {
-    disposeScroll();
-    body.removeAttribute('data-scroll');
+    detach();
+    scrollHideControls = {
+      suppress: () => {},
+      setMode: () => {},
+      detach: () => {},
+    };
   }, { module: 'scroll.hideHeader', kind: 'cleanup' });
 }
 
@@ -2264,6 +2337,7 @@ function init() {
     detachTrap();
     detachFlyoutListeners();
     teardownObserver();
+    scrollHideControls.detach();
     if (typeof flyoutHideTimeoutCancel === 'function') {
       flyoutHideTimeoutCancel();
       flyoutHideTimeoutCancel = null;
