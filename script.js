@@ -27,8 +27,6 @@
  *    Dev Tools iPhone (375px, pointer) → mode=mobile, input=pointer
  */
 
-console.log('🚀 script.js loading...');
-
 const ModeUtils = window.ModeUtils;
 
 if (!ModeUtils) {
@@ -45,18 +43,20 @@ const initialInput = window.__INITIAL_INPUT__;
 if (typeof initialInput === 'string') {
   delete window.__INITIAL_INPUT__;
 }
-const menuRail = document.querySelector('.menu-rail');
-const header = document.querySelector('.header');
-const menuHandle = document.querySelector('.menu-handle');
-const siteMenu = document.querySelector('.site-menu');
-const backdrop = document.querySelector('.backdrop');
-const dockHandle = document.querySelector('.dock-handle');
-const panel = document.querySelector('.panel');
-const dotsRail = document.querySelector('.dots-rail');
-const dotFlyout = document.querySelector('.dot-flyout');
-const sections = Array.from(document.querySelectorAll('.text-section'));
-const menuCap = document.querySelector('.menu-rail__cap');
-let progressWidgetRoot = document.getElementById('pw-root');
+// Safari fix: Элементы могут быть не готовы при загрузке модуля
+// Используем let и инициализируем позже в ensureElements()
+let menuRail = null;
+let header = null;
+let menuHandle = null;
+let siteMenu = null;
+let backdrop = null;
+let dockHandle = null;
+let panel = null;
+let dotsRail = null;
+let dotFlyout = null;
+let sections = [];
+let menuCap = null;
+let progressWidgetRoot = null;
 
 let currentMode = body.dataset.mode || initialMode || 'desktop';
 let currentInput = body.dataset.input || initialInput || 'pointer';
@@ -1079,7 +1079,7 @@ function createLazyFeatureManager(options = {}) {
 }
 
 const lazyFeatures = createLazyFeatureManager({
-  threshold: 0.2,
+  threshold: [0, 0.2], // Safari fix: массив гарантирует срабатывание callback
   rootMargin: '0px 0px -10% 0px',
 });
 
@@ -1854,6 +1854,7 @@ function initDotsFlyout() {
     if (dotFlyout) {
       dotFlyout.innerHTML = '';
       dotFlyout.setAttribute('hidden', '');
+      dotFlyout.classList.add('is-hidden');
     }
     releaseSetActiveSectionBridge('dotsFlyout.lazy-inactive');
     return;
@@ -1892,6 +1893,7 @@ function initDotsFlyout() {
   if (!shouldEnable) {
     logFlyout('[FLYOUT] Disabled - hiding');
     dotFlyout.setAttribute('hidden', '');
+    dotFlyout.classList.add('is-hidden');
     detachFlyoutListeners();
     if (typeof flyoutSetActiveDisposer === 'function') {
       try {
@@ -1936,7 +1938,8 @@ function initDotsFlyout() {
       flyoutHideTimeoutCancel = null;
     }
     dotFlyout.removeAttribute('hidden');
-    logFlyout('[FLYOUT] hidden attribute removed, current:', dotFlyout.getAttribute('hidden'));
+    dotFlyout.classList.remove('is-hidden');
+    logFlyout('[FLYOUT] hidden attribute removed and is-hidden class removed');
   }
 
   function hideFlyout() {
@@ -1947,8 +1950,9 @@ function initDotsFlyout() {
     }
     flyoutHideTimeoutCancel = trackTimeout(() => {
       dotFlyout.setAttribute('hidden', '');
+      dotFlyout.classList.add('is-hidden');
       flyoutHideTimeoutCancel = null;
-      logFlyout('[FLYOUT] hidden attribute set');
+      logFlyout('[FLYOUT] hidden attribute set and is-hidden class added');
     }, 120, { module: 'dotsFlyout', detail: 'hide delay' }); // Задержка 120ms как в templates
   }
 
@@ -1969,7 +1973,7 @@ function initDotsFlyout() {
 
   // Keyboard navigation в flyout
   function handleFlyoutKeyboard(e) {
-    if (dotFlyout.hasAttribute('hidden')) return;
+    if (dotFlyout.hasAttribute('hidden') || dotFlyout.classList.contains('is-hidden')) return;
 
     const items = Array.from(dotFlyout.querySelectorAll('.dot-flyout__item'));
     if (items.length === 0) return;
@@ -1998,7 +2002,7 @@ function initDotsFlyout() {
 
   // Подсветка активного элемента в flyout
   function updateFlyoutActiveItem() {
-    if (dotFlyout.hasAttribute('hidden')) return;
+    if (dotFlyout.hasAttribute('hidden') || dotFlyout.classList.contains('is-hidden')) return;
 
     const items = dotFlyout.querySelectorAll('.dot-flyout__item');
     items.forEach(item => {
@@ -2082,6 +2086,7 @@ function initDotsFlyout() {
     detachFlyoutListeners();
     if (dotFlyout) {
       dotFlyout.setAttribute('hidden', '');
+      dotFlyout.classList.add('is-hidden');
     }
   }, { module: 'dotsFlyout', kind: 'cleanup' });
 }
@@ -2124,6 +2129,7 @@ function runModeUpdateFrame() {
       // Скрываем flyout в tablet/mobile или при неактивном состоянии
       if (dotFlyout) {
         dotFlyout.setAttribute('hidden', '');
+        dotFlyout.classList.add('is-hidden');
       }
       if (dotsFeatureActive) {
         initDotsFlyout();
@@ -3306,6 +3312,9 @@ function activateDotsNavigationFeature() {
     return () => {};
   }
 
+  // Safari fix: Убедимся что элементы найдены перед инициализацией
+  ensureElements();
+
   dotsFeatureActive = true;
 
   try {
@@ -3336,6 +3345,7 @@ function activateDotsNavigationFeature() {
     if (dotFlyout) {
       dotFlyout.innerHTML = '';
       dotFlyout.setAttribute('hidden', '');
+      dotFlyout.classList.add('is-hidden');
     }
     if (dotsRail) {
       dotsRail.innerHTML = '';
@@ -3381,6 +3391,9 @@ function activateProgressWidgetFeature() {
     return () => {};
   }
 
+  // Safari fix: Убедимся что элементы найдены перед инициализацией
+  ensureElements();
+
   let release = null;
   try {
     release = initProgressWidget();
@@ -3419,16 +3432,42 @@ lazyFeatures.register('progress-widget', {
   onEnter: () => activateProgressWidgetFeature(),
 });
 
+/**
+ * Safari fix: Инициализация элементов DOM
+ * Вызывается в начале init() чтобы гарантировать что все элементы найдены
+ */
+function ensureElements() {
+  if (!menuRail) menuRail = document.querySelector('.menu-rail');
+  if (!header) header = document.querySelector('.header');
+  if (!menuHandle) menuHandle = document.querySelector('.menu-handle');
+  if (!siteMenu) siteMenu = document.querySelector('.site-menu');
+  if (!backdrop) backdrop = document.querySelector('.backdrop');
+  if (!dockHandle) dockHandle = document.querySelector('.dock-handle');
+  if (!panel) panel = document.querySelector('.panel');
+  if (!dotsRail) dotsRail = document.querySelector('.dots-rail');
+  if (!dotFlyout) dotFlyout = document.querySelector('.dot-flyout');
+  if (!menuCap) menuCap = document.querySelector('.menu-rail__cap');
+  if (!progressWidgetRoot) progressWidgetRoot = document.getElementById('pw-root');
+  if (sections.length === 0) {
+    sections.push(...Array.from(document.querySelectorAll('.text-section')));
+  }
+}
+
 function init() {
+  // Safari fix: Убедимся что все элементы DOM найдены
+  ensureElements();
+
   // Feature detection
   detectBackdropFilter();
 
   const modeState = updateMode();
+
   initMenuInteractions();
   attachEdgeGesture(); // Attach only if tablet mode
   attachMenuSwipes(); // Swipe support for touch devices
   attachScrollHideHeader(); // Auto-hide header/dock on scroll
   initMenuLinks();
+
   lazyFeatures.observeAll();
 
   requestLayoutMetricsUpdate({

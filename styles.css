@@ -717,10 +717,17 @@ body[data-mode="mobile"] .text-section table {
 }
 
 /* Показ flyout */
-.dot-flyout:not([hidden]) {
+.dot-flyout:not([hidden]):not(.is-hidden) {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
+}
+
+/* Safari fix: явное скрытие через класс */
+.dot-flyout.is-hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 /* Fallback для gap (если grid не поддерживает gap) */
@@ -1319,6 +1326,9 @@ body[data-mode="mobile"].menu-open .backdrop {
   -webkit-tap-highlight-color: transparent;
   -webkit-user-select: none;
   user-select: none;
+  /* Safari fix: явная видимость */
+  visibility: visible;
+  opacity: 1;
 }
 
 /* Контейнер-слот для мобильного режима */
@@ -1355,8 +1365,10 @@ body[data-mode="mobile"] .pw-slot {
   top: 50%;
   width: var(--pw-circle-size);
   height: var(--pw-circle-size);
+  -webkit-transform: translate(-50%, -50%) scale(1);
   transform: translate(-50%, -50%) scale(1);
   background: #000;
+  -webkit-border-radius: 50%;
   border-radius: 50%;
   will-change: transform, opacity;
 }
@@ -1368,9 +1380,12 @@ body[data-mode="mobile"] .pw-slot {
   top: 50%;
   width: var(--pw-pill-width);
   height: var(--pw-pill-height);
+  -webkit-transform: translate(-50%, -50%) scaleX(0.001);
   transform: translate(-50%, -50%) scaleX(0.001);
+  -webkit-transform-origin: center;
   transform-origin: center;
   background: #000;
+  -webkit-border-radius: calc(var(--pw-pill-height) / 2);
   border-radius: calc(var(--pw-pill-height) / 2);
   opacity: 0;
   will-change: transform, opacity;
