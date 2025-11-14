@@ -2495,6 +2495,8 @@ function initProgressWidget() {
       finalizeDocked();
       return;
     }
+    doneState = false;
+    widgetState = STATE_FLOATING;
 
     if (widgetState === STATE_FLOATING && !wasDone) {
       root.classList.add('is-floating');
