@@ -853,6 +853,10 @@ function createLazyFeatureManager(options = {}) {
   let observedElements = new WeakSet();
   let observer = null;
 
+  const supportsIntersectionObserver = typeof window !== 'undefined'
+    && typeof window.IntersectionObserver === 'function';
+  let fallbackWarningShown = false;
+
   const threshold = Array.isArray(options.threshold) || typeof options.threshold === 'number'
     ? options.threshold
     : 0.2;
@@ -871,6 +875,9 @@ function createLazyFeatureManager(options = {}) {
   }
 
   function ensureObserver() {
+    if (!supportsIntersectionObserver) {
+      return null;
+    }
     if (observer) {
       return observer;
     }
@@ -953,6 +960,52 @@ function createLazyFeatureManager(options = {}) {
     }
   }
 
+  function activateElementFeaturesImmediately(element) {
+    const tokens = parseTokens(element?.dataset?.lazy);
+    if (tokens.length === 0) {
+      return;
+    }
+
+    if (!fallbackWarningShown) {
+      fallbackWarningShown = true;
+      console.warn('[LazyFeatures] IntersectionObserver is not supported — activating features immediately');
+    }
+
+    let featureMap = elementStates.get(element);
+    if (!featureMap) {
+      featureMap = new Map();
+      elementStates.set(element, featureMap);
+    }
+
+    for (const id of tokens) {
+      const feature = features.get(id);
+      if (!feature) {
+        continue;
+      }
+
+      const state = featureMap.get(id);
+      if (state?.active) {
+        continue;
+      }
+
+      let cleanup = null;
+      try {
+        cleanup = feature.onEnter?.({
+          id,
+          element,
+          entry: null,
+        });
+      } catch (error) {
+        console.error('[LazyFeatures] Activation failed (fallback)', { id, error });
+      }
+
+      featureMap.set(id, {
+        active: true,
+        cleanup: typeof cleanup === 'function' ? cleanup : null,
+      });
+    }
+  }
+
   function observeElement(element) {
     if (!(element instanceof Element)) {
       return;
@@ -961,7 +1014,13 @@ function createLazyFeatureManager(options = {}) {
       return;
     }
     observedElements.add(element);
-    ensureObserver().observe(element);
+    const io = ensureObserver();
+    if (io) {
+      io.observe(element);
+      return;
+    }
+
+    activateElementFeaturesImmediately(element);
   }
 
   function register(id, handlers = {}) {
@@ -969,6 +1028,16 @@ function createLazyFeatureManager(options = {}) {
       return () => {};
     }
     features.set(id, handlers);
+
+    if (!supportsIntersectionObserver) {
+      for (const element of elementStates.keys()) {
+        const tokens = parseTokens(element?.dataset?.lazy);
+        if (tokens.includes(id)) {
+          activateElementFeaturesImmediately(element);
+        }
+      }
+    }
+
     return () => {
       features.delete(id);
     };
