@@ -780,6 +780,15 @@ function updateLayoutMetrics() {
     footprint += parseCssNumber(styles.marginBottom);
   }
 
+  if (body.dataset.mode === 'mobile') {
+    const slot = pwRoot.parentElement && pwRoot.parentElement.classList.contains('pw-slot')
+      ? pwRoot.parentElement
+      : document.querySelector('.pw-slot');
+    if (slot && slot instanceof HTMLElement) {
+      footprint = Math.max(footprint, Math.round(slot.offsetHeight));
+    }
+  }
+
   footprint = Math.max(0, Math.round(footprint));
   root.style.setProperty('--pw-footprint', `${footprint}px`);
 }
@@ -2254,7 +2263,16 @@ function initProgressWidget() {
     root.setAttribute('aria-label', 'Прогресс чтения: 0%');
   }
 
-  const targetParent = document.body.contains(textContainer) ? textContainer : document.body;
+  let slot = textContainer.querySelector('.pw-slot');
+  let slotCreated = false;
+  if (!slot) {
+    slot = document.createElement('div');
+    slot.className = 'pw-slot';
+    textContainer.appendChild(slot);
+    slotCreated = true;
+  }
+
+  const targetParent = document.body.contains(slot) ? slot : (document.body.contains(textContainer) ? textContainer : document.body);
   if (root.parentElement !== targetParent) {
     targetParent.appendChild(root);
   }
@@ -2340,130 +2358,158 @@ function initProgressWidget() {
   // 5. Анимации
   let aDot = null, aPill = null, aPct = null, aNext = null;
   let doneState = false, ticking = false;
-  let positionTimeoutCancel = null;
-  let positionRafCancel = null;
-  let transitionCleanup = null;
+  let dockingPromise = null;
+  let dockingTimerId = null;
 
-  function cancelPositionSchedulers() {
-    if (typeof positionRafCancel === 'function') {
-      positionRafCancel();
-      positionRafCancel = null;
-    }
-    if (typeof positionTimeoutCancel === 'function') {
-      positionTimeoutCancel();
-      positionTimeoutCancel = null;
-    }
-    if (typeof transitionCleanup === 'function') {
-      transitionCleanup();
-      transitionCleanup = null;
+  const STATE_FLOATING = 'floating';
+  const STATE_DOCKING = 'docking';
+  const STATE_DOCKED = 'docked';
+  const DOCK_PROGRESS = 0.98;
+  const UNDOCK_PROGRESS = 0.94;
+  const DOCK_TRANSITION_MS = 520;
+  const SLOT_READY_OFFSET = 24;
+  const SLOT_RELEASE_OFFSET = 8;
+
+  let widgetState = body.dataset.mode === 'mobile' ? STATE_FLOATING : STATE_DOCKED;
+  if (body.dataset.mode === 'mobile') {
+    root.classList.add('is-floating');
+  } else {
+    root.classList.remove('is-floating', 'is-docking', 'is-docked');
+  }
+
+  function isMobileMode() {
+    return body.dataset.mode === 'mobile';
+  }
+
+  function clearDockingTimer() {
+    if (dockingTimerId !== null) {
+      clearTimeout(dockingTimerId);
+      dockingTimerId = null;
     }
   }
 
-  function applyRelativePosition() {
-    if (!doneState) return;
-    if (root.classList.contains('is-positioned-relative')) {
+  function finalizeDocked() {
+    clearDockingTimer();
+    dockingPromise = null;
+    widgetState = STATE_DOCKED;
+    root.classList.remove('is-floating', 'is-docking');
+    root.classList.add('is-docked');
+    scheduleLayoutMetricsUpdate();
+  }
+
+  function startDocking() {
+    if (!isMobileMode()) {
+      return;
+    }
+    if (widgetState === STATE_DOCKED || widgetState === STATE_DOCKING) {
       return;
     }
 
-    if (typeof positionRafCancel === 'function') {
-      positionRafCancel();
-      positionRafCancel = null;
-    }
+    widgetState = STATE_DOCKING;
+    doneState = true;
+    root.classList.add('is-done', 'is-floating', 'is-docking');
+    root.classList.remove('is-docked');
+    root.setAttribute('aria-disabled', 'false');
+    root.setAttribute('aria-label', 'Кнопка: Далее');
 
-    let firstFrame = null;
-    let secondFrame = null;
+    playForward();
 
-    const commit = () => {
-      positionRafCancel = null;
-      if (!doneState || root.classList.contains('is-positioned-relative')) {
-        return;
-      }
-      root.classList.add('is-positioned-relative');
-      scheduleLayoutMetricsUpdate();
-    };
-
-    const cancel = () => {
-      if (firstFrame !== null) {
-        cancelAnimationFrame(firstFrame);
-        firstFrame = null;
-      }
-      if (secondFrame !== null) {
-        cancelAnimationFrame(secondFrame);
-        secondFrame = null;
-      }
-    };
-
-    firstFrame = requestAnimationFrame(() => {
-      firstFrame = null;
-      if (!doneState) {
-        cancel();
-        positionRafCancel = null;
-        return;
-      }
-      secondFrame = requestAnimationFrame(() => {
-        secondFrame = null;
-        commit();
-      });
-    });
-
-    positionRafCancel = () => {
-      cancel();
-    };
-  }
-
-  function waitForFixedToSettle() {
-    cancelPositionSchedulers();
-
-    // В режимах без анимации (prefers-reduced-motion) или не mobile
-    // сразу переводим в relative.
-    if (prefersReduced || body.dataset.mode !== 'mobile') {
-      applyRelativePosition();
+    if (prefersReduced) {
+      finalizeDocked();
       return;
     }
 
-    const watchedProperties = new Set(['left', 'transform']);
+    const waiters = [];
+    for (const animation of [aPill, aNext]) {
+      if (animation && animation.finished && typeof animation.finished.then === 'function') {
+        waiters.push(animation.finished.catch(() => {}));
+      }
+    }
 
-    const onTransitionEnd = (event) => {
-      if (event.target !== root) return;
-      if (!watchedProperties.has(event.propertyName)) return;
-      cancelPositionSchedulers();
-      applyRelativePosition();
-    };
+    waiters.push(new Promise((resolve) => {
+      dockingTimerId = window.setTimeout(() => {
+        dockingTimerId = null;
+        resolve();
+      }, DOCK_TRANSITION_MS);
+    }));
 
-    const onTransitionCancel = (event) => {
-      if (event.target !== root) return;
-      cancelPositionSchedulers();
-      applyRelativePosition();
-    };
-
-    const detachTransitionEnd = trackEvent(root, 'transitionend', onTransitionEnd, undefined, {
-      module: 'progressWidget',
-      target: describeTarget(root),
+    dockingPromise = Promise.all(waiters);
+    dockingPromise.then(() => {
+      if (widgetState === STATE_DOCKING) {
+        finalizeDocked();
+      }
+    }).catch(() => {
+      if (widgetState === STATE_DOCKING) {
+        finalizeDocked();
+      }
     });
-    const detachTransitionCancel = trackEvent(root, 'transitioncancel', onTransitionCancel, undefined, {
-      module: 'progressWidget',
-      target: describeTarget(root),
-    });
-
-    transitionCleanup = () => {
-      detachTransitionEnd();
-      detachTransitionCancel();
-      transitionCleanup = null;
-    };
-
-    // Фолбэк, если transitionend не произойдёт (например, браузер не поддерживает)
-    positionTimeoutCancel = trackTimeout(() => {
-      positionTimeoutCancel = null;
-      cancelPositionSchedulers();
-      applyRelativePosition();
-    }, 900, { module: 'progressWidget', detail: 'position fallback' });
   }
 
-  function resetRelativePosition() {
-    const removed = root.classList.remove('is-positioned-relative');
-    cancelPositionSchedulers();
-    if (removed) {
-      scheduleLayoutMetricsUpdate();
+  function startUndock({ perc = 0 } = {}) {
+    clearDockingTimer();
+    dockingPromise = null;
+    const wasDone = doneState;
+    if (widgetState === STATE_FLOATING && !wasDone) {
+      root.classList.add('is-floating');
+      return;
+    }
+    doneState = false;
+    widgetState = STATE_FLOATING;
+
+    root.classList.add('is-floating');
+    root.classList.remove('is-docking', 'is-docked');
+
+    if (wasDone) {
+      root.classList.remove('is-done');
+      root.setAttribute('aria-disabled', 'true');
+      root.setAttribute('aria-label', 'Прогресс чтения: ' + perc + '%');
+      playReverse();
+    }
+
+    scheduleLayoutMetricsUpdate();
+  }
+
+  function getViewportHeight() {
+    if (!isMobileMode()) {
+      return window.innerHeight || document.documentElement?.clientHeight || 0;
+    }
+    if (!controlsWindowScroll || scrollRoot === window) {
+      return window.innerHeight || document.documentElement?.clientHeight || 0;
+    }
+    return scrollRoot?.clientHeight || window.innerHeight || 0;
+  }
+
+  function computeSlotRect() {
+    if (!slot || typeof slot.getBoundingClientRect !== 'function') {
+      return null;
+    }
+    return slot.getBoundingClientRect();
+  }
+
+  function handleMobileState(progress, perc) {
+    if (widgetState === STATE_FLOATING && !root.classList.contains('is-floating')) {
+      root.classList.add('is-floating');
+    }
+    const slotRect = computeSlotRect();
+    if (!slotRect) {
+      if (progress <= UNDOCK_PROGRESS) {
+        startUndock({ perc });
+      }
+      return;
+    }
+
+    const viewportHeight = getViewportHeight();
+    const rootHeight = Math.max(root.offsetHeight || 0, parseCssNumber(window.getComputedStyle(root).height));
+    const dockReady = slotRect.top <= (viewportHeight - rootHeight * 0.5 - SLOT_READY_OFFSET);
+    const slotBelowViewport = slotRect.top >= (viewportHeight - SLOT_RELEASE_OFFSET);
+
+    const shouldDock = dockReady && progress >= DOCK_PROGRESS;
+    const shouldUndock = slotBelowViewport || progress <= UNDOCK_PROGRESS;
+
+    if (shouldDock) {
+      startDocking();
+    } else if (shouldUndock) {
+      startUndock({ perc });
     }
   }
 
@@ -2587,7 +2633,20 @@ function initProgressWidget() {
     const p = measureProgress();
     const perc = Math.round(p * 100);
     pctSpan.textContent = perc + '%';
-    root.setAttribute('aria-label', 'Прогресс чтения: ' + perc + '%');
+
+    if (isMobileMode()) {
+      handleMobileState(p, perc);
+      if (!doneState) {
+        root.setAttribute('aria-disabled', 'true');
+        root.setAttribute('aria-label', 'Прогресс чтения: ' + perc + '%');
+      }
+      return;
+    }
+
+    clearDockingTimer();
+    dockingPromise = null;
+    widgetState = STATE_DOCKED;
+    root.classList.remove('is-floating', 'is-docking', 'is-docked');
 
     const shouldBeDone = perc >= 100;
 
@@ -2597,18 +2656,15 @@ function initProgressWidget() {
       root.setAttribute('aria-disabled', 'false');
       root.setAttribute('aria-label', 'Кнопка: Далее');
       playForward();
-      waitForFixedToSettle();
     } else if (!shouldBeDone && doneState) {
       doneState = false;
       root.classList.remove('is-done');
       root.setAttribute('aria-disabled', 'true');
       root.setAttribute('aria-label', 'Прогресс чтения: ' + perc + '%');
       playReverse();
-      resetRelativePosition();
-    } else {
-      if (!shouldBeDone) {
-        root.setAttribute('aria-label', 'Прогресс чтения: ' + perc + '%');
-      }
+    } else if (!shouldBeDone) {
+      root.setAttribute('aria-disabled', 'true');
+      root.setAttribute('aria-label', 'Прогресс чтения: ' + perc + '%');
     }
   }
 
@@ -2671,18 +2727,26 @@ function initProgressWidget() {
   scheduleLayoutMetricsUpdate();
 
   registerLifecycleDisposer(() => {
-    cancelPositionSchedulers();
+    clearDockingTimer();
+    dockingPromise = null;
     killAnims();
     try {
       disconnectMenuObserver();
     } catch (error) {
       console.error('[ProgressWidget] Failed to disconnect menu observer', error);
     }
-    root.classList.remove('is-done', 'is-menu-covered', 'is-positioned-relative');
+    root.classList.remove('is-done', 'is-menu-covered', 'is-floating', 'is-docking', 'is-docked');
     if (root.isConnected && typeof root.remove === 'function') {
       root.remove();
     } else if (root.parentElement) {
       root.parentElement.removeChild(root);
+    }
+    if (slotCreated && slot && slot.parentElement) {
+      try {
+        slot.remove();
+      } catch (error) {
+        slot.parentElement.removeChild(slot);
+      }
     }
   }, { module: 'progressWidget', kind: 'cleanup' });
 }
