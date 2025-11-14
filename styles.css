@@ -1308,7 +1308,7 @@ body[data-mode="mobile"].menu-open .backdrop {
 
 /* Базовые стили контейнера виджета */
 #pw-root {
-  /* Позиционирование: по умолчанию relative для mobile */
+  /* Позиционирование: по умолчанию relative */
   position: relative;
   width: var(--pw-pill-width);
   height: var(--pw-pill-height);
@@ -1370,6 +1370,8 @@ body[data-mode="mobile"].menu-open .backdrop {
   font: 700 10px/1 ui-monospace, Menlo, Consolas, monospace;
   letter-spacing: 0.2px;
   opacity: 1;
+  transform: translateY(0);
+  will-change: opacity, transform;
 }
 
 /* Текст "Далее" */
@@ -1382,6 +1384,9 @@ body[data-mode="mobile"].menu-open .backdrop {
   color: #fff;
   font: 700 14px/1 -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
   opacity: 0;
+  letter-spacing: 0;
+  transform: translateY(0);
+  will-change: opacity, transform, letter-spacing;
 }
 
 /* Состояние "готово" (100%) */
@@ -1420,39 +1425,34 @@ body[data-mode="tablet"] #pw-root {
 
 /* Mobile: fixed слева пока < 100%, потом переезжает в центр */
 body[data-mode="mobile"] #pw-root {
-  position: fixed !important;
-  left: 0; /* Прижато к левому краю экрана */
-  bottom: 45px; /* Центр dock-handle: margin-bottom (20px) + height/2 (25px) */
-  z-index: 1700; /* Поверх всего (dock = 1600, header = 1600) */
-  margin: 0;
-  order: 2;
   width: min(var(--pw-pill-width), 90%);
-  /* Transition только для transform и left (не для position!) */
-  transition: transform 600ms cubic-bezier(0.4, 0.02, 0.2, 1),
-              left 600ms cubic-bezier(0.4, 0.02, 0.2, 1);
+  margin: 0;
 }
 
-/* После 100%: переезд в центр (оставляем fixed, анимируем только позицию) */
-body[data-mode="mobile"] #pw-root.is-done {
-  /* Оставляем fixed - НЕ меняем на relative во время анимации! */
+body[data-mode="mobile"] #pw-root.is-floating:not(.is-done) {
+  width: var(--pw-circle-size);
+  height: var(--pw-circle-size);
+}
+
+body[data-mode="mobile"] #pw-root.is-floating {
+  position: fixed;
+  left: var(--pw-float-left, 0);
+  bottom: var(--pw-float-bottom, 45px);
+  transform: translateX(var(--pw-float-shift, 0));
+  z-index: 1700;
+  transition: transform 680ms cubic-bezier(0.22, 0.61, 0.36, 1),
+              left 680ms cubic-bezier(0.22, 0.61, 0.36, 1),
+              width 520ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+body[data-mode="mobile"] #pw-root.is-floating.is-done {
   left: 50%;
-  transform: translateX(-50%); /* Центрируем через transform */
-  /* Position НЕ меняется - остается fixed */
+  transform: translate(-50%, 0);
 }
 
-/* После завершения анимации: становится relative и в потоке документа */
-body[data-mode="mobile"] #pw-root.is-positioned-relative {
-  position: relative !important;
-  left: auto !important;
-  bottom: auto !important;
-  transform: none !important;
-  margin: 0 auto 20px auto; /* Центрируем через margin, отступ снизу */
-}
-
-/* Когда меню открыто: виджет под меню и под кнопкой меню */
-body[data-mode="mobile"].menu-open #pw-root,
-body[data-mode="mobile"] #pw-root.is-menu-covered {
-  z-index: 1400 !important; /* Ниже menu-rail (1500) и dock (1600) */
+body[data-mode="mobile"].menu-open #pw-root.is-floating,
+body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
+  z-index: 1400;
 }
 
 /* Отключение анимаций для prefers-reduced-motion */

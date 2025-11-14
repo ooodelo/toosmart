@@ -780,8 +780,48 @@ function updateLayoutMetrics() {
     footprint += parseCssNumber(styles.marginBottom);
   }
 
+  if (body.dataset.mode === 'mobile') {
+    updateProgressWidgetFloatingAnchors(pwRoot);
+  } else {
+    pwRoot.style.removeProperty('--pw-float-left');
+    pwRoot.style.removeProperty('--pw-float-bottom');
+  }
+
   footprint = Math.max(0, Math.round(footprint));
   root.style.setProperty('--pw-footprint', `${footprint}px`);
+}
+
+function updateProgressWidgetFloatingAnchors(pwRoot) {
+  if (!(pwRoot instanceof HTMLElement)) {
+    return;
+  }
+
+  if (body.dataset.mode !== 'mobile') {
+    return;
+  }
+
+  const handle = dockHandle instanceof HTMLElement ? dockHandle : null;
+  if (!handle || handle.offsetParent === null) {
+    return;
+  }
+
+  const viewportWidth = window.innerWidth || document.documentElement?.clientWidth || 0;
+  const viewportHeight = window.innerHeight || document.documentElement?.clientHeight || 0;
+  const handleRect = handle.getBoundingClientRect();
+
+  if (viewportWidth > 0 && handleRect.width > 0) {
+    const pwWidth = Math.max(pwRoot.offsetWidth || 0, parseCssNumber(window.getComputedStyle(pwRoot).width));
+    const maxLeft = Math.max(0, Math.min(handleRect.left, viewportWidth - pwWidth));
+    pwRoot.style.setProperty('--pw-float-left', `${Math.round(maxLeft)}px`);
+  }
+
+  if (viewportHeight > 0) {
+    const gap = 10;
+    const bottom = handleRect.top > 0
+      ? Math.max(gap, Math.round(viewportHeight - handleRect.top + gap))
+      : Math.max(gap, Math.round(parseCssNumber(window.getComputedStyle(pwRoot).bottom)) || gap);
+    pwRoot.style.setProperty('--pw-float-bottom', `${bottom}px`);
+  }
 }
 
 function scheduleLayoutMetricsUpdate() {
@@ -2257,6 +2297,8 @@ function initProgressWidget() {
   const targetParent = document.body.contains(textContainer) ? textContainer : document.body;
   if (root.parentElement !== targetParent) {
     targetParent.appendChild(root);
+  } else if (!targetParent.contains(root)) {
+    targetParent.appendChild(root);
   }
 
   root.dataset.pwContainer = containerInfo.selector;
@@ -2339,133 +2381,22 @@ function initProgressWidget() {
 
   // 5. Анимации
   let aDot = null, aPill = null, aPct = null, aNext = null;
-  let doneState = false, ticking = false;
-  let positionTimeoutCancel = null;
-  let positionRafCancel = null;
-  let transitionCleanup = null;
+  let doneState = false;
+  let ticking = false;
 
-  function cancelPositionSchedulers() {
-    if (typeof positionRafCancel === 'function') {
-      positionRafCancel();
-      positionRafCancel = null;
-    }
-    if (typeof positionTimeoutCancel === 'function') {
-      positionTimeoutCancel();
-      positionTimeoutCancel = null;
-    }
-    if (typeof transitionCleanup === 'function') {
-      transitionCleanup();
-      transitionCleanup = null;
+  function isMobileMode() {
+    return body.dataset.mode === 'mobile';
+  }
+
+  function ensureMobilePositioning() {
+    if (isMobileMode()) {
+      root.classList.add('is-floating');
+    } else {
+      root.classList.remove('is-floating');
     }
   }
 
-  function applyRelativePosition() {
-    if (!doneState) return;
-    if (root.classList.contains('is-positioned-relative')) {
-      return;
-    }
-
-    if (typeof positionRafCancel === 'function') {
-      positionRafCancel();
-      positionRafCancel = null;
-    }
-
-    let firstFrame = null;
-    let secondFrame = null;
-
-    const commit = () => {
-      positionRafCancel = null;
-      if (!doneState || root.classList.contains('is-positioned-relative')) {
-        return;
-      }
-      root.classList.add('is-positioned-relative');
-      scheduleLayoutMetricsUpdate();
-    };
-
-    const cancel = () => {
-      if (firstFrame !== null) {
-        cancelAnimationFrame(firstFrame);
-        firstFrame = null;
-      }
-      if (secondFrame !== null) {
-        cancelAnimationFrame(secondFrame);
-        secondFrame = null;
-      }
-    };
-
-    firstFrame = requestAnimationFrame(() => {
-      firstFrame = null;
-      if (!doneState) {
-        cancel();
-        positionRafCancel = null;
-        return;
-      }
-      secondFrame = requestAnimationFrame(() => {
-        secondFrame = null;
-        commit();
-      });
-    });
-
-    positionRafCancel = () => {
-      cancel();
-    };
-  }
-
-  function waitForFixedToSettle() {
-    cancelPositionSchedulers();
-
-    // В режимах без анимации (prefers-reduced-motion) или не mobile
-    // сразу переводим в relative.
-    if (prefersReduced || body.dataset.mode !== 'mobile') {
-      applyRelativePosition();
-      return;
-    }
-
-    const watchedProperties = new Set(['left', 'transform']);
-
-    const onTransitionEnd = (event) => {
-      if (event.target !== root) return;
-      if (!watchedProperties.has(event.propertyName)) return;
-      cancelPositionSchedulers();
-      applyRelativePosition();
-    };
-
-    const onTransitionCancel = (event) => {
-      if (event.target !== root) return;
-      cancelPositionSchedulers();
-      applyRelativePosition();
-    };
-
-    const detachTransitionEnd = trackEvent(root, 'transitionend', onTransitionEnd, undefined, {
-      module: 'progressWidget',
-      target: describeTarget(root),
-    });
-    const detachTransitionCancel = trackEvent(root, 'transitioncancel', onTransitionCancel, undefined, {
-      module: 'progressWidget',
-      target: describeTarget(root),
-    });
-
-    transitionCleanup = () => {
-      detachTransitionEnd();
-      detachTransitionCancel();
-      transitionCleanup = null;
-    };
-
-    // Фолбэк, если transitionend не произойдёт (например, браузер не поддерживает)
-    positionTimeoutCancel = trackTimeout(() => {
-      positionTimeoutCancel = null;
-      cancelPositionSchedulers();
-      applyRelativePosition();
-    }, 900, { module: 'progressWidget', detail: 'position fallback' });
-  }
-
-  function resetRelativePosition() {
-    const removed = root.classList.remove('is-positioned-relative');
-    cancelPositionSchedulers();
-    if (removed) {
-      scheduleLayoutMetricsUpdate();
-    }
-  }
+  ensureMobilePositioning();
 
   function updateMenuOverlapState() {
     if (body.classList.contains('menu-open')) {
@@ -2521,28 +2452,45 @@ function initProgressWidget() {
       pill.style.opacity = '1';
       pill.style.transform = 'translate(-50%,-50%) scaleX(1)';
       pct.style.opacity = '0';
+      pct.style.transform = 'translateY(8px)';
       next.style.opacity = '1';
+      next.style.transform = 'translateY(0)';
+      next.style.letterSpacing = '0px';
       return;
     }
     killAnims();
     aDot = dot.animate(
       [
         { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 },
-        { transform: 'translate(-50%,-50%) scale(1.06)', opacity: 0.6, offset: 0.35 },
-        { transform: 'translate(-50%,-50%) scale(0.94)', opacity: 0 }
+        { transform: 'translate(-50%,-50%) scale(1.08)', opacity: 0.85, offset: 0.18 },
+        { transform: 'translate(-50%,-50%) scale(0.82)', opacity: 0.45, offset: 0.48 },
+        { transform: 'translate(-50%,-50%) scale(0.6)', opacity: 0 }
       ],
-      { duration: 650, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' }
+      { duration: 760, easing: 'cubic-bezier(0.16, 1, 0.3, 1)', fill: 'forwards' }
     );
     aPill = pill.animate(
       [
         { transform: 'translate(-50%,-50%) scaleX(0.001)', opacity: 0 },
-        { transform: 'translate(-50%,-50%) scaleX(1.06)', opacity: 1, offset: 0.7 },
+        { transform: 'translate(-50%,-50%) scaleX(0.72)', opacity: 1, offset: 0.42 },
+        { transform: 'translate(-50%,-50%) scaleX(1.08)', opacity: 1, offset: 0.72 },
         { transform: 'translate(-50%,-50%) scaleX(1)', opacity: 1 }
       ],
-      { duration: 900, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' }
+      { duration: 980, easing: 'cubic-bezier(0.16, 1, 0.3, 1)', fill: 'forwards' }
     );
-    aPct = pct.animate([{opacity:1},{opacity:0}], { duration: 320, easing: 'ease', fill: 'forwards', delay: 150 });
-    aNext = next.animate([{opacity:0},{opacity:1}], { duration: 420, easing: 'ease', fill: 'forwards', delay: 360 });
+    aPct = pct.animate(
+      [
+        { opacity: 1, transform: 'translateY(0)' },
+        { opacity: 0, transform: 'translateY(8px)' }
+      ],
+      { duration: 360, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards', delay: 140 }
+    );
+    aNext = next.animate(
+      [
+        { opacity: 0, transform: 'translateY(8px)', letterSpacing: '0.4px' },
+        { opacity: 1, transform: 'translateY(0)', letterSpacing: '0px' }
+      ],
+      { duration: 520, easing: 'cubic-bezier(0.19, 1, 0.22, 1)', fill: 'forwards', delay: 260 }
+    );
   }
 
   function playReverse() {
@@ -2552,27 +2500,44 @@ function initProgressWidget() {
       pill.style.opacity = '0';
       pill.style.transform = 'translate(-50%,-50%) scaleX(0.001)';
       pct.style.opacity = '1';
+      pct.style.transform = 'translateY(0)';
       next.style.opacity = '0';
+      next.style.transform = 'translateY(6px)';
+      next.style.letterSpacing = '0.4px';
       return;
     }
     killAnims();
     aDot = dot.animate(
       [
-        { transform: 'translate(-50%,-50%) scale(0.94)', opacity: 0 },
-        { transform: 'translate(-50%,-50%) scale(1.06)', opacity: 0.6, offset: 0.65 },
+        { transform: 'translate(-50%,-50%) scale(0.62)', opacity: 0 },
+        { transform: 'translate(-50%,-50%) scale(0.92)', opacity: 0.55, offset: 0.28 },
+        { transform: 'translate(-50%,-50%) scale(1.04)', opacity: 0.85, offset: 0.58 },
         { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 }
       ],
-      { duration: 650, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' }
+      { duration: 720, easing: 'cubic-bezier(0.16, 1, 0.3, 1)', fill: 'forwards' }
     );
     aPill = pill.animate(
       [
         { transform: 'translate(-50%,-50%) scaleX(1)', opacity: 1 },
+        { transform: 'translate(-50%,-50%) scaleX(0.66)', opacity: 1, offset: 0.32 },
         { transform: 'translate(-50%,-50%) scaleX(0.001)', opacity: 0 }
       ],
-      { duration: 700, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' }
+      { duration: 820, easing: 'cubic-bezier(0.16, 1, 0.3, 1)', fill: 'forwards' }
     );
-    aPct = pct.animate([{opacity:0},{opacity:1}], { duration: 360, easing: 'ease', fill: 'forwards', delay: 360 });
-    aNext = next.animate([{opacity:1},{opacity:0}], { duration: 320, easing: 'ease', fill: 'forwards', delay: 120 });
+    aPct = pct.animate(
+      [
+        { opacity: 0, transform: 'translateY(-6px)' },
+        { opacity: 1, transform: 'translateY(0)' }
+      ],
+      { duration: 420, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards', delay: 280 }
+    );
+    aNext = next.animate(
+      [
+        { opacity: 1, transform: 'translateY(0)', letterSpacing: '0px' },
+        { opacity: 0, transform: 'translateY(6px)', letterSpacing: '0.4px' }
+      ],
+      { duration: 360, easing: 'cubic-bezier(0.55, 0.06, 0.68, 0.19)', fill: 'forwards', delay: 120 }
+    );
   }
 
   // 6. Обновление на скролл
@@ -2584,10 +2549,11 @@ function initProgressWidget() {
 
   function update() {
     ticking = false;
+    ensureMobilePositioning();
+
     const p = measureProgress();
     const perc = Math.round(p * 100);
     pctSpan.textContent = perc + '%';
-    root.setAttribute('aria-label', 'Прогресс чтения: ' + perc + '%');
 
     const shouldBeDone = perc >= 100;
 
@@ -2597,18 +2563,26 @@ function initProgressWidget() {
       root.setAttribute('aria-disabled', 'false');
       root.setAttribute('aria-label', 'Кнопка: Далее');
       playForward();
-      waitForFixedToSettle();
-    } else if (!shouldBeDone && doneState) {
+      scheduleLayoutMetricsUpdate();
+      return;
+    }
+
+    if (!shouldBeDone && doneState) {
       doneState = false;
       root.classList.remove('is-done');
       root.setAttribute('aria-disabled', 'true');
       root.setAttribute('aria-label', 'Прогресс чтения: ' + perc + '%');
       playReverse();
-      resetRelativePosition();
+      scheduleLayoutMetricsUpdate();
+      return;
+    }
+
+    if (shouldBeDone) {
+      root.setAttribute('aria-disabled', 'false');
+      root.setAttribute('aria-label', 'Кнопка: Далее');
     } else {
-      if (!shouldBeDone) {
-        root.setAttribute('aria-label', 'Прогресс чтения: ' + perc + '%');
-      }
+      root.setAttribute('aria-disabled', 'true');
+      root.setAttribute('aria-label', 'Прогресс чтения: ' + perc + '%');
     }
   }
 
@@ -2665,20 +2639,20 @@ function initProgressWidget() {
   pill.style.transform = 'translate(-50%,-50%) scaleX(0.001)';
   pct.style.opacity = '1';
   next.style.opacity = '0';
+  updateProgressWidgetFloatingAnchors(root);
   update();
 
   // Обновить layout metrics после создания виджета
   scheduleLayoutMetricsUpdate();
 
   registerLifecycleDisposer(() => {
-    cancelPositionSchedulers();
     killAnims();
     try {
       disconnectMenuObserver();
     } catch (error) {
       console.error('[ProgressWidget] Failed to disconnect menu observer', error);
     }
-    root.classList.remove('is-done', 'is-menu-covered', 'is-positioned-relative');
+    root.classList.remove('is-done', 'is-menu-covered', 'is-floating');
     if (root.isConnected && typeof root.remove === 'function') {
       root.remove();
     } else if (root.parentElement) {
