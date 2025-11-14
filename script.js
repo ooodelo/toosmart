@@ -56,6 +56,7 @@ const dotsRail = document.querySelector('.dots-rail');
 const dotFlyout = document.querySelector('.dot-flyout');
 const sections = Array.from(document.querySelectorAll('.text-section'));
 const menuCap = document.querySelector('.menu-rail__cap');
+let progressWidgetRoot = document.getElementById('pw-root');
 
 let currentMode = body.dataset.mode || initialMode || 'desktop';
 let currentInput = body.dataset.input || initialInput || 'pointer';
@@ -85,6 +86,8 @@ let scrollHideControls = {
   setMode: () => {},
   detach: () => {},
 };
+let layoutMetricsInitialized = false;
+let viewportGeometryDirty = false;
 
 const menuState = createMenuStateController({
   body,
@@ -762,7 +765,7 @@ function detectMode(inputType) {
   return result;
 }
 
-function updateLayoutMetrics() {
+function updateLayoutMetrics(pwRoot = progressWidgetRoot) {
   const headerHeight = header?.offsetHeight ?? 0;
   const stackOffset = Math.max(0, headerHeight + 16);
   root.style.setProperty('--stack-top', `${stackOffset}px`);
@@ -770,13 +773,16 @@ function updateLayoutMetrics() {
   root.style.setProperty('--section-scroll-margin', `${scrollMargin}px`);
 
   // Вычисление footprint для Progress Widget
-  const pwRoot = document.querySelector('#pw-root');
-  if (!pwRoot) {
+  const widgetRoot = pwRoot instanceof HTMLElement ? pwRoot : progressWidgetRoot;
+  if (!(widgetRoot instanceof HTMLElement)) {
+    progressWidgetRoot = null;
     return;
   }
 
-  const styles = window.getComputedStyle(pwRoot);
-  let footprint = pwRoot.offsetHeight;
+  progressWidgetRoot = widgetRoot;
+
+  const styles = window.getComputedStyle(widgetRoot);
+  let footprint = widgetRoot.offsetHeight;
 
   if (styles.position === 'sticky') {
     footprint += parseCssNumber(styles.bottom);
@@ -785,10 +791,10 @@ function updateLayoutMetrics() {
   }
 
   if (body.dataset.mode === 'mobile') {
-    updateProgressWidgetFloatingAnchors(pwRoot);
+    updateProgressWidgetFloatingAnchors(widgetRoot);
   } else {
-    pwRoot.style.removeProperty('--pw-float-left');
-    pwRoot.style.removeProperty('--pw-float-bottom');
+    widgetRoot.style.removeProperty('--pw-float-left');
+    widgetRoot.style.removeProperty('--pw-float-bottom');
   }
 
   footprint = Math.max(0, Math.round(footprint));
@@ -828,11 +834,21 @@ function updateProgressWidgetFloatingAnchors(pwRoot) {
   }
 }
 
+function requestLayoutMetricsUpdate({ force = false, modeChanged = false, viewportChanged = false, elementChanged = false } = {}) {
+  if (!force && !modeChanged && !viewportChanged && !elementChanged) {
+    return false;
+  }
+
+  scheduleLayoutMetricsUpdate();
+  return true;
+}
+
 function scheduleLayoutMetricsUpdate() {
   if (layoutMetricsRaf !== null) return;
   layoutMetricsRaf = requestAnimationFrame(() => {
     layoutMetricsRaf = null;
-    updateLayoutMetrics();
+    updateLayoutMetrics(progressWidgetRoot);
+    layoutMetricsInitialized = true;
   });
 }
 
@@ -860,6 +876,14 @@ function updateVisualViewportSize(viewport) {
   return true;
 }
 
+function recordViewportGeometry(viewport) {
+  const changed = updateVisualViewportSize(viewport);
+  if (changed) {
+    viewportGeometryDirty = true;
+  }
+  return changed;
+}
+
 function syncScrollHideMode() {
   if (typeof scrollHideControls.setMode === 'function') {
     const shouldEnable = currentMode === 'mobile' || currentMode === 'tablet';
@@ -876,6 +900,13 @@ function updateMode() {
   const prevMode = currentMode;
   const prevInput = currentInput;
 
+  const modeChanged = prevMode !== nextMode;
+  const inputChanged = prevInput !== nextInput;
+
+  if (!modeChanged && !inputChanged) {
+    return { modeChanged, inputChanged };
+  }
+
   currentMode = nextMode;
   currentInput = nextInput;
   body.dataset.mode = nextMode;
@@ -884,7 +915,7 @@ function updateMode() {
   syncScrollHideMode();
 
   if (window.DEBUG_MODE_DETECTION) {
-    if (prevMode !== nextMode || prevInput !== nextInput) {
+    if (modeChanged || inputChanged) {
       console.log('[MODE CHANGE] 🔄', {
         mode: { from: prevMode, to: nextMode },
         input: { from: prevInput, to: nextInput },
@@ -896,20 +927,10 @@ function updateMode() {
           screenWidth: window.screen?.width,
         },
       });
-    } else {
-      console.log('[MODE UPDATE] ✓', {
-        mode: currentMode,
-        input: currentInput,
-        viewport: {
-          visualViewportWidth: window.visualViewport?.width,
-          rootClientWidth: root?.clientWidth,
-          innerWidth: window.innerWidth,
-        },
-      });
     }
   }
 
-  if (prevMode !== nextMode) {
+  if (modeChanged) {
     // Полный сброс всех состояний при смене режима
     body.classList.remove('is-slid');
     menuState.setOpen(false, { silent: true });
@@ -943,8 +964,9 @@ function updateMode() {
   menuState.refreshHandles();
 
   lockScroll();
-  scheduleLayoutMetricsUpdate();
   // updateRailClosedWidth() больше не нужна - --rail-closed вычисляется через CSS calc()
+
+  return { modeChanged, inputChanged };
 }
 
 function teardownObserver() {
@@ -1547,10 +1569,9 @@ function detectBackdropFilter() {
 function runModeUpdateFrame() {
   modeUpdateRaf = null;
 
-  const prevMode = currentMode;
-  updateMode();
+  const { modeChanged } = updateMode();
 
-  if (prevMode !== currentMode) {
+  if (modeChanged) {
     if (currentMode === 'desktop' || currentMode === 'desktop-wide') {
       setupSectionObserver();
       initDotsFlyout(); // Пересоздаем flyout при переходе в desktop
@@ -1563,7 +1584,12 @@ function runModeUpdateFrame() {
     }
   }
 
-  scheduleLayoutMetricsUpdate();
+  requestLayoutMetricsUpdate({
+    force: !layoutMetricsInitialized,
+    modeChanged,
+    viewportChanged: viewportGeometryDirty,
+  });
+  viewportGeometryDirty = false;
 }
 
 function handleModeUpdate() {
@@ -2322,7 +2348,7 @@ function initProgressWidget() {
   }
 
   // 2. Создание/получение элемента виджета
-  let root = document.getElementById('pw-root');
+  let root = progressWidgetRoot instanceof HTMLElement ? progressWidgetRoot : document.getElementById('pw-root');
   if (!root) {
     root = document.createElement('aside');
     root.id = 'pw-root';
@@ -2331,6 +2357,8 @@ function initProgressWidget() {
     root.setAttribute('aria-disabled', 'true');
     root.setAttribute('aria-label', 'Прогресс чтения: 0%');
   }
+
+  progressWidgetRoot = root;
 
   let slot = textContainer.querySelector('.pw-slot');
   let slotCreated = false;
@@ -2610,7 +2638,7 @@ function initProgressWidget() {
       root.setAttribute('aria-disabled', 'false');
       root.setAttribute('aria-label', 'Кнопка: Далее');
       playForward();
-      scheduleLayoutMetricsUpdate();
+      requestLayoutMetricsUpdate({ elementChanged: true });
       return;
     }
 
@@ -2620,7 +2648,7 @@ function initProgressWidget() {
       root.setAttribute('aria-disabled', 'true');
       root.setAttribute('aria-label', 'Прогресс чтения: ' + perc + '%');
       playReverse();
-      scheduleLayoutMetricsUpdate();
+      requestLayoutMetricsUpdate({ elementChanged: true });
       return;
     }
 
@@ -2690,7 +2718,7 @@ function initProgressWidget() {
   update();
 
   // Обновить layout metrics после создания виджета
-  scheduleLayoutMetricsUpdate();
+  requestLayoutMetricsUpdate({ elementChanged: true });
 
   registerLifecycleDisposer(() => {
     killAnims();
@@ -2705,6 +2733,7 @@ function initProgressWidget() {
     } else if (root.parentElement) {
       root.parentElement.removeChild(root);
     }
+    progressWidgetRoot = null;
     if (slotCreated && slot && slot.parentElement) {
       try {
         slot.remove();
@@ -2719,7 +2748,7 @@ function init() {
   // Feature detection
   detectBackdropFilter();
 
-  updateMode();
+  const modeState = updateMode();
   initDots();
   initDotsFlyout(); // Flyout меню для navigation dots
   initMenuInteractions();
@@ -2730,6 +2759,11 @@ function init() {
   const stackCarouselCleanup = initStackCarousel(); // Карусель рекомендаций
   initProgressWidget(); // Progress Widget (круг с процентами → кнопка "Далее")
 
+  requestLayoutMetricsUpdate({
+    force: !layoutMetricsInitialized,
+    modeChanged: modeState?.modeChanged,
+  });
+
   // Функции, зависящие от габаритов visual viewport:
   // - handleModeUpdate() → updateMode() → data-mode/data-input
   // - scheduleLayoutMetricsUpdate() → updateLayoutMetrics()
@@ -2738,7 +2772,7 @@ function init() {
 
   // Более быстрая обработка resize через RAF вместо debounce
   const handleResize = () => {
-    updateVisualViewportSize(window.visualViewport);
+    recordViewportGeometry(window.visualViewport);
     handleModeUpdate();
   };
 
@@ -2765,13 +2799,13 @@ function init() {
     }
 
     visualViewportListenersBound = true;
-    updateVisualViewportSize(viewport);
+    recordViewportGeometry(viewport);
 
     const handleViewportGeometry = () => {
-      if (!updateVisualViewportSize(viewport)) {
+      if (!recordViewportGeometry(viewport)) {
         return;
       }
-      handleResize();
+      handleModeUpdate();
     };
 
     trackEvent(viewport, 'resize', handleViewportGeometry, undefined, {
@@ -2798,7 +2832,7 @@ function init() {
     // Даем браузеру время обновить размеры перед проверкой
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        updateVisualViewportSize(window.visualViewport);
+        recordViewportGeometry(window.visualViewport);
         handleModeUpdate();
       });
     });
@@ -2817,7 +2851,7 @@ function init() {
 
     const handleMediaChange = () => {
       requestAnimationFrame(() => {
-        updateVisualViewportSize(window.visualViewport);
+        recordViewportGeometry(window.visualViewport);
         handleModeUpdate();
       });
     };
@@ -2876,6 +2910,8 @@ function init() {
     lastVisualViewportWidth = null;
     lastVisualViewportHeight = null;
     visualViewportListenersBound = false;
+    viewportGeometryDirty = false;
+    layoutMetricsInitialized = false;
   }, { module: 'layout.metrics', kind: 'raf' });
 
   return (reason) => {
@@ -2890,6 +2926,8 @@ function init() {
     lastVisualViewportWidth = null;
     lastVisualViewportHeight = null;
     visualViewportListenersBound = false;
+    viewportGeometryDirty = false;
+    layoutMetricsInitialized = false;
     if (typeof stackCarouselCleanup === 'function') {
       try {
         stackCarouselCleanup();
@@ -2996,12 +3034,16 @@ function mountInteractive(context = {}) {
     initCleanup = null;
   }
 
-  disposeLoadListener = trackEvent(window, 'load', scheduleLayoutMetricsUpdate, undefined, {
+  const handleWindowLoad = () => {
+    requestLayoutMetricsUpdate({ elementChanged: true });
+  };
+
+  disposeLoadListener = trackEvent(window, 'load', handleWindowLoad, undefined, {
     module: 'layout.metrics',
     target: 'window',
   });
 
-  scheduleLayoutMetricsUpdate();
+  requestLayoutMetricsUpdate({ force: !layoutMetricsInitialized });
 }
 
 function unmountInteractive(payload = {}) {
