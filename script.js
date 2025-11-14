@@ -1805,7 +1805,7 @@ function initStackCarousel() {
 
   let currentSlide = 0;
   let intervalDisposer = null;
-  let isPaused = false;
+  const pauseReasons = new Set();
 
   // Интервал между сменами слайдов (миллисекунды)
   const SLIDE_INTERVAL = 6000; // 6 секунд
@@ -1831,13 +1831,11 @@ function initStackCarousel() {
     });
   }
 
-  function nextSlide() {
-    if (!isPaused) {
-      setActiveSlide(currentSlide + 1);
-    }
+  function isAutoplayPaused() {
+    return pauseReasons.size > 0;
   }
 
-  function startAutoplay() {
+  function scheduleAutoplay() {
     if (intervalDisposer) {
       intervalDisposer();
     }
@@ -1847,10 +1845,42 @@ function initStackCarousel() {
     });
   }
 
+  function restartAutoplay() {
+    if (isAutoplayPaused()) {
+      return;
+    }
+    scheduleAutoplay();
+  }
+
+  function nextSlide() {
+    if (isAutoplayPaused()) {
+      return;
+    }
+    setActiveSlide(currentSlide + 1);
+  }
+
   function stopAutoplay() {
     if (intervalDisposer) {
       intervalDisposer();
       intervalDisposer = null;
+    }
+  }
+
+  function pauseAutoplay(reason) {
+    if (!reason || pauseReasons.has(reason)) {
+      return;
+    }
+    pauseReasons.add(reason);
+    stopAutoplay();
+  }
+
+  function resumeAutoplay(reason) {
+    if (!reason || !pauseReasons.has(reason)) {
+      return;
+    }
+    pauseReasons.delete(reason);
+    if (!isAutoplayPaused()) {
+      scheduleAutoplay();
     }
   }
 
@@ -1859,18 +1889,18 @@ function initStackCarousel() {
     disposers.push(trackEvent(dot, 'click', () => {
       setActiveSlide(index);
       // Перезапускаем таймер после ручного переключения
-      startAutoplay();
+      restartAutoplay();
     }, undefined, { module: 'stackCarousel', target: describeTarget(dot) }));
   });
 
   // Пауза при наведении мыши
   if (stack) {
     disposers.push(trackEvent(stack, 'mouseenter', () => {
-      isPaused = true;
+      pauseAutoplay('hover');
     }, undefined, { module: 'stackCarousel', target: describeTarget(stack) }));
 
     disposers.push(trackEvent(stack, 'mouseleave', () => {
-      isPaused = false;
+      resumeAutoplay('hover');
     }, undefined, { module: 'stackCarousel', target: describeTarget(stack) }));
 
     // Поддержка свайпов на тач-устройствах с предотвращением вертикального скролла
@@ -1888,6 +1918,7 @@ function initStackCarousel() {
       touchStartY = e.changedTouches[0].clientY;
       isSwiping = false;
       swipeDirection = null;
+      pauseAutoplay('touch');
     }, { passive: true }, { module: 'stackCarousel', target: describeTarget(stack) }));
 
     disposers.push(trackEvent(stack, 'touchmove', (e) => {
@@ -1919,6 +1950,13 @@ function initStackCarousel() {
 
       isSwiping = false;
       swipeDirection = null;
+      resumeAutoplay('touch');
+    }, { passive: true }, { module: 'stackCarousel', target: describeTarget(stack) }));
+
+    disposers.push(trackEvent(stack, 'touchcancel', () => {
+      isSwiping = false;
+      swipeDirection = null;
+      resumeAutoplay('touch');
     }, { passive: true }, { module: 'stackCarousel', target: describeTarget(stack) }));
 
     function handleSwipe() {
@@ -1937,7 +1975,7 @@ function initStackCarousel() {
       }
 
       // Перезапускаем таймер после свайпа
-      startAutoplay();
+      restartAutoplay();
     }
   }
 
@@ -1945,10 +1983,11 @@ function initStackCarousel() {
   setActiveSlide(0);
 
   // Запускаем автопроигрывание
-  startAutoplay();
+  restartAutoplay();
 
-  registerLifecycleDisposer(() => {
+  const cleanup = () => {
     stopAutoplay();
+    pauseReasons.clear();
     while (disposers.length) {
       const dispose = disposers.pop();
       try {
@@ -1957,7 +1996,11 @@ function initStackCarousel() {
         console.error('[StackCarousel] Failed to dispose listener', error);
       }
     }
-  }, { module: 'stackCarousel', kind: 'cleanup' });
+  };
+
+  registerLifecycleDisposer(cleanup, { module: 'stackCarousel', kind: 'cleanup' });
+
+  return cleanup;
 }
 
 /**
