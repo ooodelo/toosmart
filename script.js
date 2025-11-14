@@ -1983,9 +1983,37 @@ function initProgressWidget() {
   }
 
   function measureElementProgress() {
-    const total = Math.max(scrollRoot.scrollHeight, textContainer.scrollHeight) - scrollRoot.clientHeight;
+    const rootScrollTop = scrollRoot.scrollTop || 0;
+
+    let startOffset = 0;
+    let containerHeight = textContainer.scrollHeight;
+
+    try {
+      const textRect = textContainer.getBoundingClientRect();
+      const rootRect = typeof scrollRoot.getBoundingClientRect === 'function'
+        ? scrollRoot.getBoundingClientRect()
+        : { top: 0 };
+
+      startOffset = (textRect.top - rootRect.top) + rootScrollTop;
+      const visualHeight = textRect?.height ?? 0;
+      containerHeight = Math.max(textContainer.scrollHeight, visualHeight);
+    } catch (error) {
+      let node = textContainer;
+      startOffset = 0;
+      while (node && node !== scrollRoot && node instanceof HTMLElement) {
+        startOffset += node.offsetTop || 0;
+        node = node.offsetParent;
+      }
+
+      if (!Number.isFinite(containerHeight) || containerHeight <= 0) {
+        containerHeight = textContainer.offsetHeight || 0;
+      }
+    }
+
+    const total = containerHeight - scrollRoot.clientHeight;
     if (total <= 0) return 1;
-    const read = scrollRoot.scrollTop;
+
+    const read = Math.min(Math.max(rootScrollTop - startOffset, 0), total);
     return clamp01(read / total);
   }
 
