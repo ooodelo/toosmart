@@ -1985,7 +1985,13 @@ function initStackCarousel() {
   // Запускаем автопроигрывание
   restartAutoplay();
 
+  let cleaned = false;
+
   const cleanup = () => {
+    if (cleaned) {
+      return;
+    }
+    cleaned = true;
     stopAutoplay();
     pauseReasons.clear();
     while (disposers.length) {
@@ -1998,9 +2004,18 @@ function initStackCarousel() {
     }
   };
 
-  registerLifecycleDisposer(cleanup, { module: 'stackCarousel', kind: 'cleanup' });
+  const deregisterLifecycleCleanup = registerLifecycleDisposer(() => {
+    cleanup();
+  }, { module: 'stackCarousel', kind: 'cleanup' });
 
-  return cleanup;
+  return () => {
+    cleanup();
+    try {
+      deregisterLifecycleCleanup?.();
+    } catch (error) {
+      console.error('[StackCarousel] Failed to deregister lifecycle cleanup', error);
+    }
+  };
 }
 
 /**
@@ -2615,7 +2630,7 @@ function init() {
   attachMenuSwipes(); // Swipe support for touch devices
   attachScrollHideHeader(); // Auto-hide header/dock on scroll
   initMenuLinks();
-  initStackCarousel(); // Карусель рекомендаций
+  const stackCarouselCleanup = initStackCarousel(); // Карусель рекомендаций
   initProgressWidget(); // Progress Widget (круг с процентами → кнопка "Далее")
 
   let resizeRaf = null;
@@ -2730,6 +2745,13 @@ function init() {
     detachMenuSwipes();
     detachTrap();
     detachFlyoutListeners();
+    if (typeof stackCarouselCleanup === 'function') {
+      try {
+        stackCarouselCleanup();
+      } catch (error) {
+        console.error('[Lifecycle] Failed to cleanup stack carousel', { error, reason });
+      }
+    }
     teardownObserver();
     scrollHideControls.detach();
     if (typeof flyoutHideTimeoutCancel === 'function') {
