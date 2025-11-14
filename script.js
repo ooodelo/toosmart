@@ -68,6 +68,7 @@ let activeSectionId = sections[0]?.id ?? null;
 let previousFocus = null;
 let trapDisposer = null;
 let observer = null;
+let observerDisposer = () => {};
 let edgeGestureHandler = null;
 let flyoutHideTimeoutCancel = null;
 let flyoutListenersAttached = false;
@@ -451,6 +452,122 @@ function findScrollContainer(startElement) {
 
 const APP_GLOBAL_KEY = '__TOOSMART_APP__';
 
+function createResourceDiagnostics() {
+  const activeResources = new Map();
+  const recentDisposals = [];
+  let resourceCounter = 0;
+
+  const now = () => (typeof performance !== 'undefined' && typeof performance.now === 'function'
+    ? performance.now()
+    : Date.now());
+
+  function register(meta = {}) {
+    const id = ++resourceCounter;
+    const entry = {
+      id,
+      createdAt: now(),
+      disposedAt: null,
+      meta: { ...meta },
+    };
+
+    activeResources.set(id, entry);
+    let released = false;
+
+    function release(extraMeta) {
+      if (released) return;
+      released = true;
+      if (extraMeta && typeof extraMeta === 'object') {
+        entry.meta = { ...entry.meta, ...extraMeta };
+      }
+      entry.disposedAt = now();
+      activeResources.delete(id);
+      recentDisposals.push({ ...entry });
+      if (recentDisposals.length > 40) {
+        recentDisposals.shift();
+      }
+    }
+
+    function updateMeta(update) {
+      if (!update || typeof update !== 'object') return;
+      entry.meta = { ...entry.meta, ...update };
+    }
+
+    return {
+      id,
+      release,
+      updateMeta,
+      get meta() {
+        return entry.meta;
+      },
+    };
+  }
+
+  function snapshot() {
+    const resources = Array.from(activeResources.values()).map((entry) => ({
+      id: entry.id,
+      createdAt: entry.createdAt,
+      meta: { ...entry.meta },
+    }));
+    const byKind = resources.reduce((acc, entry) => {
+      const kind = entry.meta?.kind || 'unknown';
+      acc[kind] = (acc[kind] || 0) + 1;
+      return acc;
+    }, {});
+
+    return {
+      total: resources.length,
+      byKind,
+      resources,
+      recentDisposals: recentDisposals.slice(-10),
+      timestamp: now(),
+    };
+  }
+
+  function logSnapshot(label = 'Active resources') {
+    const snap = snapshot();
+    const currentNow = now();
+    console.groupCollapsed(`[Diagnostics] ${label}: ${snap.total}`);
+    if (snap.resources.length) {
+      const tableData = snap.resources.map((entry) => {
+        const meta = entry.meta || {};
+        return {
+          id: entry.id,
+          kind: meta.kind ?? 'unknown',
+          label: meta.label ?? meta.event ?? meta.target ?? '-',
+          lifecycle: meta.lifecycle ?? 'n/a',
+          ageMs: Math.round(currentNow - entry.createdAt),
+        };
+      });
+      console.table(tableData);
+    } else {
+      console.log('No active resources.');
+    }
+    console.log('[Diagnostics] Count by kind', snap.byKind);
+    if (snap.recentDisposals.length) {
+      const recent = snap.recentDisposals.map((entry) => ({
+        id: entry.id,
+        kind: entry.meta?.kind ?? 'unknown',
+        lifecycle: entry.meta?.lifecycle ?? 'n/a',
+        releasedAgoMs: entry.disposedAt ? Math.round(currentNow - entry.disposedAt) : null,
+      }));
+      console.log('[Diagnostics] Recent disposals', recent);
+    }
+    console.groupEnd();
+    return snap;
+  }
+
+  return {
+    register,
+    snapshot,
+    logSnapshot,
+    getActiveCount() {
+      return activeResources.size;
+    },
+  };
+}
+
+const resourceDiagnostics = createResourceDiagnostics();
+
 function createLifecycleRegistry(label) {
   const records = [];
 
@@ -548,24 +665,35 @@ function normalizeListenerOptions(options) {
 }
 
 function registerLifecycleDisposer(disposer, meta) {
-  const lifecycle = getActiveLifecycle();
-  if (!lifecycle) {
-    return () => {
-      try {
-        disposer?.();
-      } catch (error) {
-        console.error('[Lifecycle] Disposer failed outside lifecycle', { meta, error });
-      }
-    };
+  if (typeof disposer !== 'function') {
+    return () => {};
   }
 
-  return lifecycle.track(() => {
+  const lifecycle = getActiveLifecycle();
+  const normalizedMeta = meta && typeof meta === 'object' ? meta : {};
+  const tracker = resourceDiagnostics.register({
+    ...normalizedMeta,
+    lifecycle: lifecycle?.label ?? 'detached',
+  });
+
+  function safelyDispose(contextLabel) {
     try {
       disposer?.();
     } catch (error) {
-      console.error('[Lifecycle] Disposer failed', { meta, error });
+      console.error(`[Lifecycle] Disposer failed${contextLabel ? ` (${contextLabel})` : ''}`, {
+        meta,
+        error,
+      });
+    } finally {
+      tracker.release();
     }
-  }, meta);
+  }
+
+  if (!lifecycle) {
+    return () => safelyDispose('outside lifecycle');
+  }
+
+  return lifecycle.track(() => safelyDispose(), { ...normalizedMeta, resourceId: tracker.id });
 }
 
 function trackEvent(target, type, handler, options, meta = {}) {
@@ -714,6 +842,144 @@ function trackObserver(observer, meta = {}) {
     kind: 'observer',
     ...meta,
   });
+}
+
+function createMetricsOverlay(diagnostics) {
+  const overlay = document.createElement('div');
+  overlay.dataset.devOverlay = 'resource-metrics';
+  Object.assign(overlay.style, {
+    position: 'fixed',
+    top: '16px',
+    right: '16px',
+    zIndex: '9999',
+    background: 'rgba(0, 0, 0, 0.75)',
+    color: '#fff',
+    padding: '8px 12px',
+    borderRadius: '8px',
+    fontFamily: 'SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+    fontSize: '12px',
+    lineHeight: '1.4',
+    pointerEvents: 'none',
+    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.35)',
+    minWidth: '160px',
+    whiteSpace: 'nowrap',
+    opacity: '0',
+    transition: 'opacity 120ms ease-in-out',
+  });
+  overlay.hidden = true;
+
+  const fpsLine = document.createElement('div');
+  const frameLine = document.createElement('div');
+  const resourceLine = document.createElement('div');
+
+  overlay.appendChild(fpsLine);
+  overlay.appendChild(frameLine);
+  overlay.appendChild(resourceLine);
+
+  let mounted = false;
+  let enabled = false;
+  let rafId = null;
+  const getNow = () => (typeof performance !== 'undefined' && typeof performance.now === 'function'
+    ? performance.now()
+    : Date.now());
+  let lastFrame = getNow();
+  let lastFpsSample = lastFrame;
+  let frameCounter = 0;
+  let fps = 0;
+  let avgFrame = 0;
+
+  const targetFrame = 1000 / 60;
+
+  function ensureMounted() {
+    if (mounted) return;
+
+    const mount = () => {
+      if (!document.body || mounted) return;
+      document.body.appendChild(overlay);
+      mounted = true;
+    };
+
+    if (document.body) {
+      mount();
+    } else {
+      document.addEventListener('DOMContentLoaded', mount, { once: true });
+    }
+  }
+
+  function render(now) {
+    const delta = now - lastFrame;
+    lastFrame = now;
+    frameCounter += 1;
+    avgFrame = avgFrame ? avgFrame * 0.85 + delta * 0.15 : delta;
+
+    if (now - lastFpsSample >= 500) {
+      fps = Math.round((frameCounter * 1000) / (now - lastFpsSample));
+      frameCounter = 0;
+      lastFpsSample = now;
+    }
+
+    const busyRatio = Math.min(100, Math.max(0, (avgFrame / targetFrame) * 100));
+    const snapshot = diagnostics?.snapshot();
+    const resourceCount = snapshot?.total ?? 0;
+
+    fpsLine.textContent = `FPS: ${String(fps).padStart(2, '0')}`;
+    frameLine.textContent = `Frame: ${avgFrame.toFixed(1)}ms (${busyRatio.toFixed(0)}% load)`;
+    if (snapshot) {
+      const kinds = Object.entries(snapshot.byKind || {})
+        .map(([kind, count]) => `${kind}:${count}`)
+        .join(' ');
+      resourceLine.textContent = `Resources: ${resourceCount}${kinds ? ` [${kinds}]` : ''}`;
+    } else {
+      resourceLine.textContent = `Resources: n/a`;
+    }
+  }
+
+  function loop(now) {
+    render(now);
+    if (enabled) {
+      rafId = requestAnimationFrame(loop);
+    }
+  }
+
+  function start() {
+    if (enabled) return;
+    ensureMounted();
+    enabled = true;
+    overlay.hidden = false;
+    overlay.style.opacity = '1';
+    lastFrame = getNow();
+    lastFpsSample = lastFrame;
+    frameCounter = 0;
+    rafId = requestAnimationFrame(loop);
+  }
+
+  function stop() {
+    if (!enabled) return;
+    enabled = false;
+    if (rafId !== null) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+    overlay.style.opacity = '0';
+    overlay.hidden = true;
+  }
+
+  function toggle() {
+    if (enabled) {
+      stop();
+    } else {
+      start();
+    }
+    return enabled;
+  }
+
+  return {
+    start,
+    stop,
+    toggle,
+    isActive: () => enabled,
+    element: overlay,
+  };
 }
 
 
@@ -970,10 +1236,15 @@ function updateMode() {
 }
 
 function teardownObserver() {
-  if (observer) {
-    observer.disconnect();
-    observer = null;
+  if (typeof observerDisposer === 'function') {
+    try {
+      observerDisposer();
+    } catch (error) {
+      console.error('[Observer] Failed to dispose section observer', error);
+    }
   }
+  observerDisposer = () => {};
+  observer = null;
 
   // Отменяем все pending RAF для предотвращения утечек памяти
   if (layoutMetricsRaf !== null) {
@@ -1033,6 +1304,10 @@ function setupSectionObserver() {
       rootMargin: `-${headerHeight}px 0px -35% 0px`,
     }
   );
+  observerDisposer = trackObserver(observer, {
+    label: 'section-progress',
+    target: '.text-section',
+  });
   sections.forEach((section) => observer.observe(section));
 }
 
@@ -3078,12 +3353,24 @@ function unmountInteractive(payload = {}) {
   setActiveLifecycle(null);
 }
 
+function logLifecycleEvent(stage, payload) {
+  const snapshot = resourceDiagnostics.snapshot();
+  console.info(`[Lifecycle] ${stage}`, {
+    payload,
+    activeResources: snapshot.total,
+    byKind: snapshot.byKind,
+  });
+  return snapshot;
+}
+
 function pauseApp(payload = {}) {
   if (disposed) return;
   if (paused) return;
 
+  logLifecycleEvent('pause:start', payload);
   paused = true;
   unmountInteractive(payload);
+  logLifecycleEvent('pause:complete', payload);
 }
 
 function resumeApp(payload = {}) {
@@ -3092,12 +3379,15 @@ function resumeApp(payload = {}) {
     return;
   }
 
+  logLifecycleEvent('resume:start', payload);
   paused = false;
   mountInteractive(payload);
+  logLifecycleEvent('resume:complete', payload);
 }
 
 function disposeApp(payload = {}) {
   if (disposed) return;
+  logLifecycleEvent('dispose:start', payload);
   disposed = true;
   paused = true;
 
@@ -3105,9 +3395,16 @@ function disposeApp(payload = {}) {
   removePageHooks = () => {};
 
   unmountInteractive(payload);
+  logLifecycleEvent('dispose:complete', payload);
 }
 
 removePageHooks = bindPageLifecycle(disposeApp);
+
+const metricsOverlay = createMetricsOverlay(resourceDiagnostics);
+
+if (window.DEBUG_METRICS_OVERLAY) {
+  metricsOverlay.start();
+}
 
 if (document.visibilityState !== 'hidden') {
   resumeApp({ reason: 'init' });
@@ -3123,6 +3420,12 @@ const appApi = {
   },
   getResources() {
     return lifecycle ? lifecycle.report() : [];
+  },
+  getResourceDiagnostics() {
+    return resourceDiagnostics.snapshot();
+  },
+  logResourceDiagnostics(label) {
+    return resourceDiagnostics.logSnapshot(label);
   },
   getFlyoutDiagnostics() {
     return {
@@ -3150,6 +3453,18 @@ const appApi = {
 };
 
 window[APP_GLOBAL_KEY] = appApi;
+
+const globalResourceDiagnostics = window.__TOOSMART_RESOURCES__ || {};
+globalResourceDiagnostics.summary = () => resourceDiagnostics.snapshot();
+globalResourceDiagnostics.log = (label) => resourceDiagnostics.logSnapshot(label);
+globalResourceDiagnostics.overlay = {
+  toggle: () => metricsOverlay.toggle(),
+  show: () => metricsOverlay.start(),
+  hide: () => metricsOverlay.stop(),
+  isActive: () => metricsOverlay.isActive(),
+};
+
+window.__TOOSMART_RESOURCES__ = globalResourceDiagnostics;
 
 // Глобальная функция для отладки режимов
 window.toggleModeDebug = function (enable) {
