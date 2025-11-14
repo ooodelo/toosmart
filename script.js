@@ -787,10 +787,47 @@ function updateLayoutMetrics() {
     if (slot && slot instanceof HTMLElement) {
       footprint = Math.max(footprint, Math.round(slot.offsetHeight));
     }
+    updateProgressWidgetFloatingAnchors(pwRoot);
+  } else {
+    pwRoot.style.removeProperty('--pw-float-left');
+    pwRoot.style.removeProperty('--pw-float-bottom');
   }
 
   footprint = Math.max(0, Math.round(footprint));
   root.style.setProperty('--pw-footprint', `${footprint}px`);
+}
+
+function updateProgressWidgetFloatingAnchors(pwRoot) {
+  if (!(pwRoot instanceof HTMLElement)) {
+    return;
+  }
+
+  if (body.dataset.mode !== 'mobile') {
+    return;
+  }
+
+  const handle = dockHandle instanceof HTMLElement ? dockHandle : null;
+  if (!handle || handle.offsetParent === null) {
+    return;
+  }
+
+  const viewportWidth = window.innerWidth || document.documentElement?.clientWidth || 0;
+  const viewportHeight = window.innerHeight || document.documentElement?.clientHeight || 0;
+  const handleRect = handle.getBoundingClientRect();
+
+  if (viewportWidth > 0 && handleRect.width > 0) {
+    const pwWidth = Math.max(pwRoot.offsetWidth || 0, parseCssNumber(window.getComputedStyle(pwRoot).width));
+    const maxLeft = Math.max(0, Math.min(handleRect.left, viewportWidth - pwWidth));
+    pwRoot.style.setProperty('--pw-float-left', `${Math.round(maxLeft)}px`);
+  }
+
+  if (viewportHeight > 0) {
+    const gap = 10;
+    const bottom = handleRect.top > 0
+      ? Math.max(gap, Math.round(viewportHeight - handleRect.top + gap))
+      : Math.max(gap, Math.round(parseCssNumber(window.getComputedStyle(pwRoot).bottom)) || gap);
+    pwRoot.style.setProperty('--pw-float-bottom', `${bottom}px`);
+  }
 }
 
 function scheduleLayoutMetricsUpdate() {
@@ -2358,6 +2395,7 @@ function initProgressWidget() {
   // 5. Анимации
   let aDot = null, aPill = null, aPct = null, aNext = null;
   let doneState = false, ticking = false;
+  let hasCompletedOnce = false;
   let dockingPromise = null;
   let dockingTimerId = null;
 
@@ -2407,6 +2445,9 @@ function initProgressWidget() {
 
     widgetState = STATE_DOCKING;
     doneState = true;
+    if (!hasCompletedOnce) {
+      hasCompletedOnce = true;
+    }
     root.classList.add('is-done', 'is-floating', 'is-docking');
     root.classList.remove('is-docked');
     root.setAttribute('aria-disabled', 'false');
@@ -2449,6 +2490,14 @@ function initProgressWidget() {
     clearDockingTimer();
     dockingPromise = null;
     const wasDone = doneState;
+
+    if (hasCompletedOnce) {
+      finalizeDocked();
+      return;
+    }
+    doneState = false;
+    widgetState = STATE_FLOATING;
+
     if (widgetState === STATE_FLOATING && !wasDone) {
       root.classList.add('is-floating');
       return;
@@ -2490,6 +2539,10 @@ function initProgressWidget() {
     if (widgetState === STATE_FLOATING && !root.classList.contains('is-floating')) {
       root.classList.add('is-floating');
     }
+    if (hasCompletedOnce && widgetState === STATE_DOCKED) {
+      return;
+    }
+
     const slotRect = computeSlotRect();
     if (!slotRect) {
       if (progress <= UNDOCK_PROGRESS) {
@@ -2632,7 +2685,10 @@ function initProgressWidget() {
     ticking = false;
     const p = measureProgress();
     const perc = Math.round(p * 100);
-    pctSpan.textContent = perc + '%';
+
+    if (!(isMobileMode() && hasCompletedOnce)) {
+      pctSpan.textContent = perc + '%';
+    }
 
     if (isMobileMode()) {
       handleMobileState(p, perc);
@@ -2721,6 +2777,7 @@ function initProgressWidget() {
   pill.style.transform = 'translate(-50%,-50%) scaleX(0.001)';
   pct.style.opacity = '1';
   next.style.opacity = '0';
+  updateProgressWidgetFloatingAnchors(root);
   update();
 
   // Обновить layout metrics после создания виджета

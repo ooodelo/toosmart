@@ -1441,6 +1441,11 @@ body[data-mode="mobile"] #pw-root {
   margin: 0;
 }
 
+body[data-mode="mobile"] #pw-root.is-floating:not(.is-done) {
+  width: var(--pw-circle-size);
+  height: var(--pw-circle-size);
+}
+
 body[data-mode="mobile"] #pw-root.is-floating {
   position: fixed;
   left: var(--pw-float-left, 0);
