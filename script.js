@@ -2711,6 +2711,12 @@ function init() {
     }
   };
 
+  // Функции, зависящие от габаритов visual viewport:
+  // - handleModeUpdate() → updateMode() → data-mode/data-input
+  // - scheduleLayoutMetricsUpdate() → updateLayoutMetrics()
+  // Они должны реагировать на любые изменения визуального viewport
+  // (клавиатура, pinch-zoom, scroll внутри визуального viewport).
+
   // Более быстрая обработка resize через RAF вместо debounce
   const handleResize = () => {
     if (resizeRaf !== null) {
@@ -2727,6 +2733,39 @@ function init() {
     module: 'layout.mode',
     target: 'window',
   });
+
+  const bindVisualViewportListeners = () => {
+    const viewport = window.visualViewport;
+
+    if (!viewport || typeof viewport.addEventListener !== 'function') {
+      if (window.DEBUG_MODE_DETECTION) {
+        console.log('[layout.mode] visualViewport unsupported, relying on window resize/orientation listeners');
+      }
+      return false;
+    }
+
+    const handleViewportGeometry = () => {
+      handleResize();
+    };
+
+    trackEvent(viewport, 'resize', handleViewportGeometry, undefined, {
+      module: 'layout.mode',
+      target: 'visualViewport',
+    });
+
+    trackEvent(viewport, 'scroll', handleViewportGeometry, { passive: true }, {
+      module: 'layout.mode',
+      target: 'visualViewport',
+    });
+
+    if (window.DEBUG_MODE_DETECTION) {
+      console.log('[layout.mode] visualViewport listeners attached');
+    }
+
+    return true;
+  };
+
+  bindVisualViewportListeners();
 
   // Orientationchange
   const handleOrientationChange = () => {
