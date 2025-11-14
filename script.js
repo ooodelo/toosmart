@@ -77,7 +77,7 @@ let flyoutHandlers = {
   handleFlyoutKeyboard: null
 };
 let flyoutDisposers = [];
-let restoreSetActiveSection = null;
+let flyoutSetActiveDisposer = null;
 let menuSwipeDisposers = [];
 let edgeGestureDisposer = null;
 let scrollHideControls = {
@@ -100,11 +100,198 @@ const flyoutLogger = (typeof window.DEBUG_FLYOUT_LOGGER === 'object' && window.D
   ? window.DEBUG_FLYOUT_LOGGER
   : console;
 
+const MAX_FLYOUT_TRACE = 25;
+const flyoutInitTimeline = [];
+const setActiveSectionTimeline = [];
+
+let setActiveSectionBridge = null;
+let capturedOriginalSetActive = false;
+let originalSetActiveSection = null;
+let lastExternalSetActiveSection = null;
+const setActiveSectionListeners = new Map();
+let setActiveSectionListenerSeq = 0;
+
 function logFlyout(...args) {
   if (!DEBUG_FLYOUT) return;
   if (typeof flyoutLogger?.log === 'function') {
     flyoutLogger.log(...args);
   }
+}
+
+function captureCallStack(limit = 5) {
+  try {
+    throw new Error('stack-capture');
+  } catch (error) {
+    if (!error?.stack) return undefined;
+    return error.stack
+      .split('\n')
+      .slice(2, 2 + limit)
+      .map((line) => line.trim());
+  }
+}
+
+function pushFlyoutTrace(storage, entry) {
+  storage.push(entry);
+  while (storage.length > MAX_FLYOUT_TRACE) {
+    storage.shift();
+  }
+  return entry;
+}
+
+function recordFlyoutInit(details = {}) {
+  const entry = pushFlyoutTrace(flyoutInitTimeline, {
+    timestamp: Date.now(),
+    mode: currentMode,
+    sections: sections.length,
+    ...details,
+    stack: captureCallStack(6),
+  });
+  logFlyout('[FLYOUT] init trace', entry);
+  return entry;
+}
+
+function recordSetActiveEvent(type, details = {}) {
+  const entry = pushFlyoutTrace(setActiveSectionTimeline, {
+    type,
+    timestamp: Date.now(),
+    ...details,
+    stack: captureCallStack(6),
+  });
+  logFlyout('[FLYOUT] setActiveSection event', entry);
+  return entry;
+}
+
+function ensureSetActiveSectionBridge(reason) {
+  const currentGlobal = typeof window.setActiveSection === 'function'
+    ? window.setActiveSection
+    : null;
+
+  if (!capturedOriginalSetActive) {
+    capturedOriginalSetActive = true;
+    originalSetActiveSection = currentGlobal;
+    recordSetActiveEvent('capture-original', {
+      reason,
+      hasOriginal: Boolean(currentGlobal),
+      name: currentGlobal?.name || null,
+    });
+  }
+
+  if (currentGlobal && currentGlobal !== setActiveSectionBridge && currentGlobal !== originalSetActiveSection) {
+    lastExternalSetActiveSection = currentGlobal;
+    recordSetActiveEvent('external-override-detected', {
+      reason,
+      name: currentGlobal?.name || null,
+    });
+  }
+
+  const base = lastExternalSetActiveSection || originalSetActiveSection || setActiveSection;
+
+  if (!setActiveSectionBridge) {
+    setActiveSectionBridge = function bridgedSetActiveSection(id) {
+      if (typeof setActiveSectionBridge.base === 'function') {
+        try {
+          setActiveSectionBridge.base(id);
+        } catch (error) {
+          console.error('[FLYOUT] base setActiveSection invocation failed', error);
+        }
+      }
+
+      recordSetActiveEvent('invoke', { id });
+
+      for (const listener of setActiveSectionListeners.values()) {
+        try {
+          listener.callback(id);
+          recordSetActiveEvent('listener-invoke', { label: listener.label, id });
+        } catch (error) {
+          console.error('[FLYOUT] setActiveSection listener failed', { label: listener.label, error });
+        }
+      }
+    };
+    setActiveSectionBridge.base = base;
+  } else {
+    setActiveSectionBridge.base = base;
+  }
+
+  if (window.setActiveSection !== setActiveSectionBridge) {
+    try {
+      window.setActiveSection = setActiveSectionBridge;
+      recordSetActiveEvent('bridge-apply', {
+        reason,
+        baseName: base?.name || null,
+      });
+    } catch (error) {
+      console.error('[FLYOUT] Failed to apply setActiveSection bridge', error);
+      recordSetActiveEvent('bridge-apply-error', {
+        reason,
+        error: error?.message || String(error),
+      });
+    }
+  } else {
+    recordSetActiveEvent('bridge-refresh', {
+      reason,
+      baseName: base?.name || null,
+    });
+  }
+
+  return base;
+}
+
+function releaseSetActiveSectionBridge(reason) {
+  if (!setActiveSectionBridge) return;
+
+  if (setActiveSectionListeners.size > 0) {
+    recordSetActiveEvent('bridge-retained', { reason, listeners: setActiveSectionListeners.size });
+    return;
+  }
+
+  if (window.setActiveSection === setActiveSectionBridge) {
+    const restoreTarget = lastExternalSetActiveSection || originalSetActiveSection;
+    if (restoreTarget) {
+      window.setActiveSection = restoreTarget;
+    } else {
+      try {
+        delete window.setActiveSection;
+      } catch (error) {
+        window.setActiveSection = undefined;
+      }
+    }
+    recordSetActiveEvent('bridge-release', { reason, restored: Boolean(restoreTarget) });
+  } else {
+    recordSetActiveEvent('bridge-release-skipped', { reason, replaced: true });
+  }
+
+  if (setActiveSectionListeners.size === 0) {
+    setActiveSectionBridge = null;
+  }
+}
+
+function addSetActiveSectionListener(label, callback) {
+  if (typeof callback !== 'function') {
+    return () => {};
+  }
+
+  ensureSetActiveSectionBridge(`listener:${label}`);
+
+  const id = ++setActiveSectionListenerSeq;
+  setActiveSectionListeners.set(id, { label, callback });
+  recordSetActiveEvent('listener-register', { label, id });
+
+  return () => {
+    if (!setActiveSectionListeners.has(id)) return;
+    setActiveSectionListeners.delete(id);
+    recordSetActiveEvent('listener-unregister', { label, id });
+    releaseSetActiveSectionBridge(`listener:${label}:dispose`);
+  };
+}
+
+function describeSetActiveSectionBridge() {
+  return {
+    hasBridge: Boolean(setActiveSectionBridge),
+    listeners: Array.from(setActiveSectionListeners.values()).map((listener) => listener.label),
+    capturedOriginal: capturedOriginalSetActive,
+    hasOriginal: Boolean(originalSetActiveSection),
+    hasExternal: Boolean(lastExternalSetActiveSection),
+  };
 }
 let layoutMetricsRaf = null;
 
@@ -975,6 +1162,11 @@ function initDotsFlyout() {
     sectionsLength: sections.length
   });
 
+  recordFlyoutInit({
+    mode: currentMode,
+    sections: sections.length,
+  });
+
   if (!dotsRail || !dotFlyout) {
     console.error('[FLYOUT] ERROR: dotsRail or dotFlyout not found!', {
       dotsRail: !!dotsRail,
@@ -998,6 +1190,14 @@ function initDotsFlyout() {
     logFlyout('[FLYOUT] Disabled - hiding');
     dotFlyout.setAttribute('hidden', '');
     detachFlyoutListeners();
+    if (typeof flyoutSetActiveDisposer === 'function') {
+      try {
+        flyoutSetActiveDisposer();
+      } catch (error) {
+        console.error('[FLYOUT] Failed to detach setActiveSection listener while disabling', error);
+      }
+      flyoutSetActiveDisposer = null;
+    }
     return;
   }
 
@@ -1155,37 +1355,22 @@ function initDotsFlyout() {
   logFlyout('[FLYOUT] Try hovering over dots now...');
 
   // Обновление активного элемента при смене секции
-  if (restoreSetActiveSection) {
-    restoreSetActiveSection();
-    restoreSetActiveSection = null;
+  if (typeof flyoutSetActiveDisposer === 'function') {
+    flyoutSetActiveDisposer();
   }
 
-  const previousGlobalSetActive = typeof window.setActiveSection === 'function'
-    ? window.setActiveSection
-    : null;
-  const baseSetActive = previousGlobalSetActive || setActiveSection;
-
-  window.setActiveSection = function(id) {
-    if (typeof baseSetActive === 'function') {
-      baseSetActive(id);
-    }
-    updateFlyoutActiveItem();
-  };
-
-  restoreSetActiveSection = () => {
-    if (previousGlobalSetActive) {
-      window.setActiveSection = previousGlobalSetActive;
-    } else {
-      delete window.setActiveSection;
-    }
-  };
+  flyoutSetActiveDisposer = addSetActiveSectionListener('dotsFlyout.active-sync', updateFlyoutActiveItem);
 
   registerLifecycleDisposer(() => {
-    if (restoreSetActiveSection) {
-      restoreSetActiveSection();
-      restoreSetActiveSection = null;
+    try {
+      if (typeof flyoutSetActiveDisposer === 'function') {
+        flyoutSetActiveDisposer();
+      }
+    } catch (error) {
+      console.error('[FLYOUT] Failed to dispose setActiveSection listener', error);
     }
-  }, { module: 'dotsFlyout', kind: 'global', detail: 'restore setActiveSection bridge' });
+    flyoutSetActiveDisposer = null;
+  }, { module: 'dotsFlyout', kind: 'global', detail: 'setActiveSection listener' });
 
   // Первоначальное обновление
   updateFlyoutActiveItem();
@@ -2644,6 +2829,13 @@ const appApi = {
   getResources() {
     return lifecycle.report();
   },
+  getFlyoutDiagnostics() {
+    return {
+      initTimeline: [...flyoutInitTimeline],
+      setActiveSectionTimeline: [...setActiveSectionTimeline],
+      bridge: describeSetActiveSectionBridge(),
+    };
+  },
   destroy(reason = 'destroy') {
     try {
       this.teardown();
@@ -2659,7 +2851,7 @@ const appApi = {
       }
     }
   },
-  audit: '2024-12-03',
+  audit: '2024-12-20',
 };
 
 window[APP_GLOBAL_KEY] = appApi;
