@@ -1456,26 +1456,6 @@ body[data-mode="mobile"] #pw-root.is-floating {
               left 480ms cubic-bezier(0.4, 0.02, 0.2, 1);
 }
 
-body[data-mode="mobile"] #pw-root.is-floating.is-docking {
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-body[data-mode="mobile"] #pw-root.is-docking {
-  transition: transform 480ms cubic-bezier(0.4, 0.02, 0.2, 1),
-              left 480ms cubic-bezier(0.4, 0.02, 0.2, 1);
-}
-
-body[data-mode="mobile"] #pw-root.is-docked {
-  position: sticky;
-  bottom: 0;
-  left: auto;
-  transform: none;
-  margin: 0 auto 24px;
-  z-index: 1600;
-  transition: none;
-}
-
 body[data-mode="mobile"].menu-open #pw-root.is-floating,
 body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
   z-index: 1400;

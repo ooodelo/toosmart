@@ -781,12 +781,6 @@ function updateLayoutMetrics() {
   }
 
   if (body.dataset.mode === 'mobile') {
-    const slot = pwRoot.parentElement && pwRoot.parentElement.classList.contains('pw-slot')
-      ? pwRoot.parentElement
-      : document.querySelector('.pw-slot');
-    if (slot && slot instanceof HTMLElement) {
-      footprint = Math.max(footprint, Math.round(slot.offsetHeight));
-    }
     updateProgressWidgetFloatingAnchors(pwRoot);
   } else {
     pwRoot.style.removeProperty('--pw-float-left');
@@ -2312,6 +2306,8 @@ function initProgressWidget() {
   const targetParent = document.body.contains(slot) ? slot : (document.body.contains(textContainer) ? textContainer : document.body);
   if (root.parentElement !== targetParent) {
     targetParent.appendChild(root);
+  } else if (!targetParent.contains(root)) {
+    targetParent.appendChild(root);
   }
 
   root.dataset.pwContainer = containerInfo.selector;
@@ -2394,177 +2390,22 @@ function initProgressWidget() {
 
   // 5. Анимации
   let aDot = null, aPill = null, aPct = null, aNext = null;
-  let doneState = false, ticking = false;
-  let hasCompletedOnce = false;
-  let dockingPromise = null;
-  let dockingTimerId = null;
-
-  const STATE_FLOATING = 'floating';
-  const STATE_DOCKING = 'docking';
-  const STATE_DOCKED = 'docked';
-  const DOCK_PROGRESS = 0.98;
-  const UNDOCK_PROGRESS = 0.94;
-  const DOCK_TRANSITION_MS = 520;
-  const SLOT_READY_OFFSET = 24;
-  const SLOT_RELEASE_OFFSET = 8;
-
-  let widgetState = body.dataset.mode === 'mobile' ? STATE_FLOATING : STATE_DOCKED;
-  if (body.dataset.mode === 'mobile') {
-    root.classList.add('is-floating');
-  } else {
-    root.classList.remove('is-floating', 'is-docking', 'is-docked');
-  }
+  let doneState = false;
+  let ticking = false;
 
   function isMobileMode() {
     return body.dataset.mode === 'mobile';
   }
 
-  function clearDockingTimer() {
-    if (dockingTimerId !== null) {
-      clearTimeout(dockingTimerId);
-      dockingTimerId = null;
-    }
-  }
-
-  function finalizeDocked() {
-    clearDockingTimer();
-    dockingPromise = null;
-    widgetState = STATE_DOCKED;
-    root.classList.remove('is-floating', 'is-docking');
-    root.classList.add('is-docked');
-    scheduleLayoutMetricsUpdate();
-  }
-
-  function startDocking() {
-    if (!isMobileMode()) {
-      return;
-    }
-    if (widgetState === STATE_DOCKED || widgetState === STATE_DOCKING) {
-      return;
-    }
-
-    widgetState = STATE_DOCKING;
-    doneState = true;
-    if (!hasCompletedOnce) {
-      hasCompletedOnce = true;
-    }
-    root.classList.add('is-done', 'is-floating', 'is-docking');
-    root.classList.remove('is-docked');
-    root.setAttribute('aria-disabled', 'false');
-    root.setAttribute('aria-label', 'Кнопка: Далее');
-
-    playForward();
-
-    if (prefersReduced) {
-      finalizeDocked();
-      return;
-    }
-
-    const waiters = [];
-    for (const animation of [aPill, aNext]) {
-      if (animation && animation.finished && typeof animation.finished.then === 'function') {
-        waiters.push(animation.finished.catch(() => {}));
-      }
-    }
-
-    waiters.push(new Promise((resolve) => {
-      dockingTimerId = window.setTimeout(() => {
-        dockingTimerId = null;
-        resolve();
-      }, DOCK_TRANSITION_MS);
-    }));
-
-    dockingPromise = Promise.all(waiters);
-    dockingPromise.then(() => {
-      if (widgetState === STATE_DOCKING) {
-        finalizeDocked();
-      }
-    }).catch(() => {
-      if (widgetState === STATE_DOCKING) {
-        finalizeDocked();
-      }
-    });
-  }
-
-  function startUndock({ perc = 0 } = {}) {
-    clearDockingTimer();
-    dockingPromise = null;
-    const wasDone = doneState;
-
-    if (hasCompletedOnce) {
-      finalizeDocked();
-      return;
-    }
-    doneState = false;
-    widgetState = STATE_FLOATING;
-
-    if (widgetState === STATE_FLOATING && !wasDone) {
+  function ensureMobilePositioning() {
+    if (isMobileMode()) {
       root.classList.add('is-floating');
-      return;
-    }
-    doneState = false;
-    widgetState = STATE_FLOATING;
-
-    root.classList.add('is-floating');
-    root.classList.remove('is-docking', 'is-docked');
-
-    if (wasDone) {
-      root.classList.remove('is-done');
-      root.setAttribute('aria-disabled', 'true');
-      root.setAttribute('aria-label', 'Прогресс чтения: ' + perc + '%');
-      playReverse();
-    }
-
-    scheduleLayoutMetricsUpdate();
-  }
-
-  function getViewportHeight() {
-    if (!isMobileMode()) {
-      return window.innerHeight || document.documentElement?.clientHeight || 0;
-    }
-    if (!controlsWindowScroll || scrollRoot === window) {
-      return window.innerHeight || document.documentElement?.clientHeight || 0;
-    }
-    return scrollRoot?.clientHeight || window.innerHeight || 0;
-  }
-
-  function computeSlotRect() {
-    if (!slot || typeof slot.getBoundingClientRect !== 'function') {
-      return null;
-    }
-    return slot.getBoundingClientRect();
-  }
-
-  function handleMobileState(progress, perc) {
-    if (widgetState === STATE_FLOATING && !root.classList.contains('is-floating')) {
-      root.classList.add('is-floating');
-    }
-    if (hasCompletedOnce && widgetState === STATE_DOCKED) {
-      return;
-    }
-
-    const slotRect = computeSlotRect();
-    if (!slotRect) {
-      if (progress <= UNDOCK_PROGRESS) {
-        startUndock({ perc });
-      }
-      return;
-    }
-
-    const viewportHeight = getViewportHeight();
-    const rootHeight = Math.max(root.offsetHeight || 0, parseCssNumber(window.getComputedStyle(root).height));
-    const dockReady = slotRect.top <= (viewportHeight - rootHeight * 0.5 - SLOT_READY_OFFSET);
-    const slotBelowViewport = slotRect.top >= (viewportHeight - SLOT_RELEASE_OFFSET);
-
-    const shouldDock = dockReady && progress >= DOCK_PROGRESS;
-    const shouldUndock = slotBelowViewport || progress <= UNDOCK_PROGRESS;
-
-    if (shouldDock) {
-      startDocking();
-    } else if (shouldUndock) {
-      startUndock({ perc });
+    } else {
+      root.classList.remove('is-floating');
     }
   }
+
+  ensureMobilePositioning();
 
   function updateMenuOverlapState() {
     if (body.classList.contains('menu-open')) {
@@ -2683,26 +2524,11 @@ function initProgressWidget() {
 
   function update() {
     ticking = false;
+    ensureMobilePositioning();
+
     const p = measureProgress();
     const perc = Math.round(p * 100);
-
-    if (!(isMobileMode() && hasCompletedOnce)) {
-      pctSpan.textContent = perc + '%';
-    }
-
-    if (isMobileMode()) {
-      handleMobileState(p, perc);
-      if (!doneState) {
-        root.setAttribute('aria-disabled', 'true');
-        root.setAttribute('aria-label', 'Прогресс чтения: ' + perc + '%');
-      }
-      return;
-    }
-
-    clearDockingTimer();
-    dockingPromise = null;
-    widgetState = STATE_DOCKED;
-    root.classList.remove('is-floating', 'is-docking', 'is-docked');
+    pctSpan.textContent = perc + '%';
 
     const shouldBeDone = perc >= 100;
 
@@ -2712,13 +2538,24 @@ function initProgressWidget() {
       root.setAttribute('aria-disabled', 'false');
       root.setAttribute('aria-label', 'Кнопка: Далее');
       playForward();
-    } else if (!shouldBeDone && doneState) {
+      scheduleLayoutMetricsUpdate();
+      return;
+    }
+
+    if (!shouldBeDone && doneState) {
       doneState = false;
       root.classList.remove('is-done');
       root.setAttribute('aria-disabled', 'true');
       root.setAttribute('aria-label', 'Прогресс чтения: ' + perc + '%');
       playReverse();
-    } else if (!shouldBeDone) {
+      scheduleLayoutMetricsUpdate();
+      return;
+    }
+
+    if (shouldBeDone) {
+      root.setAttribute('aria-disabled', 'false');
+      root.setAttribute('aria-label', 'Кнопка: Далее');
+    } else {
       root.setAttribute('aria-disabled', 'true');
       root.setAttribute('aria-label', 'Прогресс чтения: ' + perc + '%');
     }
@@ -2784,15 +2621,13 @@ function initProgressWidget() {
   scheduleLayoutMetricsUpdate();
 
   registerLifecycleDisposer(() => {
-    clearDockingTimer();
-    dockingPromise = null;
     killAnims();
     try {
       disconnectMenuObserver();
     } catch (error) {
       console.error('[ProgressWidget] Failed to disconnect menu observer', error);
     }
-    root.classList.remove('is-done', 'is-menu-covered', 'is-floating', 'is-docking', 'is-docked');
+    root.classList.remove('is-done', 'is-menu-covered', 'is-floating');
     if (root.isConnected && typeof root.remove === 'function') {
       root.remove();
     } else if (root.parentElement) {
