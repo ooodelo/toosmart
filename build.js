@@ -15,12 +15,49 @@
 const fs = require('fs');
 const path = require('path');
 const { marked } = require('marked');
+const createDOMPurify = require('dompurify');
+const { JSDOM } = require('jsdom');
+
+const SANITIZE_CONFIG = {
+  ALLOWED_TAGS: [
+    'a', 'abbr', 'b', 'blockquote', 'br', 'code', 'div', 'em', 'figure', 'figcaption',
+    'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'i', 'img', 'li', 'mark', 'ol', 'p', 'pre',
+    's', 'section', 'small', 'span', 'strong', 'sub', 'sup', 'table', 'tbody', 'td',
+    'th', 'thead', 'tr', 'u', 'ul'
+  ],
+  ALLOWED_ATTR: [
+    'href', 'title', 'target', 'rel', 'alt', 'src', 'loading', 'width', 'height', 'id',
+    'class', 'name', 'role', 'aria-label', 'aria-hidden', 'aria-describedby', 'aria-live',
+    'lang', 'dir'
+  ],
+  ADD_ATTR: ['data-footnote-ref', 'data-footnote-backref']
+};
+
+const FALLBACK_SANITIZE_WARN = (
+  '⚠️  DOMPurify недоступен, активирован запасной санитайзер без поддержки allowlist. '
+  + 'Проверьте окружение сборки.'
+);
+
+let fallbackSanitizeNotified = false;
+
+// Настраиваем DOMPurify один раз на основе JSDOM
+let DOMPurify = null;
+
+try {
+  const { window } = new JSDOM('');
+  DOMPurify = createDOMPurify(window);
+} catch (error) {
+  fallbackSanitizeNotified = true;
+  console.warn(FALLBACK_SANITIZE_WARN);
+  console.warn(error);
+}
 
 // Конфигурация путей
 const PATHS = {
   source: {
     articles: './source/articles',
     images: './source/images',
+    // config.json позволяет задать порядок статей, локализованные заголовки и связи «Далее»
     config: './source/config.json',
     template: './template.html'
   },
@@ -104,8 +141,40 @@ function loadConfig() {
     return autoDetectArticles();
   }
 
-  const configData = fs.readFileSync(PATHS.source.config, 'utf8');
-  return JSON.parse(configData);
+  try {
+    const configData = fs.readFileSync(PATHS.source.config, 'utf8');
+    const parsed = JSON.parse(configData);
+    return normalizeConfig(parsed);
+  } catch (error) {
+    console.error('⚠️  Не удалось разобрать config.json, используется автоопределение статей.', error);
+    return autoDetectArticles();
+  }
+}
+
+function normalizeConfig(config) {
+  if (!config || !Array.isArray(config.articles)) {
+    console.warn('⚠️  config.json не содержит корректный массив статей, используется автоопределение.');
+    return autoDetectArticles();
+  }
+
+  const articles = config.articles.map((article, index, list) => {
+    const markdown = article.markdown || `${article.id}.md`;
+    const derivedId = article.id || markdown.replace(/\.md$/i, '');
+    const next = article.next ?? (index < list.length - 1 ? list[index + 1].id || list[index + 1].markdown.replace(/\.md$/i, '') : null);
+
+    return {
+      ...article,
+      id: derivedId,
+      title: article.title || derivedId.replace(/-/g, ' '),
+      markdown,
+      next
+    };
+  });
+
+  return {
+    ...config,
+    articles
+  };
 }
 
 /**
@@ -209,7 +278,39 @@ function parseMarkdown(markdown) {
     mangle: false
   });
 
-  return marked.parse(markdown);
+  const html = marked.parse(markdown);
+  return sanitizeContent(html);
+}
+
+function sanitizeContent(html) {
+  if (DOMPurify && typeof DOMPurify.sanitize === 'function') {
+    try {
+      return DOMPurify.sanitize(html, SANITIZE_CONFIG);
+    } catch (error) {
+      console.warn('⚠️  DOMPurify не смог санитизировать HTML, используется запасной режим.', error);
+    }
+  } else if (!fallbackSanitizeNotified) {
+    console.warn(FALLBACK_SANITIZE_WARN);
+    fallbackSanitizeNotified = true;
+  }
+
+  return legacySanitize(html);
+}
+
+function legacySanitize(html) {
+  if (typeof html !== 'string') {
+    return '';
+  }
+
+  return html
+    // Удаляем скрипты и опасные URI
+    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
+    .replace(/javascript:/gi, '')
+    .replace(/data:text\/html/gi, '')
+    // Удаляем инлайн-обработчики событий
+    .replace(/on[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    // Удаляем потенциальные SVG/MathML сценарии
+    .replace(/<\/?(script|iframe|object|embed)[^>]*>/gi, '');
 }
 
 /**
