@@ -2895,7 +2895,9 @@ function bindPageLifecycle(dispose) {
   if (typeof document?.addEventListener === 'function') {
     const onVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
-        safeDispose('visibilitychange');
+        pauseApp({ reason: 'visibilitychange' });
+      } else if (document.visibilityState === 'visible') {
+        resumeApp({ reason: 'visibilitychange' });
       }
     };
     document.addEventListener('visibilitychange', onVisibilityChange);
@@ -2930,33 +2932,33 @@ if (previousApp && typeof previousApp.dispose === 'function') {
   }
 }
 
-const lifecycle = createLifecycleRegistry('toosmart:init');
-setActiveLifecycle(lifecycle);
-
+let lifecycle = null;
 let initCleanup = null;
-try {
-  initCleanup = init();
-} catch (error) {
-  console.error('[Lifecycle] init() failed', error);
-}
-
-const disposeLoadListener = trackEvent(window, 'load', scheduleLayoutMetricsUpdate, undefined, {
-  module: 'layout.metrics',
-  target: 'window',
-});
-
-scheduleLayoutMetricsUpdate();
-
+let disposeLoadListener = () => {};
 let removePageHooks = () => {};
 let disposed = false;
+let paused = true;
 
-const disposeApp = (payload = {}) => {
-  if (disposed) return;
-  disposed = true;
+function mountInteractive(context = {}) {
+  lifecycle = createLifecycleRegistry('toosmart:init');
+  setActiveLifecycle(lifecycle);
 
-  removePageHooks();
-  removePageHooks = () => {};
+  try {
+    initCleanup = init();
+  } catch (error) {
+    console.error('[Lifecycle] init() failed', { error, context });
+    initCleanup = null;
+  }
 
+  disposeLoadListener = trackEvent(window, 'load', scheduleLayoutMetricsUpdate, undefined, {
+    module: 'layout.metrics',
+    target: 'window',
+  });
+
+  scheduleLayoutMetricsUpdate();
+}
+
+function unmountInteractive(payload = {}) {
   const cleanupReason = payload && typeof payload === 'object' ? payload : { reason: String(payload) };
 
   try {
@@ -2966,32 +2968,73 @@ const disposeApp = (payload = {}) => {
   } catch (error) {
     console.error('[Lifecycle] init cleanup failed', { error, cleanupReason });
   }
+  initCleanup = null;
 
   try {
-    disposeLoadListener();
+    if (typeof disposeLoadListener === 'function') {
+      disposeLoadListener();
+    }
   } catch (error) {
     console.error('[Lifecycle] Failed to remove load listener', error);
   }
+  disposeLoadListener = () => {};
 
-  try {
-    lifecycle.disposeAll();
-  } catch (error) {
-    console.error('[Lifecycle] disposeAll failed', error);
+  if (lifecycle) {
+    try {
+      lifecycle.disposeAll();
+    } catch (error) {
+      console.error('[Lifecycle] disposeAll failed', { error, cleanupReason });
+    }
+  }
+  lifecycle = null;
+  setActiveLifecycle(null);
+}
+
+function pauseApp(payload = {}) {
+  if (disposed) return;
+  if (paused) return;
+
+  paused = true;
+  unmountInteractive(payload);
+}
+
+function resumeApp(payload = {}) {
+  if (disposed) return;
+  if (!paused && lifecycle) {
+    return;
   }
 
-  setActiveLifecycle(null);
-};
+  paused = false;
+  mountInteractive(payload);
+}
+
+function disposeApp(payload = {}) {
+  if (disposed) return;
+  disposed = true;
+  paused = true;
+
+  removePageHooks();
+  removePageHooks = () => {};
+
+  unmountInteractive(payload);
+}
 
 removePageHooks = bindPageLifecycle(disposeApp);
 
+if (document.visibilityState !== 'hidden') {
+  resumeApp({ reason: 'init' });
+}
+
 const appApi = {
   dispose: disposeApp,
+  pause: pauseApp,
+  resume: resumeApp,
   teardown() {
     removePageHooks();
     removePageHooks = () => {};
   },
   getResources() {
-    return lifecycle.report();
+    return lifecycle ? lifecycle.report() : [];
   },
   getFlyoutDiagnostics() {
     return {
