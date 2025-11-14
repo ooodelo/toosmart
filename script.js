@@ -389,6 +389,10 @@ function describeSetActiveSectionBridge() {
   };
 }
 let layoutMetricsRaf = null;
+let modeUpdateRaf = null;
+let lastVisualViewportWidth = null;
+let lastVisualViewportHeight = null;
+let visualViewportListenersBound = false;
 
 function pickReadingContainer() {
   const selectors = [
@@ -830,6 +834,30 @@ function scheduleLayoutMetricsUpdate() {
     layoutMetricsRaf = null;
     updateLayoutMetrics();
   });
+}
+
+function normalizeViewportDimension(value) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return null;
+  }
+  return Math.round(value * 1000);
+}
+
+function updateVisualViewportSize(viewport) {
+  if (!viewport) {
+    return false;
+  }
+
+  const width = normalizeViewportDimension(viewport.width);
+  const height = normalizeViewportDimension(viewport.height);
+
+  if (width === lastVisualViewportWidth && height === lastVisualViewportHeight) {
+    return false;
+  }
+
+  lastVisualViewportWidth = width;
+  lastVisualViewportHeight = height;
+  return true;
 }
 
 function syncScrollHideMode() {
@@ -1516,7 +1544,9 @@ function detectBackdropFilter() {
 /**
  * Helper: обновляет режим и синхронизирует observer с layout
  */
-function handleModeUpdate() {
+function runModeUpdateFrame() {
+  modeUpdateRaf = null;
+
   const prevMode = currentMode;
   updateMode();
 
@@ -1534,6 +1564,14 @@ function handleModeUpdate() {
   }
 
   scheduleLayoutMetricsUpdate();
+}
+
+function handleModeUpdate() {
+  if (modeUpdateRaf !== null) {
+    return;
+  }
+
+  modeUpdateRaf = requestAnimationFrame(runModeUpdateFrame);
 }
 
 function initMenuInteractions() {
@@ -2692,15 +2730,6 @@ function init() {
   const stackCarouselCleanup = initStackCarousel(); // Карусель рекомендаций
   initProgressWidget(); // Progress Widget (круг с процентами → кнопка "Далее")
 
-  let resizeRaf = null;
-
-  const cancelResizeRaf = () => {
-    if (resizeRaf !== null) {
-      cancelAnimationFrame(resizeRaf);
-      resizeRaf = null;
-    }
-  };
-
   // Функции, зависящие от габаритов visual viewport:
   // - handleModeUpdate() → updateMode() → data-mode/data-input
   // - scheduleLayoutMetricsUpdate() → updateLayoutMetrics()
@@ -2709,14 +2738,8 @@ function init() {
 
   // Более быстрая обработка resize через RAF вместо debounce
   const handleResize = () => {
-    if (resizeRaf !== null) {
-      cancelAnimationFrame(resizeRaf);
-    }
-
-    resizeRaf = requestAnimationFrame(() => {
-      resizeRaf = null;
-      handleModeUpdate();
-    });
+    updateVisualViewportSize(window.visualViewport);
+    handleModeUpdate();
   };
 
   trackEvent(window, 'resize', handleResize, undefined, {
@@ -2725,6 +2748,13 @@ function init() {
   });
 
   const bindVisualViewportListeners = () => {
+    if (visualViewportListenersBound) {
+      if (window.DEBUG_MODE_DETECTION) {
+        console.log('[layout.mode] visualViewport listeners already bound, skipping duplicate subscription');
+      }
+      return true;
+    }
+
     const viewport = window.visualViewport;
 
     if (!viewport || typeof viewport.addEventListener !== 'function') {
@@ -2734,7 +2764,13 @@ function init() {
       return false;
     }
 
+    visualViewportListenersBound = true;
+    updateVisualViewportSize(viewport);
+
     const handleViewportGeometry = () => {
+      if (!updateVisualViewportSize(viewport)) {
+        return;
+      }
       handleResize();
     };
 
@@ -2762,6 +2798,7 @@ function init() {
     // Даем браузеру время обновить размеры перед проверкой
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
+        updateVisualViewportSize(window.visualViewport);
         handleModeUpdate();
       });
     });
@@ -2780,6 +2817,7 @@ function init() {
 
     const handleMediaChange = () => {
       requestAnimationFrame(() => {
+        updateVisualViewportSize(window.visualViewport);
         handleModeUpdate();
       });
     };
@@ -2797,11 +2835,6 @@ function init() {
       query: '(min-width: 1440px)',
     });
   }
-
-  registerLifecycleDisposer(cancelResizeRaf, {
-    module: 'layout.mode',
-    kind: 'raf-throttle',
-  });
 
   registerLifecycleDisposer(teardownObserver, {
     module: 'sections.observer',
@@ -2836,14 +2869,27 @@ function init() {
       cancelAnimationFrame(layoutMetricsRaf);
       layoutMetricsRaf = null;
     }
+    if (modeUpdateRaf !== null) {
+      cancelAnimationFrame(modeUpdateRaf);
+      modeUpdateRaf = null;
+    }
+    lastVisualViewportWidth = null;
+    lastVisualViewportHeight = null;
+    visualViewportListenersBound = false;
   }, { module: 'layout.metrics', kind: 'raf' });
 
   return (reason) => {
-    cancelResizeRaf();
     detachEdgeGesture();
     detachMenuSwipes();
     detachTrap();
     detachFlyoutListeners();
+    if (modeUpdateRaf !== null) {
+      cancelAnimationFrame(modeUpdateRaf);
+      modeUpdateRaf = null;
+    }
+    lastVisualViewportWidth = null;
+    lastVisualViewportHeight = null;
+    visualViewportListenersBound = false;
     if (typeof stackCarouselCleanup === 'function') {
       try {
         stackCarouselCleanup();
