@@ -89,6 +89,9 @@ let scrollHideControls = {
 };
 let layoutMetricsInitialized = false;
 let viewportGeometryDirty = false;
+let stackCarouselCleanup = null;
+let progressWidgetCleanup = null;
+let dotsFeatureActive = false;
 
 const menuState = createMenuStateController({
   body,
@@ -844,6 +847,173 @@ function trackObserver(observer, meta = {}) {
   });
 }
 
+function createLazyFeatureManager(options = {}) {
+  const features = new Map();
+  const elementStates = new Map();
+  let observedElements = new WeakSet();
+  let observer = null;
+
+  const threshold = Array.isArray(options.threshold) || typeof options.threshold === 'number'
+    ? options.threshold
+    : 0.2;
+  const rootMargin = typeof options.rootMargin === 'string'
+    ? options.rootMargin
+    : '0px 0px -10% 0px';
+
+  function parseTokens(value) {
+    if (typeof value !== 'string' || !value.trim()) {
+      return [];
+    }
+    return value
+      .split(/[\s,]+/)
+      .map((token) => token.trim())
+      .filter(Boolean);
+  }
+
+  function ensureObserver() {
+    if (observer) {
+      return observer;
+    }
+    observer = new IntersectionObserver(handleEntries, {
+      threshold,
+      rootMargin,
+    });
+    return observer;
+  }
+
+  function handleEntries(entries) {
+    for (const entry of entries) {
+      const tokens = parseTokens(entry.target?.dataset?.lazy);
+      if (tokens.length === 0) {
+        continue;
+      }
+
+      let featureMap = elementStates.get(entry.target);
+      if (!featureMap) {
+        featureMap = new Map();
+        elementStates.set(entry.target, featureMap);
+      }
+
+      for (const id of tokens) {
+        const feature = features.get(id);
+        if (!feature) {
+          continue;
+        }
+
+        let state = featureMap.get(id);
+        if (!state) {
+          state = { active: false, cleanup: null };
+          featureMap.set(id, state);
+        }
+
+        if (entry.isIntersecting) {
+          if (state.active) {
+            continue;
+          }
+          state.active = true;
+          let cleanup = null;
+          try {
+            cleanup = feature.onEnter?.({
+              id,
+              element: entry.target,
+              entry,
+            });
+          } catch (error) {
+            console.error('[LazyFeatures] Activation failed', { id, error });
+          }
+          state.cleanup = typeof cleanup === 'function' ? cleanup : null;
+        } else if (state.active) {
+          state.active = false;
+          if (typeof feature.onExit === 'function') {
+            try {
+              feature.onExit({
+                id,
+                element: entry.target,
+                entry,
+                cleanup: state.cleanup,
+              });
+            } catch (error) {
+              console.error('[LazyFeatures] onExit handler failed', { id, error });
+            }
+          }
+          if (typeof state.cleanup === 'function') {
+            try {
+              state.cleanup();
+            } catch (error) {
+              console.error('[LazyFeatures] Cleanup failed', { id, error });
+            }
+          }
+          featureMap.delete(id);
+          if (featureMap.size === 0) {
+            elementStates.delete(entry.target);
+          }
+          state.cleanup = null;
+        }
+      }
+    }
+  }
+
+  function observeElement(element) {
+    if (!(element instanceof Element)) {
+      return;
+    }
+    if (observedElements.has(element)) {
+      return;
+    }
+    observedElements.add(element);
+    ensureObserver().observe(element);
+  }
+
+  function register(id, handlers = {}) {
+    if (!id) {
+      return () => {};
+    }
+    features.set(id, handlers);
+    return () => {
+      features.delete(id);
+    };
+  }
+
+  function observeAll(root = document) {
+    if (!root || typeof root.querySelectorAll !== 'function') {
+      return;
+    }
+    root.querySelectorAll('[data-lazy]').forEach((element) => observeElement(element));
+  }
+
+  function disconnect() {
+    if (observer) {
+      observer.disconnect();
+    }
+    for (const [element, featureMap] of elementStates.entries()) {
+      for (const [id, state] of featureMap.entries()) {
+        if (state.active && typeof state.cleanup === 'function') {
+          try {
+            state.cleanup();
+          } catch (error) {
+            console.error('[LazyFeatures] Cleanup during disconnect failed', { id, error });
+          }
+        }
+      }
+    }
+    elementStates.clear();
+    observedElements = new WeakSet();
+    observer = null;
+  }
+
+  return {
+    register,
+    observeAll,
+    observeElement,
+    disconnect,
+  };
+}
+
+const lazyFeatures = createLazyFeatureManager({
+  threshold: 0.2,
+  rootMargin: '0px 0px -10% 0px',
+});
+
 function createMetricsOverlay(diagnostics) {
   const overlay = document.createElement('div');
   overlay.dataset.devOverlay = 'resource-metrics';
@@ -1216,8 +1386,10 @@ function updateMode() {
       previousFocus = null;
     }
 
-    configureDots();
-    initDotsFlyout(); // Обновляем flyout при смене режима
+    if (dotsFeatureActive) {
+      configureDots();
+      initDotsFlyout(); // Обновляем flyout при смене режима
+    }
 
     // Управление edge-gesture lifecycle
     detachEdgeGesture();
@@ -1254,6 +1426,14 @@ function teardownObserver() {
 }
 
 function configureDots() {
+  if (!dotsFeatureActive) {
+    teardownObserver();
+    if (dotsRail) {
+      dotsRail.innerHTML = '';
+      dotsRail.hidden = true;
+    }
+    return;
+  }
   if (!dotsRail) return;
   dotsRail.innerHTML = '';
   const shouldEnable = (currentMode === 'desktop' || currentMode === 'desktop-wide') && sections.length >= 2;
@@ -1490,6 +1670,9 @@ function lockScroll() {
 }
 
 function initDots() {
+  if (!dotsFeatureActive) {
+    return;
+  }
   configureDots();
   // IntersectionObserver уже обрабатывает активную секцию, scroll handler не нужен
 }
@@ -1589,6 +1772,23 @@ function detachFlyoutListeners() {
  * Инициализация flyout меню для navigation dots
  */
 function initDotsFlyout() {
+  if (!dotsFeatureActive) {
+    if (typeof flyoutSetActiveDisposer === 'function') {
+      try {
+        flyoutSetActiveDisposer();
+      } catch (error) {
+        console.error('[FLYOUT] Failed to dispose setActiveSection listener during idle state', error);
+      }
+    }
+    flyoutSetActiveDisposer = null;
+    detachFlyoutListeners();
+    if (dotFlyout) {
+      dotFlyout.innerHTML = '';
+      dotFlyout.setAttribute('hidden', '');
+    }
+    releaseSetActiveSectionBridge('dotsFlyout.lazy-inactive');
+    return;
+  }
   logFlyout('[FLYOUT] initDotsFlyout START', {
     dotsRail: !!dotsRail,
     dotFlyout: !!dotFlyout,
@@ -1847,14 +2047,17 @@ function runModeUpdateFrame() {
   const { modeChanged } = updateMode();
 
   if (modeChanged) {
-    if (currentMode === 'desktop' || currentMode === 'desktop-wide') {
+    if (dotsFeatureActive && (currentMode === 'desktop' || currentMode === 'desktop-wide')) {
       setupSectionObserver();
       initDotsFlyout(); // Пересоздаем flyout при переходе в desktop
     } else {
       teardownObserver();
-      // Скрываем flyout в tablet/mobile
+      // Скрываем flyout в tablet/mobile или при неактивном состоянии
       if (dotFlyout) {
         dotFlyout.setAttribute('hidden', '');
+      }
+      if (dotsFeatureActive) {
+        initDotsFlyout();
       }
     }
   }
@@ -2995,7 +3198,7 @@ function initProgressWidget() {
   // Обновить layout metrics после создания виджета
   requestLayoutMetricsUpdate({ elementChanged: true });
 
-  registerLifecycleDisposer(() => {
+  const releaseLifecycleCleanup = registerLifecycleDisposer(() => {
     killAnims();
     try {
       disconnectMenuObserver();
@@ -3017,22 +3220,147 @@ function initProgressWidget() {
       }
     }
   }, { module: 'progressWidget', kind: 'cleanup' });
+
+  return () => {
+    if (typeof releaseLifecycleCleanup === 'function') {
+      try {
+        releaseLifecycleCleanup();
+      } catch (error) {
+        console.error('[ProgressWidget] Failed to dispose via lazy cleanup', error);
+      }
+    }
+  };
 }
+
+function activateDotsNavigationFeature() {
+  if (dotsFeatureActive) {
+    return () => {};
+  }
+
+  dotsFeatureActive = true;
+
+  try {
+    initDots();
+    initDotsFlyout();
+  } catch (error) {
+    console.error('[LazyFeatures] Failed to initialize dots navigation', error);
+  }
+
+  return () => {
+    dotsFeatureActive = false;
+    try {
+      teardownObserver();
+    } catch (error) {
+      console.error('[LazyFeatures] Failed to teardown section observer', error);
+    }
+
+    if (typeof flyoutSetActiveDisposer === 'function') {
+      try {
+        flyoutSetActiveDisposer();
+      } catch (error) {
+        console.error('[LazyFeatures] Failed to dispose flyout listener', error);
+      }
+    }
+    flyoutSetActiveDisposer = null;
+
+    detachFlyoutListeners();
+    if (dotFlyout) {
+      dotFlyout.innerHTML = '';
+      dotFlyout.setAttribute('hidden', '');
+    }
+    if (dotsRail) {
+      dotsRail.innerHTML = '';
+      dotsRail.hidden = true;
+    }
+    releaseSetActiveSectionBridge('dotsFlyout.lazy-cleanup');
+  };
+}
+
+function activateStackCarouselFeature() {
+  if (typeof stackCarouselCleanup === 'function') {
+    return () => {};
+  }
+
+  let cleanup = null;
+  try {
+    cleanup = initStackCarousel();
+  } catch (error) {
+    console.error('[LazyFeatures] Failed to initialize stack carousel', error);
+    cleanup = null;
+  }
+
+  if (typeof cleanup === 'function') {
+    stackCarouselCleanup = cleanup;
+    return () => {
+      if (typeof stackCarouselCleanup === 'function') {
+        try {
+          stackCarouselCleanup();
+        } catch (error) {
+          console.error('[LazyFeatures] Failed to cleanup stack carousel', error);
+        }
+      }
+      stackCarouselCleanup = null;
+    };
+  }
+
+  stackCarouselCleanup = null;
+  return () => {};
+}
+
+function activateProgressWidgetFeature() {
+  if (typeof progressWidgetCleanup === 'function') {
+    return () => {};
+  }
+
+  let release = null;
+  try {
+    release = initProgressWidget();
+  } catch (error) {
+    console.error('[LazyFeatures] Failed to initialize progress widget', error);
+    release = null;
+  }
+
+  if (typeof release === 'function') {
+    progressWidgetCleanup = release;
+    return () => {
+      if (typeof progressWidgetCleanup === 'function') {
+        try {
+          progressWidgetCleanup();
+        } catch (error) {
+          console.error('[LazyFeatures] Failed to cleanup progress widget', error);
+        }
+      }
+      progressWidgetCleanup = null;
+    };
+  }
+
+  progressWidgetCleanup = null;
+  return () => {};
+}
+
+lazyFeatures.register('dots-nav', {
+  onEnter: () => activateDotsNavigationFeature(),
+});
+
+lazyFeatures.register('stack-carousel', {
+  onEnter: () => activateStackCarouselFeature(),
+});
+
+lazyFeatures.register('progress-widget', {
+  onEnter: () => activateProgressWidgetFeature(),
+});
 
 function init() {
   // Feature detection
   detectBackdropFilter();
 
   const modeState = updateMode();
-  initDots();
-  initDotsFlyout(); // Flyout меню для navigation dots
   initMenuInteractions();
   attachEdgeGesture(); // Attach only if tablet mode
   attachMenuSwipes(); // Swipe support for touch devices
   attachScrollHideHeader(); // Auto-hide header/dock on scroll
   initMenuLinks();
-  const stackCarouselCleanup = initStackCarousel(); // Карусель рекомендаций
-  initProgressWidget(); // Progress Widget (круг с процентами → кнопка "Далее")
+  lazyFeatures.observeAll();
 
   requestLayoutMetricsUpdate({
     force: !layoutMetricsInitialized,
@@ -3190,6 +3518,7 @@ function init() {
   }, { module: 'layout.metrics', kind: 'raf' });
 
   return (reason) => {
+    lazyFeatures.disconnect();
     detachEdgeGesture();
     detachMenuSwipes();
     detachTrap();
@@ -3210,6 +3539,16 @@ function init() {
         console.error('[Lifecycle] Failed to cleanup stack carousel', { error, reason });
       }
     }
+    stackCarouselCleanup = null;
+    if (typeof progressWidgetCleanup === 'function') {
+      try {
+        progressWidgetCleanup();
+      } catch (error) {
+        console.error('[Lifecycle] Failed to cleanup progress widget', { error, reason });
+      }
+    }
+    progressWidgetCleanup = null;
+    dotsFeatureActive = false;
     teardownObserver();
     scrollHideControls.detach();
     if (typeof flyoutHideTimeoutCancel === 'function') {
