@@ -54,7 +54,6 @@ const dockHandle = document.querySelector('.dock-handle');
 const panel = document.querySelector('.panel');
 const dotsRail = document.querySelector('.dots-rail');
 const dotFlyout = document.querySelector('.dot-flyout');
-const textBox = document.querySelector('.text-box');
 const sections = Array.from(document.querySelectorAll('.text-section'));
 const menuCap = document.querySelector('.menu-rail__cap');
 
@@ -108,6 +107,58 @@ function logFlyout(...args) {
   }
 }
 let layoutMetricsRaf = null;
+
+function pickReadingContainer() {
+  const selectors = [
+    '.text-box',
+    '.article__content',
+    'main article',
+    'article',
+    '.article',
+    '.content',
+    '#content',
+    'main',
+  ];
+
+  for (const selector of selectors) {
+    const element = document.querySelector(selector);
+    if (element) {
+      return { element, selector, matchedTextBox: selector === '.text-box' };
+    }
+  }
+
+  return { element: document.body, selector: 'body', matchedTextBox: false };
+}
+
+function getOverflowY(element) {
+  if (!element) return 'visible';
+  try {
+    const styles = getComputedStyle(element);
+    return styles.overflowY || styles.overflow || 'visible';
+  } catch (error) {
+    console.warn('[ProgressWidget] Failed to read overflowY', { error, element });
+    return 'visible';
+  }
+}
+
+function findScrollContainer(startElement) {
+  let current = startElement;
+
+  while (current && current !== document.body && current !== document.documentElement) {
+    const overflowY = getOverflowY(current);
+    const isScrollable = (overflowY === 'auto' || overflowY === 'scroll') &&
+      current.scrollHeight > current.clientHeight + 1;
+
+    if (isScrollable) {
+      return { element: current, mode: 'element' };
+    }
+
+    current = current.parentElement;
+  }
+
+  const fallback = document.scrollingElement || document.documentElement || window;
+  return { element: fallback, mode: 'document' };
+}
 
 const APP_GLOBAL_KEY = '__TOOSMART_APP__';
 
@@ -1866,7 +1917,21 @@ function attachScrollHideHeader() {
  * Показывает круг с процентами (0-100%), при 100% морфится в кнопку "Далее"
  */
 function initProgressWidget() {
-  // 1. Создание/получение элемента виджета
+  // 1. Анализ структуры текста
+  const containerInfo = pickReadingContainer();
+  const scrollInfo = findScrollContainer(containerInfo.element);
+  const textContainer = containerInfo.element;
+  const scrollRoot = scrollInfo.element;
+  const controlsWindowScroll = scrollInfo.mode === 'document' || scrollRoot === window;
+
+  if (!containerInfo.matchedTextBox) {
+    console.warn('[ProgressWidget] .text-box not found, using fallback container', {
+      selector: containerInfo.selector,
+      scrollMode: scrollInfo.mode,
+    });
+  }
+
+  // 2. Создание/получение элемента виджета
   let root = document.getElementById('pw-root');
   if (!root) {
     root = document.createElement('aside');
@@ -1875,15 +1940,15 @@ function initProgressWidget() {
     root.setAttribute('tabindex', '0');
     root.setAttribute('aria-disabled', 'true');
     root.setAttribute('aria-label', 'Прогресс чтения: 0%');
-
-    // Вставляем в article.text-box
-    const article = document.querySelector('.text-box');
-    if (article) {
-      article.appendChild(root);
-    } else {
-      document.body.appendChild(root); // Fallback
-    }
   }
+
+  const targetParent = document.body.contains(textContainer) ? textContainer : document.body;
+  if (root.parentElement !== targetParent) {
+    targetParent.appendChild(root);
+  }
+
+  root.dataset.pwContainer = containerInfo.selector;
+  root.dataset.pwScrollMode = scrollInfo.mode;
 
   root.innerHTML = `<div class="pw-visual">
     <div class="pw-dot"></div>
@@ -1892,28 +1957,40 @@ function initProgressWidget() {
     <div class="pw-next">Далее</div>
   </div>`;
 
-  // 2. Получение элементов
+  // 3. Получение элементов
   const dot = root.querySelector('.pw-dot');
   const pill = root.querySelector('.pw-pill');
   const pct = root.querySelector('.pw-pct');
   const next = root.querySelector('.pw-next');
   const pctSpan = root.querySelector('#pwPct');
 
-  const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const scroller = document.scrollingElement || document.documentElement;
+  const prefersReduced = typeof window.matchMedia === 'function'
+    ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    : false;
 
-  // 3. Функции измерения прогресса
+  // 4. Функции измерения прогресса
   function clamp01(x) {
     return x < 0 ? 0 : x > 1 ? 1 : x;
   }
 
-  function measureProgress() {
-    const r = textBox.getBoundingClientRect();
+  function measureWindowProgress() {
+    const rect = textContainer.getBoundingClientRect();
     const viewport = window.innerHeight;
-    const total = Math.max(textBox.scrollHeight, r.height) - viewport;
+    const total = Math.max(textContainer.scrollHeight, rect.height) - viewport;
     if (total <= 0) return 1;
-    const read = Math.min(Math.max(-r.top, 0), total);
+    const read = Math.min(Math.max(-rect.top, 0), total);
     return clamp01(read / total);
+  }
+
+  function measureElementProgress() {
+    const total = Math.max(scrollRoot.scrollHeight, textContainer.scrollHeight) - scrollRoot.clientHeight;
+    if (total <= 0) return 1;
+    const read = scrollRoot.scrollTop;
+    return clamp01(read / total);
+  }
+
+  function measureProgress() {
+    return controlsWindowScroll ? measureWindowProgress() : measureElementProgress();
   }
 
   // 4. Определение URL следующей страницы
@@ -2039,20 +2116,36 @@ function initProgressWidget() {
 
   updateMenuOverlapState();
 
-  const menuStateObserver = new MutationObserver((records) => {
-    for (const record of records) {
-      if (record.attributeName === 'class') {
-        updateMenuOverlapState();
-        break;
+  let disconnectMenuObserver = () => {};
+  if (typeof MutationObserver === 'function') {
+    const menuStateObserver = new MutationObserver((records) => {
+      for (const record of records) {
+        if (record.attributeName === 'class') {
+          updateMenuOverlapState();
+          break;
+        }
       }
-    }
-  });
+    });
 
-  menuStateObserver.observe(body, { attributes: true, attributeFilter: ['class'] });
-  const disconnectMenuObserver = trackObserver(menuStateObserver, {
-    module: 'progressWidget',
-    target: 'body[class] mutation',
-  });
+    menuStateObserver.observe(body, { attributes: true, attributeFilter: ['class'] });
+    disconnectMenuObserver = trackObserver(menuStateObserver, {
+      module: 'progressWidget',
+      target: 'body[class] mutation',
+    });
+  } else {
+    let lastMenuState = body.classList.contains('menu-open');
+    const pollMenuState = () => {
+      const currentState = body.classList.contains('menu-open');
+      if (currentState !== lastMenuState) {
+        lastMenuState = currentState;
+        updateMenuOverlapState();
+      }
+    };
+    disconnectMenuObserver = trackInterval(pollMenuState, 250, {
+      module: 'progressWidget',
+      target: 'body[class] poll',
+    });
+  }
 
   function killAnims() {
     for (const a of [aDot, aPill, aPct, aNext]) {
@@ -2169,8 +2262,18 @@ function initProgressWidget() {
       }
     } else {
       // До 100%: докрутить до конца
-      const endY = window.scrollY + (textBox.getBoundingClientRect().bottom - window.innerHeight + 1);
-      window.scrollTo({ top: endY, behavior: 'smooth' });
+      if (controlsWindowScroll) {
+        const rect = textContainer.getBoundingClientRect();
+        const endY = window.scrollY + (rect.bottom - window.innerHeight + 1);
+        window.scrollTo({ top: endY, behavior: 'smooth' });
+      } else {
+        const target = Math.max(scrollRoot.scrollHeight - scrollRoot.clientHeight, 0);
+        if (typeof scrollRoot.scrollTo === 'function') {
+          scrollRoot.scrollTo({ top: target, behavior: 'smooth' });
+        } else {
+          scrollRoot.scrollTop = target;
+        }
+      }
     }
   }, { passive: true }, { module: 'progressWidget', target: describeTarget(root) });
 
@@ -2188,6 +2291,13 @@ function initProgressWidget() {
     target: 'window',
   });
 
+  if (!controlsWindowScroll && scrollRoot && scrollRoot !== window) {
+    trackEvent(scrollRoot, 'scroll', onScroll, { passive: true }, {
+      module: 'progressWidget',
+      target: describeTarget(scrollRoot),
+    });
+  }
+
   // 10. Инициализация
   dot.style.opacity = '1';
   pill.style.opacity = '0';
@@ -2202,10 +2312,17 @@ function initProgressWidget() {
   registerLifecycleDisposer(() => {
     cancelPositionSchedulers();
     killAnims();
-    if (typeof disconnectMenuObserver === 'function') {
+    try {
       disconnectMenuObserver();
+    } catch (error) {
+      console.error('[ProgressWidget] Failed to disconnect menu observer', error);
     }
     root.classList.remove('is-done', 'is-menu-covered', 'is-positioned-relative');
+    if (root.isConnected && typeof root.remove === 'function') {
+      root.remove();
+    } else if (root.parentElement) {
+      root.parentElement.removeChild(root);
+    }
   }, { module: 'progressWidget', kind: 'cleanup' });
 }
 
@@ -2478,7 +2595,22 @@ const appApi = {
   getResources() {
     return lifecycle.report();
   },
-  audit: '2024-10-19',
+  destroy(reason = 'destroy') {
+    try {
+      this.teardown();
+    } catch (error) {
+      console.error('[Lifecycle] Failed to teardown before destroy', error);
+    }
+    disposeApp({ reason });
+    if (window[APP_GLOBAL_KEY] === this) {
+      try {
+        delete window[APP_GLOBAL_KEY];
+      } catch (error) {
+        window[APP_GLOBAL_KEY] = undefined;
+      }
+    }
+  },
+  audit: '2024-12-03',
 };
 
 window[APP_GLOBAL_KEY] = appApi;
