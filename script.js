@@ -86,8 +86,103 @@ let scrollHideControls = {
   detach: () => {},
 };
 
+const menuState = createMenuStateController({
+  body,
+  handles: [menuHandle, dockHandle],
+});
+
 function isMenuAvailable() {
   return Boolean(menuRail || siteMenu);
+}
+
+function createMenuStateController({ body, handles = [] } = {}) {
+  const normalizedHandles = handles.filter((handle) => handle instanceof HTMLElement);
+  const listeners = new Set();
+  let open = Boolean(body?.classList.contains('menu-open'));
+
+  function isVisible(element) {
+    if (!element) return false;
+    return Boolean(element.offsetWidth || element.offsetHeight || element.getClientRects().length);
+  }
+
+  function syncHandles() {
+    const expanded = String(open);
+    for (const handle of normalizedHandles) {
+      if (!handle) continue;
+      if (isVisible(handle)) {
+        handle.setAttribute('aria-expanded', expanded);
+      } else {
+        handle.removeAttribute('aria-expanded');
+      }
+    }
+  }
+
+  function apply() {
+    if (body) {
+      body.classList.toggle('menu-open', open);
+    }
+    syncHandles();
+  }
+
+  function notify() {
+    for (const listener of listeners) {
+      try {
+        listener(open);
+      } catch (error) {
+        console.error('[MenuState] Listener failed', error);
+      }
+    }
+  }
+
+  function setOpen(next, { silent = false } = {}) {
+    const target = Boolean(next);
+    if (open !== target) {
+      open = target;
+      apply();
+      if (!silent) {
+        notify();
+      }
+    } else {
+      // Даже при отсутствии изменения состояния обновляем DOM,
+      // чтобы синхронизировать aria-атрибуты после изменений layout.
+      apply();
+    }
+    return open;
+  }
+
+  function subscribe(listener) {
+    if (typeof listener !== 'function') {
+      return () => {};
+    }
+    listeners.add(listener);
+    return () => {
+      listeners.delete(listener);
+    };
+  }
+
+  function syncFromDom({ silent = false } = {}) {
+    const target = Boolean(body?.classList.contains('menu-open'));
+    const changed = target !== open;
+    open = target;
+    apply();
+    if (changed && !silent) {
+      notify();
+    }
+    return open;
+  }
+
+  apply();
+
+  return {
+    isOpen: () => open,
+    setOpen,
+    open: (options) => setOpen(true, options),
+    close: (options) => setOpen(false, options),
+    toggle: (options) => setOpen(!open, options),
+    subscribe,
+    sync: syncFromDom,
+    refreshHandles: syncHandles,
+  };
 }
 
 // Debug mode: установите в true для вывода информации о режимах в консоль
@@ -749,7 +844,7 @@ function updateMode() {
   if (prevMode !== nextMode) {
     // Полный сброс всех состояний при смене режима
     body.classList.remove('is-slid');
-    body.classList.remove('menu-open');
+    menuState.setOpen(false, { silent: true });
 
     // Сброс атрибутов меню
     if (siteMenu) {
@@ -759,9 +854,6 @@ function updateMode() {
 
     // Отключение trap
     detachTrap();
-
-    // Обновление aria-expanded для всех handles
-    updateAriaExpanded(false);
 
     // Восстановление фокуса если был сохранен
     if (previousFocus && document.body.contains(previousFocus)) {
@@ -779,6 +871,8 @@ function updateMode() {
     // Принудительный reflow для применения изменений
     void body.offsetHeight;
   }
+
+  menuState.refreshHandles();
 
   lockScroll();
   scheduleLayoutMetricsUpdate();
@@ -904,11 +998,6 @@ function getFocusableElements(container) {
   );
 }
 
-function isElementVisible(element) {
-  if (!element) return false;
-  return !!(element.offsetWidth || element.offsetHeight || element.getClientRects().length);
-}
-
 function trapFocus(event) {
   const shouldTrap = currentMode !== 'desktop' && body.classList.contains('menu-open');
   if (!shouldTrap || event.key !== 'Tab') return;
@@ -958,7 +1047,7 @@ function openMenu({ focusOrigin = menuHandle } = {}) {
   }
 
   body.classList.remove('is-slid');
-  body.classList.add('menu-open');
+  menuState.setOpen(true);
 
   // Форсированное удаление data-scroll ПОСЛЕ добавления menu-open (двойная защита)
   if (currentMode === 'mobile' || currentMode === 'tablet') {
@@ -983,7 +1072,6 @@ function openMenu({ focusOrigin = menuHandle } = {}) {
     }
     attachTrap();
   }
-  updateAriaExpanded(true);
   lockScroll();
   return true;
 }
@@ -993,14 +1081,13 @@ function closeMenu({ focusOrigin = menuHandle } = {}) {
     return false;
   }
 
-  body.classList.remove('menu-open');
+  menuState.setOpen(false);
   body.classList.remove('is-slid');
   if (siteMenu) {
     siteMenu.removeAttribute('role');
     siteMenu.removeAttribute('aria-modal');
   }
   detachTrap();
-  updateAriaExpanded(false);
   lockScroll();
   if (currentMode === 'mobile' || currentMode === 'tablet') {
     scrollHideControls.suppress(false);
@@ -1014,30 +1101,12 @@ function closeMenu({ focusOrigin = menuHandle } = {}) {
   return true;
 }
 
-function updateAriaExpanded(isOpen) {
-  const expanded = String(isOpen);
-  if (menuHandle) {
-    if (isElementVisible(menuHandle)) {
-      menuHandle.setAttribute('aria-expanded', expanded);
-    } else {
-      menuHandle.removeAttribute('aria-expanded');
-    }
-  }
-  if (dockHandle) {
-    if (isElementVisible(dockHandle)) {
-      dockHandle.setAttribute('aria-expanded', expanded);
-    } else {
-      dockHandle.removeAttribute('aria-expanded');
-    }
-  }
-}
-
 function toggleMenu(origin) {
   if (!isMenuAvailable()) {
     return false;
   }
 
-  if (body.classList.contains('menu-open')) {
+  if (menuState.isOpen()) {
     return closeMenu({ focusOrigin: origin });
   } else {
     return openMenu({ focusOrigin: origin });
@@ -2725,11 +2794,12 @@ function init() {
 
   registerLifecycleDisposer(() => {
     previousFocus = null;
-    body.classList.remove('menu-open', 'is-slid');
+    menuState.setOpen(false, { silent: true });
+    body.classList.remove('is-slid');
     body.removeAttribute('data-scroll');
     delete body.dataset.lock;
     delete root.dataset.lock;
-    updateAriaExpanded(false);
+    menuState.refreshHandles();
   }, { module: 'menu.lifecycle', kind: 'state-reset' });
 
   registerLifecycleDisposer(() => {
