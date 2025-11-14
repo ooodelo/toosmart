@@ -1428,8 +1428,8 @@ body[data-mode="mobile"] #pw-root {
   order: 2;
   width: min(var(--pw-pill-width), 90%);
   /* Transition только для transform и left (не для position!) */
-  transition: transform 600ms cubic-bezier(0.4, 0.02, 0.2, 1) 950ms,
-              left 600ms cubic-bezier(0.4, 0.02, 0.2, 1) 950ms;
+  transition: transform 600ms cubic-bezier(0.4, 0.02, 0.2, 1),
+              left 600ms cubic-bezier(0.4, 0.02, 0.2, 1);
 }
 
 /* После 100%: переезд в центр (оставляем fixed, анимируем только позицию) */

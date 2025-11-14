@@ -2029,9 +2029,14 @@ function initProgressWidget() {
   let aDot = null, aPill = null, aPct = null, aNext = null;
   let doneState = false, ticking = false;
   let positionTimeoutCancel = null;
+  let positionRafCancel = null;
   let transitionCleanup = null;
 
   function cancelPositionSchedulers() {
+    if (typeof positionRafCancel === 'function') {
+      positionRafCancel();
+      positionRafCancel = null;
+    }
     if (typeof positionTimeoutCancel === 'function') {
       positionTimeoutCancel();
       positionTimeoutCancel = null;
@@ -2044,10 +2049,54 @@ function initProgressWidget() {
 
   function applyRelativePosition() {
     if (!doneState) return;
-    if (!root.classList.contains('is-positioned-relative')) {
+    if (root.classList.contains('is-positioned-relative')) {
+      return;
+    }
+
+    if (typeof positionRafCancel === 'function') {
+      positionRafCancel();
+      positionRafCancel = null;
+    }
+
+    let firstFrame = null;
+    let secondFrame = null;
+
+    const commit = () => {
+      positionRafCancel = null;
+      if (!doneState || root.classList.contains('is-positioned-relative')) {
+        return;
+      }
       root.classList.add('is-positioned-relative');
       scheduleLayoutMetricsUpdate();
-    }
+    };
+
+    const cancel = () => {
+      if (firstFrame !== null) {
+        cancelAnimationFrame(firstFrame);
+        firstFrame = null;
+      }
+      if (secondFrame !== null) {
+        cancelAnimationFrame(secondFrame);
+        secondFrame = null;
+      }
+    };
+
+    firstFrame = requestAnimationFrame(() => {
+      firstFrame = null;
+      if (!doneState) {
+        cancel();
+        positionRafCancel = null;
+        return;
+      }
+      secondFrame = requestAnimationFrame(() => {
+        secondFrame = null;
+        commit();
+      });
+    });
+
+    positionRafCancel = () => {
+      cancel();
+    };
   }
 
   function waitForFixedToSettle() {
@@ -2095,7 +2144,7 @@ function initProgressWidget() {
       positionTimeoutCancel = null;
       cancelPositionSchedulers();
       applyRelativePosition();
-    }, 1700, { module: 'progressWidget', detail: 'position fallback' });
+    }, 900, { module: 'progressWidget', detail: 'position fallback' });
   }
 
   function resetRelativePosition() {
