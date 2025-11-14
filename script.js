@@ -2461,28 +2461,45 @@ function initProgressWidget() {
       pill.style.opacity = '1';
       pill.style.transform = 'translate(-50%,-50%) scaleX(1)';
       pct.style.opacity = '0';
+      pct.style.transform = 'translateY(8px)';
       next.style.opacity = '1';
+      next.style.transform = 'translateY(0)';
+      next.style.letterSpacing = '0px';
       return;
     }
     killAnims();
     aDot = dot.animate(
       [
         { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 },
-        { transform: 'translate(-50%,-50%) scale(1.06)', opacity: 0.6, offset: 0.35 },
-        { transform: 'translate(-50%,-50%) scale(0.94)', opacity: 0 }
+        { transform: 'translate(-50%,-50%) scale(1.08)', opacity: 0.85, offset: 0.18 },
+        { transform: 'translate(-50%,-50%) scale(0.82)', opacity: 0.45, offset: 0.48 },
+        { transform: 'translate(-50%,-50%) scale(0.6)', opacity: 0 }
       ],
-      { duration: 650, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' }
+      { duration: 760, easing: 'cubic-bezier(0.16, 1, 0.3, 1)', fill: 'forwards' }
     );
     aPill = pill.animate(
       [
         { transform: 'translate(-50%,-50%) scaleX(0.001)', opacity: 0 },
-        { transform: 'translate(-50%,-50%) scaleX(1.06)', opacity: 1, offset: 0.7 },
+        { transform: 'translate(-50%,-50%) scaleX(0.72)', opacity: 1, offset: 0.42 },
+        { transform: 'translate(-50%,-50%) scaleX(1.08)', opacity: 1, offset: 0.72 },
         { transform: 'translate(-50%,-50%) scaleX(1)', opacity: 1 }
       ],
-      { duration: 900, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' }
+      { duration: 980, easing: 'cubic-bezier(0.16, 1, 0.3, 1)', fill: 'forwards' }
     );
-    aPct = pct.animate([{opacity:1},{opacity:0}], { duration: 320, easing: 'ease', fill: 'forwards', delay: 150 });
-    aNext = next.animate([{opacity:0},{opacity:1}], { duration: 420, easing: 'ease', fill: 'forwards', delay: 360 });
+    aPct = pct.animate(
+      [
+        { opacity: 1, transform: 'translateY(0)' },
+        { opacity: 0, transform: 'translateY(8px)' }
+      ],
+      { duration: 360, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards', delay: 140 }
+    );
+    aNext = next.animate(
+      [
+        { opacity: 0, transform: 'translateY(8px)', letterSpacing: '0.4px' },
+        { opacity: 1, transform: 'translateY(0)', letterSpacing: '0px' }
+      ],
+      { duration: 520, easing: 'cubic-bezier(0.19, 1, 0.22, 1)', fill: 'forwards', delay: 260 }
+    );
   }
 
   function playReverse() {
@@ -2492,27 +2509,44 @@ function initProgressWidget() {
       pill.style.opacity = '0';
       pill.style.transform = 'translate(-50%,-50%) scaleX(0.001)';
       pct.style.opacity = '1';
+      pct.style.transform = 'translateY(0)';
       next.style.opacity = '0';
+      next.style.transform = 'translateY(6px)';
+      next.style.letterSpacing = '0.4px';
       return;
     }
     killAnims();
     aDot = dot.animate(
       [
-        { transform: 'translate(-50%,-50%) scale(0.94)', opacity: 0 },
-        { transform: 'translate(-50%,-50%) scale(1.06)', opacity: 0.6, offset: 0.65 },
+        { transform: 'translate(-50%,-50%) scale(0.62)', opacity: 0 },
+        { transform: 'translate(-50%,-50%) scale(0.92)', opacity: 0.55, offset: 0.28 },
+        { transform: 'translate(-50%,-50%) scale(1.04)', opacity: 0.85, offset: 0.58 },
         { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 }
       ],
-      { duration: 650, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' }
+      { duration: 720, easing: 'cubic-bezier(0.16, 1, 0.3, 1)', fill: 'forwards' }
     );
     aPill = pill.animate(
       [
         { transform: 'translate(-50%,-50%) scaleX(1)', opacity: 1 },
+        { transform: 'translate(-50%,-50%) scaleX(0.66)', opacity: 1, offset: 0.32 },
         { transform: 'translate(-50%,-50%) scaleX(0.001)', opacity: 0 }
       ],
-      { duration: 700, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' }
+      { duration: 820, easing: 'cubic-bezier(0.16, 1, 0.3, 1)', fill: 'forwards' }
     );
-    aPct = pct.animate([{opacity:0},{opacity:1}], { duration: 360, easing: 'ease', fill: 'forwards', delay: 360 });
-    aNext = next.animate([{opacity:1},{opacity:0}], { duration: 320, easing: 'ease', fill: 'forwards', delay: 120 });
+    aPct = pct.animate(
+      [
+        { opacity: 0, transform: 'translateY(-6px)' },
+        { opacity: 1, transform: 'translateY(0)' }
+      ],
+      { duration: 420, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards', delay: 280 }
+    );
+    aNext = next.animate(
+      [
+        { opacity: 1, transform: 'translateY(0)', letterSpacing: '0px' },
+        { opacity: 0, transform: 'translateY(6px)', letterSpacing: '0.4px' }
+      ],
+      { duration: 360, easing: 'cubic-bezier(0.55, 0.06, 0.68, 0.19)', fill: 'forwards', delay: 120 }
+    );
   }
 
   // 6. Обновление на скролл
