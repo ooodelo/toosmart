@@ -1321,6 +1321,23 @@ body[data-mode="mobile"].menu-open .backdrop {
   user-select: none;
 }
 
+/* Контейнер-слот для мобильного режима */
+.pw-slot {
+  display: contents;
+}
+
+body[data-mode="mobile"] .pw-slot {
+  display: flex;
+  position: relative;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: calc(var(--pw-pill-height) + 16px);
+  margin: 24px auto 0;
+  padding-bottom: 16px;
+  width: 100%;
+}
+
 /* Визуальный контейнер */
 #pw-root .pw-visual {
   position: relative;

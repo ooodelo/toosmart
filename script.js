@@ -2294,7 +2294,16 @@ function initProgressWidget() {
     root.setAttribute('aria-label', 'Прогресс чтения: 0%');
   }
 
-  const targetParent = document.body.contains(textContainer) ? textContainer : document.body;
+  let slot = textContainer.querySelector('.pw-slot');
+  let slotCreated = false;
+  if (!slot) {
+    slot = document.createElement('div');
+    slot.className = 'pw-slot';
+    textContainer.appendChild(slot);
+    slotCreated = true;
+  }
+
+  const targetParent = document.body.contains(slot) ? slot : (document.body.contains(textContainer) ? textContainer : document.body);
   if (root.parentElement !== targetParent) {
     targetParent.appendChild(root);
   } else if (!targetParent.contains(root)) {
@@ -2657,6 +2666,13 @@ function initProgressWidget() {
       root.remove();
     } else if (root.parentElement) {
       root.parentElement.removeChild(root);
+    }
+    if (slotCreated && slot && slot.parentElement) {
+      try {
+        slot.remove();
+      } catch (error) {
+        slot.parentElement.removeChild(slot);
+      }
     }
   }, { module: 'progressWidget', kind: 'cleanup' });
 }
