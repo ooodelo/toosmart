@@ -1,7 +1,7 @@
 # 📐 СПЕЦИФИКАЦИЯ UI/UX - ОБРАЗОВАТЕЛЬНАЯ ПЛАТФОРМА
 
-**Дата:** 2025-11-10
-**Версия:** 3.0 (актуальная)
+**Дата:** 2025-11-15
+**Версия:** 4.0 (актуальная)
 **Статус:** Утверждено
 
 ---
@@ -19,23 +19,440 @@
 - Статичная генерация (build один раз)
 - Картинки PNG inline как иллюстрации
 
+**Бизнес-модель: Freemium**
+- Существует две версии сайта: **Free** и **Premium**
+- Free версия: вступительные абзацы разделов + полные статьи "Рекомендации"
+- Premium версия: полные разделы курса с навигацией
+
+---
+
+## 🆓 FREE VS PREMIUM ВЕРСИИ
+
+### Концепция разделения
+
+Платформа имеет **две параллельные версии** с разным уровнем доступа к контенту:
+
+| Элемент | Free версия | Premium версия |
+|---------|-------------|----------------|
+| **URL** | `/free/` | `/premium/` |
+| **Разделы курса** | Только вступительные абзацы | Полные разделы |
+| **Статьи "Рекомендации"** | ✅ Полностью доступны | ✅ Полностью доступны |
+| **Навигация (меню)** | ✅ Видна полная структура | ✅ Видна полная структура |
+| **Flyout меню** | ✅ Подразделы H2 видны | ✅ Подразделы H2 видны |
+| **Dots-rail** | ✅ Работает | ✅ Работает |
+| **Кнопка внизу раздела** | 🔒 "Получить полную версию" | ➡️ "Далее" |
+| **Доступ** | Открытый | Требует авторизации |
+| **SEO индексация** | Только статьи "Рекомендации" | ❌ Закрыто от поисковиков |
+
+### Free версия - Paywall UI
+
+**Структура раздела курса в free версии:**
+
+```html
+<section id="grease-removal" class="text-section">
+    <h2>Удаление жира</h2>
+
+    <!-- ВСТУПИТЕЛЬНЫЙ АБЗАЦ (видимый) -->
+    <p>Жир — один из самых стойких загрязнений на кухне...</p>
+
+    <!-- БЛЮР ЭФФЕКТ (остальной контент) -->
+    <div class="premium-teaser">
+        <div class="blurred-content">
+            <p>Для эффективного удаления жира нужны...</p>
+            <p>Затем происходит процесс эмульгирования...</p>
+            <!-- ... весь остальной контент под блюром ... -->
+        </div>
+
+        <!-- ОВЕРЛЕЙ С КНОПКОЙ -->
+        <div class="unlock-overlay">
+            <button class="btn-unlock" onclick="openPaymentModal()">
+                🔒 Получить полную версию
+            </button>
+        </div>
+    </div>
+</section>
+```
+
+**CSS для paywall:**
+
+```css
+.premium-teaser {
+    position: relative;
+    margin-top: 24px;
+}
+
+.blurred-content {
+    filter: blur(8px);
+    pointer-events: none;
+    user-select: none;
+    max-height: 400px;
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
+    mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
+}
+
+.unlock-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    z-index: 10;
+}
+
+.btn-unlock {
+    padding: 16px 32px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.btn-unlock:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 32px rgba(102, 126, 234, 0.5);
+}
+```
+
+### Модальное окно оплаты
+
+**Визуальная структура:**
+
+```html
+<div class="modal" id="payment-modal" hidden>
+    <div class="modal-overlay" onclick="closePaymentModal()"></div>
+
+    <div class="modal-content">
+        <button class="modal-close" onclick="closePaymentModal()">×</button>
+
+        <h2>Получите полный доступ к курсу</h2>
+
+        <ul class="benefits">
+            <li>✅ 10 полных разделов с подробными объяснениями</li>
+            <li>✅ Практические рецепты и таблицы совместимости</li>
+            <li>✅ Пожизненный доступ к материалам</li>
+            <li>✅ Обновления курса бесплатно</li>
+        </ul>
+
+        <p class="price">
+            <span class="price-old">1990 ₽</span>
+            <span class="price-current">990 ₽</span>
+        </p>
+
+        <form action="https://auth.robokassa.ru/Merchant/Index.aspx" method="GET">
+            <input type="email" name="Shp_email" placeholder="Ваш email" required>
+            <button type="submit" class="btn-pay">Оплатить 990 ₽</button>
+        </form>
+
+        <p class="security-note">🔒 Безопасная оплата через Robokassa</p>
+    </div>
+</div>
+```
+
+**CSS для модального окна:**
+
+```css
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+}
+
+.modal-content {
+    position: relative;
+    background: white;
+    border-radius: 16px;
+    padding: 40px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    z-index: 1;
+}
+
+.modal-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: none;
+    border: none;
+    font-size: 32px;
+    cursor: pointer;
+    color: #666;
+    line-height: 1;
+}
+
+.benefits {
+    list-style: none;
+    padding: 0;
+    margin: 24px 0;
+}
+
+.benefits li {
+    padding: 8px 0;
+    font-size: 16px;
+}
+
+.price {
+    text-align: center;
+    margin: 24px 0;
+}
+
+.price-old {
+    text-decoration: line-through;
+    color: #999;
+    font-size: 20px;
+    margin-right: 12px;
+}
+
+.price-current {
+    font-size: 32px;
+    font-weight: 700;
+    color: #667eea;
+}
+
+.btn-pay {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 16px;
+}
+
+.security-note {
+    text-align: center;
+    color: #666;
+    font-size: 14px;
+    margin-top: 16px;
+}
+```
+
+### Premium версия - Форма входа
+
+**server/index.php - UI авторизации:**
+
+```html
+<div class="auth-page">
+    <div class="auth-container">
+        <img src="../free/assets/CleanLogo.svg" alt="Clean" class="auth-logo">
+
+        <h1>Вход в закрытую версию курса</h1>
+        <p>Введите данные, отправленные на email после оплаты</p>
+
+        <form action="auth.php" method="POST" class="auth-form">
+            <input type="email" name="email" placeholder="Email" required autofocus>
+            <input type="password" name="password" placeholder="Пароль из письма" required>
+            <button type="submit">Войти в курс</button>
+        </form>
+
+        <p class="error" hidden>❌ Неверный email или пароль</p>
+
+        <hr>
+
+        <p class="help-text">
+            Еще нет доступа? <a href="/free/">Вернуться к бесплатной версии</a><br>
+            Проблемы со входом? <a href="mailto:support@toosmart.com">Напишите нам</a>
+        </p>
+    </div>
+</div>
+```
+
+**CSS для формы входа:**
+
+```css
+.auth-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.auth-container {
+    background: white;
+    padding: 48px;
+    border-radius: 16px;
+    max-width: 440px;
+    width: 90%;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.auth-logo {
+    display: block;
+    margin: 0 auto 24px;
+    max-width: 200px;
+}
+
+.auth-form input {
+    width: 100%;
+    padding: 14px;
+    margin-bottom: 16px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: border-color 0.2s;
+}
+
+.auth-form input:focus {
+    border-color: #667eea;
+    outline: none;
+}
+
+.auth-form button {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.help-text {
+    text-align: center;
+    color: #666;
+    font-size: 14px;
+    margin-top: 24px;
+}
+```
+
+### Статьи "Рекомендации"
+
+**Назначение:**
+- Всегда **полностью бесплатные**
+- Доступны по адресу `/free/articles/`
+- **Индексируются Google** для привлечения трафика
+- В конце каждой статьи - кнопка перехода к курсу
+
+**Структура статьи:**
+
+```html
+<article class="text-box">
+    <h1>Переплата за «эко»-средства</h1>
+
+    <!-- ПОЛНЫЙ КОНТЕНТ БЕЗ ОГРАНИЧЕНИЙ -->
+    <p>Разбираем состав экологичных средств и их реальную стоимость...</p>
+    <!-- ... весь контент ... -->
+
+    <!-- ПРИЗЫВ К ДЕЙСТВИЮ -->
+    <div class="article-cta">
+        <h3>Хотите узнать больше?</h3>
+        <p>Изучите полный курс «Clean - Теория правильной уборки» с 10 разделами по химии уборки</p>
+        <a href="/free/index.html" class="btn-course">
+            Перейти к полному курсу →
+        </a>
+    </div>
+</article>
+```
+
+**CSS для CTA:**
+
+```css
+.article-cta {
+    background: linear-gradient(135deg, #e8f4f8 0%, #d4e9f2 100%);
+    border: 2px solid #667eea;
+    border-radius: 12px;
+    padding: 32px;
+    margin-top: 48px;
+    text-align: center;
+}
+
+.btn-course {
+    display: inline-block;
+    padding: 14px 32px;
+    background: #667eea;
+    color: white;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 600;
+    margin-top: 16px;
+    transition: transform 0.2s;
+}
+
+.btn-course:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+}
+```
+
 ---
 
 ## 📄 СТРУКТУРА САЙТА
 
-### Страницы:
+### Free версия (/free/):
 ```
-/articles/
-  intro.html       ← из intro.md
-  basics.html      ← из basics.md
-  advanced.html    ← из advanced.md
+/free/
+  index.html                  ← Раздел "Введение" (вступление + paywall)
+  kitchen.html                ← Раздел "Кухня" (вступление + paywall)
+  bathroom.html               ← Раздел "Ванная" (вступление + paywall)
+  ...                         ← остальные разделы курса
+
+  articles/                   ← Статьи "Рекомендации" (ПОЛНЫЕ, SEO)
+    eco-myths.html            ← "Переплата за эко-средства"
+    dangerous-mix.html        ← "Опасные комбинации"
+    soda-vinegar.html         ← "Сода + уксус не работает"
+    ph-neutral-myth.html      ← "pH-нейтрально — маркетинг"
 ```
 
-### Внутри каждой статьи:
-- H1 заголовок статьи
-- Несколько разделов с H2 заголовками
+### Premium версия (/premium/):
+```
+/premium/
+  index.php                   ← Форма входа (email + password)
+  auth.php                    ← Проверка учетных данных
+  logout.php                  ← Выход из аккаунта
+
+  home.html                   ← Главная после входа (защищена)
+  kitchen.html                ← Раздел "Кухня" (ПОЛНЫЙ, защищен)
+  bathroom.html               ← Раздел "Ванная" (ПОЛНЫЙ, защищен)
+  ...                         ← остальные разделы (ПОЛНЫЕ, защищены)
+```
+
+### Внутри раздела курса (free):
+- H1 заголовок раздела
+- Вступительный абзац (видимый)
+- Остальной контент под блюром
+- Кнопка "🔒 Получить полную версию" → модальное окно
+
+### Внутри раздела курса (premium):
+- H1 заголовок раздела
+- Полный контент без ограничений
+- Несколько подразделов с H2 заголовками
 - Текст, изображения, таблицы, код, цитаты
-- Кнопка "Далее" в конце
+- Кнопка "Далее →" в конце (переход к следующему разделу)
+
+### Внутри статьи "Рекомендации":
+- H1 заголовок статьи
+- Полный контент
+- CTA блок с кнопкой "Перейти к полному курсу"
 
 ---
 
@@ -109,12 +526,15 @@
 
 ---
 
-## 3️⃣ КНОПКА "ДАЛЕЕ"
+## 3️⃣ КНОПКА НАВИГАЦИИ (внизу раздела)
 
 ### Назначение:
-Переход на **следующую страницу** сайта (следующую статью)
 
-### Визуальное поведение:
+**В Premium версии:** Переход на **следующий раздел** курса
+**В Free версии:** Открытие **модального окна оплаты**
+**В статьях "Рекомендации":** Переход к **курсу**
+
+### Визуальное поведение (только Premium):
 
 **Во время скролла:**
 - ✅ `position: sticky`
@@ -127,29 +547,63 @@
 
 ### Логика клика:
 
-**НЕ скроллит внутри статьи!**
+**Premium версия - переход к следующему разделу:**
 
 ```javascript
 function handleNext() {
   const nextPageUrl = btnNext?.dataset.nextPage;
   if (nextPageUrl) {
-    window.location.href = nextPageUrl; // переход на другую страницу
+    window.location.href = nextPageUrl; // переход на kitchen.html, bathroom.html и т.д.
   }
 }
 ```
 
-### HTML:
+**Free версия - открытие модального окна:**
+
+```javascript
+function handlePaywall() {
+  openPaymentModal(); // показать модальное окно с формой оплаты
+}
+```
+
+**Статья "Рекомендации" - переход к курсу:**
+
+```javascript
+function handleCourseCTA() {
+  window.location.href = '/free/index.html'; // переход к началу курса
+}
+```
+
+### HTML примеры:
+
+**Premium версия:**
 ```html
-<button class="btn-next" type="button" data-next-page="basics.html">
-  Далее
+<button class="btn-next" type="button" data-next-page="bathroom.html">
+  Далее →
 </button>
 ```
 
-### Режимы:
+**Free версия:**
+```html
+<button class="btn-unlock" type="button" onclick="openPaymentModal()">
+  🔒 Получить полную версию
+</button>
+```
+
+**Статья "Рекомендации":**
+```html
+<a href="/free/index.html" class="btn-course">
+  Перейти к полному курсу →
+</a>
+```
+
+### Режимы (только для btn-next в Premium):
 - Desktop: sticky, центрирована
 - Desktop-wide: sticky, центрирована
 - Tablet: sticky, центрирована
 - Mobile: обычная кнопка в конце, ширина min(320px, 100%)
+
+**Примечание:** Кнопка paywall (free) и CTA (статьи) НЕ используют sticky позиционирование.
 
 ---
 
