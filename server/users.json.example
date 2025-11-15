@@ -1,0 +1,9 @@
+[
+  {
+    "email": "user@example.com",
+    "password_hash": "$2y$10$abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGH",
+    "created_at": "2025-11-15 12:30:45",
+    "invoice_id": "12345",
+    "amount": "990"
+  }
+]

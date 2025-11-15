@@ -2,11 +2,15 @@
   "name": "toosmart",
   "version": "1.0.0",
   "description": "Статичный сайт для образовательных статей",
-  "main": "build.js",
+  "main": "scripts/build.js",
   "scripts": {
-    "build": "node build.js",
-    "dev": "npm run build && live-server public",
-    "clean": "rm -rf public/articles/* public/images/*"
+    "dev": "live-server src --port=3000",
+    "build": "node scripts/build.js",
+    "build:free": "node scripts/build.js --target=free",
+    "build:premium": "node scripts/build.js --target=premium",
+    "preview:free": "live-server dist/free --port=3001",
+    "preview:premium": "live-server dist/premium --port=3002",
+    "clean": "rm -rf dist/*"
   },
   "keywords": [
     "markdown",

@@ -1,0 +1,44 @@
+# ========================================
+# ЗАЩИТА ПРЕМИУМ ВЕРСИИ КУРСА
+# ========================================
+
+# Запретить индексацию поисковиками
+<IfModule mod_headers.c>
+    Header set X-Robots-Tag "noindex, nofollow, noarchive"
+    Header set X-Frame-Options "SAMEORIGIN"
+</IfModule>
+
+# Включить mod_rewrite
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Все запросы к .html файлам проксировать через check-auth.php
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.+)\.html$ check-auth.php?page=$1 [L,QSA]
+</IfModule>
+
+# Защитить прямой доступ к HTML, JS, CSS файлам
+<FilesMatch "\.(html|js|css)$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+# Разрешить только PHP и изображения
+<FilesMatch "\.(php|png|jpg|jpeg|svg|gif|webp)$">
+    Allow from all
+</FilesMatch>
+
+# Защита от hotlinking изображений
+<IfModule mod_rewrite.c>
+    RewriteEngine on
+    RewriteCond %{HTTP_REFERER} !^$
+    RewriteCond %{HTTP_REFERER} !^https://(www\.)?toosmart\.com [NC]
+    RewriteRule \.(jpg|jpeg|png|gif|svg)$ - [F,L]
+</IfModule>
+
+# Блокировать известных скраперов
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{HTTP_USER_AGENT} (HTTrack|wget|curl|libwww) [NC]
+    RewriteRule .* - [F,L]
+</IfModule>
