@@ -1,20 +1,22 @@
 /**
- * BUILD SCRIPT - Генерация Free и Premium версий сайта
+ * BUILD SCRIPT - Автоматическая генерация Free и Premium версий
+ *
+ * ZERO-CONFIG подход: просто кладите MD файлы в content/course/ и запускайте build
  *
  * Использование:
  *   npm run build              - собрать обе версии
  *   npm run build:free         - только free версия
  *   npm run build:premium      - только premium версия
  *
- * Структура:
- *   content/course/     → разделы курса
- *   content/articles/   → статьи "Рекомендации"
- *   src/                → шаблоны UI
- *   server/             → PHP скрипты
+ * Требования к MD файлам (см. docs/MARKDOWN_REQUIREMENTS.md):
+ *   - Имя: 01.md, 02-basics.md, 03_chemistry.md (цифра в начале = порядок)
+ *   - H1 заголовок (#) - название раздела в меню
+ *   - H2 заголовки (##) - подразделы в меню
+ *   - H3+ заголовки (###) - только для верстки, не попадают в меню
  *
  * Результат:
- *   dist/free/          → бесплатная версия
- *   dist/premium/       → платная версия (с PHP защитой)
+ *   dist/free/          → бесплатная версия (paywall)
+ *   dist/premium/       → платная версия (PHP защита)
  */
 
 const fs = require('fs');
@@ -38,7 +40,6 @@ const PATHS = {
   content: {
     course: './content/course',
     articles: './content/articles',
-    config: './content/config.json',
     images: './content/images'
   },
   server: {
@@ -81,7 +82,74 @@ try {
   DOMPurify = createDOMPurify(window);
 } catch (error) {
   console.warn('⚠️  DOMPurify недоступен');
-  console.warn(error);
+}
+
+// ========================================
+// АВТОМАТИЧЕСКОЕ СКАНИРОВАНИЕ MD ФАЙЛОВ
+// ========================================
+
+/**
+ * Сканирует папку content/course/ и автоматически строит структуру курса
+ * @returns {Array} массив объектов с информацией о разделах курса
+ */
+function scanCourseFiles() {
+  if (!fs.existsSync(PATHS.content.course)) {
+    console.error(`❌ Папка ${PATHS.content.course} не найдена!`);
+    return [];
+  }
+
+  const files = fs.readdirSync(PATHS.content.course)
+    .filter(file => file.endsWith('.md'))
+    .map(file => {
+      const fullPath = path.join(PATHS.content.course, file);
+      const markdown = fs.readFileSync(fullPath, 'utf8');
+
+      // Извлечь номер из имени файла (первые цифры)
+      const orderMatch = file.match(/^(\d+)/);
+      const order = orderMatch ? parseInt(orderMatch[1], 10) : 999;
+
+      // Извлечь ID из имени файла (всё после номера, без расширения)
+      // Примеры: 01.md → "01", 02-basics.md → "basics", 03_chemistry.md → "chemistry"
+      const idMatch = file.match(/^\d+[-_.]?(.+)\.md$/);
+      const id = idMatch && idMatch[1] ? idMatch[1].replace(/[-_]/g, '-') : file.replace('.md', '');
+
+      // Извлечь H1 заголовок (название раздела)
+      const h1Match = markdown.match(/^#\s+(.+)$/m);
+      const title = h1Match ? h1Match[1].trim() : `Раздел ${order}`;
+
+      // Извлечь H2 заголовки (подразделы)
+      const h2Headers = extractH2Headers(markdown);
+
+      return {
+        order,
+        id,
+        title,
+        filename: file,
+        markdown,
+        subsections: h2Headers
+      };
+    })
+    .sort((a, b) => a.order - b.order); // Сортировка по номеру
+
+  // Добавить navigation links (next)
+  files.forEach((section, index) => {
+    section.next = index < files.length - 1 ? files[index + 1].id : null;
+  });
+
+  console.log(`   📚 Найдено ${files.length} разделов курса:`);
+  files.forEach(f => console.log(`      ${f.order}. ${f.title} (${f.filename} → ${f.id}.html)`));
+
+  return files;
+}
+
+/**
+ * Извлекает H1 заголовок из markdown
+ * @param {string} markdown
+ * @returns {string}
+ */
+function extractH1Title(markdown) {
+  const match = markdown.match(/^#\s+(.+)$/m);
+  return match ? match[1].trim() : '';
 }
 
 // ========================================
@@ -92,25 +160,36 @@ async function main() {
   const args = process.argv.slice(2);
   const target = args.find(arg => arg.startsWith('--target='))?.split('=')[1];
 
-  console.log('🚀 Начинаем сборку...\n');
+  console.log('🚀 Начинаем автоматическую сборку...\n');
+
+  // Сканировать MD файлы
+  const courseStructure = scanCourseFiles();
+
+  if (courseStructure.length === 0) {
+    console.error('❌ Не найдено ни одного MD файла в content/course/');
+    console.error('   Добавьте файлы вида: 01.md, 02-basics.md, 03_chemistry.md');
+    process.exit(1);
+  }
 
   if (!target || target === 'free' || args.includes('--all')) {
-    await buildFreeVersion();
+    await buildFreeVersion(courseStructure);
   }
 
   if (!target || target === 'premium' || args.includes('--all')) {
-    await buildPremiumVersion();
+    await buildPremiumVersion(courseStructure);
   }
 
   console.log('\n✅ Сборка завершена!');
+  console.log(`   Free: dist/free/`);
+  console.log(`   Premium: dist/premium/`);
 }
 
 // ========================================
 // FREE ВЕРСИЯ
 // ========================================
 
-async function buildFreeVersion() {
-  console.log('📦 Сборка FREE версии...');
+async function buildFreeVersion(courseStructure) {
+  console.log('\n📦 Сборка FREE версии...');
   const output = PATHS.dist.free;
 
   // 1. Очистить и создать папки
@@ -126,62 +205,26 @@ async function buildFreeVersion() {
   copyFile(PATHS.src.modeUtils, path.join(output, 'mode-utils.js'));
   copyDir(PATHS.src.assets, path.join(output, 'assets'));
 
-  // Копировать images если существует
   if (fs.existsSync(PATHS.content.images)) {
     copyDir(PATHS.content.images, path.join(output, 'images'));
   }
 
-  // 3. Загрузить конфигурацию
-  const config = loadConfig();
-
-  // 4. Генерировать разделы курса (с paywall)
-  console.log('   Генерация разделов курса (с paywall)...');
-  for (const section of config.course.sections) {
-    const mdPath = path.join(PATHS.content.course, section.markdown);
-    if (!fs.existsSync(mdPath)) {
-      console.warn(`   ⚠️  Файл не найден: ${section.markdown}`);
-      continue;
-    }
-
-    const markdown = fs.readFileSync(mdPath, 'utf8');
-    const intro = extractFirstParagraph(markdown);
-    const fullHTML = parseMarkdown(markdown);
-    const sections = extractH2Headers(markdown);
+  // 3. Генерировать разделы курса (с paywall)
+  console.log('   Генерация разделов с paywall...');
+  for (const section of courseStructure) {
+    const intro = extractFirstParagraph(section.markdown);
+    const fullHTML = parseMarkdown(section.markdown);
 
     const html = generateFreePage({
       template: PATHS.src.template,
       title: section.title,
       intro,
       fullContent: fullHTML,
-      sections,
       sectionId: section.id,
-      config
+      courseStructure
     });
 
     fs.writeFileSync(path.join(output, `${section.id}.html`), html);
-  }
-
-  // 5. Генерировать статьи "Рекомендации" (полные)
-  if (config.articles && config.articles.list.length > 0) {
-    console.log('   Генерация статей "Рекомендации"...');
-    for (const article of config.articles.list) {
-      const mdPath = path.join(PATHS.content.articles, article.markdown);
-      if (!fs.existsSync(mdPath)) {
-        console.warn(`   ⚠️  Файл не найден: ${article.markdown}`);
-        continue;
-      }
-
-      const markdown = fs.readFileSync(mdPath, 'utf8');
-      const content = parseMarkdown(markdown);
-
-      const html = generateArticlePage({
-        template: PATHS.src.template,
-        title: article.title,
-        content
-      });
-
-      fs.writeFileSync(path.join(output, 'articles', `${article.id}.html`), html);
-    }
   }
 
   console.log('   ✅ Free версия собрана → dist/free/');
@@ -191,8 +234,8 @@ async function buildFreeVersion() {
 // PREMIUM ВЕРСИЯ
 // ========================================
 
-async function buildPremiumVersion() {
-  console.log('📦 Сборка PREMIUM версии...');
+async function buildPremiumVersion(courseStructure) {
+  console.log('\n📦 Сборка PREMIUM версии...');
   const output = PATHS.dist.premium;
 
   // 1. Очистить и создать папки
@@ -207,7 +250,6 @@ async function buildPremiumVersion() {
   copyFile(PATHS.src.modeUtils, path.join(output, 'mode-utils.js'));
   copyDir(PATHS.src.assets, path.join(output, 'assets'));
 
-  // Копировать images если существует
   if (fs.existsSync(PATHS.content.images)) {
     copyDir(PATHS.content.images, path.join(output, 'images'));
   }
@@ -222,53 +264,37 @@ async function buildPremiumVersion() {
     }
   }
 
-  // 4. Загрузить конфигурацию
-  const config = loadConfig();
-
-  // 5. Генерировать разделы курса (полные)
-  console.log('   Генерация разделов курса (полный контент)...');
+  // 4. Генерировать разделы курса (полные)
+  console.log('   Генерация разделов (полный контент)...');
 
   // Создать home.html как первый раздел
-  if (config.course.sections.length > 0) {
-    const firstSection = config.course.sections[0];
-    const mdPath = path.join(PATHS.content.course, firstSection.markdown);
-    if (fs.existsSync(mdPath)) {
-      const markdown = fs.readFileSync(mdPath, 'utf8');
-      const content = parseMarkdown(markdown);
-      const sections = extractH2Headers(markdown);
+  if (courseStructure.length > 0) {
+    const firstSection = courseStructure[0];
+    const content = parseMarkdown(firstSection.markdown);
 
-      const html = generatePremiumPage({
-        template: PATHS.src.template,
-        title: firstSection.title,
-        content,
-        sections,
-        nextPage: firstSection.next,
-        config
-      });
+    const html = generatePremiumPage({
+      template: PATHS.src.template,
+      title: firstSection.title,
+      content,
+      subsections: firstSection.subsections,
+      nextPage: firstSection.next,
+      courseStructure
+    });
 
-      fs.writeFileSync(path.join(output, 'home.html'), html);
-    }
+    fs.writeFileSync(path.join(output, 'home.html'), html);
   }
 
   // Генерировать остальные разделы
-  for (const section of config.course.sections) {
-    const mdPath = path.join(PATHS.content.course, section.markdown);
-    if (!fs.existsSync(mdPath)) {
-      console.warn(`   ⚠️  Файл не найден: ${section.markdown}`);
-      continue;
-    }
-
-    const markdown = fs.readFileSync(mdPath, 'utf8');
-    const content = parseMarkdown(markdown);
-    const sections = extractH2Headers(markdown);
+  for (const section of courseStructure) {
+    const content = parseMarkdown(section.markdown);
 
     const html = generatePremiumPage({
       template: PATHS.src.template,
       title: section.title,
       content,
-      sections,
+      subsections: section.subsections,
       nextPage: section.next,
-      config
+      courseStructure
     });
 
     fs.writeFileSync(path.join(output, `${section.id}.html`), html);
@@ -282,32 +308,23 @@ async function buildPremiumVersion() {
 // ========================================
 
 /**
- * Генерирует HTML меню курса из config.json и MD файлов
- * @param {object} config - объект конфигурации из config.json
+ * Генерирует HTML меню курса из автоматически построенной структуры
+ * @param {Array} courseStructure - массив объектов разделов
  * @returns {string} - HTML код меню
  */
-function generateMenuHTML(config) {
-  if (!config || !config.course || !config.course.sections) {
-    return '';
+function generateMenuHTML(courseStructure) {
+  if (!courseStructure || courseStructure.length === 0) {
+    return '<ul class="site-menu__list"></ul>';
   }
 
   let menuItems = '';
 
-  config.course.sections.forEach((section, index) => {
-    const mdPath = path.join(PATHS.content.course, section.markdown);
-    let subsections = [];
-
-    // Извлечь H2 заголовки из MD файла
-    if (fs.existsSync(mdPath)) {
-      const markdown = fs.readFileSync(mdPath, 'utf8');
-      subsections = extractH2Headers(markdown);
-    }
-
-    // Генерировать подменю
+  courseStructure.forEach((section, index) => {
+    // Генерировать подменю из H2 заголовков
     let subsectionsList = '';
-    if (subsections.length > 0) {
+    if (section.subsections && section.subsections.length > 0) {
       subsectionsList = '<ul>\n';
-      subsections.forEach(sub => {
+      section.subsections.forEach(sub => {
         subsectionsList += `      <li><a href="#${sub.id}">${sub.title}</a></li>\n`;
       });
       subsectionsList += '    </ul>';
@@ -328,20 +345,18 @@ ${menuItems}</ul>`;
 // ГЕНЕРАЦИЯ СТРАНИЦ
 // ========================================
 
-function generateFreePage({ template, title, intro, fullContent, sections, sectionId, config }) {
+function generateFreePage({ template, title, intro, fullContent, sectionId, courseStructure }) {
   let html = fs.readFileSync(template, 'utf8');
 
   // Заменить title
   html = html.replace(/<title>.*?<\/title>/, `<title>${title} - Clean</title>`);
 
   // Генерировать и вставить меню
-  if (config) {
-    const menuHTML = generateMenuHTML(config);
-    html = html.replace(
-      /<ul class="site-menu__list">[\s\S]*?<\/ul>/,
-      menuHTML
-    );
-  }
+  const menuHTML = generateMenuHTML(courseStructure);
+  html = html.replace(
+    /<ul class="site-menu__list">[\s\S]*?<\/ul>/,
+    menuHTML
+  );
 
   // Создать контент с paywall
   const paywallContent = `
@@ -377,23 +392,21 @@ function generateFreePage({ template, title, intro, fullContent, sections, secti
   return html;
 }
 
-function generatePremiumPage({ template, title, content, sections, nextPage, config }) {
+function generatePremiumPage({ template, title, content, subsections, nextPage, courseStructure }) {
   let html = fs.readFileSync(template, 'utf8');
 
   // Заменить title
   html = html.replace(/<title>.*?<\/title>/, `<title>${title} - Clean</title>`);
 
   // Генерировать и вставить меню
-  if (config) {
-    const menuHTML = generateMenuHTML(config);
-    html = html.replace(
-      /<ul class="site-menu__list">[\s\S]*?<\/ul>/,
-      menuHTML
-    );
-  }
+  const menuHTML = generateMenuHTML(courseStructure);
+  html = html.replace(
+    /<ul class="site-menu__list">[\s\S]*?<\/ul>/,
+    menuHTML
+  );
 
   // Создать контент с разделами
-  const sectionsHTML = generateSectionsHTML(content, sections);
+  const sectionsHTML = generateSectionsHTML(content, subsections);
 
   // Вставить контент
   html = html.replace(
@@ -418,38 +431,8 @@ function generatePremiumPage({ template, title, content, sections, nextPage, con
   return html;
 }
 
-function generateArticlePage({ template, title, content }) {
-  let html = fs.readFileSync(template, 'utf8');
-
-  // Заменить title
-  html = html.replace(/<title>.*?<\/title>/, `<title>${title} - Clean</title>`);
-
-  // Вставить контент + CTA
-  const articleContent = `
-    <article class="text-box">
-      <h1>${title}</h1>
-      ${content}
-
-      <div class="article-cta">
-        <h3>Хотите узнать больше?</h3>
-        <p>Изучите полный курс «Clean - Теория правильной уборки» с 10 разделами по химии уборки</p>
-        <a href="/free/index.html" class="btn-course">
-          Перейти к полному курсу →
-        </a>
-      </div>
-    </article>
-  `;
-
-  html = html.replace(
-    /<div id="article-content">[\s\S]*?<\/div>/,
-    `<div id="article-content">\n${articleContent}\n</div>`
-  );
-
-  return html;
-}
-
-function generateSectionsHTML(content, sections) {
-  if (sections.length === 0) {
+function generateSectionsHTML(content, subsections) {
+  if (!subsections || subsections.length === 0) {
     return `<div class="text-section">${content}</div>`;
   }
 
@@ -467,9 +450,9 @@ function generateSectionsHTML(content, sections) {
         result += '</section>'; // закрыть предыдущую
       }
 
-      const section = sections[sectionIndex];
+      const subsection = subsections[sectionIndex];
       result += `
-        <section id="${section.id}" class="text-section" data-section="${section.title}">
+        <section id="${subsection.id}" class="text-section" data-section="${subsection.title}">
           ${part}
       `;
       sectionIndex++;
@@ -496,7 +479,7 @@ function generatePaymentModal() {
     <h2>Получите полный доступ к курсу</h2>
 
     <ul class="benefits">
-      <li>✅ 10 полных разделов с подробными объяснениями</li>
+      <li>✅ Все разделы с подробными объяснениями</li>
       <li>✅ Практические рецепты и таблицы совместимости</li>
       <li>✅ Пожизненный доступ к материалам</li>
       <li>✅ Обновления курса бесплатно</li>
@@ -682,32 +665,6 @@ function closePaymentModal() {
   transform: translateY(-2px);
   box-shadow: 0 12px 32px rgba(102, 126, 234, 0.5);
 }
-
-.article-cta {
-  background: linear-gradient(135deg, #e8f4f8 0%, #d4e9f2 100%);
-  border: 2px solid #667eea;
-  border-radius: 12px;
-  padding: 32px;
-  margin-top: 48px;
-  text-align: center;
-}
-
-.btn-course {
-  display: inline-block;
-  padding: 14px 32px;
-  background: #667eea;
-  color: white;
-  text-decoration: none;
-  border-radius: 8px;
-  font-weight: 600;
-  margin-top: 16px;
-  transition: transform 0.2s;
-}
-
-.btn-course:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
-}
 </style>
 `;
 }
@@ -788,26 +745,12 @@ function extractH2Headers(markdown) {
     const title = match[1].trim();
     const id = title
       .toLowerCase()
-      .replace(/[^\w\s-]/g, '')
+      .replace(/[^\wа-яё\s-]/gi, '')
       .replace(/\s+/g, '-');
     headers.push({ id, title });
   }
 
   return headers;
-}
-
-// ========================================
-// КОНФИГУРАЦИЯ
-// ========================================
-
-function loadConfig() {
-  if (!fs.existsSync(PATHS.content.config)) {
-    console.error('❌ Файл config.json не найден!');
-    process.exit(1);
-  }
-
-  const configData = fs.readFileSync(PATHS.content.config, 'utf8');
-  return JSON.parse(configData);
 }
 
 // ========================================
