@@ -154,7 +154,8 @@ async function buildFreeVersion() {
       intro,
       fullContent: fullHTML,
       sections,
-      sectionId: section.id
+      sectionId: section.id,
+      config
     });
 
     fs.writeFileSync(path.join(output, `${section.id}.html`), html);
@@ -241,7 +242,8 @@ async function buildPremiumVersion() {
         title: firstSection.title,
         content,
         sections,
-        nextPage: firstSection.next
+        nextPage: firstSection.next,
+        config
       });
 
       fs.writeFileSync(path.join(output, 'home.html'), html);
@@ -265,7 +267,8 @@ async function buildPremiumVersion() {
       title: section.title,
       content,
       sections,
-      nextPage: section.next
+      nextPage: section.next,
+      config
     });
 
     fs.writeFileSync(path.join(output, `${section.id}.html`), html);
@@ -275,14 +278,70 @@ async function buildPremiumVersion() {
 }
 
 // ========================================
+// ГЕНЕРАЦИЯ МЕНЮ
+// ========================================
+
+/**
+ * Генерирует HTML меню курса из config.json и MD файлов
+ * @param {object} config - объект конфигурации из config.json
+ * @returns {string} - HTML код меню
+ */
+function generateMenuHTML(config) {
+  if (!config || !config.course || !config.course.sections) {
+    return '';
+  }
+
+  let menuItems = '';
+
+  config.course.sections.forEach((section, index) => {
+    const mdPath = path.join(PATHS.content.course, section.markdown);
+    let subsections = [];
+
+    // Извлечь H2 заголовки из MD файла
+    if (fs.existsSync(mdPath)) {
+      const markdown = fs.readFileSync(mdPath, 'utf8');
+      subsections = extractH2Headers(markdown);
+    }
+
+    // Генерировать подменю
+    let subsectionsList = '';
+    if (subsections.length > 0) {
+      subsectionsList = '<ul>\n';
+      subsections.forEach(sub => {
+        subsectionsList += `      <li><a href="#${sub.id}">${sub.title}</a></li>\n`;
+      });
+      subsectionsList += '    </ul>';
+    }
+
+    // Генерировать элемент меню
+    menuItems += `  <li>
+    <a href="#${section.id}">${index + 1}. ${section.title}</a>
+    ${subsectionsList}
+  </li>\n`;
+  });
+
+  return `<ul class="site-menu__list">
+${menuItems}</ul>`;
+}
+
+// ========================================
 // ГЕНЕРАЦИЯ СТРАНИЦ
 // ========================================
 
-function generateFreePage({ template, title, intro, fullContent, sections, sectionId }) {
+function generateFreePage({ template, title, intro, fullContent, sections, sectionId, config }) {
   let html = fs.readFileSync(template, 'utf8');
 
   // Заменить title
   html = html.replace(/<title>.*?<\/title>/, `<title>${title} - Clean</title>`);
+
+  // Генерировать и вставить меню
+  if (config) {
+    const menuHTML = generateMenuHTML(config);
+    html = html.replace(
+      /<ul class="site-menu__list">[\s\S]*?<\/ul>/,
+      menuHTML
+    );
+  }
 
   // Создать контент с paywall
   const paywallContent = `
@@ -318,11 +377,20 @@ function generateFreePage({ template, title, intro, fullContent, sections, secti
   return html;
 }
 
-function generatePremiumPage({ template, title, content, sections, nextPage }) {
+function generatePremiumPage({ template, title, content, sections, nextPage, config }) {
   let html = fs.readFileSync(template, 'utf8');
 
   // Заменить title
   html = html.replace(/<title>.*?<\/title>/, `<title>${title} - Clean</title>`);
+
+  // Генерировать и вставить меню
+  if (config) {
+    const menuHTML = generateMenuHTML(config);
+    html = html.replace(
+      /<ul class="site-menu__list">[\s\S]*?<\/ul>/,
+      menuHTML
+    );
+  }
 
   // Создать контент с разделами
   const sectionsHTML = generateSectionsHTML(content, sections);
