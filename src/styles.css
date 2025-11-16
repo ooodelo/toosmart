@@ -1503,3 +1503,410 @@ body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
     transition: none !important;
   }
 }
+
+/* ============================================
+   PAYWALL БЛОК ДЛЯ FREE ВЕРСИИ
+   ============================================ */
+
+.premium-teaser {
+  position: relative;
+  margin-top: 32px;
+  margin-bottom: 40px;
+}
+
+.teaser-hint {
+  font-size: 14px;
+  font-weight: 500;
+  color: #666;
+  margin-bottom: 12px;
+  font-style: italic;
+}
+
+.blurred-content {
+  position: relative;
+  max-height: 300px;
+  overflow: hidden;
+  margin-bottom: 24px;
+  mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
+}
+
+.blurred-content p,
+.blurred-content h3,
+.blurred-content ul,
+.blurred-content ol {
+  filter: blur(4px);
+  pointer-events: none;
+  user-select: none;
+}
+
+.unlock-overlay {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px 0;
+}
+
+.btn-unlock {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 32px;
+  font-size: 18px;
+  font-weight: 600;
+  color: white;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.btn-unlock:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.btn-unlock:active {
+  transform: translateY(0);
+}
+
+/* ============================================
+   МОДАЛЬНОЕ ОКНО ОПЛАТЫ
+   ============================================ */
+
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: modalFadeIn 0.2s ease;
+}
+
+.modal[hidden] {
+  display: none;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  position: relative;
+  background: white;
+  border-radius: 16px;
+  padding: 40px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: modalSlideIn 0.24s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+@keyframes modalSlideIn {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  font-size: 28px;
+  line-height: 1;
+  color: #999;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  padding: 0;
+}
+
+.modal-close:hover {
+  color: #333;
+}
+
+.modal-title {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 24px;
+  color: #1a1a1a;
+}
+
+.modal-benefits {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 24px 0;
+}
+
+.modal-benefits li {
+  padding: 8px 0;
+  font-size: 16px;
+  color: #333;
+  line-height: 1.5;
+}
+
+.modal-price {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.price-old {
+  font-size: 16px;
+  color: #999;
+  text-decoration: line-through;
+}
+
+.price-current {
+  font-size: 32px;
+  font-weight: 700;
+  color: #667eea;
+}
+
+.modal-input {
+  width: 100%;
+  padding: 14px 16px;
+  font-size: 16px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  transition: border-color 0.2s ease;
+  box-sizing: border-box;
+}
+
+.modal-input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.modal-submit {
+  width: 100%;
+  padding: 16px;
+  font-size: 18px;
+  font-weight: 600;
+  color: white;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.modal-submit:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.modal-submit:active {
+  transform: translateY(0);
+}
+
+.modal-security {
+  text-align: center;
+  font-size: 14px;
+  color: #666;
+  margin-top: 16px;
+}
+
+/* ============================================
+   КНОПКИ НАВИГАЦИИ
+   ============================================ */
+
+.article-footer {
+  margin-top: 48px;
+  padding-top: 32px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: center;
+}
+
+/* Основная кнопка "Далее" для Premium course */
+.btn-next {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 32px;
+  font-size: 18px;
+  font-weight: 600;
+  color: white;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 8px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.btn-next:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.btn-next:active {
+  transform: translateY(0);
+}
+
+/* Второстепенная кнопка "Перейти к курсу" для Free */
+.btn-to-course,
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 24px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #667eea;
+  background: white;
+  border: 2px solid #667eea;
+  border-radius: 8px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.btn-to-course:hover,
+.btn-back:hover {
+  background: #667eea;
+  color: white;
+}
+
+/* ============================================
+   ВРЕМЯ ЧТЕНИЯ В МЕНЮ
+   ============================================ */
+
+.reading-time {
+  font-size: 13px;
+  font-weight: 400;
+  color: #999;
+  font-style: italic;
+  margin-left: 6px;
+}
+
+/* ============================================
+   ФУТЕР
+   ============================================ */
+
+.site-footer {
+  background: #1a1a1a;
+  color: #d0d0d0;
+  padding: 48px 24px 24px;
+  margin-top: 80px;
+}
+
+.footer-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 40px;
+  margin-bottom: 32px;
+}
+
+.footer-column h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+  margin-bottom: 16px;
+}
+
+.footer-column p {
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 8px 0;
+}
+
+.footer-links {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.footer-links li {
+  margin: 8px 0;
+}
+
+.footer-links a,
+.footer-column a {
+  color: #d0d0d0;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.footer-links a:hover,
+.footer-column a:hover {
+  color: #667eea;
+}
+
+.footer-bottom {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-top: 24px;
+  border-top: 1px solid #333;
+  text-align: center;
+  font-size: 14px;
+  color: #999;
+}
+
+.footer-title {
+  margin-top: 0;
+}
+
+/* Mobile адаптация футера */
+@media (max-width: 768px) {
+  .site-footer {
+    padding: 32px 16px 16px;
+    margin-top: 60px;
+  }
+
+  .footer-container {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+
+  .modal-content {
+    padding: 32px 24px;
+  }
+
+  .modal-title {
+    font-size: 20px;
+  }
+
+  .price-current {
+    font-size: 28px;
+  }
+}

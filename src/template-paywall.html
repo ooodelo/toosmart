@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:;" />
+    <title>UI-каркас адаптивов</title>
+    <script src="mode-utils.js"></script>
+    <script>
+      (function () {
+        var win = window;
+        var d = win.document;
+        var ModeUtils = win.ModeUtils;
+
+        if (!ModeUtils) {
+          return;
+        }
+
+        var initialState = ModeUtils.detectInitialState(win, d);
+        var mode = initialState.mode;
+        var input = initialState.input;
+
+        win.__INITIAL_MODE__ = mode;
+        if (typeof input === 'string') {
+          win.__INITIAL_INPUT__ = input;
+        }
+
+        function applyInitialState() {
+          if (!ModeUtils.applyStateToBody(d, initialState)) {
+            return false;
+          }
+          return true;
+        }
+
+        if (!applyInitialState()) {
+          d.addEventListener('readystatechange', function onReady() {
+            if (d.readyState !== 'loading' && applyInitialState()) {
+              d.removeEventListener('readystatechange', onReady);
+            }
+          });
+        }
+      })();
+    </script>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="header" role="banner">
+      <img src="assets/PointingToClean.png" alt="Логотип" class="header__logo">
+      <img src="assets/CleanLogo.svg" alt="Clean - Теория правильной уборки. Практикум" class="header__svg">
+    </header>
+
+    <aside class="menu-rail" aria-label="Структура курса">
+      <button class="menu-rail__cap" type="button" aria-label="Закрыть меню">
+        <span aria-hidden="true"></span>
+      </button>
+      <button class="menu-handle" type="button" aria-controls="site-menu" aria-expanded="false">
+        <div class="menu-handle__content">
+          <span class="menu-handle__label">Структура курса</span>
+          <div class="menu-handle__dots" aria-hidden="true">
+            <div class="menu-handle__dot"></div>
+            <div class="menu-handle__dot"></div>
+            <div class="menu-handle__dot"></div>
+            <div class="menu-handle__dot"></div>
+          </div>
+        </div>
+      </button>
+      <div class="site-menu" id="site-menu" tabindex="-1">
+        <h2 class="site-menu__title">Структура курса</h2>
+        <ul class="site-menu__list">
+          <li>
+            <a href="#intro">1. Введение в химию уборки <span class="reading-time">~ 5 мин</span></a>
+            <ul>
+              <li><a href="#why-chemistry">Почему химия важна</a></li>
+              <li><a href="#basic-principles">Основные принципы</a></li>
+              <li><a href="#safety-first">Правила безопасности</a></li>
+            </ul>
+          </li>
+          <li>
+            <a href="#ph-basics">2. Кислоты и щелочи в быту <span class="reading-time">~ 8 мин</span></a>
+            <ul>
+              <li><a href="#ph-scale">Шкала pH</a></li>
+              <li><a href="#acids-examples">Примеры кислот</a></li>
+              <li><a href="#alkali-examples">Примеры щелочей</a></li>
+              <li><a href="#neutralization">Нейтрализация</a></li>
+            </ul>
+          </li>
+          <li>
+            <a href="#detergents">3. Моющие средства <span class="reading-time">~ 6 мин</span></a>
+            <ul>
+              <li><a href="#surfactants">Поверхностно-активные вещества</a></li>
+              <li><a href="#soap-vs-detergent">Мыло vs синтетика</a></li>
+              <li><a href="#hard-water">Жесткая вода</a></li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+    </aside>
+
+    <div class="backdrop" aria-hidden="true"></div>
+
+    <main class="main">
+      <section class="panel" data-lazy="dots-nav progress-widget">
+        <article class="text-box" aria-label="Основной материал">
+          <div class="text-box__intro">
+            Здесь расположен основной материал. Первый абзац виден полностью и используется для SEO.
+          </div>
+
+          <!-- КОНТЕЙНЕР ДЛЯ ВСТУПИТЕЛЬНОГО КОНТЕНТА (build.js вставит сюда intro текст) -->
+          <div id="article-intro">
+            <section id="grease-removal" class="text-section" data-section="Удаление жира">
+              <h2>Удаление жира: почему обычная вода не помогает</h2>
+
+              <p>Жир — один из самых стойких загрязнений на кухне. Он оседает на плите, вытяжке, стенах и даже потолке, образуя липкую плёнку, которая со временем затвердевает и превращается в настоящую броню. Почему же обычная вода не справляется с жиром, и какие химические процессы лежат в основе эффективной очистки?</p>
+            </section>
+          </div>
+
+          <!-- PAYWALL БЛОК -->
+          <div class="premium-teaser">
+            <p class="teaser-hint">Осталось <span class="reading-time-value">12</span> минут чтения</p>
+
+            <div class="blurred-content" data-nosnippet>
+              <!--noindex-->
+              <p>Всё дело в <strong>молекулярной структуре жиров</strong>. Молекулы жира (триглицериды) состоят из длинных углеводородных цепочек, которые являются гидрофобными — то есть они отталкивают воду.</p>
+
+              <p>Для эффективного удаления жира нужны <strong>поверхностно-активные вещества (ПАВ)</strong>, которые содержатся в моющих средствах. Молекулы ПАВ устроены гениально: у них есть две части — гидрофильная «голова» (которая любит воду) и гидрофобный «хвост» (который любит жир).</p>
+
+              <p>Затем происходит процесс <em>эмульгирования</em>: молекулы ПАВ окружают частицы жира со всех сторон, формируя микроскопические сферы — мицеллы. Внутри мицеллы находится жир, а снаружи — гидрофильная оболочка.</p>
+              <!--/noindex-->
+            </div>
+
+            <div class="unlock-overlay">
+              <button class="btn-unlock" type="button" onclick="openPaymentModal()">
+                🔒 Получить полную версию
+              </button>
+            </div>
+          </div>
+
+        </article>
+        <nav class="dots-rail" aria-label="Навигация по разделам"></nav>
+        <div class="dot-flyout is-hidden" hidden role="navigation" aria-label="Оглавление разделов"></div>
+      </section>
+
+      <aside class="stack" aria-label="Рекомендации" data-lazy="stack-carousel">
+        <h2 class="stack__title">🔥 Рекомендуем</h2>
+
+        <div class="stack-carousel">
+          <!-- Слайд 1 -->
+          <div class="stack-slide" data-slide="0" data-active="true">
+            <div class="stack-card">
+              <div class="stack-card__image"></div>
+              <div class="stack-card__content">
+                <h3>Переплата за «эко»-средства</h3>
+                <p>Разбираем состав экологичных средств и их стоимость...</p>
+              </div>
+            </div>
+            <div class="stack-card">
+              <div class="stack-card__image"></div>
+              <div class="stack-card__content">
+                <h3>Опасные комбинации бытовой химии</h3>
+                <p>Смертельно опасные комбинации химии в вашей квартире...</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Слайд 2 -->
+          <div class="stack-slide" data-slide="1" data-active="false">
+            <div class="stack-card">
+              <div class="stack-card__image"></div>
+              <div class="stack-card__content">
+                <h3>Сода + уксус не работает</h3>
+                <p>Почему главный интернет-совет по уборке — ерунда...</p>
+              </div>
+            </div>
+            <div class="stack-card">
+              <div class="stack-card__image"></div>
+              <div class="stack-card__content">
+                <h3>pH-нейтрально — маркетинговая уловка</h3>
+                <p>pH-нейтральное средство не расщепляет жир физически...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Индикатор прогресса -->
+        <div class="stack-indicator">
+          <button class="stack-dot" data-dot="0" data-active="true" aria-label="Слайд 1"></button>
+          <button class="stack-dot" data-dot="1" data-active="false" aria-label="Слайд 2"></button>
+        </div>
+      </aside>
+    </main>
+
+    <div class="dock" role="presentation">
+      <button class="dock-handle" type="button" aria-controls="site-menu" aria-expanded="false">
+        Структура курса
+      </button>
+    </div>
+
+    <!-- МОДАЛЬНОЕ ОКНО ОПЛАТЫ -->
+    <div class="modal" id="payment-modal" hidden>
+      <div class="modal-overlay" onclick="closePaymentModal()"></div>
+      <div class="modal-content">
+        <button class="modal-close" type="button" onclick="closePaymentModal()" aria-label="Закрыть">×</button>
+
+        <h2 class="modal-title">Получите полный доступ к курсу</h2>
+
+        <ul class="modal-benefits">
+          <li>✅ 10 полных разделов с подробными объяснениями</li>
+          <li>✅ Практические рецепты и таблицы</li>
+          <li>✅ Пожизненный доступ к материалам</li>
+          <li>✅ Бесплатные обновления курса</li>
+        </ul>
+
+        <p class="modal-price">
+          <span class="price-old">1990 ₽</span>
+          <span class="price-current">990 ₽</span>
+        </p>
+
+        <form id="payment-form" action="https://auth.robokassa.ru/Merchant/Index.aspx" method="GET">
+          <input type="email"
+                 name="Shp_email"
+                 class="modal-input"
+                 placeholder="Введите ваш email"
+                 required
+                 pattern="[^@]+@[^@]+\.[a-zA-Z]{2,}">
+
+          <!-- Параметры Robokassa (build.js заполнит) -->
+          <input type="hidden" name="MerchantLogin" value="YOUR_MERCHANT_LOGIN">
+          <input type="hidden" name="OutSum" value="990">
+          <input type="hidden" name="InvId" value="0">
+          <input type="hidden" name="Description" value="Доступ к курсу Clean">
+          <input type="hidden" name="SignatureValue" value="SIGNATURE">
+          <input type="hidden" name="Culture" value="ru">
+          <input type="hidden" name="Encoding" value="utf-8">
+
+          <button type="submit" class="modal-submit">
+            Оплатить 990 ₽
+          </button>
+        </form>
+
+        <p class="modal-security">
+          🔒 Безопасная оплата через Robokassa
+        </p>
+      </div>
+    </div>
+
+    <!-- ФУТЕР -->
+    <footer class="site-footer">
+      <div class="footer-container">
+        <div class="footer-column">
+          <h3 class="footer-title">Юридическая информация</h3>
+          <p>ИП Иванов Иван Иванович</p>
+          <p>ИНН: 123456789012</p>
+          <p>ОГРНИП: 123456789012345</p>
+          <p>Адрес: г. Москва, ул. Примерная, д. 1</p>
+        </div>
+
+        <div class="footer-column">
+          <h3 class="footer-title">Документы</h3>
+          <ul class="footer-links">
+            <li><a href="/legal.html#offer">Публичная оферта</a></li>
+            <li><a href="/legal.html#privacy">Политика конфиденциальности</a></li>
+            <li><a href="/legal.html#refund">Порядок возврата</a></li>
+            <li><a href="/legal.html#personal-data">Согласие на обработку ПДн</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-column">
+          <h3 class="footer-title">Контакты</h3>
+          <p>Email: <a href="mailto:support@toosmart.ru">support@toosmart.ru</a></p>
+          <p>Служба поддержки работает ежедневно</p>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <p>&copy; 2025 TooSmart. Все права защищены.</p>
+      </div>
+    </footer>
+
+    <script src="script.js" type="module"></script>
+    <script>
+      // Функции для модального окна
+      function openPaymentModal() {
+        const modal = document.getElementById('payment-modal');
+        if (modal) {
+          modal.removeAttribute('hidden');
+          document.body.style.overflow = 'hidden';
+        }
+      }
+
+      function closePaymentModal() {
+        const modal = document.getElementById('payment-modal');
+        if (modal) {
+          modal.setAttribute('hidden', '');
+          document.body.style.overflow = '';
+        }
+      }
+
+      // Закрытие по Escape
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+          closePaymentModal();
+        }
+      });
+    </script>
+  </body>
+</html>
