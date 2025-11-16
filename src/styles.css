@@ -1508,6 +1508,14 @@ body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
    PAYWALL БЛОК ДЛЯ FREE ВЕРСИИ
    ============================================ */
 
+/* Слот для Progress Widget */
+.pw-slot {
+  position: relative;
+  min-height: var(--pw-footprint);
+  margin-top: 48px;
+  margin-bottom: 24px;
+}
+
 .premium-teaser {
   position: relative;
   margin-top: 32px;

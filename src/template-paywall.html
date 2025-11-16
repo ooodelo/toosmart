@@ -135,6 +135,9 @@
             </div>
           </div>
 
+          <!-- Слот для Progress Widget с кнопкой "Получить полную версию" -->
+          <div class="pw-slot"></div>
+
         </article>
         <nav class="dots-rail" aria-label="Навигация по разделам"></nav>
         <div class="dot-flyout is-hidden" hidden role="navigation" aria-label="Оглавление разделов"></div>
@@ -300,6 +303,36 @@
         if (e.key === 'Escape') {
           closePaymentModal();
         }
+      });
+
+      // Настройка Progress Widget для paywall
+      document.addEventListener('DOMContentLoaded', function() {
+        // Ждем пока progress widget инициализируется
+        setTimeout(function() {
+          const pwRoot = document.getElementById('pw-root');
+          const pwNext = pwRoot ? pwRoot.querySelector('.pw-next') : null;
+
+          if (pwNext) {
+            // Меняем текст на "Получить полную версию"
+            pwNext.textContent = '🔒 Получить полную версию';
+          }
+
+          if (pwRoot) {
+            // Добавляем обработчик клика
+            pwRoot.addEventListener('click', function(e) {
+              if (pwRoot.classList.contains('is-done')) {
+                e.preventDefault();
+                e.stopPropagation();
+                openPaymentModal();
+              }
+            });
+
+            // Принудительно переводим виджет в состояние "готово"
+            pwRoot.classList.add('is-done');
+            pwRoot.setAttribute('aria-disabled', 'false');
+            pwRoot.setAttribute('aria-label', 'Получить полную версию курса');
+          }
+        }, 500);
       });
     </script>
   </body>
