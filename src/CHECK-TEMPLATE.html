@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Проверка template-paywall</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body { position: relative; }
+    .debug-outline * { outline: 1px solid rgba(255, 0, 0, 0.3) !important; }
+    .debug-info {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: yellow;
+      padding: 10px;
+      z-index: 99999;
+      font-size: 12px;
+      font-family: monospace;
+      max-width: 300px;
+    }
+  </style>
+</head>
+<body>
+  <div class="debug-info">
+    <strong>🔍 Проверка элементов:</strong><br>
+    <div id="debug-output"></div>
+    <hr>
+    <button onclick="document.body.classList.toggle('debug-outline')">Показать границы всех элементов</button>
+    <button onclick="scrollToFooter()">Прокрутить к футеру</button>
+    <button onclick="scrollToPaywall()">Прокрутить к paywall</button>
+  </div>
+
+  <h1 style="padding: 20px;">Тестовая страница с упрощенной структурой</h1>
+
+  <main class="main">
+    <section class="panel">
+      <article class="text-box">
+        <p>Вступительный текст...</p>
+
+        <!-- PAYWALL БЛОК -->
+        <div class="premium-teaser" id="paywall-block">
+          <p class="teaser-hint">Осталось <span class="reading-time-value">12</span> минут чтения</p>
+
+          <div class="blurred-content" data-nosnippet>
+            <p>Всё дело в <strong>молекулярной структуре жиров</strong>.</p>
+            <p>Для эффективного удаления жира нужны <strong>ПАВ</strong>.</p>
+            <p>Затем происходит процесс эмульгирования.</p>
+          </div>
+
+          <div class="unlock-overlay">
+            <button class="btn-unlock" type="button" onclick="alert('Кнопка работает!')">
+              🔒 Получить полную версию
+            </button>
+          </div>
+        </div>
+
+        <p style="margin: 40px 0;">Контент после paywall блока...</p>
+        <p style="margin: 40px 0;">Еще текст...</p>
+        <p style="margin: 40px 0;">И еще...</p>
+      </article>
+    </section>
+  </main>
+
+  <!-- ФУТЕР -->
+  <footer class="site-footer" id="footer-block">
+    <div class="footer-container">
+      <div class="footer-column">
+        <h3 class="footer-title">Юридическая информация</h3>
+        <p>ИП Иванов Иван Иванович</p>
+        <p>ИНН: 123456789012</p>
+      </div>
+
+      <div class="footer-column">
+        <h3 class="footer-title">Документы</h3>
+        <ul class="footer-links">
+          <li><a href="#">Публичная оферта</a></li>
+          <li><a href="#">Политика конфиденциальности</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-column">
+        <h3 class="footer-title">Контакты</h3>
+        <p>Email: <a href="mailto:support@toosmart.ru">support@toosmart.ru</a></p>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <p>&copy; 2025 TooSmart. Все права защищены.</p>
+    </div>
+  </footer>
+
+  <script>
+    function scrollToFooter() {
+      document.getElementById('footer-block').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function scrollToPaywall() {
+      document.getElementById('paywall-block').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function checkElements() {
+      const footer = document.getElementById('footer-block');
+      const paywall = document.getElementById('paywall-block');
+      const output = document.getElementById('debug-output');
+
+      const footerRect = footer.getBoundingClientRect();
+      const paywallRect = paywall.getBoundingClientRect();
+
+      const footerVisible = footerRect.top < window.innerHeight && footerRect.bottom > 0;
+      const paywallVisible = paywallRect.top < window.innerHeight && paywallRect.bottom > 0;
+
+      const footerStyles = window.getComputedStyle(footer);
+      const paywallStyles = window.getComputedStyle(paywall);
+
+      output.innerHTML = `
+        <strong>Футер:</strong><br>
+        ${footerVisible ? '✅' : '❌'} Виден на экране<br>
+        Top: ${footerRect.top.toFixed(0)}px<br>
+        BG: ${footerStyles.backgroundColor}<br>
+        Display: ${footerStyles.display}<br>
+        <br>
+        <strong>Paywall:</strong><br>
+        ${paywallVisible ? '✅' : '❌'} Виден на экране<br>
+        Top: ${paywallRect.top.toFixed(0)}px<br>
+        Display: ${paywallStyles.display}<br>
+      `;
+    }
+
+    setInterval(checkElements, 500);
+    checkElements();
+  </script>
+</body>
+</html>
