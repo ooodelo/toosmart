@@ -98,6 +98,20 @@ const menuState = createMenuStateController({
   handles: [menuHandle, dockHandle],
 });
 
+// Security helpers for safe DOM manipulation
+function clearElement(element) {
+  if (!element) return;
+  while (element.firstChild) {
+    element.removeChild(element.firstChild);
+  }
+}
+
+function escapeHTML(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
 function isMenuAvailable() {
   return Boolean(menuRail || siteMenu);
 }
@@ -1512,13 +1526,13 @@ function configureDots() {
   if (!dotsFeatureActive) {
     teardownObserver();
     if (dotsRail) {
-      dotsRail.innerHTML = '';
+      clearElement(dotsRail);
       dotsRail.hidden = true;
     }
     return;
   }
   if (!dotsRail) return;
-  dotsRail.innerHTML = '';
+  clearElement(dotsRail);
   const shouldEnable = (currentMode === 'desktop' || currentMode === 'desktop-wide') && sections.length >= 2;
   dotsRail.hidden = !shouldEnable;
   if (!shouldEnable) {
@@ -1866,7 +1880,7 @@ function initDotsFlyout() {
     flyoutSetActiveDisposer = null;
     detachFlyoutListeners();
     if (dotFlyout) {
-      dotFlyout.innerHTML = '';
+      clearElement(dotFlyout);
       dotFlyout.setAttribute('hidden', '');
       dotFlyout.classList.add('is-hidden');
     }
@@ -1922,7 +1936,7 @@ function initDotsFlyout() {
 
   // Построение списка разделов
   function buildFlyoutMenu() {
-    dotFlyout.innerHTML = '';
+    clearElement(dotFlyout);
 
     sections.forEach((section, index) => {
       const btn = document.createElement('button');
@@ -2950,19 +2964,37 @@ function initProgressWidget() {
   // Приоритет: 1) slot (.pw-slot), 2) textContainer (.text-box), 3) "Далее" по умолчанию
   const buttonText = slot?.dataset.buttonText || textContainer?.dataset.buttonText || 'Далее';
 
-  root.innerHTML = `<div class="pw-visual">
-    <div class="pw-dot"></div>
-    <div class="pw-pill"></div>
-    <div class="pw-pct"><span id="pwPct">0%</span></div>
-    <div class="pw-next">${buttonText}</div>
-  </div>`;
+  // Build DOM safely without innerHTML
+  clearElement(root);
+  const visual = document.createElement('div');
+  visual.className = 'pw-visual';
 
-  // 3. Получение элементов
-  const dot = root.querySelector('.pw-dot');
-  const pill = root.querySelector('.pw-pill');
-  const pct = root.querySelector('.pw-pct');
-  const next = root.querySelector('.pw-next');
-  const pctSpan = root.querySelector('#pwPct');
+  const dot = document.createElement('div');
+  dot.className = 'pw-dot';
+
+  const pill = document.createElement('div');
+  pill.className = 'pw-pill';
+
+  const pctDiv = document.createElement('div');
+  pctDiv.className = 'pw-pct';
+  const pctSpan = document.createElement('span');
+  pctSpan.id = 'pwPct';
+  pctSpan.textContent = '0%';
+  pctDiv.appendChild(pctSpan);
+
+  const nextDiv = document.createElement('div');
+  nextDiv.className = 'pw-next';
+  nextDiv.textContent = buttonText; // Safe: uses textContent instead of innerHTML
+
+  visual.appendChild(dot);
+  visual.appendChild(pill);
+  visual.appendChild(pctDiv);
+  visual.appendChild(nextDiv);
+  root.appendChild(visual);
+
+  // 3. References to elements (already created above)
+  const pct = pctDiv;
+  const next = nextDiv;
 
   const prefersReduced = typeof window.matchMedia === 'function'
     ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -3372,12 +3404,12 @@ function activateDotsNavigationFeature() {
 
     detachFlyoutListeners();
     if (dotFlyout) {
-      dotFlyout.innerHTML = '';
+      clearElement(dotFlyout);
       dotFlyout.setAttribute('hidden', '');
       dotFlyout.classList.add('is-hidden');
     }
     if (dotsRail) {
-      dotsRail.innerHTML = '';
+      clearElement(dotsRail);
       dotsRail.hidden = true;
     }
     releaseSetActiveSectionBridge('dotsFlyout.lazy-cleanup');

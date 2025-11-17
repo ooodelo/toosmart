@@ -2,10 +2,31 @@
 # ЗАЩИТА ПРЕМИУМ ВЕРСИИ КУРСА
 # ========================================
 
-# Запретить индексацию поисковиками
+# Security Headers
 <IfModule mod_headers.c>
+    # Запретить индексацию поисковиками
     Header set X-Robots-Tag "noindex, nofollow, noarchive"
-    Header set X-Frame-Options "SAMEORIGIN"
+
+    # Защита от clickjacking
+    Header always set X-Frame-Options "SAMEORIGIN"
+
+    # Защита от XSS
+    Header always set X-XSS-Protection "1; mode=block"
+
+    # Предотвращение MIME sniffing
+    Header always set X-Content-Type-Options "nosniff"
+
+    # Referrer Policy
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+    # Permissions Policy (отключить ненужные API)
+    Header always set Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=(), usb=()"
+
+    # HSTS - форсировать HTTPS (раскомментировать когда SSL настроен)
+    # Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+
+    # Content Security Policy
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
 </IfModule>
 
 # Включить mod_rewrite
