@@ -3057,11 +3057,20 @@ function initProgressWidget() {
 
   const NEXT_URL = detectNextUrl();
 
-  // Определяем тип версии: FREE (с payment-modal) или PREMIUM
+  // Определяем тип версии: БЕСПЛАТНАЯ (с payment-modal) или ПЛАТНАЯ (без payment-modal)
   const isFreeVersion = document.getElementById('payment-modal') !== null;
+
+  // Проверяем атрибут для рекомендаций (показывать прогресс даже в платной версии)
+  const isRecommendations = textContainer?.dataset.recommendations === 'true' ||
+                            document.body.dataset.recommendations === 'true';
+
   if (isFreeVersion) {
     root.setAttribute('data-free-version', 'true');
   }
+
+  // В БЕСПЛАТНОЙ версии (paywall) виджет сразу показывает кнопку без прогресса
+  // В ПЛАТНОЙ версии и в рекомендациях показываем кружок с прогрессом
+  const skipProgressTracking = isFreeVersion && !isRecommendations;
 
   // 5. Анимации
   let aDot = null, aPill = null, aPct = null, aNext = null;
@@ -3310,26 +3319,51 @@ function initProgressWidget() {
   }, undefined, { module: 'progressWidget', target: describeTarget(root) });
 
   // 9. Listeners
-  trackEvent(window, 'scroll', onScroll, { passive: true }, {
-    module: 'progressWidget',
-    target: 'window',
-  });
-
-  if (!controlsWindowScroll && scrollRoot && scrollRoot !== window) {
-    trackEvent(scrollRoot, 'scroll', onScroll, { passive: true }, {
+  // В БЕСПЛАТНОЙ версии (без прогресса) не отслеживаем скролл
+  if (!skipProgressTracking) {
+    trackEvent(window, 'scroll', onScroll, { passive: true }, {
       module: 'progressWidget',
-      target: describeTarget(scrollRoot),
+      target: 'window',
     });
+
+    if (!controlsWindowScroll && scrollRoot && scrollRoot !== window) {
+      trackEvent(scrollRoot, 'scroll', onScroll, { passive: true }, {
+        module: 'progressWidget',
+        target: describeTarget(scrollRoot),
+      });
+    }
   }
 
   // 10. Инициализация
-  dot.style.opacity = '1';
-  pill.style.opacity = '0';
-  pill.style.transform = 'translate(-50%,-50%) scaleX(0.001)';
-  pct.style.opacity = '1';
-  next.style.opacity = '0';
+  if (skipProgressTracking) {
+    // БЕСПЛАТНАЯ версия: сразу показываем кнопку без прогресса
+    dot.style.opacity = '0';
+    pill.style.opacity = '1';
+    pill.style.transform = 'translate(-50%,-50%) scaleX(1)';
+    pct.style.opacity = '0';
+    pct.style.transform = 'translateY(8px)';
+    next.style.opacity = '1';
+    next.style.transform = 'translateY(0)';
+    next.style.letterSpacing = '0px';
+    pctSpan.textContent = '100%';
+    doneState = true;
+    root.classList.add('is-done');
+    root.setAttribute('aria-disabled', 'false');
+    root.setAttribute('aria-label', 'Кнопка: ' + buttonText);
+  } else {
+    // ПЛАТНАЯ версия: показываем кружок с прогрессом
+    dot.style.opacity = '1';
+    pill.style.opacity = '0';
+    pill.style.transform = 'translate(-50%,-50%) scaleX(0.001)';
+    pct.style.opacity = '1';
+    next.style.opacity = '0';
+  }
+
   updateProgressWidgetFloatingAnchors(root);
-  update();
+
+  if (!skipProgressTracking) {
+    update();
+  }
 
   // Обновить layout metrics после создания виджета
   requestLayoutMetricsUpdate({ elementChanged: true });
