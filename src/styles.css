@@ -1309,7 +1309,8 @@ body[data-mode="mobile"].menu-open .backdrop {
 /* CSS-переменные для виджета */
 :root {
   --pw-circle-size: 44px;  /* Размер круга */
-  --pw-pill-width: 184px;   /* Ширина пилюли */
+  --pw-pill-width: max-content;   /* Ширина пилюли адаптивная */
+  --pw-pill-min-width: 184px;     /* Минимальная ширина для "Далее" */
   --pw-pill-height: 44px;   /* Высота пилюли */
 }
 
@@ -1317,7 +1318,9 @@ body[data-mode="mobile"].menu-open .backdrop {
 #pw-root {
   /* Позиционирование: по умолчанию relative */
   position: relative;
-  width: var(--pw-pill-width);
+  min-width: var(--pw-pill-min-width);
+  width: auto;
+  max-width: 90%;
   height: var(--pw-pill-height);
   margin: 16px auto;
   z-index: 150;
@@ -1378,7 +1381,8 @@ body[data-mode="mobile"] .pw-slot {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: var(--pw-pill-width);
+  min-width: var(--pw-pill-min-width);
+  width: 100%;
   height: var(--pw-pill-height);
   -webkit-transform: translate(-50%, -50%) scaleX(0.001);
   transform: translate(-50%, -50%) scaleX(0.001);
@@ -1419,6 +1423,8 @@ body[data-mode="mobile"] .pw-slot {
   letter-spacing: 0;
   transform: translateY(0);
   will-change: opacity, transform, letter-spacing;
+  padding: 0 24px;
+  white-space: nowrap;
 }
 
 /* Состояние "готово" (100%) */
@@ -1555,30 +1561,6 @@ body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
   padding: 24px 0;
 }
 
-.btn-unlock {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 16px 32px;
-  font-size: 18px;
-  font-weight: 600;
-  color: white;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border: none;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-}
-
-.btn-unlock:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-}
-
-.btn-unlock:active {
-  transform: translateY(0);
-}
 
 /* ============================================
    МОДАЛЬНОЕ ОКНО ОПЛАТЫ
@@ -1830,91 +1812,103 @@ body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
    ============================================ */
 
 .site-footer {
-  background: #1a1a1a;
-  color: #d0d0d0;
-  padding: 48px 24px 24px;
+  background: #D9D9D9;
+  color: #000;
+  padding: 24px 16px;
   margin-top: 80px;
+  border-top: 1px solid #ccc;
 }
 
 .footer-container {
   max-width: 1200px;
   margin: 0 auto;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 40px;
-  margin-bottom: 32px;
-}
-
-.footer-column h3 {
-  font-size: 16px;
-  font-weight: 600;
-  color: white;
-  margin-bottom: 16px;
-}
-
-.footer-column p {
-  font-size: 14px;
-  line-height: 1.6;
-  margin: 8px 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 16px 32px;
 }
 
 .footer-links {
   list-style: none;
   padding: 0;
   margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+  justify-content: center;
 }
 
 .footer-links li {
-  margin: 8px 0;
+  margin: 0;
 }
 
-.footer-links a,
-.footer-column a {
-  color: #d0d0d0;
+.footer-links a {
+  color: #000;
   text-decoration: none;
-  transition: color 0.2s ease;
-}
-
-.footer-links a:hover,
-.footer-column a:hover {
-  color: #667eea;
-}
-
-.footer-bottom {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding-top: 24px;
-  border-top: 1px solid #333;
-  text-align: center;
   font-size: 14px;
-  color: #999;
+  transition: opacity 0.2s ease;
+  cursor: pointer;
 }
 
-.footer-title {
-  margin-top: 0;
+.footer-links a:hover {
+  opacity: 0.7;
 }
 
-/* Mobile адаптация футера */
-@media (max-width: 768px) {
-  .site-footer {
-    padding: 32px 16px 16px;
-    margin-top: 60px;
-  }
+/* Responsive adaptations for footer */
+body[data-mode="mobile"] .site-footer {
+  padding: 20px 12px;
+  margin-top: 60px;
+}
 
-  .footer-container {
-    grid-template-columns: 1fr;
-    gap: 32px;
-  }
+body[data-mode="mobile"] .footer-links {
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
 
-  .modal-content {
-    padding: 32px 24px;
-  }
+body[data-mode="tablet"] .site-footer {
+  padding: 24px 16px;
+}
 
-  .modal-title {
-    font-size: 20px;
-  }
+body[data-mode="desktop"] .site-footer,
+body[data-mode="desktop-wide"] .site-footer {
+  padding: 28px 24px;
+}
 
-  .price-current {
-    font-size: 28px;
-  }
+/* Responsive adaptations for paywall */
+body[data-mode="mobile"] .premium-teaser {
+  margin-top: 24px;
+  margin-bottom: 32px;
+}
+
+body[data-mode="mobile"] .blurred-content {
+  max-height: 200px;
+}
+
+body[data-mode="mobile"] .teaser-hint {
+  font-size: 13px;
+}
+
+body[data-mode="tablet"] .premium-teaser {
+  margin-top: 28px;
+  margin-bottom: 36px;
+}
+
+body[data-mode="tablet"] .blurred-content {
+  max-height: 250px;
+}
+
+/* Responsive adaptations for modal */
+body[data-mode="mobile"] .modal-content {
+  padding: 32px 24px;
+  border-radius: 12px;
+}
+
+body[data-mode="mobile"] .modal-title {
+  font-size: 20px;
+}
+
+body[data-mode="mobile"] .price-current {
+  font-size: 28px;
 }

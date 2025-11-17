@@ -128,11 +128,6 @@
               <!--/noindex-->
             </div>
 
-            <div class="unlock-overlay">
-              <button class="btn-unlock" type="button" onclick="openPaymentModal()">
-                🔒 Получить полную версию
-              </button>
-            </div>
           </div>
 
           <!-- Слот для Progress Widget с кнопкой "Получить полную версию" -->
@@ -249,39 +244,18 @@
     <!-- ФУТЕР -->
     <footer class="site-footer">
       <div class="footer-container">
-        <div class="footer-column">
-          <h3 class="footer-title">Юридическая информация</h3>
-          <p>ИП Иванов Иван Иванович</p>
-          <p>ИНН: 123456789012</p>
-          <p>ОГРНИП: 123456789012345</p>
-          <p>Адрес: г. Москва, ул. Примерная, д. 1</p>
-        </div>
-
-        <div class="footer-column">
-          <h3 class="footer-title">Документы</h3>
-          <ul class="footer-links">
-            <li><a href="/legal.html#offer">Публичная оферта</a></li>
-            <li><a href="/legal.html#privacy">Политика конфиденциальности</a></li>
-            <li><a href="/legal.html#refund">Порядок возврата</a></li>
-            <li><a href="/legal.html#personal-data">Согласие на обработку ПДн</a></li>
-          </ul>
-        </div>
-
-        <div class="footer-column">
-          <h3 class="footer-title">Контакты</h3>
-          <p>Email: <a href="mailto:support@toosmart.ru">support@toosmart.ru</a></p>
-          <p>Служба поддержки работает ежедневно</p>
-        </div>
-      </div>
-
-      <div class="footer-bottom">
-        <p>&copy; 2025 TooSmart. Все права защищены.</p>
+        <ul class="footer-links">
+          <li><a href="#" onclick="openLegalModal('offer'); return false;">Публичная оферта</a></li>
+          <li><a href="#" onclick="openLegalModal('privacy'); return false;">Политика конфиденциальности</a></li>
+          <li><a href="#" onclick="openLegalModal('refund'); return false;">Порядок возврата</a></li>
+          <li><a href="mailto:support@toosmart.ru">Контакты</a></li>
+        </ul>
       </div>
     </footer>
 
     <script src="script.js" type="module"></script>
     <script>
-      // Функции для модального окна
+      // Функции для модального окна оплаты
       function openPaymentModal() {
         const modal = document.getElementById('payment-modal');
         if (modal) {
@@ -296,6 +270,11 @@
           modal.setAttribute('hidden', '');
           document.body.style.overflow = '';
         }
+      }
+
+      // Функция для открытия модальных окон с юридическими документами
+      function openLegalModal(type) {
+        alert('Модальное окно для: ' + type + '\n(Будет реализовано в build.js)');
       }
 
       // Закрытие по Escape
@@ -314,7 +293,7 @@
 
           if (pwNext) {
             // Меняем текст на "Получить полную версию"
-            pwNext.textContent = '🔒 Получить полную версию';
+            pwNext.textContent = 'Получить полную версию';
           }
 
           if (pwRoot) {
