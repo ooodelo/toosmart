@@ -3219,10 +3219,16 @@ function initProgressWidget() {
   }
 
   // 7. Клик
-  trackEvent(root, 'click', () => {
+  trackEvent(root, 'click', (e) => {
     if (doneState) {
-      // При 100%: переход на следующую страницу
-      if (NEXT_URL && NEXT_URL !== '#') {
+      // При 100%: проверяем наличие payment-modal (paywall)
+      const paymentModal = document.getElementById('payment-modal');
+      if (paymentModal && typeof window.openPaymentModal === 'function') {
+        // Paywall версия - открываем модальное окно покупки
+        e.preventDefault();
+        window.openPaymentModal();
+      } else if (NEXT_URL && NEXT_URL !== '#') {
+        // Обычная версия - переход на следующую страницу
         window.location.href = NEXT_URL;
       } else {
         console.warn('Progress Widget: следующая страница не найдена');
@@ -3242,7 +3248,7 @@ function initProgressWidget() {
         }
       }
     }
-  }, { passive: true }, { module: 'progressWidget', target: describeTarget(root) });
+  }, { passive: false }, { module: 'progressWidget', target: describeTarget(root) });
 
   // 8. Keyboard navigation
   trackEvent(root, 'keydown', (e) => {

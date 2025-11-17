@@ -596,19 +596,15 @@
           const pwRoot = document.getElementById('pw-root');
 
           if (pwRoot) {
-            // Добавляем обработчик клика
-            pwRoot.addEventListener('click', function(e) {
-              if (pwRoot.classList.contains('is-done')) {
-                e.preventDefault();
-                e.stopPropagation();
-                openPaymentModal();
-              }
-            });
-
-            // Принудительно переводим виджет в состояние "готово"
+            // Принудительно переводим виджет в состояние "готово" для paywall
+            // (не ждем пока пользователь прокрутит до конца)
             pwRoot.classList.add('is-done');
             pwRoot.setAttribute('aria-disabled', 'false');
             pwRoot.setAttribute('aria-label', 'Войти в полную версию курса');
+
+            // Запускаем анимацию перехода в кнопку
+            const update = pwRoot._forceUpdate || function() {};
+            if (typeof update === 'function') update();
           }
         }, 500);
       });

@@ -1309,7 +1309,7 @@ body[data-mode="mobile"].menu-open .backdrop {
 /* CSS-переменные для виджета */
 :root {
   --pw-circle-size: 44px;  /* Размер круга */
-  --pw-pill-min-width: 184px;  /* Минимальная ширина пилюли */
+  --pw-pill-min-width: 280px;  /* Минимальная ширина пилюли (увеличено для "Войти в полную версию") */
   --pw-pill-height: 44px;  /* Высота пилюли */
 }
 
