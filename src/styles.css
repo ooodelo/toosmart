@@ -1482,10 +1482,14 @@ body[data-mode="mobile"] #pw-root.is-floating {
               width 520ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
-body[data-mode="mobile"] #pw-root.is-floating.is-done {
+/* PREMIUM версия: кнопка "Далее" центрируется при 100% */
+body[data-mode="mobile"] #pw-root.is-floating.is-done:not([data-free-version]) {
   left: 50%;
   transform: translate(-50%, 0);
 }
+
+/* FREE версия: кнопка остается по левому краю (как и кружок) */
+/* Используется left: var(--pw-float-left) из .is-floating */
 
 body[data-mode="mobile"].menu-open #pw-root.is-floating,
 body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {

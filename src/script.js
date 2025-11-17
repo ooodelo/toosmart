@@ -3011,6 +3011,12 @@ function initProgressWidget() {
 
   const NEXT_URL = detectNextUrl();
 
+  // Определяем тип версии: FREE (с payment-modal) или PREMIUM
+  const isFreeVersion = document.getElementById('payment-modal') !== null;
+  if (isFreeVersion) {
+    root.setAttribute('data-free-version', 'true');
+  }
+
   // 5. Анимации
   let aDot = null, aPill = null, aPct = null, aNext = null;
   let doneState = false;
@@ -3221,14 +3227,13 @@ function initProgressWidget() {
   // 7. Клик
   trackEvent(root, 'click', (e) => {
     if (doneState) {
-      // При 100%: проверяем наличие payment-modal (paywall)
-      const paymentModal = document.getElementById('payment-modal');
-      if (paymentModal && typeof window.openPaymentModal === 'function') {
-        // Paywall версия - открываем модальное окно покупки
+      // При 100%: проверяем тип версии
+      if (isFreeVersion && typeof window.openPaymentModal === 'function') {
+        // FREE версия - открываем модальное окно покупки
         e.preventDefault();
         window.openPaymentModal();
       } else if (NEXT_URL && NEXT_URL !== '#') {
-        // Обычная версия - переход на следующую страницу
+        // PREMIUM версия - переход на следующую страницу
         window.location.href = NEXT_URL;
       } else {
         console.warn('Progress Widget: следующая страница не найдена');
