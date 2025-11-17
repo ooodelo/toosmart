@@ -1309,7 +1309,7 @@ body[data-mode="mobile"].menu-open .backdrop {
 /* CSS-переменные для виджета */
 :root {
   --pw-circle-size: 44px;  /* Размер круга */
-  --pw-pill-width: 184px;  /* Ширина пилюли для "Далее" */
+  --pw-pill-min-width: 184px;  /* Минимальная ширина пилюли */
   --pw-pill-height: 44px;  /* Высота пилюли */
 }
 
@@ -1317,7 +1317,9 @@ body[data-mode="mobile"].menu-open .backdrop {
 #pw-root {
   /* Позиционирование: по умолчанию relative */
   position: relative;
-  width: var(--pw-pill-width);
+  min-width: var(--pw-pill-min-width);
+  width: fit-content;
+  max-width: 90%;
   height: var(--pw-pill-height);
   margin: 16px auto;
   z-index: 150;
@@ -1378,7 +1380,8 @@ body[data-mode="mobile"] .pw-slot {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: var(--pw-pill-width);
+  min-width: var(--pw-pill-min-width);
+  width: 100%;
   height: var(--pw-pill-height);
   -webkit-transform: translate(-50%, -50%) scaleX(0.001);
   transform: translate(-50%, -50%) scaleX(0.001);
@@ -1420,15 +1423,7 @@ body[data-mode="mobile"] .pw-slot {
   transform: translateY(0);
   will-change: opacity, transform, letter-spacing;
   white-space: nowrap;
-}
-
-/* Специальный класс для paywall кнопки с более длинным текстом */
-#pw-root.pw-paywall {
-  width: 270px;
-}
-
-#pw-root.pw-paywall .pw-pill {
-  width: 270px;
+  padding: 0 20px;
 }
 
 /* Состояние "готово" (100%) */
