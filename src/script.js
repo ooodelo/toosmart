@@ -2932,11 +2932,15 @@ function initProgressWidget() {
   root.dataset.pwContainer = containerInfo.selector;
   root.dataset.pwScrollMode = scrollInfo.mode;
 
+  // Читаем текст кнопки из data-button-text (декларативный подход)
+  // Приоритет: 1) root (pw-slot), 2) textContainer (.text-box), 3) "Далее" по умолчанию
+  const buttonText = root.dataset.buttonText || textContainer?.dataset.buttonText || 'Далее';
+
   root.innerHTML = `<div class="pw-visual">
     <div class="pw-dot"></div>
     <div class="pw-pill"></div>
     <div class="pw-pct"><span id="pwPct">0%</span></div>
-    <div class="pw-next">Далее</div>
+    <div class="pw-next">${buttonText}</div>
   </div>`;
 
   // 3. Получение элементов

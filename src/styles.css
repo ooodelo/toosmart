@@ -1807,47 +1807,53 @@ body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
 }
 
 /* ============================================
-   ФУТЕР
+   МИНИМАЛИСТИЧНЫЙ ФУТЕР
    ============================================ */
 
 .site-footer {
   background: #D9D9D9;
   color: #000;
-  padding: 24px 16px;
+  padding: 16px 24px;
   margin-top: 80px;
   border-top: 1px solid #ccc;
+  font-size: 13px;
 }
 
-.footer-container {
-  max-width: 1200px;
+.footer-content {
+  max-width: 1400px;
   margin: 0 auto;
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
-  gap: 16px 32px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.footer-info {
+  color: #333;
+  white-space: nowrap;
 }
 
 .footer-links {
-  list-style: none;
-  padding: 0;
-  margin: 0;
   display: flex;
+  gap: 8px 16px;
   flex-wrap: wrap;
-  gap: 16px 24px;
-  justify-content: center;
-}
-
-.footer-links li {
-  margin: 0;
+  align-items: center;
 }
 
 .footer-links a {
   color: #000;
   text-decoration: none;
-  font-size: 14px;
   transition: opacity 0.2s ease;
   cursor: pointer;
+  white-space: nowrap;
+}
+
+.footer-links a:not(:last-child)::after {
+  content: '·';
+  margin-left: 16px;
+  color: #999;
+  pointer-events: none;
 }
 
 .footer-links a:hover {
@@ -1856,23 +1862,40 @@ body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
 
 /* Responsive adaptations for footer */
 body[data-mode="mobile"] .site-footer {
-  padding: 20px 12px;
+  padding: 16px 12px;
   margin-top: 60px;
+  font-size: 12px;
+}
+
+body[data-mode="mobile"] .footer-content {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
 }
 
 body[data-mode="mobile"] .footer-links {
   flex-direction: column;
-  gap: 12px;
-  align-items: center;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+body[data-mode="mobile"] .footer-links a:not(:last-child)::after {
+  display: none;
 }
 
 body[data-mode="tablet"] .site-footer {
-  padding: 24px 16px;
+  padding: 16px 20px;
+  font-size: 13px;
+}
+
+body[data-mode="tablet"] .footer-content {
+  justify-content: center;
 }
 
 body[data-mode="desktop"] .site-footer,
 body[data-mode="desktop-wide"] .site-footer {
-  padding: 28px 24px;
+  padding: 18px 32px;
+  font-size: 14px;
 }
 
 /* Responsive adaptations for paywall */
