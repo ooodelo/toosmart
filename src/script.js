@@ -930,6 +930,9 @@ function createLazyFeatureManager(options = {}) {
           }
           state.cleanup = typeof cleanup === 'function' ? cleanup : null;
         } else if (state.active) {
+          if (feature?.sticky) {
+            continue;
+          }
           state.active = false;
           if (typeof feature.onExit === 'function') {
             try {
@@ -1306,37 +1309,48 @@ function updateLayoutMetrics(pwRoot = progressWidgetRoot) {
   root.style.setProperty('--pw-footprint', `${footprint}px`);
 }
 
+let lastProgressWidgetAnchors = null;
+
 function updateProgressWidgetFloatingAnchors(pwRoot) {
-  if (!(pwRoot instanceof HTMLElement)) {
+  if (!(pwRoot instanceof HTMLElement) || body.dataset.mode !== 'mobile') {
     return;
   }
 
-  if (body.dataset.mode !== 'mobile') {
+  const anchorCandidates = [dockHandle, menuHandle].filter((node) => node instanceof HTMLElement);
+  const anchor = anchorCandidates.find((node) => node.getClientRects().length > 0 && node.offsetWidth > 0);
+
+  if (!anchor && lastProgressWidgetAnchors) {
+    pwRoot.style.setProperty('--pw-float-left', `${lastProgressWidgetAnchors.left}px`);
+    pwRoot.style.setProperty('--pw-float-bottom', `${lastProgressWidgetAnchors.bottom}px`);
     return;
   }
-
-  const handle = dockHandle instanceof HTMLElement ? dockHandle : null;
-  if (!handle || handle.offsetParent === null) {
+  if (!anchor) {
     return;
   }
 
   const viewportWidth = window.innerWidth || document.documentElement?.clientWidth || 0;
   const viewportHeight = window.innerHeight || document.documentElement?.clientHeight || 0;
-  const handleRect = handle.getBoundingClientRect();
+  const anchorRect = anchor.getBoundingClientRect();
+  const styles = window.getComputedStyle(pwRoot);
 
-  if (viewportWidth > 0 && handleRect.width > 0) {
-    const pwWidth = Math.max(pwRoot.offsetWidth || 0, parseCssNumber(window.getComputedStyle(pwRoot).width));
-    const maxLeft = Math.max(0, Math.min(handleRect.left, viewportWidth - pwWidth));
+  if (viewportWidth > 0 && anchorRect.width > 0) {
+    const pwWidth = Math.max(pwRoot.offsetWidth || 0, parseCssNumber(styles.width));
+    const maxLeft = Math.max(0, Math.min(anchorRect.left, viewportWidth - pwWidth));
     pwRoot.style.setProperty('--pw-float-left', `${Math.round(maxLeft)}px`);
   }
 
   if (viewportHeight > 0) {
     const gap = 10;
-    const bottom = handleRect.top > 0
-      ? Math.max(gap, Math.round(viewportHeight - handleRect.top + gap))
-      : Math.max(gap, Math.round(parseCssNumber(window.getComputedStyle(pwRoot).bottom)) || gap);
+    const bottom = anchorRect.top > 0
+      ? Math.max(gap, Math.round(viewportHeight - anchorRect.top + gap))
+      : Math.max(gap, Math.round(parseCssNumber(styles.bottom)) || gap);
     pwRoot.style.setProperty('--pw-float-bottom', `${bottom}px`);
   }
+
+  lastProgressWidgetAnchors = {
+    left: parseCssNumber(pwRoot.style.getPropertyValue('--pw-float-left')),
+    bottom: parseCssNumber(pwRoot.style.getPropertyValue('--pw-float-bottom')),
+  };
 }
 
 function requestLayoutMetricsUpdate({ force = false, modeChanged = false, viewportChanged = false, elementChanged = false } = {}) {
@@ -3444,6 +3458,7 @@ lazyFeatures.register('stack-carousel', {
 });
 
 lazyFeatures.register('progress-widget', {
+  sticky: true,
   onEnter: () => activateProgressWidgetFeature(),
 });
 
