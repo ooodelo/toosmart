@@ -1,0 +1,20 @@
+{
+  "pricing": {
+    "currency": "RUB",
+    "amount": 990,
+    "originalAmount": 1490,
+    "cta": "Получить полный доступ"
+  },
+  "payment": {
+    "merchant": "ООО \"Название компании\"",
+    "inn": "0000000000",
+    "bank": "ПАО Банк",
+    "account": "40702810000000000000",
+    "agreement": "Договор оферты"
+  },
+  "footer": {
+    "contacts": "support@example.com",
+    "company": "ООО \"Название компании\"",
+    "legal": "ОГРН 0000000000000"
+  }
+}
