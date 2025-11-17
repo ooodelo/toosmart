@@ -180,22 +180,29 @@ async function sectionsFromManifest(branch, manifest, branchDir) {
   const items = [];
   for (const item of manifest) {
     if (!item.source) continue;
-    const markdownPath = path.join(branchDir, item.source);
-    if (!fs.existsSync(markdownPath)) continue;
 
-    const markdown = await fsp.readFile(markdownPath, 'utf8');
-    const id = item.id || slugify(path.basename(item.source, path.extname(item.source)));
-    const html = renderMarkdown(markdown, id);
-    items.push({
-      id,
-      title: item.title || extractH1(markdown) || 'Раздел',
-      order: item.order ?? 999,
-      markdown,
-      html,
-      subsections: extractH2(markdown, id),
-      teaser: item.teaser || null,
-      visibility: item.visibility || branch.visibility
-    });
+    // Security: Validate path to prevent traversal attacks
+    try {
+      const markdownPath = validatePath(branchDir, item.source);
+      if (!fs.existsSync(markdownPath)) continue;
+
+      const markdown = await fsp.readFile(markdownPath, 'utf8');
+      const id = item.id || slugify(path.basename(item.source, path.extname(item.source)));
+      const html = renderMarkdown(markdown, id);
+      items.push({
+        id,
+        title: item.title || extractH1(markdown) || 'Раздел',
+        order: item.order ?? 999,
+        markdown,
+        html,
+        subsections: extractH2(markdown, id),
+        teaser: item.teaser || null,
+        visibility: item.visibility || branch.visibility
+      });
+    } catch (error) {
+      console.warn(`⚠️  Skipping ${item.source}: ${error.message}`);
+      continue;
+    }
   }
   return items;
 }
@@ -423,6 +430,18 @@ function slugify(value) {
     .replace(/[^a-z0-9а-яё\-\s_]/g, '')
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-');
+}
+
+// Security: Path traversal protection
+function validatePath(basePath, userPath) {
+  const base = path.resolve(basePath);
+  const full = path.resolve(basePath, userPath);
+
+  if (!full.startsWith(base + path.sep) && full !== base) {
+    throw new Error(`Path traversal detected: ${userPath}`);
+  }
+
+  return full;
 }
 
 function createSlugger() {
