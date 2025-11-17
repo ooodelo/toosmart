@@ -45,8 +45,8 @@
   </head>
   <body>
     <header class="header" role="banner">
-      <img src="PointingToClean.png" alt="Логотип" class="header__logo">
-      <img src="templates/CleanLogo.svg" alt="Clean - Теория правильной уборки. Практикум" class="header__svg">
+      <img src="assets/PointingToClean.png" alt="Логотип" class="header__logo">
+      <img src="assets/CleanLogo.svg" alt="Clean - Теория правильной уборки. Практикум" class="header__svg">
     </header>
 
     <aside class="menu-rail" aria-label="Структура курса">
@@ -385,6 +385,97 @@
         Структура курса
       </button>
     </div>
+
+    <!-- МИНИМАЛИСТИЧНЫЙ ФУТЕР -->
+    <footer class="site-footer">
+      <div class="footer-content">
+        <div class="footer-info">
+          © 2025 ИП Иванов И.И. · ИНН 1234567890
+        </div>
+        <nav class="footer-links">
+          <a href="#" onclick="openLegalModal('offer'); return false;">Оферта</a>
+          <a href="#" onclick="openLegalModal('privacy'); return false;">Политика конфиденциальности</a>
+          <a href="#" onclick="openLegalModal('requisites'); return false;">Реквизиты</a>
+          <a href="#" onclick="openLegalModal('cookies'); return false;">Cookies</a>
+          <a href="mailto:support@toosmart.ru">Контакты</a>
+        </nav>
+      </div>
+    </footer>
+
+    <!-- МОДАЛЬНЫЕ ОКНА ДЛЯ LEGAL РАЗДЕЛОВ -->
+    <div class="modal legal-modal" id="legal-offer-modal" hidden>
+      <div class="modal-overlay" onclick="closeLegalModal('offer')"></div>
+      <div class="modal-content legal-modal-content">
+        <button class="modal-close" type="button" onclick="closeLegalModal('offer')" aria-label="Закрыть">×</button>
+        <h2 class="modal-title">Публичная оферта</h2>
+        <div class="legal-text">
+          <p>Здесь будет размещен текст публичной оферты...</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal legal-modal" id="legal-privacy-modal" hidden>
+      <div class="modal-overlay" onclick="closeLegalModal('privacy')"></div>
+      <div class="modal-content legal-modal-content">
+        <button class="modal-close" type="button" onclick="closeLegalModal('privacy')" aria-label="Закрыть">×</button>
+        <h2 class="modal-title">Политика конфиденциальности</h2>
+        <div class="legal-text">
+          <p>Здесь будет размещена политика конфиденциальности...</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal legal-modal" id="legal-requisites-modal" hidden>
+      <div class="modal-overlay" onclick="closeLegalModal('requisites')"></div>
+      <div class="modal-content legal-modal-content">
+        <button class="modal-close" type="button" onclick="closeLegalModal('requisites')" aria-label="Закрыть">×</button>
+        <h2 class="modal-title">Реквизиты</h2>
+        <div class="legal-text">
+          <p><strong>ИП Иванов И.И. · ИНН 1234567890</strong></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal legal-modal" id="legal-cookies-modal" hidden>
+      <div class="modal-overlay" onclick="closeLegalModal('cookies')"></div>
+      <div class="modal-content legal-modal-content">
+        <button class="modal-close" type="button" onclick="closeLegalModal('cookies')" aria-label="Закрыть">×</button>
+        <h2 class="modal-title">Политика Cookies</h2>
+        <div class="legal-text">
+          <p>Здесь будет размещена политика использования cookies...</p>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function openLegalModal(type) {
+        const modalId = 'legal-' + type + '-modal';
+        const modal = document.getElementById(modalId);
+        if (modal) {
+          modal.removeAttribute('hidden');
+          document.body.style.overflow = 'hidden';
+        }
+      }
+
+      function closeLegalModal(type) {
+        const modalId = 'legal-' + type + '-modal';
+        const modal = document.getElementById(modalId);
+        if (modal) {
+          modal.setAttribute('hidden', '');
+          document.body.style.overflow = '';
+        }
+      }
+
+      // Закрытие всех модальных окон по Escape
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+          closeLegalModal('offer');
+          closeLegalModal('privacy');
+          closeLegalModal('requisites');
+          closeLegalModal('cookies');
+        }
+      });
+    </script>
 
     <script src="script.js" type="module"></script>
   </body>

@@ -1309,15 +1309,17 @@ body[data-mode="mobile"].menu-open .backdrop {
 /* CSS-переменные для виджета */
 :root {
   --pw-circle-size: 44px;  /* Размер круга */
-  --pw-pill-width: 184px;   /* Ширина пилюли */
-  --pw-pill-height: 44px;   /* Высота пилюли */
+  --pw-pill-min-width: 280px;  /* Минимальная ширина пилюли (увеличено для "Войти в полную версию") */
+  --pw-pill-height: 44px;  /* Высота пилюли */
 }
 
 /* Базовые стили контейнера виджета */
 #pw-root {
   /* Позиционирование: по умолчанию relative */
   position: relative;
-  width: var(--pw-pill-width);
+  min-width: var(--pw-pill-min-width);
+  width: fit-content;
+  max-width: 90%;
   height: var(--pw-pill-height);
   margin: 16px auto;
   z-index: 150;
@@ -1378,7 +1380,8 @@ body[data-mode="mobile"] .pw-slot {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: var(--pw-pill-width);
+  min-width: var(--pw-pill-min-width);
+  width: 100%;
   height: var(--pw-pill-height);
   -webkit-transform: translate(-50%, -50%) scaleX(0.001);
   transform: translate(-50%, -50%) scaleX(0.001);
@@ -1419,6 +1422,8 @@ body[data-mode="mobile"] .pw-slot {
   letter-spacing: 0;
   transform: translateY(0);
   will-change: opacity, transform, letter-spacing;
+  white-space: nowrap;
+  padding: 0 20px;
 }
 
 /* Состояние "готово" (100%) */
@@ -1477,10 +1482,14 @@ body[data-mode="mobile"] #pw-root.is-floating {
               width 520ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
-body[data-mode="mobile"] #pw-root.is-floating.is-done {
+/* PREMIUM версия: кнопка "Далее" центрируется при 100% */
+body[data-mode="mobile"] #pw-root.is-floating.is-done:not([data-free-version]) {
   left: 50%;
   transform: translate(-50%, 0);
 }
+
+/* FREE версия: кнопка остается по левому краю (как и кружок) */
+/* Используется left: var(--pw-float-left) из .is-floating */
 
 body[data-mode="mobile"].menu-open #pw-root.is-floating,
 body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
@@ -1502,4 +1511,621 @@ body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
     animation: none !important;
     transition: none !important;
   }
+}
+
+/* ============================================
+   PAYWALL БЛОК ДЛЯ FREE ВЕРСИИ
+   ============================================ */
+
+/* Слот для Progress Widget */
+.pw-slot {
+  position: relative;
+  min-height: var(--pw-footprint);
+  margin-top: 48px;
+  margin-bottom: 24px;
+}
+
+.premium-teaser {
+  position: relative;
+  margin-top: 32px;
+  margin-bottom: 40px;
+}
+
+.teaser-hint {
+  font-size: 14px;
+  font-weight: 500;
+  color: #666;
+  margin-bottom: 12px;
+  font-style: italic;
+}
+
+.blurred-content {
+  position: relative;
+  max-height: 300px;
+  overflow: hidden;
+  margin-bottom: 24px;
+  mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
+}
+
+.blurred-content p,
+.blurred-content h3,
+.blurred-content ul,
+.blurred-content ol {
+  filter: blur(4px);
+  pointer-events: none;
+  user-select: none;
+}
+
+.unlock-overlay {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px 0;
+}
+
+
+/* ============================================
+   МОДАЛЬНОЕ ОКНО ОПЛАТЫ
+   ============================================ */
+
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: modalFadeIn 0.2s ease;
+}
+
+.modal[hidden] {
+  display: none;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  position: relative;
+  background: white;
+  border-radius: 16px;
+  padding: 40px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: modalSlideIn 0.24s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+@keyframes modalSlideIn {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  font-size: 28px;
+  line-height: 1;
+  color: #999;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  padding: 0;
+}
+
+.modal-close:hover {
+  color: #333;
+}
+
+.modal-title {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 24px;
+  color: #1a1a1a;
+}
+
+.modal-benefits {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 24px 0;
+}
+
+.modal-benefits li {
+  padding: 8px 0;
+  font-size: 16px;
+  color: #333;
+  line-height: 1.5;
+}
+
+.modal-price {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.price-old {
+  font-size: 16px;
+  color: #999;
+  text-decoration: line-through;
+}
+
+.price-current {
+  font-size: 32px;
+  font-weight: 700;
+  color: #667eea;
+}
+
+.modal-input {
+  width: 100%;
+  padding: 14px 16px;
+  font-size: 16px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  transition: border-color 0.2s ease;
+  box-sizing: border-box;
+}
+
+.modal-input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.modal-submit {
+  width: 100%;
+  padding: 16px;
+  font-size: 18px;
+  font-weight: 600;
+  color: white;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.modal-submit:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.modal-submit:active {
+  transform: translateY(0);
+}
+
+.modal-security {
+  text-align: center;
+  font-size: 14px;
+  color: #666;
+  margin-top: 16px;
+}
+
+/* ============================================
+   КНОПКИ НАВИГАЦИИ
+   ============================================ */
+
+.article-footer {
+  margin-top: 48px;
+  padding-top: 32px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: center;
+}
+
+/* Основная кнопка "Далее" для Premium course */
+.btn-next {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 32px;
+  font-size: 18px;
+  font-weight: 600;
+  color: white;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 8px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.btn-next:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.btn-next:active {
+  transform: translateY(0);
+}
+
+/* Второстепенная кнопка "Перейти к курсу" для Free */
+.btn-to-course,
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 24px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #667eea;
+  background: white;
+  border: 2px solid #667eea;
+  border-radius: 8px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.btn-to-course:hover,
+.btn-back:hover {
+  background: #667eea;
+  color: white;
+}
+
+/* ============================================
+   ВРЕМЯ ЧТЕНИЯ В МЕНЮ
+   ============================================ */
+
+.reading-time {
+  font-size: 13px;
+  font-weight: 400;
+  color: #999;
+  font-style: italic;
+  margin-left: 6px;
+}
+
+/* ============================================
+   МИНИМАЛИСТИЧНЫЙ ФУТЕР
+   ============================================ */
+
+.site-footer {
+  background: #D9D9D9;
+  color: #000;
+  padding: 16px 24px;
+  margin-top: 80px;
+  border-top: 1px solid #ccc;
+  font-size: 13px;
+}
+
+.footer-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.footer-info {
+  color: #333;
+  white-space: nowrap;
+}
+
+.footer-links {
+  display: flex;
+  gap: 8px 16px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.footer-links a {
+  color: #000;
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.footer-links a:not(:last-child)::after {
+  content: '·';
+  margin-left: 16px;
+  color: #999;
+  pointer-events: none;
+}
+
+.footer-links a:hover {
+  opacity: 0.7;
+}
+
+/* Responsive adaptations for footer */
+body[data-mode="mobile"] .site-footer {
+  padding: 16px 12px;
+  padding-bottom: calc(var(--mobile-dock-footprint) + 16px); /* Dock кнопка 64px + safe area + отступ */
+  margin-top: 60px;
+  font-size: 12px;
+}
+
+body[data-mode="mobile"] .footer-content {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+body[data-mode="mobile"] .footer-links {
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+body[data-mode="mobile"] .footer-links a:not(:last-child)::after {
+  display: none;
+}
+
+body[data-mode="tablet"] .site-footer {
+  padding: 16px 20px;
+  font-size: 13px;
+}
+
+body[data-mode="tablet"] .footer-content {
+  justify-content: center;
+}
+
+body[data-mode="desktop"] .site-footer,
+body[data-mode="desktop-wide"] .site-footer {
+  padding: 18px 32px;
+  font-size: 14px;
+}
+
+/* Отступ слева на desktop чтобы menu-rail не закрывала footer */
+body[data-mode="desktop"] .footer-content,
+body[data-mode="desktop-wide"] .footer-content {
+  padding-left: 80px; /* 66px rail-closed + 14px gap */
+}
+
+/* Responsive adaptations for paywall */
+body[data-mode="mobile"] .premium-teaser {
+  margin-top: 24px;
+  margin-bottom: 32px;
+}
+
+body[data-mode="mobile"] .blurred-content {
+  max-height: 200px;
+}
+
+body[data-mode="mobile"] .teaser-hint {
+  font-size: 13px;
+}
+
+body[data-mode="tablet"] .premium-teaser {
+  margin-top: 28px;
+  margin-bottom: 36px;
+}
+
+body[data-mode="tablet"] .blurred-content {
+  max-height: 250px;
+}
+
+/* Responsive adaptations for modal */
+body[data-mode="mobile"] .modal-content {
+  padding: 32px 24px;
+  border-radius: 12px;
+}
+
+body[data-mode="mobile"] .modal-title {
+  font-size: 20px;
+}
+
+body[data-mode="mobile"] .price-current {
+  font-size: 28px;
+}
+
+/* ============================================
+   LEGAL МОДАЛЬНЫЕ ОКНА
+   ============================================ */
+
+.legal-modal-content {
+  max-width: 700px;
+  max-height: 85vh;
+}
+
+.legal-text {
+  font-size: 15px;
+  line-height: 1.7;
+  color: #333;
+}
+
+.legal-text h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-top: 24px;
+  margin-bottom: 12px;
+}
+
+.legal-text p {
+  margin-bottom: 12px;
+}
+
+.legal-text ul,
+.legal-text ol {
+  margin: 12px 0;
+  padding-left: 24px;
+}
+
+.legal-text li {
+  margin: 6px 0;
+}
+
+.legal-text strong {
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.legal-text a {
+  color: #667eea;
+  text-decoration: none;
+}
+
+.legal-text a:hover {
+  text-decoration: underline;
+}
+
+/* Responsive для legal модалок */
+body[data-mode="mobile"] .legal-modal-content {
+  padding: 28px 20px;
+  max-height: 90vh;
+}
+
+body[data-mode="mobile"] .legal-text {
+  font-size: 14px;
+}
+
+body[data-mode="mobile"] .legal-text h3 {
+  font-size: 16px;
+}
+
+/* ============================================
+   COOKIE CONSENT BANNER
+   ============================================ */
+
+.cookie-banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border-top: 2px solid #D9D9D9;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 10000;
+  animation: cookieSlideIn 0.3s ease;
+}
+
+@keyframes cookieSlideIn {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.cookie-banner[hidden] {
+  display: none;
+}
+
+.cookie-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.cookie-text {
+  flex: 1;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #333;
+  margin: 0;
+}
+
+.cookie-text a {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.cookie-text a:hover {
+  text-decoration: underline;
+}
+
+.cookie-buttons {
+  display: flex;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.cookie-btn {
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.cookie-btn-accept {
+  background: #000;
+  color: #fff;
+}
+
+.cookie-btn-accept:hover {
+  background: #333;
+  transform: translateY(-1px);
+}
+
+.cookie-btn-decline {
+  background: #f0f0f0;
+  color: #333;
+}
+
+.cookie-btn-decline:hover {
+  background: #e0e0e0;
+}
+
+/* Responsive для cookie banner */
+body[data-mode="mobile"] .cookie-content {
+  flex-direction: column;
+  align-items: stretch;
+  padding: 16px;
+  gap: 16px;
+}
+
+body[data-mode="mobile"] .cookie-text {
+  font-size: 13px;
+  text-align: center;
+}
+
+body[data-mode="mobile"] .cookie-buttons {
+  flex-direction: column;
+  gap: 8px;
+}
+
+body[data-mode="mobile"] .cookie-btn {
+  width: 100%;
+}
+
+body[data-mode="tablet"] .cookie-content {
+  padding: 18px 20px;
 }

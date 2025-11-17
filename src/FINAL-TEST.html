@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ФИНАЛЬНЫЙ ТЕСТ</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    body { padding: 20px; background: #f0f0f0; }
+    .test { margin: 20px 0; padding: 20px; border: 3px solid #ccc; background: white; }
+    .test h2 { margin-top: 0; }
+    pre { background: #2d2d2d; color: #f8f8f2; padding: 10px; overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <h1>🔬 ФИНАЛЬНЫЙ КОМПЛЕКСНЫЙ ТЕСТ</h1>
+
+  <div class="test">
+    <h2>Информация о загрузке CSS:</h2>
+    <div id="css-info"></div>
+  </div>
+
+  <div class="test">
+    <h2>Тест 1: Футер (.site-footer)</h2>
+    <footer class="site-footer" style="margin: 20px 0;">
+      <div class="footer-container">
+        <div class="footer-column">
+          <h3 class="footer-title">Тест</h3>
+          <p>Должен быть темный фон #1a1a1a</p>
+        </div>
+      </div>
+    </footer>
+    <div id="footer-result"></div>
+  </div>
+
+  <div class="test">
+    <h2>Тест 2: Кнопка (.btn-unlock)</h2>
+    <button class="btn-unlock">🔒 Получить полную версию</button>
+    <div id="button-result"></div>
+  </div>
+
+  <div class="test">
+    <h2>Тест 3: Blur (.blurred-content)</h2>
+    <div class="blurred-content" style="max-height: 80px;">
+      <p>Этот текст должен быть размытым (blur 4px)</p>
+    </div>
+    <div id="blur-result"></div>
+  </div>
+
+  <div class="test">
+    <h2>Computed Styles (из DevTools):</h2>
+    <pre id="computed-styles"></pre>
+  </div>
+
+  <script>
+    function test() {
+      // Информация о CSS
+      const sheets = Array.from(document.styleSheets);
+      const stylesCSS = sheets.find(s => s.href && s.href.includes('styles.css'));
+      const cssInfo = document.getElementById('css-info');
+
+      if (stylesCSS) {
+        cssInfo.innerHTML = `
+          <p>✅ <strong>styles.css загружен</strong></p>
+          <p>URL: <code>${stylesCSS.href}</code></p>
+          <p>Правил: <code>${stylesCSS.cssRules ? stylesCSS.cssRules.length : 'Недоступно (CORS?)'}</code></p>
+        `;
+      } else {
+        cssInfo.innerHTML = '<p>❌ <strong>styles.css НЕ загружен</strong></p>';
+      }
+
+      // Тест футера
+      const footer = document.querySelector('.site-footer');
+      const footerStyles = window.getComputedStyle(footer);
+      const footerBg = footerStyles.backgroundColor;
+      const footerResult = document.getElementById('footer-result');
+
+      footerResult.innerHTML = `
+        <p><strong>background-color:</strong> <code>${footerBg}</code></p>
+        <p>${footerBg === 'rgb(26, 26, 26)' ? '✅' : '❌'} ${footerBg === 'rgb(26, 26, 26)' ? 'Правильно!' : 'ОШИБКА: ожидалось rgb(26, 26, 26)'}</p>
+      `;
+
+      // Тест кнопки
+      const button = document.querySelector('.btn-unlock');
+      const buttonStyles = window.getComputedStyle(button);
+      const buttonBg = buttonStyles.backgroundImage;
+      const buttonResult = document.getElementById('button-result');
+
+      buttonResult.innerHTML = `
+        <p><strong>background-image:</strong> <code>${buttonBg.substring(0, 100)}...</code></p>
+        <p>${buttonBg.includes('gradient') ? '✅' : '❌'} ${buttonBg.includes('gradient') ? 'Градиент работает!' : 'ОШИБКА: градиент не применён'}</p>
+      `;
+
+      // Тест blur
+      const blurred = document.querySelector('.blurred-content p');
+      const blurredStyles = window.getComputedStyle(blurred);
+      const blurFilter = blurredStyles.filter;
+      const blurResult = document.getElementById('blur-result');
+
+      blurResult.innerHTML = `
+        <p><strong>filter:</strong> <code>${blurFilter}</code></p>
+        <p>${blurFilter.includes('blur') ? '✅' : '❌'} ${blurFilter.includes('blur') ? 'Blur работает!' : 'ОШИБКА: blur не применён'}</p>
+      `;
+
+      // Computed styles для консоли
+      const computedDiv = document.getElementById('computed-styles');
+      computedDiv.textContent = `
+.site-footer:
+  background: ${footerStyles.background}
+  color: ${footerStyles.color}
+  padding: ${footerStyles.padding}
+
+.btn-unlock:
+  background-image: ${buttonBg}
+  padding: ${buttonStyles.padding}
+  border-radius: ${buttonStyles.borderRadius}
+
+.blurred-content p:
+  filter: ${blurFilter}
+      `;
+
+      // Ищем правила для .site-footer в CSS
+      if (stylesCSS && stylesCSS.cssRules) {
+        console.log('=== CSS RULES ДЛЯ .site-footer ===');
+        const footerRules = Array.from(stylesCSS.cssRules).filter(rule =>
+          rule.selectorText && rule.selectorText.includes('.site-footer')
+        );
+        console.log('Найдено правил:', footerRules.length);
+        footerRules.forEach(rule => {
+          console.log(rule.selectorText, '→');
+          console.log(rule.style.cssText);
+        });
+      } else {
+        console.log('⚠️ Не удалось получить доступ к CSS правилам (возможно CORS)');
+      }
+    }
+
+    // Запускаем тесты после загрузки
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', test);
+    } else {
+      test();
+    }
+  </script>
+</body>
+</html>

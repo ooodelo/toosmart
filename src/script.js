@@ -2932,11 +2932,15 @@ function initProgressWidget() {
   root.dataset.pwContainer = containerInfo.selector;
   root.dataset.pwScrollMode = scrollInfo.mode;
 
+  // Читаем текст кнопки из data-button-text (декларативный подход)
+  // Приоритет: 1) slot (.pw-slot), 2) textContainer (.text-box), 3) "Далее" по умолчанию
+  const buttonText = slot?.dataset.buttonText || textContainer?.dataset.buttonText || 'Далее';
+
   root.innerHTML = `<div class="pw-visual">
     <div class="pw-dot"></div>
     <div class="pw-pill"></div>
     <div class="pw-pct"><span id="pwPct">0%</span></div>
-    <div class="pw-next">Далее</div>
+    <div class="pw-next">${buttonText}</div>
   </div>`;
 
   // 3. Получение элементов
@@ -3006,6 +3010,12 @@ function initProgressWidget() {
   }
 
   const NEXT_URL = detectNextUrl();
+
+  // Определяем тип версии: FREE (с payment-modal) или PREMIUM
+  const isFreeVersion = document.getElementById('payment-modal') !== null;
+  if (isFreeVersion) {
+    root.setAttribute('data-free-version', 'true');
+  }
 
   // 5. Анимации
   let aDot = null, aPill = null, aPct = null, aNext = null;
@@ -3215,10 +3225,15 @@ function initProgressWidget() {
   }
 
   // 7. Клик
-  trackEvent(root, 'click', () => {
+  trackEvent(root, 'click', (e) => {
     if (doneState) {
-      // При 100%: переход на следующую страницу
-      if (NEXT_URL && NEXT_URL !== '#') {
+      // При 100%: проверяем тип версии
+      if (isFreeVersion && typeof window.openPaymentModal === 'function') {
+        // FREE версия - открываем модальное окно покупки
+        e.preventDefault();
+        window.openPaymentModal();
+      } else if (NEXT_URL && NEXT_URL !== '#') {
+        // PREMIUM версия - переход на следующую страницу
         window.location.href = NEXT_URL;
       } else {
         console.warn('Progress Widget: следующая страница не найдена');
@@ -3238,7 +3253,7 @@ function initProgressWidget() {
         }
       }
     }
-  }, { passive: true }, { module: 'progressWidget', target: describeTarget(root) });
+  }, { passive: false }, { module: 'progressWidget', target: describeTarget(root) });
 
   // 8. Keyboard navigation
   trackEvent(root, 'keydown', (e) => {
