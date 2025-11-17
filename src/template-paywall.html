@@ -257,18 +257,6 @@
       </div>
     </div>
 
-    <!-- ФУТЕР -->
-    <footer class="site-footer">
-      <div class="footer-container">
-        <ul class="footer-links">
-          <li><a href="#" onclick="openLegalModal('offer'); return false;">Публичная оферта</a></li>
-          <li><a href="#" onclick="openLegalModal('privacy'); return false;">Политика конфиденциальности</a></li>
-          <li><a href="#" onclick="openLegalModal('refund'); return false;">Порядок возврата</a></li>
-          <li><a href="mailto:support@toosmart.ru">Контакты</a></li>
-        </ul>
-      </div>
-    </footer>
-
     <!-- МОДАЛЬНЫЕ ОКНА ДЛЯ LEGAL РАЗДЕЛОВ -->
     <div class="modal legal-modal" id="legal-offer-modal" hidden>
       <div class="modal-overlay" onclick="closeLegalModal('offer')"></div>
@@ -431,6 +419,80 @@
       </div>
     </div>
 
+    <!-- МОДАЛЬНОЕ ОКНО: РЕКВИЗИТЫ -->
+    <div class="modal legal-modal" id="legal-requisites-modal" hidden>
+      <div class="modal-overlay" onclick="closeLegalModal('requisites')"></div>
+      <div class="modal-content legal-modal-content">
+        <button class="modal-close" type="button" onclick="closeLegalModal('requisites')" aria-label="Закрыть">×</button>
+        <h2 class="modal-title">Реквизиты</h2>
+        <div class="legal-text">
+          <h3>Юридическая информация</h3>
+          <p><strong>Наименование:</strong> ИП Иванов Иван Иванович</p>
+          <p><strong>ИНН:</strong> 1234567890</p>
+          <p><strong>ОГРНИП:</strong> 123456789012345</p>
+          <p><strong>Юридический адрес:</strong> 123456, г. Москва, ул. Примерная, д. 1, кв. 1</p>
+
+          <h3>Банковские реквизиты</h3>
+          <p><strong>Расчётный счёт:</strong> 40802810XXXXXXXXXX</p>
+          <p><strong>Банк:</strong> ПАО "Банк Примерный"</p>
+          <p><strong>БИК:</strong> 044525225</p>
+          <p><strong>Корр. счёт:</strong> 30101810XXXXXXXXXX</p>
+
+          <h3>Контактная информация</h3>
+          <p><strong>Email:</strong> <a href="mailto:support@toosmart.ru">support@toosmart.ru</a></p>
+          <p><strong>Время работы:</strong> Понедельник - Пятница, 10:00 - 18:00 (МСК)</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- МОДАЛЬНОЕ ОКНО: ПОЛИТИКА COOKIES -->
+    <div class="modal legal-modal" id="legal-cookies-modal" hidden>
+      <div class="modal-overlay" onclick="closeLegalModal('cookies')"></div>
+      <div class="modal-content legal-modal-content">
+        <button class="modal-close" type="button" onclick="closeLegalModal('cookies')" aria-label="Закрыть">×</button>
+        <h2 class="modal-title">Политика использования Cookies</h2>
+        <div class="legal-text">
+          <p>Настоящая Политика объясняет, что такое cookies, какие cookies использует наш сайт и как вы можете управлять ими.</p>
+
+          <h3>1. Что такое Cookies?</h3>
+          <p>Cookies — это небольшие текстовые файлы, которые сохраняются на вашем устройстве (компьютере, планшете, смартфоне) при посещении веб-сайтов. Они помогают сайту «запомнить» информацию о вашем визите, например, предпочитаемый язык и другие настройки.</p>
+
+          <h3>2. Какие Cookies мы используем?</h3>
+          <p><strong>Необходимые cookies:</strong></p>
+          <ul>
+            <li><strong>cookieConsent</strong> — сохраняет ваше решение о согласии на использование cookies</li>
+            <li><strong>session</strong> — идентифицирует сессию авторизованного пользователя</li>
+          </ul>
+
+          <p><strong>Аналитические cookies:</strong></p>
+          <ul>
+            <li><strong>Яндекс.Метрика</strong> — собирает анонимную статистику посещений для улучшения сайта</li>
+            <li><strong>Google Analytics</strong> — анализирует поведение пользователей на сайте</li>
+          </ul>
+
+          <h3>3. Зачем нам нужны Cookies?</h3>
+          <ul>
+            <li>Обеспечить корректную работу сайта (авторизация, настройки)</li>
+            <li>Понять, как посетители используют сайт (статистика)</li>
+            <li>Улучшить пользовательский опыт (запомнить ваши предпочтения)</li>
+          </ul>
+
+          <h3>4. Как управлять Cookies?</h3>
+          <p>Вы можете:</p>
+          <ul>
+            <li>Принять все cookies (включая аналитику) — нажмите «Принять» в баннере</li>
+            <li>Отклонить необязательные cookies — нажмите «Отклонить» (сайт будет работать, но без аналитики)</li>
+            <li>Удалить cookies через настройки браузера</li>
+          </ul>
+
+          <p>Обратите внимание: отключение cookies может повлиять на функциональность сайта.</p>
+
+          <h3>5. Контакты</h3>
+          <p>Если у вас есть вопросы о нашей политике cookies, напишите нам: <a href="mailto:support@toosmart.ru">support@toosmart.ru</a></p>
+        </div>
+      </div>
+    </div>
+
     <!-- COOKIE CONSENT BANNER -->
     <div class="cookie-banner" id="cookie-banner" hidden>
       <div class="cookie-content">
@@ -522,6 +584,8 @@
           closeLegalModal('offer');
           closeLegalModal('privacy');
           closeLegalModal('refund');
+          closeLegalModal('requisites');
+          closeLegalModal('cookies');
         }
       });
 
