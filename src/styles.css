@@ -1309,18 +1309,15 @@ body[data-mode="mobile"].menu-open .backdrop {
 /* CSS-переменные для виджета */
 :root {
   --pw-circle-size: 44px;  /* Размер круга */
-  --pw-pill-width: max-content;   /* Ширина пилюли адаптивная */
-  --pw-pill-min-width: 184px;     /* Минимальная ширина для "Далее" */
-  --pw-pill-height: 44px;   /* Высота пилюли */
+  --pw-pill-width: 184px;  /* Ширина пилюли для "Далее" */
+  --pw-pill-height: 44px;  /* Высота пилюли */
 }
 
 /* Базовые стили контейнера виджета */
 #pw-root {
   /* Позиционирование: по умолчанию relative */
   position: relative;
-  min-width: var(--pw-pill-min-width);
-  width: auto;
-  max-width: 90%;
+  width: var(--pw-pill-width);
   height: var(--pw-pill-height);
   margin: 16px auto;
   z-index: 150;
@@ -1381,8 +1378,7 @@ body[data-mode="mobile"] .pw-slot {
   position: absolute;
   left: 50%;
   top: 50%;
-  min-width: var(--pw-pill-min-width);
-  width: 100%;
+  width: var(--pw-pill-width);
   height: var(--pw-pill-height);
   -webkit-transform: translate(-50%, -50%) scaleX(0.001);
   transform: translate(-50%, -50%) scaleX(0.001);
@@ -1423,8 +1419,16 @@ body[data-mode="mobile"] .pw-slot {
   letter-spacing: 0;
   transform: translateY(0);
   will-change: opacity, transform, letter-spacing;
-  padding: 0 24px;
   white-space: nowrap;
+}
+
+/* Специальный класс для paywall кнопки с более длинным текстом */
+#pw-root.pw-paywall {
+  width: 270px;
+}
+
+#pw-root.pw-paywall .pw-pill {
+  width: 270px;
 }
 
 /* Состояние "готово" (100%) */
@@ -1911,4 +1915,188 @@ body[data-mode="mobile"] .modal-title {
 
 body[data-mode="mobile"] .price-current {
   font-size: 28px;
+}
+
+/* ============================================
+   LEGAL МОДАЛЬНЫЕ ОКНА
+   ============================================ */
+
+.legal-modal-content {
+  max-width: 700px;
+  max-height: 85vh;
+}
+
+.legal-text {
+  font-size: 15px;
+  line-height: 1.7;
+  color: #333;
+}
+
+.legal-text h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-top: 24px;
+  margin-bottom: 12px;
+}
+
+.legal-text p {
+  margin-bottom: 12px;
+}
+
+.legal-text ul,
+.legal-text ol {
+  margin: 12px 0;
+  padding-left: 24px;
+}
+
+.legal-text li {
+  margin: 6px 0;
+}
+
+.legal-text strong {
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.legal-text a {
+  color: #667eea;
+  text-decoration: none;
+}
+
+.legal-text a:hover {
+  text-decoration: underline;
+}
+
+/* Responsive для legal модалок */
+body[data-mode="mobile"] .legal-modal-content {
+  padding: 28px 20px;
+  max-height: 90vh;
+}
+
+body[data-mode="mobile"] .legal-text {
+  font-size: 14px;
+}
+
+body[data-mode="mobile"] .legal-text h3 {
+  font-size: 16px;
+}
+
+/* ============================================
+   COOKIE CONSENT BANNER
+   ============================================ */
+
+.cookie-banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border-top: 2px solid #D9D9D9;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 10000;
+  animation: cookieSlideIn 0.3s ease;
+}
+
+@keyframes cookieSlideIn {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.cookie-banner[hidden] {
+  display: none;
+}
+
+.cookie-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.cookie-text {
+  flex: 1;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #333;
+  margin: 0;
+}
+
+.cookie-text a {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.cookie-text a:hover {
+  text-decoration: underline;
+}
+
+.cookie-buttons {
+  display: flex;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.cookie-btn {
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.cookie-btn-accept {
+  background: #000;
+  color: #fff;
+}
+
+.cookie-btn-accept:hover {
+  background: #333;
+  transform: translateY(-1px);
+}
+
+.cookie-btn-decline {
+  background: #f0f0f0;
+  color: #333;
+}
+
+.cookie-btn-decline:hover {
+  background: #e0e0e0;
+}
+
+/* Responsive для cookie banner */
+body[data-mode="mobile"] .cookie-content {
+  flex-direction: column;
+  align-items: stretch;
+  padding: 16px;
+  gap: 16px;
+}
+
+body[data-mode="mobile"] .cookie-text {
+  font-size: 13px;
+  text-align: center;
+}
+
+body[data-mode="mobile"] .cookie-buttons {
+  flex-direction: column;
+  gap: 8px;
+}
+
+body[data-mode="mobile"] .cookie-btn {
+  width: 100%;
+}
+
+body[data-mode="tablet"] .cookie-content {
+  padding: 18px 20px;
 }
