@@ -1863,6 +1863,7 @@ body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
 /* Responsive adaptations for footer */
 body[data-mode="mobile"] .site-footer {
   padding: 16px 12px;
+  padding-bottom: calc(var(--mobile-dock-footprint) + 16px); /* Dock кнопка 64px + safe area + отступ */
   margin-top: 60px;
   font-size: 12px;
 }
@@ -1896,6 +1897,12 @@ body[data-mode="desktop"] .site-footer,
 body[data-mode="desktop-wide"] .site-footer {
   padding: 18px 32px;
   font-size: 14px;
+}
+
+/* Отступ слева на desktop чтобы menu-rail не закрывала footer */
+body[data-mode="desktop"] .footer-content,
+body[data-mode="desktop-wide"] .footer-content {
+  padding-left: 80px; /* 66px rail-closed + 14px gap */
 }
 
 /* Responsive adaptations for paywall */
