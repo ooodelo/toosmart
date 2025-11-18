@@ -33,6 +33,6 @@
     "resultUrl": "/result/"
   },
   "build": {
-    "wordsPerMinute": 180
+    "wordsPerMinute": 150
   }
 }

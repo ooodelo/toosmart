@@ -74,7 +74,7 @@ const DEFAULT_SITE_CONFIG = {
     resultUrl: '/robokassa-callback.php'
   },
   build: {
-    wordsPerMinute: 200 // По документации: 200 слов/мин
+    wordsPerMinute: 150 // Вдумчивое чтение учебного материала
   },
   features: {
     cookiesBannerEnabled: true
