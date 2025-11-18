@@ -1,0 +1,34 @@
+{
+  "domain": "example.com",
+  "pricing": {
+    "originalAmount": 1490,
+    "currentAmount": 990,
+    "currency": "RUB"
+  },
+  "ctaTexts": {
+    "enterFull": "Войти в полную версию",
+    "next": "Далее",
+    "goToCourse": "Перейти к курсу"
+  },
+  "footer": {
+    "companyName": "ООО \"Название компании\"",
+    "inn": "0000000000",
+    "year": 2024
+  },
+  "legal": {
+    "terms": "01-legal-terms.md"
+  },
+  "robokassa": {
+    "merchantLogin": "",
+    "password1": "",
+    "password2": "",
+    "isTest": true,
+    "invoicePrefix": "CLEAN",
+    "successUrl": "/success.php",
+    "failUrl": "/fail.php",
+    "resultUrl": "/robokassa-callback.php"
+  },
+  "build": {
+    "wordsPerMinute": 180
+  }
+}
