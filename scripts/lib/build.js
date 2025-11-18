@@ -4,6 +4,8 @@ const path = require('path');
 const { marked } = require('marked');
 const createDOMPurify = require('dompurify');
 const { JSDOM } = require('jsdom');
+const { minify: minifyJS } = require('terser');
+const csso = require('csso');
 
 const PATHS = {
   content: path.resolve(__dirname, '../../content'),
@@ -14,6 +16,7 @@ const PATHS = {
   },
   assets: {
     script: path.resolve(__dirname, '../../src/script.js'),
+    cta: path.resolve(__dirname, '../../src/cta.js'),
     styles: path.resolve(__dirname, '../../src/styles.css'),
     modeUtils: path.resolve(__dirname, '../../src/mode-utils.js'),
     assetsDir: path.resolve(__dirname, '../../src/assets')
@@ -34,6 +37,7 @@ const PATHS = {
       'logout.php',
       'robokassa-callback.php',
       'success.php',
+      'create-invoice.php',
       '.htaccess',
       'users.json.example'
     ]
@@ -142,6 +146,10 @@ async function buildFree() {
     await ensureDir(path.dirname(targetPath));
     await fsp.writeFile(targetPath, page, 'utf8');
   }
+
+  // Генерация SEO файлов
+  await generateRobotsTxt(PATHS.dist.free, config);
+  await generateSitemap(content, PATHS.dist.free, config);
 }
 
 /**
@@ -192,9 +200,9 @@ function getPremiumUrlForItem(item) {
   if (item.branch === 'intro') {
     return '/premium/';
   } else if (item.branch === 'appendix') {
-    return `/premium/appendix/${item.slug}/`;
+    return `/premium/appendix/${item.slug}.html`;
   } else {
-    return `/premium/course/${item.slug}/`;
+    return `/premium/course/${item.slug}.html`;
   }
 }
 
@@ -371,7 +379,7 @@ function buildMenuItems(content, mode) {
     menu.push({
       type: 'course',
       title: course.title,
-      url: mode === 'premium' ? `/premium/course/${course.slug}/` : `/course/${course.slug}/`,
+      url: mode === 'premium' ? `/premium/course/${course.slug}.html` : `/course/${course.slug}.html`,
       order: course.order,
       readingTimeMinutes: course.readingTimeMinutes
     });
@@ -383,7 +391,7 @@ function buildMenuItems(content, mode) {
       menu.push({
         type: 'appendix',
         title: appendix.title,
-        url: `/premium/appendix/${appendix.slug}/`,
+        url: `/premium/appendix/${appendix.slug}.html`,
         order: appendix.order,
         readingTimeMinutes: appendix.readingTimeMinutes
       });
@@ -410,12 +418,19 @@ function buildIntroPage(item, menuItems, config, template, mode) {
   `;
 
   return applyTemplate(template, {
-    title: item.title,
-    body
+    title: `${item.title} — ${config.domain || 'TooSmart'}`,
+    body,
+    meta: generateMetaTags(item, config, mode, 'intro'),
+    schema: generateSchemaOrg(item, config, 'intro')
   });
 }
 
 function buildFreeCoursePage(item, menuItems, config, template) {
+  // Рассчитываем оставшееся время (полное время минус время введения)
+  const introWords = item.introMd.split(/\s+/).filter(Boolean).length;
+  const introMinutes = Math.max(1, Math.ceil(introWords / (config.build.wordsPerMinute || 180)));
+  const remainingMinutes = Math.max(1, item.readingTimeMinutes - introMinutes);
+
   const body = `
   <main>
     <header>
@@ -427,8 +442,8 @@ function buildFreeCoursePage(item, menuItems, config, template) {
       <div class="premium-teaser">
         <div class="premium-teaser__blurred" data-nosnippet><!--noindex-->${item.teaserHtml}<!--/noindex--></div>
         <div class="premium-teaser__overlay">
-          <p class="teaser-text">Осталось ${formatReadingTime(item.readingTimeMinutes)}</p>
-          <button class="cta-button">${config.ctaTexts.enterFull}</button>
+          <p class="teaser-text">Осталось ещё ${formatReadingTime(remainingMinutes)}</p>
+          <button class="cta-button" data-analytics="cta-premium">${config.ctaTexts.enterFull}</button>
         </div>
       </div>
     </article>
@@ -438,12 +453,16 @@ function buildFreeCoursePage(item, menuItems, config, template) {
   `;
 
   return applyTemplate(template, {
-    title: `${item.title} — free`,
-    body
+    title: `${item.title} — ${config.domain || 'TooSmart'}`,
+    body,
+    meta: generateMetaTags(item, config, 'free', 'course'),
+    schema: generateSchemaOrg(item, config, 'course')
   });
 }
 
 function buildPremiumPage(item, menuItems, config, template, { prevUrl, nextUrl }) {
+  const prevText = prevUrl ? (prevUrl.includes('/premium/') ? 'Назад' : config.ctaTexts.goToCourse) : '';
+
   const body = `
   <main>
     <header>
@@ -452,17 +471,21 @@ function buildPremiumPage(item, menuItems, config, template, { prevUrl, nextUrl 
     </header>
     <article>${item.fullHtml}</article>
     <nav class="premium-nav">
-      ${prevUrl ? `<a class="nav-prev" href="${prevUrl}">${config.ctaTexts.goToCourse}</a>` : ''}
-      ${nextUrl ? `<a class="nav-next" href="${nextUrl}">${config.ctaTexts.next}</a>` : ''}
+      ${prevUrl ? `<a class="nav-prev" href="${prevUrl}" data-analytics="nav-prev">${prevText}</a>` : ''}
+      ${nextUrl ? `<a class="nav-next" href="${nextUrl}" data-analytics="nav-next">${config.ctaTexts.next}</a>` : ''}
     </nav>
   </main>
   ${renderMenu(menuItems)}
   ${renderFooter(config, 'premium')}
   `;
 
+  const pageType = item.branch === 'intro' ? 'intro' : (item.branch === 'appendix' ? 'appendix' : 'course');
+
   return applyTemplate(template, {
-    title: `${item.title} — premium`,
-    body
+    title: `${item.title} — ${config.domain || 'TooSmart'}`,
+    body,
+    meta: generateMetaTags(item, config, 'premium', pageType),
+    schema: generateSchemaOrg(item, config, pageType)
   });
 }
 
@@ -480,8 +503,10 @@ function buildRecommendationPage(item, menuItems, config, template, mode) {
   `;
 
   return applyTemplate(template, {
-    title: `${item.title} — recommendations`,
-    body
+    title: `${item.title} — ${config.domain || 'TooSmart'}`,
+    body,
+    meta: generateMetaTags(item, config, mode, 'recommendation'),
+    schema: generateSchemaOrg(item, config, 'recommendation')
   });
 }
 
@@ -498,8 +523,10 @@ function buildLegalPage(item, menuItems, config, template, mode) {
   `;
 
   return applyTemplate(template, {
-    title: `${item.title} — legal`,
-    body
+    title: `${item.title} — ${config.domain || 'TooSmart'}`,
+    body,
+    meta: generateMetaTags(item, config, mode, 'legal'),
+    schema: ''
   });
 }
 
@@ -517,12 +544,24 @@ function renderFooter(config, mode) {
   </footer>`;
 }
 
-function applyTemplate(template, { title, body }) {
-  return template
+function applyTemplate(template, { title, body, meta = '', schema = '' }) {
+  let result = template
     .replace(/<title>.*?<\/title>/, `<title>${title}</title>`)
     .replace(/<div id="article-content">[\s\S]*?<\/div>/, `<div id="article-content">${body}</div>`)
     .replace('{{title}}', title)
     .replace('{{body}}', body);
+
+  // Вставляем мета-теги перед закрывающим </head>
+  if (meta) {
+    result = result.replace('</head>', `${meta}\n  </head>`);
+  }
+
+  // Вставляем Schema.org перед закрывающим </body>
+  if (schema) {
+    result = result.replace('</body>', `  ${schema}\n  </body>`);
+  }
+
+  return result;
 }
 
 /**
@@ -755,12 +794,14 @@ async function cleanDir(dir) {
 }
 
 async function copyStaticAssets(targetRoot) {
-  await Promise.all([
-    copyIfExists(PATHS.assets.assetsDir, path.join(targetRoot, 'assets')),
-    copyIfExists(PATHS.assets.script, path.join(targetRoot, 'script.js')),
-    copyIfExists(PATHS.assets.styles, path.join(targetRoot, 'styles.css')),
-    copyIfExists(PATHS.assets.modeUtils, path.join(targetRoot, 'mode-utils.js'))
-  ]);
+  // Копируем изображения и прочие ресурсы как есть
+  await copyIfExists(PATHS.assets.assetsDir, path.join(targetRoot, 'assets'));
+
+  // JavaScript и CSS минифицируем
+  await minifyAndCopyJS(PATHS.assets.script, path.join(targetRoot, 'script.js'));
+  await minifyAndCopyJS(PATHS.assets.cta, path.join(targetRoot, 'cta.js'));
+  await minifyAndCopyJS(PATHS.assets.modeUtils, path.join(targetRoot, 'mode-utils.js'));
+  await minifyAndCopyCSS(PATHS.assets.styles, path.join(targetRoot, 'styles.css'));
 }
 
 async function copyIfExists(src, dest) {
@@ -852,6 +893,297 @@ function premiumUrlFor(item, root = '') {
   const sub = item.branch === 'appendix' ? 'appendix' : 'course';
   const rel = path.join(sub, `${item.slug}.html`);
   return root ? path.join(root, rel) : `/premium/${rel}`;
+}
+
+/**
+ * Генерирует robots.txt для free-версии
+ */
+async function generateRobotsTxt(distPath, config) {
+  const domain = config.domain || 'toosmart.ru';
+  const robotsTxt = `# Robots.txt для ${domain}
+
+User-agent: *
+Allow: /
+Allow: /course/
+Allow: /recommendations/
+Allow: /legal/
+
+Disallow: /premium/
+Disallow: /server/
+Disallow: /dist/premium/
+Disallow: /scripts/
+
+Host: ${domain}
+Sitemap: https://${domain}/sitemap.xml
+`;
+
+  await fsp.writeFile(path.join(distPath, 'robots.txt'), robotsTxt, 'utf8');
+  console.log('✅ robots.txt сгенерирован');
+}
+
+/**
+ * Генерирует sitemap.xml для free-версии
+ */
+async function generateSitemap(content, distPath, config) {
+  const domain = config.domain || 'toosmart.ru';
+  const baseUrl = `https://${domain}`;
+  const now = new Date().toISOString().split('T')[0];
+
+  const urls = [];
+
+  // Главная страница
+  urls.push({
+    loc: `${baseUrl}/`,
+    lastmod: now,
+    changefreq: 'weekly',
+    priority: '1.0'
+  });
+
+  // Разделы курса
+  for (const course of content.course) {
+    urls.push({
+      loc: `${baseUrl}/course/${course.slug}/`,
+      lastmod: now,
+      changefreq: 'monthly',
+      priority: '0.8'
+    });
+  }
+
+  // Рекомендации
+  for (const rec of content.recommendations) {
+    urls.push({
+      loc: `${baseUrl}/recommendations/${rec.slug}/`,
+      lastmod: now,
+      changefreq: 'monthly',
+      priority: '0.7'
+    });
+  }
+
+  // Legal страницы
+  for (const legal of content.legal) {
+    urls.push({
+      loc: `${baseUrl}/legal/${legal.slug}/`,
+      lastmod: now,
+      changefreq: 'yearly',
+      priority: '0.3'
+    });
+  }
+
+  const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls.map(url => `  <url>
+    <loc>${url.loc}</loc>
+    <lastmod>${url.lastmod}</lastmod>
+    <changefreq>${url.changefreq}</changefreq>
+    <priority>${url.priority}</priority>
+  </url>`).join('\n')}
+</urlset>`;
+
+  await fsp.writeFile(path.join(distPath, 'sitemap.xml'), sitemap, 'utf8');
+  console.log(`✅ sitemap.xml сгенерирован (${urls.length} URL)`);
+}
+
+/**
+ * Генерирует мета-теги для SEO
+ */
+function generateMetaTags(item, config, mode, type) {
+  const domain = config.domain || 'toosmart.ru';
+  const baseUrl = `https://${domain}`;
+
+  // Формируем description из введения (первые 160 символов)
+  const description = sanitize.sanitize(item.excerpt || item.introHtml || item.fullHtml || '')
+    .replace(/<[^>]+>/g, '')
+    .trim()
+    .substring(0, 160);
+
+  // Формируем URL
+  let url = baseUrl;
+  if (type === 'course') {
+    url = mode === 'premium'
+      ? `${baseUrl}/premium/course/${item.slug}/`
+      : `${baseUrl}/course/${item.slug}/`;
+  } else if (type === 'recommendation') {
+    url = `${baseUrl}/recommendations/${item.slug}/`;
+  } else if (type === 'legal') {
+    url = `${baseUrl}/legal/${item.slug}/`;
+  } else if (type === 'appendix' && mode === 'premium') {
+    url = `${baseUrl}/premium/appendix/${item.slug}/`;
+  }
+
+  const ogType = type === 'recommendation' ? 'article' : 'website';
+  const robotsContent = mode === 'premium' ? 'noindex, nofollow, noarchive' : 'index, follow';
+
+  return `
+    <meta name="description" content="${escapeHtml(description)}">
+    <meta name="robots" content="${robotsContent}">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="${escapeHtml(item.title)}">
+    <meta property="og:description" content="${escapeHtml(description)}">
+    <meta property="og:type" content="${ogType}">
+    <meta property="og:url" content="${url}">
+    <meta property="og:site_name" content="TooSmart - Курс по клинингу">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="${escapeHtml(item.title)}">
+    <meta name="twitter:description" content="${escapeHtml(description)}">`;
+}
+
+/**
+ * Генерирует Schema.org микроразметку
+ */
+function generateSchemaOrg(item, config, type) {
+  const domain = config.domain || 'toosmart.ru';
+  const baseUrl = `https://${domain}`;
+
+  if (type === 'intro') {
+    // Главная страница - Course schema
+    return `<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Course",
+  "name": "Clean - Теория правильной уборки",
+  "description": "${escapeHtml(item.excerpt || 'Профессиональный курс по клинингу')}",
+  "provider": {
+    "@type": "Organization",
+    "name": "${escapeHtml(config.footer.companyName || 'TooSmart')}",
+    "url": "${baseUrl}"
+  },
+  "hasCourseInstance": {
+    "@type": "CourseInstance",
+    "courseMode": "online",
+    "courseWorkload": "PT${item.readingTimeMinutes || 60}M"
+  }
+}
+</script>`;
+  } else if (type === 'course') {
+    // Раздел курса - WebPage schema
+    return `<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "name": "${escapeHtml(item.title)}",
+  "description": "${escapeHtml(item.excerpt || '')}",
+  "isPartOf": {
+    "@type": "Course",
+    "name": "Clean - Теория правильной уборки"
+  },
+  "hasPart": {
+    "@type": "WebPageElement",
+    "isAccessibleForFree": "False",
+    "cssSelector": ".premium-teaser"
+  }
+}
+</script>`;
+  } else if (type === 'recommendation') {
+    // Рекомендация - Article schema
+    return `<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "${escapeHtml(item.title)}",
+  "description": "${escapeHtml(item.excerpt || '')}",
+  "isAccessibleForFree": "True",
+  "author": {
+    "@type": "Organization",
+    "name": "${escapeHtml(config.footer.companyName || 'TooSmart')}"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "${escapeHtml(config.footer.companyName || 'TooSmart')}"
+  }
+}
+</script>`;
+  }
+
+  return '';
+}
+
+/**
+ * Экранирование HTML для атрибутов
+ */
+function escapeHtml(text) {
+  const map = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  };
+  return String(text).replace(/[&<>"']/g, m => map[m]);
+}
+
+/**
+ * Минифицирует и копирует JavaScript файл
+ */
+async function minifyAndCopyJS(src, dest) {
+  if (!fs.existsSync(src)) {
+    console.warn(`⚠️  JS файл не найден: ${src}`);
+    return;
+  }
+
+  const code = await fsp.readFile(src, 'utf8');
+
+  try {
+    const result = await minifyJS(code, {
+      compress: {
+        dead_code: true,
+        drop_console: false,
+        drop_debugger: true,
+        passes: 2
+      },
+      mangle: {
+        toplevel: false
+      },
+      output: {
+        comments: false,
+        beautify: false
+      }
+    });
+
+    await ensureDir(path.dirname(dest));
+    await fsp.writeFile(dest, result.code, 'utf8');
+
+    const savedPercent = Math.round((1 - result.code.length / code.length) * 100);
+    console.log(`✅ JS минифицирован: ${path.basename(src)} (${code.length} → ${result.code.length} байт, -${savedPercent}%)`);
+  } catch (error) {
+    console.error(`❌ Ошибка минификации JS ${src}:`, error.message);
+    // В случае ошибки копируем как есть
+    await ensureDir(path.dirname(dest));
+    await fsp.copyFile(src, dest);
+  }
+}
+
+/**
+ * Минифицирует и копирует CSS файл
+ */
+async function minifyAndCopyCSS(src, dest) {
+  if (!fs.existsSync(src)) {
+    console.warn(`⚠️  CSS файл не найден: ${src}`);
+    return;
+  }
+
+  const code = await fsp.readFile(src, 'utf8');
+
+  try {
+    const result = csso.minify(code, {
+      restructure: true,
+      forceMediaMerge: true,
+      comments: false
+    });
+
+    await ensureDir(path.dirname(dest));
+    await fsp.writeFile(dest, result.css, 'utf8');
+
+    const savedPercent = Math.round((1 - result.css.length / code.length) * 100);
+    console.log(`✅ CSS минифицирован: ${path.basename(src)} (${code.length} → ${result.css.length} байт, -${savedPercent}%)`);
+  } catch (error) {
+    console.error(`❌ Ошибка минификации CSS ${src}:`, error.message);
+    // В случае ошибки копируем как есть
+    await ensureDir(path.dirname(dest));
+    await fsp.copyFile(src, dest);
+  }
 }
 
 module.exports = { build, extractLogicalIntro };
