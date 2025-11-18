@@ -5,18 +5,12 @@ const { marked } = require('marked');
 const createDOMPurify = require('dompurify');
 const { JSDOM } = require('jsdom');
 
-const DEFAULT_BRANCHES = [
-  { name: 'intro', label: 'Введение', visibility: { free: 'public', premium: 'public' } },
-  { name: 'course', label: 'Курс', visibility: { free: 'preview', premium: 'public' } },
-  { name: 'appendix', label: 'Приложения', visibility: { free: 'hidden', premium: 'public' } },
-  { name: 'recommendations', label: 'Рекомендации', visibility: { free: 'public', premium: 'public' } },
-  { name: 'legal', label: 'Юр. раздел', visibility: { free: 'public', premium: 'public' } }
-];
-
 const PATHS = {
-  templates: {
-    free: path.resolve(__dirname, '../../src/template.html'),
-    premium: path.resolve(__dirname, '../../src/template.html')
+  content: path.resolve(__dirname, '../../content'),
+  dist: {
+    free: path.resolve(__dirname, '../../dist/free'),
+    premium: path.resolve(__dirname, '../../dist/premium'),
+    shared: path.resolve(__dirname, '../../dist/shared')
   },
   assets: {
     script: path.resolve(__dirname, '../../src/script.js'),
@@ -24,9 +18,13 @@ const PATHS = {
     modeUtils: path.resolve(__dirname, '../../src/mode-utils.js'),
     assetsDir: path.resolve(__dirname, '../../src/assets')
   },
-  content: path.resolve(__dirname, '../../content'),
-  images: path.resolve(__dirname, '../../content/images'),
-  articles: path.resolve(__dirname, '../../content/articles'),
+  templates: {
+    free: path.resolve(__dirname, '../../src/template.html'),
+    premium: path.resolve(__dirname, '../../src/template.html')
+  },
+  config: {
+    site: path.resolve(__dirname, '../../config/site.json')
+  },
   server: {
     root: path.resolve(__dirname, '../../server'),
     files: [
@@ -39,373 +37,639 @@ const PATHS = {
       '.htaccess',
       'users.json.example'
     ]
-  },
-  dist: {
-    free: path.resolve(__dirname, '../../dist/free'),
-    premium: path.resolve(__dirname, '../../dist/premium')
   }
 };
 
-const DEFAULT_CONFIG = {
+const DEFAULT_SITE_CONFIG = {
+  domain: 'example.com',
   pricing: {
-    currency: 'RUB',
-    amount: 990,
-    originalAmount: null,
-    cta: 'Получить полный доступ'
+    originalAmount: 1490,
+    currentAmount: 990,
+    currency: 'RUB'
   },
-  payment: {
-    merchant: 'ООО «Пример»',
+  ctaTexts: {
+    enterFull: 'Войти в полную версию',
+    next: 'Далее',
+    goToCourse: 'Перейти к курсу'
+  },
+  footer: {
+    companyName: 'ООО "Название компании"',
     inn: '0000000000',
-    bank: 'ПАО Банк',
-    account: '40702810000000000000',
-    agreement: 'Договор оферты'
+    year: new Date().getFullYear()
+  },
+  legal: {},
+  robokassa: {
+    merchantLogin: '',
+    password1: '',
+    password2: '',
+    isTest: true,
+    invoicePrefix: 'CLEAN',
+    successUrl: '/success.php',
+    failUrl: '/fail.php',
+    resultUrl: '/robokassa-callback.php'
+  },
+  build: {
+    wordsPerMinute: 180
   }
 };
 
 const sanitize = (() => {
-  try {
-    const { window } = new JSDOM('');
-    return createDOMPurify(window);
-  } catch (error) {
-    console.warn('⚠️  DOMPurify недоступен, HTML не будет санитизирован');
-    return null;
-  }
+  const { window } = new JSDOM('');
+  return createDOMPurify(window);
 })();
 
 async function build({ target } = {}) {
-  const branches = DEFAULT_BRANCHES;
-  const config = await loadBuildConfig();
-  const sections = await loadContentBranches(branches);
-
-  if (sections.length === 0) {
-    throw new Error('Не найдено ни одного markdown файла в ветках контента');
+  if (!target) {
+    await buildAll();
+    return;
   }
 
-  const tasks = [];
-
-  if (!target || target === 'free') {
-    tasks.push(buildVersion({ mode: 'free', sections, config }));
+  switch (target) {
+    case 'free':
+      await buildFree();
+      break;
+    case 'premium':
+      await buildPremium();
+      break;
+    case 'recommendations':
+      await buildRecommendations();
+      break;
+    default:
+      throw new Error(`Неизвестный target: ${target}`);
   }
-  if (!target || target === 'premium') {
-    tasks.push(buildVersion({ mode: 'premium', sections, config }));
-  }
-
-  await Promise.all(tasks);
 }
 
-async function buildVersion({ mode, sections, config }) {
-  const distRoot = PATHS.dist[mode];
-  await cleanDir(distRoot);
-  await ensureDir(distRoot);
+async function buildAll() {
+  await buildFree();
+  await buildPremium();
+  await buildRecommendations();
+}
 
-  await Promise.all([
-    copyIfExists(PATHS.assets.assetsDir, path.join(distRoot, 'assets')),
-    copyIfExists(PATHS.images, path.join(distRoot, 'images')),
-    copyIfExists(PATHS.articles, path.join(distRoot, 'articles')),
-    copyFile(PATHS.assets.script, path.join(distRoot, 'script.js')),
-    copyFile(PATHS.assets.styles, path.join(distRoot, 'styles.css')),
-    copyFile(PATHS.assets.modeUtils, path.join(distRoot, 'mode-utils.js'))
-  ]);
+async function buildFree() {
+  const config = await loadSiteConfig();
+  const content = await loadContent(config.build.wordsPerMinute);
+  const template = await readTemplate('free');
+  await cleanDir(PATHS.dist.free);
+  await ensureDir(PATHS.dist.free);
+  await copyStaticAssets(PATHS.dist.free);
 
-  if (mode === 'premium') {
-    await copyServerFiles(distRoot);
+  const menuItems = buildMenuItems(content, 'free');
+
+  for (const intro of content.intro) {
+    const page = buildIntroPage(intro, menuItems, config, template, 'free');
+    const targetPath = path.join(PATHS.dist.free, 'index.html');
+    await fsp.writeFile(targetPath, page, 'utf8');
+    break;
   }
 
-  const filtered = applyVisibility(sections, mode);
-  const menu = buildMenu(filtered);
-  const templatePath = PATHS.templates[mode];
-  const template = await fsp.readFile(templatePath, 'utf8');
+  for (const course of content.course) {
+    const page = buildFreeCoursePage(course, menuItems, config, template);
+    const targetPath = path.join(PATHS.dist.free, 'course', `${course.slug}.html`);
+    await ensureDir(path.dirname(targetPath));
+    await fsp.writeFile(targetPath, page, 'utf8');
+  }
 
-  await writePages({
-    mode,
-    distRoot,
-    menu,
-    template,
-    config,
-    sections: filtered
+  for (const rec of content.recommendations) {
+    const page = buildRecommendationPage(rec, menuItems, config, template, 'free');
+    const targetPath = path.join(PATHS.dist.free, 'recommendations', `${rec.slug}.html`);
+    await ensureDir(path.dirname(targetPath));
+    await fsp.writeFile(targetPath, page, 'utf8');
+  }
+
+  for (const legal of content.legal) {
+    const page = buildLegalPage(legal, menuItems, config, template, 'free');
+    const targetPath = path.join(PATHS.dist.free, 'legal', `${legal.slug}.html`);
+    await ensureDir(path.dirname(targetPath));
+    await fsp.writeFile(targetPath, page, 'utf8');
+  }
+}
+
+/**
+ * Собирает premium версию курса
+ *
+ * Порядок согласно ARCHITECTURE_v1.1:277:
+ * intro → course[1..N] → appendix[1..M]
+ *
+ * Каждая страница имеет ссылки "Назад/Далее" по линейной цепочке
+ */
+async function buildPremium() {
+  const config = await loadSiteConfig();
+  const content = await loadContent(config.build.wordsPerMinute);
+  const template = await readTemplate('premium');
+  await cleanDir(PATHS.dist.premium);
+  await ensureDir(PATHS.dist.premium);
+  await copyStaticAssets(PATHS.dist.premium);
+  await copyServerFiles(PATHS.dist.premium);
+
+  const menuItems = buildMenuItems(content, 'premium');
+
+  // Цепочка навигации: intro → course → appendix
+  const navigationChain = [...content.intro, ...content.course, ...content.appendix];
+
+  // Генерируем страницы с навигацией
+  for (let index = 0; index < navigationChain.length; index++) {
+    const item = navigationChain[index];
+    const prevItem = navigationChain[index - 1];
+    const nextItem = navigationChain[index + 1];
+
+    const prevUrl = prevItem ? getPremiumUrlForItem(prevItem) : null;
+    const nextUrl = nextItem ? getPremiumUrlForItem(nextItem) : null;
+
+    const page = buildPremiumContentPage(item, menuItems, config, template, { prevUrl, nextUrl });
+    const targetPath = getPremiumPathForItem(item, PATHS.dist.premium);
+
+    await ensureDir(path.dirname(targetPath));
+    await fsp.writeFile(targetPath, page, 'utf8');
+  }
+}
+
+/**
+ * Генерирует URL для элемента в premium версии
+ * @param {Object} item - элемент контента (intro/course/appendix)
+ * @returns {string} - URL
+ */
+function getPremiumUrlForItem(item) {
+  if (item.branch === 'intro') {
+    return '/premium/';
+  } else if (item.branch === 'appendix') {
+    return `/premium/appendix/${item.slug}/`;
+  } else {
+    return `/premium/course/${item.slug}/`;
+  }
+}
+
+/**
+ * Генерирует путь к файлу для элемента в premium версии
+ * @param {Object} item - элемент контента
+ * @param {string} root - корневая директория
+ * @returns {string} - путь к файлу
+ */
+function getPremiumPathForItem(item, root) {
+  if (item.branch === 'intro') {
+    return path.join(root, 'index.html');
+  } else if (item.branch === 'appendix') {
+    return path.join(root, 'appendix', `${item.slug}.html`);
+  } else {
+    return path.join(root, 'course', `${item.slug}.html`);
+  }
+}
+
+/**
+ * Генерирует страницу контента для premium (универсальная для intro/course/appendix)
+ * @param {Object} item - элемент контента
+ * @param {Array} menuItems - меню
+ * @param {Object} config - конфигурация
+ * @param {string} template - шаблон
+ * @param {Object} navigation - объект с prevUrl и nextUrl
+ * @returns {string} - HTML страницы
+ */
+function buildPremiumContentPage(item, menuItems, config, template, { prevUrl, nextUrl }) {
+  return buildPremiumPage(item, menuItems, config, template, { prevUrl, nextUrl });
+}
+
+async function buildRecommendations() {
+  const config = await loadSiteConfig();
+  const content = await loadContent(config.build.wordsPerMinute);
+  await ensureDir(PATHS.dist.shared);
+
+  const recommendations = content.recommendations.map(rec => ({
+    slug: rec.slug,
+    title: rec.title,
+    excerpt: rec.excerpt,
+    readingTimeMinutes: rec.readingTimeMinutes
+  }));
+
+  await fsp.writeFile(
+    path.join(PATHS.dist.shared, 'recommendations.json'),
+    JSON.stringify(recommendations, null, 2),
+    'utf8'
+  );
+
+  for (const legal of content.legal) {
+    const html = renderMarkdown(legal.markdown);
+    await ensureDir(path.join(PATHS.dist.shared, 'legal'));
+    await fsp.writeFile(
+      path.join(PATHS.dist.shared, 'legal', `${legal.slug}.html`),
+      html,
+      'utf8'
+    );
+  }
+
+  // optional shared config passthrough for GUI
+  await fsp.writeFile(
+    path.join(PATHS.dist.shared, 'site.json'),
+    JSON.stringify(config, null, 2),
+    'utf8'
+  );
+}
+
+async function loadSiteConfig() {
+  if (!fs.existsSync(PATHS.config.site)) {
+    return DEFAULT_SITE_CONFIG;
+  }
+  try {
+    const raw = await fsp.readFile(PATHS.config.site, 'utf8');
+    const parsed = JSON.parse(raw);
+    return deepMerge(DEFAULT_SITE_CONFIG, parsed);
+  } catch (error) {
+    console.warn('⚠️  Ошибка чтения site.json, используется конфиг по умолчанию:', error.message);
+    return DEFAULT_SITE_CONFIG;
+  }
+}
+
+async function readTemplate(mode) {
+  const templatePath = PATHS.templates[mode];
+  const fallback = '<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>{{title}}</title></head><body>{{body}}</body></html>';
+  if (!templatePath || !fs.existsSync(templatePath)) return fallback;
+  try {
+    return await fsp.readFile(templatePath, 'utf8');
+  } catch (error) {
+    console.warn('⚠️  Не удалось прочитать шаблон, используется дефолтный HTML:', error.message);
+    return fallback;
+  }
+}
+
+async function loadContent(wordsPerMinute) {
+  const intro = await loadMarkdownBranch(path.join(PATHS.content, 'intro'), 'intro', wordsPerMinute);
+  const course = await loadMarkdownBranch(path.join(PATHS.content, 'course'), 'course', wordsPerMinute);
+  const appendix = await loadMarkdownBranch(path.join(PATHS.content, 'appendix'), 'appendix', wordsPerMinute);
+  const recommendations = await loadMarkdownBranch(path.join(PATHS.content, 'recommendations'), 'recommendations', wordsPerMinute);
+  const legal = await loadMarkdownBranch(path.join(PATHS.content, 'legal'), 'legal', wordsPerMinute);
+
+  return { intro, course, appendix, recommendations, legal };
+}
+
+async function loadMarkdownBranch(dirPath, branch, wordsPerMinute = DEFAULT_SITE_CONFIG.build.wordsPerMinute) {
+  if (!fs.existsSync(dirPath)) return [];
+  const entries = await fsp.readdir(dirPath);
+  const files = entries.filter(name => name.endsWith('.md')).sort();
+
+  const items = [];
+  for (const file of files) {
+    const fullPath = path.join(dirPath, file);
+    const rawMarkdown = await fsp.readFile(fullPath, 'utf8');
+    const { data, body } = parseFrontMatter(rawMarkdown);
+    const slug = data.slug || slugify(file.replace(/^(\d+[-_]?)/, '').replace(/\.md$/, ''));
+    const title = data.title || extractH1(body) || slug;
+    const readingTimeMinutes = calculateReadingTime(body, wordsPerMinute);
+    const { introMd, restMd } = extractLogicalIntro(body);
+    const introHtml = renderMarkdown(introMd);
+    const restHtml = renderMarkdown(restMd);
+    const fullHtml = renderMarkdown(body);
+    const teaserHtml = buildTeaser(restHtml);
+    const excerpt = data.excerpt || teaserHtml.replace(/<[^>]+>/g, '').trim();
+    items.push({
+      file,
+      slug,
+      title,
+      order: parseOrder(file),
+      markdown: body,
+      introMd,
+      restMd,
+      introHtml,
+      restHtml,
+      fullHtml,
+      teaserHtml,
+      excerpt,
+      readingTimeMinutes,
+      frontMatter: data,
+      branch
+    });
+  }
+
+  return items.sort((a, b) => a.order - b.order);
+}
+
+/**
+ * Формирует элементы меню курса согласно ARCHITECTURE_v1.1
+ *
+ * Free: intro → course (БЕЗ recommendations и legal)
+ * Premium: intro → course → appendix
+ *
+ * Recommendations и legal НИКОГДА не входят в меню курса (только в карусель и прямые URL)
+ *
+ * @param {Object} content - загруженный контент
+ * @param {string} mode - режим ('free' или 'premium')
+ * @returns {Array<MenuItem>} - отсортированный массив элементов меню
+ */
+function buildMenuItems(content, mode) {
+  const menu = [];
+
+  // Intro всегда первый (order должен быть 0)
+  for (const intro of content.intro) {
+    menu.push({
+      type: 'intro',
+      title: intro.title,
+      url: mode === 'premium' ? '/premium/' : '/',
+      order: 0, // Явно устанавливаем order=0 для intro
+      readingTimeMinutes: intro.readingTimeMinutes
+    });
+  }
+
+  // Разделы курса
+  for (const course of content.course) {
+    menu.push({
+      type: 'course',
+      title: course.title,
+      url: mode === 'premium' ? `/premium/course/${course.slug}/` : `/course/${course.slug}/`,
+      order: course.order,
+      readingTimeMinutes: course.readingTimeMinutes
+    });
+  }
+
+  // Приложения только в premium
+  if (mode === 'premium') {
+    for (const appendix of content.appendix) {
+      menu.push({
+        type: 'appendix',
+        title: appendix.title,
+        url: `/premium/appendix/${appendix.slug}/`,
+        order: appendix.order,
+        readingTimeMinutes: appendix.readingTimeMinutes
+      });
+    }
+  }
+
+  // НЕ добавляем recommendations и legal в меню курса!
+  // Они доступны только по прямым URL и через карусель рекомендаций
+
+  return menu.sort((a, b) => a.order - b.order);
+}
+
+function buildIntroPage(item, menuItems, config, template, mode) {
+  const body = `
+  <main>
+    <header>
+      <h1>${item.title}</h1>
+      <p class="meta">${formatReadingTime(item.readingTimeMinutes)} чтения</p>
+    </header>
+    <article>${item.fullHtml}</article>
+  </main>
+  ${renderMenu(menuItems)}
+  ${renderFooter(config, mode)}
+  `;
+
+  return applyTemplate(template, {
+    title: item.title,
+    body
   });
 }
 
-async function loadBuildConfig() {
-  const local = path.resolve(__dirname, '../../config/build.local.json');
-  const shared = path.resolve(__dirname, '../../config/build.json');
-
-  const source = await findExisting([local, shared]);
-  if (!source) return DEFAULT_CONFIG;
-
-  try {
-    const raw = await fsp.readFile(source, 'utf8');
-    const data = JSON.parse(raw);
-    return deepMerge(DEFAULT_CONFIG, data);
-  } catch (error) {
-    console.warn(`⚠️  Не удалось прочитать конфиг ${source}:`, error.message);
-    return DEFAULT_CONFIG;
-  }
-}
-
-async function loadContentBranches(branches) {
-  const results = [];
-
-  for (const branch of branches) {
-    const branchDir = path.join(PATHS.content, branch.name);
-    if (!fs.existsSync(branchDir)) {
-      continue;
-    }
-
-    const manifestPath = path.join(branchDir, 'index.json');
-    const manifest = await readJSON(manifestPath);
-    let sections = manifest
-      ? await sectionsFromManifest(branch, manifest, branchDir)
-      : await scanMarkdownDir(branch, branchDir);
-
-    sections = sections
-      .map(section => ({
-        ...section,
-        branch: branch.name,
-        branchLabel: branch.label,
-        visibility: section.visibility || branch.visibility,
-        order: Number.isFinite(section.order) ? section.order : 999
-      }))
-      .sort((a, b) => a.order - b.order);
-
-    results.push(...sections);
-  }
-
-  return results;
-}
-
-async function sectionsFromManifest(branch, manifest, branchDir) {
-  if (!Array.isArray(manifest)) return [];
-
-  const items = [];
-  for (const item of manifest) {
-    if (!item.source) continue;
-
-    // Security: Validate path to prevent traversal attacks
-    try {
-      const markdownPath = validatePath(branchDir, item.source);
-      if (!fs.existsSync(markdownPath)) continue;
-
-      const markdown = await fsp.readFile(markdownPath, 'utf8');
-      const id = item.id || slugify(path.basename(item.source, path.extname(item.source)));
-      const html = renderMarkdown(markdown, id);
-      items.push({
-        id,
-        title: item.title || extractH1(markdown) || 'Раздел',
-        order: item.order ?? 999,
-        markdown,
-        html,
-        subsections: extractH2(markdown, id),
-        teaser: item.teaser || null,
-        visibility: item.visibility || branch.visibility
-      });
-    } catch (error) {
-      console.warn(`⚠️  Skipping ${item.source}: ${error.message}`);
-      continue;
-    }
-  }
-  return items;
-}
-
-async function scanMarkdownDir(branch, dir) {
-  const entries = await fsp.readdir(dir);
-  const files = entries.filter(file => file.endsWith('.md'));
-
-  const sections = [];
-  for (const file of files) {
-    const fullPath = path.join(dir, file);
-    const markdown = await fsp.readFile(fullPath, 'utf8');
-    const id = slugify(file.replace(/^(\d+[-_.]?)/, '').replace(/\.md$/, '')) || file.replace('.md', '');
-    const html = renderMarkdown(markdown, id);
-    const orderMatch = file.match(/^(\d+)/);
-    sections.push({
-      id,
-      title: extractH1(markdown) || `Раздел ${id}`,
-      order: orderMatch ? parseInt(orderMatch[1], 10) : 999,
-      markdown,
-      html,
-      subsections: extractH2(markdown, id),
-      teaser: null,
-      visibility: branch.visibility
-    });
-  }
-  return sections;
-}
-
-function applyVisibility(sections, mode) {
-  const filtered = [];
-  for (const section of sections) {
-    const visibility = resolveVisibility(section.visibility, mode);
-    if (visibility === 'hidden') continue;
-
-    const isPreview = visibility === 'preview';
-    filtered.push({ ...section, isPreview });
-  }
-  return filtered;
-}
-
-function resolveVisibility(visibility, mode) {
-  if (!visibility) return 'public';
-  if (typeof visibility === 'string') return visibility;
-  return visibility[mode] || 'public';
-}
-
-function buildMenu(sections) {
-  const grouped = sections.reduce((acc, section) => {
-    acc[section.branch] = acc[section.branch] || { label: section.branchLabel, items: [] };
-    acc[section.branch].items.push(section);
-    return acc;
-  }, {});
-
-  const groupKeys = Object.keys(grouped);
-  if (groupKeys.length === 0) return '<ul class="site-menu__list"></ul>';
-
-  const blocks = groupKeys
-    .map(branch => {
-      const group = grouped[branch];
-      const items = group.items
-        .map((section, index) => `
-          <li>
-            <a href="#${section.id}">${index + 1}. ${section.title}</a>
-            ${renderSubsections(section.subsections)}
-          </li>`)
-        .join('\n');
-      return `<li class="menu-branch"><div class="menu-branch__title">${group.label}</div><ul>${items}</ul></li>`;
-    })
-    .join('\n');
-
-  return `<ul class="site-menu__list">${blocks}</ul>`;
-}
-
-function renderSubsections(subsections = []) {
-  if (!subsections.length) return '';
-  const items = subsections
-    .map(sub => `<li class="menu-subsection"><a href="#${sub.anchor}">${sub.title}</a></li>`)
-    .join('\n');
-  return `<ul class="menu-subsections">${items}</ul>`;
-}
-
-async function writePages({ mode, distRoot, menu, template, sections, config }) {
-  for (let index = 0; index < sections.length; index++) {
-    const section = sections[index];
-    const nextPage = sections[index + 1]?.id;
-    const pageHtml = renderPage({
-      template,
-      section,
-      menu,
-      mode,
-      nextPage,
-      config
-    });
-
-    const targetPath = path.join(distRoot, `${section.id}.html`);
-    await fsp.writeFile(targetPath, pageHtml, 'utf8');
-  }
-
-  if (sections[0]) {
-    await fsp.copyFile(path.join(distRoot, `${sections[0].id}.html`), path.join(distRoot, 'index.html'));
-  }
-}
-
-function renderPage({ template, section, menu, mode, nextPage, config }) {
-  let html = template;
-  html = html.replace(/<title>.*?<\/title>/, `<title>${section.title} - Clean</title>`);
-  html = html.replace(/<ul class="site-menu__list">[\s\S]*?<\/ul>/, menu);
-
-  const content = section.isPreview ? renderPreview(section, config) : renderFull(section);
-  html = html.replace(/<div id="article-content">[\s\S]*?<\/div>/, `<div id="article-content">\n${content}\n</div>`);
-
-  if (nextPage) {
-    html = html.replace('data-next-page=""', `data-next-page="${nextPage}.html"`);
-  } else {
-    html = html.replace(/<button class="btn-next"[^>]*>.*?<\/button>/s, '');
-  }
-
-  return html;
-}
-
-function renderFull(section) {
-  return `<section id="${section.id}" class="text-section" data-section="${section.title}">\n${section.html}\n</section>`;
-}
-
-function renderPreview(section, config) {
-  const teaser = section.teaser || extractTeaser(section.markdown);
-  const priceLabel = formatPriceLabel(config.pricing);
-  return `
-  <section id="${section.id}" class="text-section" data-section="${section.title}">
-    <h1>${section.title}</h1>
-    <div class="preview-teaser">${teaser}</div>
-    <div class="premium-teaser">
-      <div class="blurred-content">${section.html}</div>
-      <div class="unlock-overlay">
-        <button class="btn-unlock" onclick="openPaymentModal()">${config.pricing.cta}${priceLabel ? ` (${priceLabel})` : ''}</button>
+function buildFreeCoursePage(item, menuItems, config, template) {
+  const body = `
+  <main>
+    <header>
+      <h1>${item.title}</h1>
+      <p class="meta">${formatReadingTime(item.readingTimeMinutes)} чтения</p>
+    </header>
+    <article>
+      ${item.introHtml}
+      <div class="premium-teaser">
+        <div class="premium-teaser__blurred" data-nosnippet><!--noindex-->${item.teaserHtml}<!--/noindex--></div>
+        <div class="premium-teaser__overlay">
+          <p class="teaser-text">Осталось ${formatReadingTime(item.readingTimeMinutes)}</p>
+          <button class="cta-button">${config.ctaTexts.enterFull}</button>
+        </div>
       </div>
-    </div>
-  </section>
-  ${generatePaymentModal(config)}
+    </article>
+  </main>
+  ${renderMenu(menuItems)}
+  ${renderFooter(config, 'free')}
   `;
+
+  return applyTemplate(template, {
+    title: `${item.title} — free`,
+    body
+  });
 }
 
-function generatePaymentModal(config) {
-  const priceCurrent = formatPrice(config.pricing.amount, config.pricing.currency);
-  const priceOriginal = config.pricing.originalAmount
-    ? formatPrice(config.pricing.originalAmount, config.pricing.currency)
-    : null;
+function buildPremiumPage(item, menuItems, config, template, { prevUrl, nextUrl }) {
+  const body = `
+  <main>
+    <header>
+      <h1>${item.title}</h1>
+      <p class="meta">${formatReadingTime(item.readingTimeMinutes)} чтения</p>
+    </header>
+    <article>${item.fullHtml}</article>
+    <nav class="premium-nav">
+      ${prevUrl ? `<a class="nav-prev" href="${prevUrl}">${config.ctaTexts.goToCourse}</a>` : ''}
+      ${nextUrl ? `<a class="nav-next" href="${nextUrl}">${config.ctaTexts.next}</a>` : ''}
+    </nav>
+  </main>
+  ${renderMenu(menuItems)}
+  ${renderFooter(config, 'premium')}
+  `;
+
+  return applyTemplate(template, {
+    title: `${item.title} — premium`,
+    body
+  });
+}
+
+function buildRecommendationPage(item, menuItems, config, template, mode) {
+  const body = `
+  <main>
+    <header>
+      <h1>${item.title}</h1>
+      <p class="meta">${formatReadingTime(item.readingTimeMinutes)} чтения</p>
+    </header>
+    <article>${item.fullHtml}</article>
+  </main>
+  ${renderMenu(menuItems)}
+  ${renderFooter(config, mode)}
+  `;
+
+  return applyTemplate(template, {
+    title: `${item.title} — recommendations`,
+    body
+  });
+}
+
+function buildLegalPage(item, menuItems, config, template, mode) {
+  const body = `
+  <main>
+    <header>
+      <h1>${item.title}</h1>
+    </header>
+    <article>${item.fullHtml}</article>
+  </main>
+  ${renderMenu(menuItems)}
+  ${renderFooter(config, mode)}
+  `;
+
+  return applyTemplate(template, {
+    title: `${item.title} — legal`,
+    body
+  });
+}
+
+function renderMenu(items) {
+  const links = items
+    .map(item => `<li class="menu-item menu-item--${item.type}"><a href="${item.url}">${item.title}</a><span class="menu-item__time">${pluralizeMinutes(item.readingTimeMinutes)}</span></li>`)
+    .join('\n');
+  return `<nav class="menu"><ul>${links}</ul></nav>`;
+}
+
+function renderFooter(config, mode) {
   return `
-<div class="modal" id="payment-modal" hidden>
-  <div class="modal-overlay" onclick="closePaymentModal()"></div>
-  <div class="modal-content">
-    <button class="modal-close" onclick="closePaymentModal()">×</button>
-    <h2>Получите полный доступ к курсу</h2>
-    <p class="price">
-      ${priceOriginal ? `<span class="price-original">${priceOriginal}</span>` : ''}
-      <span class="price-current">${priceCurrent}</span>
-    </p>
-    <ul class="benefits">
-      <li>✅ Все разделы без ограничений</li>
-      <li>✅ Практические материалы и приложения</li>
-      <li>✅ Обновления курса</li>
-    </ul>
-    <div class="payment-details">
-      <div>Получатель: ${config.payment.merchant}</div>
-      <div>ИНН: ${config.payment.inn}</div>
-      <div>Банк: ${config.payment.bank}</div>
-      <div>Счёт: ${config.payment.account}</div>
-      <div>${config.payment.agreement}</div>
-    </div>
-    <button type="button" class="btn-pay" onclick="closePaymentModal()">Оплатить</button>
-    <p class="security-note">🔒 Данные защищены</p>
-  </div>
-</div>
-<script>
-function openPaymentModal() {
-  var modal = document.getElementById('payment-modal');
-  if (modal) { modal.removeAttribute('hidden'); document.body.style.overflow = 'hidden'; }
-}
-function closePaymentModal() {
-  var modal = document.getElementById('payment-modal');
-  if (modal) { modal.setAttribute('hidden', ''); document.body.style.overflow = ''; }
-}
-</script>
-`;
+  <footer class="footer footer--${mode}">
+    <div class="footer__company">${config.footer.companyName} · ИНН ${config.footer.inn} · © ${config.footer.year}</div>
+  </footer>`;
 }
 
-function extractTeaser(markdown) {
-  const paragraphs = markdown.split(/\n\n+/).filter(Boolean);
-  return renderMarkdown(paragraphs[0] || '');
+function applyTemplate(template, { title, body }) {
+  return template
+    .replace(/<title>.*?<\/title>/, `<title>${title}</title>`)
+    .replace(/<div id="article-content">[\s\S]*?<\/div>/, `<div id="article-content">${body}</div>`)
+    .replace('{{title}}', title)
+    .replace('{{body}}', body);
 }
 
-function renderMarkdown(markdown, slugPrefix) {
-  const slugger = createSlugger();
-  const renderer = new marked.Renderer();
-  renderer.heading = (text, level, raw) => {
-    const slugBase = slugger(raw);
-    const slug = slugPrefix ? `${slugPrefix}-${slugBase}` : slugBase;
-    return `<h${level} id="${slug}">${text}</h${level}>`;
+/**
+ * Извлекает логическое введение из markdown согласно ARCHITECTURE_v1.1
+ *
+ * Алгоритм:
+ * - Ветка A: после H1 идут параграфы — берем до 3-х параграфов
+ * - Ветка B: после H1 идет HR, затем H2 — анализируем H2 на наличие "введение"
+ * - Ветка C: после H1 сразу идет H2 — анализируем H2 на наличие "введение"
+ *
+ * @param {string} markdown - исходный markdown текст
+ * @returns {{introMd: string, restMd: string}} - разделенный текст
+ */
+function extractLogicalIntro(markdown) {
+  const tokens = marked.lexer(markdown, { mangle: false, headerIds: true });
+  const h1Index = tokens.findIndex(token => token.type === 'heading' && token.depth === 1);
+
+  // Если H1 не найден, весь текст — это введение
+  if (h1Index === -1) {
+    return { introMd: markdown, restMd: '' };
+  }
+
+  let introEndIndex = h1Index + 1;
+  const MAX_INTRO_PARAGRAPHS = 3;
+
+  // Пропускаем пробельные токены после H1
+  let nextTokenIndex = h1Index + 1;
+  while (nextTokenIndex < tokens.length && tokens[nextTokenIndex].type === 'space') {
+    nextTokenIndex++;
+  }
+
+  if (nextTokenIndex >= tokens.length) {
+    return { introMd: tokensToMarkdown(tokens.slice(0, h1Index + 1)), restMd: '' };
+  }
+
+  const firstSignificantToken = tokens[nextTokenIndex];
+  const secondSignificantToken = tokens[nextTokenIndex + 1];
+
+  // === Ветка A: после H1 сразу идут параграфы ===
+  if (firstSignificantToken.type === 'paragraph') {
+    introEndIndex = collectParagraphs(tokens, nextTokenIndex, MAX_INTRO_PARAGRAPHS);
+  }
+  // === Ветка B: после H1 идет HR, затем H2 ===
+  else if (firstSignificantToken.type === 'hr') {
+    const h2Index = findNextHeading(tokens, nextTokenIndex + 1, 2);
+    if (h2Index !== -1) {
+      const h2Token = tokens[h2Index];
+      const paragraphCount = hasIntroductionKeyword(h2Token.text)
+        ? MAX_INTRO_PARAGRAPHS
+        : MAX_INTRO_PARAGRAPHS;
+      introEndIndex = collectParagraphs(tokens, h2Index + 1, paragraphCount);
+    } else {
+      introEndIndex = nextTokenIndex + 1; // Только H1 + HR
+    }
+  }
+  // === Ветка C: после H1 сразу идет H2 ===
+  else if (firstSignificantToken.type === 'heading' && firstSignificantToken.depth === 2) {
+    const paragraphCount = hasIntroductionKeyword(firstSignificantToken.text)
+      ? MAX_INTRO_PARAGRAPHS
+      : MAX_INTRO_PARAGRAPHS;
+    introEndIndex = collectParagraphs(tokens, nextTokenIndex + 1, paragraphCount);
+  }
+  // === Другие случаи: только H1 ===
+  else {
+    introEndIndex = nextTokenIndex;
+  }
+
+  const introTokens = tokens.slice(0, introEndIndex);
+  const restTokens = tokens.slice(introEndIndex);
+
+  return {
+    introMd: tokensToMarkdown(introTokens),
+    restMd: tokensToMarkdown(restTokens)
   };
+}
 
-  const html = marked(markdown, { renderer, mangle: false, headerIds: true });
-  return sanitize ? sanitize.sanitize(html) : html;
+/**
+ * Собирает указанное количество параграфов начиная с позиции
+ * @param {Array} tokens - массив токенов
+ * @param {number} startIndex - начальная позиция
+ * @param {number} maxParagraphs - максимум параграфов
+ * @returns {number} - индекс конца введения
+ */
+function collectParagraphs(tokens, startIndex, maxParagraphs) {
+  let paragraphCount = 0;
+  let currentIndex = startIndex;
+
+  while (currentIndex < tokens.length && paragraphCount < maxParagraphs) {
+    const token = tokens[currentIndex];
+
+    // Параграф найден
+    if (token.type === 'paragraph') {
+      paragraphCount++;
+      currentIndex++;
+    }
+    // Пробельные токены пропускаем
+    else if (token.type === 'space') {
+      currentIndex++;
+    }
+    // Остановка на H2 или HR
+    else if (token.type === 'heading' && token.depth === 2) {
+      break;
+    }
+    else if (token.type === 'hr') {
+      break;
+    }
+    // Другие блоки (списки, код) считаем как контент и продолжаем
+    else {
+      currentIndex++;
+    }
+  }
+
+  return currentIndex;
+}
+
+/**
+ * Ищет следующий заголовок указанного уровня
+ * @param {Array} tokens - массив токенов
+ * @param {number} startIndex - начальная позиция
+ * @param {number} depth - уровень заголовка
+ * @returns {number} - индекс заголовка или -1
+ */
+function findNextHeading(tokens, startIndex, depth) {
+  for (let i = startIndex; i < tokens.length; i++) {
+    if (tokens[i].type === 'heading' && tokens[i].depth === depth) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+/**
+ * Проверяет наличие слова "введение" в тексте (регистронезависимо)
+ * @param {string} text - текст для проверки
+ * @returns {boolean} - содержит ли текст слово "введение"
+ */
+function hasIntroductionKeyword(text) {
+  return /введение/i.test(text || '');
+}
+
+function tokensToMarkdown(tokens) {
+  return tokens.map(token => token.raw || '').join('').trim();
+}
+
+function renderMarkdown(markdown) {
+  const html = marked.parse(markdown, { mangle: false, headerIds: true });
+  return sanitize.sanitize(html);
 }
 
 function extractH1(markdown) {
@@ -413,13 +677,61 @@ function extractH1(markdown) {
   return match ? match[1].trim() : '';
 }
 
-function extractH2(markdown, slugPrefix) {
-  const matches = markdown.matchAll(/^##\s+(.+)$/gm);
-  return Array.from(matches, m => {
-    const title = m[1].trim();
-    const slug = slugify(title);
-    return { title, anchor: slugPrefix ? `${slugPrefix}-${slug}` : slug };
+function calculateReadingTime(markdown, wordsPerMinute = 180) {
+  const words = markdown.split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.ceil(words / (wordsPerMinute || 180)));
+}
+
+function buildTeaser(restHtml) {
+  if (!restHtml) return '';
+  const paragraphs = restHtml.match(/<p[^>]*>.*?<\/p>/g) || [];
+  return paragraphs.slice(0, 2).join('');
+}
+
+/**
+ * Парсит YAML front matter из markdown
+ * @param {string} markdown - markdown текст с front matter
+ * @returns {{data: Object, body: string}} - распарсенные данные и тело
+ */
+function parseFrontMatter(markdown) {
+  const fmMatch = markdown.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+  if (!fmMatch) return { data: {}, body: markdown };
+
+  const [, yamlBlock, body] = fmMatch;
+  const data = {};
+
+  yamlBlock.split(/\n/).forEach(line => {
+    const colonIndex = line.indexOf(':');
+    if (colonIndex === -1) return;
+
+    const key = line.substring(0, colonIndex).trim();
+    let value = line.substring(colonIndex + 1).trim();
+
+    if (!key) return;
+
+    // Убираем кавычки, если они окружают значение
+    if ((value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
+    }
+
+    // Преобразуем числа
+    if (/^\d+$/.test(value)) {
+      data[key] = parseInt(value, 10);
+    } else {
+      data[key] = value;
+    }
   });
+
+  return { data, body };
+}
+
+function parseOrder(file) {
+  const match = file.match(/^(\d+|[A-Za-z])/);
+  if (!match) return 999;
+  const [value] = match;
+  if (/^\d+$/.test(value)) return parseInt(value, 10);
+  return value.toUpperCase().charCodeAt(0);
 }
 
 function slugify(value) {
@@ -432,28 +744,6 @@ function slugify(value) {
     .replace(/-+/g, '-');
 }
 
-// Security: Path traversal protection
-function validatePath(basePath, userPath) {
-  const base = path.resolve(basePath);
-  const full = path.resolve(basePath, userPath);
-
-  if (!full.startsWith(base + path.sep) && full !== base) {
-    throw new Error(`Path traversal detected: ${userPath}`);
-  }
-
-  return full;
-}
-
-function createSlugger() {
-  const seen = new Map();
-  return raw => {
-    const base = slugify(raw || '');
-    const count = seen.get(base) || 0;
-    seen.set(base, count + 1);
-    return count ? `${base}-${count}` : base;
-  };
-}
-
 async function ensureDir(dir) {
   await fsp.mkdir(dir, { recursive: true });
 }
@@ -464,15 +754,24 @@ async function cleanDir(dir) {
   await Promise.all(entries.map(entry => fsp.rm(path.join(dir, entry), { recursive: true, force: true })));
 }
 
-async function copyFile(src, dest) {
-  if (!fs.existsSync(src)) return;
-  await ensureDir(path.dirname(dest));
-  await fsp.copyFile(src, dest);
+async function copyStaticAssets(targetRoot) {
+  await Promise.all([
+    copyIfExists(PATHS.assets.assetsDir, path.join(targetRoot, 'assets')),
+    copyIfExists(PATHS.assets.script, path.join(targetRoot, 'script.js')),
+    copyIfExists(PATHS.assets.styles, path.join(targetRoot, 'styles.css')),
+    copyIfExists(PATHS.assets.modeUtils, path.join(targetRoot, 'mode-utils.js'))
+  ]);
 }
 
 async function copyIfExists(src, dest) {
-  if (!fs.existsSync(src)) return;
-  await copyDir(src, dest);
+  if (!src || !fs.existsSync(src)) return;
+  const stats = await fsp.stat(src);
+  if (stats.isDirectory()) {
+    await copyDir(src, dest);
+  } else {
+    await ensureDir(path.dirname(dest));
+    await fsp.copyFile(src, dest);
+  }
 }
 
 async function copyDir(src, dest) {
@@ -493,27 +792,9 @@ async function copyDir(src, dest) {
 
 async function copyServerFiles(distRoot) {
   const tasks = PATHS.server.files.map(file =>
-    copyFile(path.join(PATHS.server.root, file), path.join(distRoot, file))
+    copyIfExists(path.join(PATHS.server.root, file), path.join(distRoot, file))
   );
   await Promise.all(tasks);
-}
-
-async function findExisting(paths) {
-  for (const candidate of paths) {
-    if (fs.existsSync(candidate)) return candidate;
-  }
-  return null;
-}
-
-async function readJSON(filePath) {
-  if (!fs.existsSync(filePath)) return null;
-  try {
-    const raw = await fsp.readFile(filePath, 'utf8');
-    return JSON.parse(raw);
-  } catch (error) {
-    console.warn(`⚠️  Ошибка чтения ${filePath}: ${error.message}`);
-    return null;
-  }
 }
 
 function deepMerge(base, next) {
@@ -535,16 +816,42 @@ function isPlainObject(value) {
   return value && typeof value === 'object' && !Array.isArray(value);
 }
 
-function formatPriceLabel(pricing) {
-  if (!pricing || !pricing.amount) return '';
-  const current = formatPrice(pricing.amount, pricing.currency);
-  const original = pricing.originalAmount ? formatPrice(pricing.originalAmount, pricing.currency) : null;
-  return original ? `${current} · было ${original}` : current;
+/**
+ * Склоняет слово "минута" в зависимости от числа
+ * @param {number} count - количество минут
+ * @returns {string} - правильная форма слова
+ *
+ * @example
+ * pluralizeMinutes(1) // "1 минута"
+ * pluralizeMinutes(2) // "2 минуты"
+ * pluralizeMinutes(5) // "5 минут"
+ * pluralizeMinutes(21) // "21 минута"
+ */
+function pluralizeMinutes(count) {
+  const cases = [2, 0, 1, 1, 1, 2];
+  const titles = ['минута', 'минуты', 'минут'];
+  const index = (count % 100 > 4 && count % 100 < 20)
+    ? 2
+    : cases[Math.min(count % 10, 5)];
+  return `${count} ${titles[index]}`;
 }
 
-function formatPrice(amount, currency) {
-  if (amount === undefined || amount === null) return '';
-  return `${amount} ${currency || ''}`.trim();
+/**
+ * Форматирует время чтения в удобочитаемый формат
+ * @param {number} minutes - количество минут
+ * @returns {string} - отформатированная строка
+ *
+ * @example
+ * formatReadingTime(5) // "~5 минут"
+ */
+function formatReadingTime(minutes) {
+  return `~${pluralizeMinutes(minutes)}`;
 }
 
-module.exports = { build };
+function premiumUrlFor(item, root = '') {
+  const sub = item.branch === 'appendix' ? 'appendix' : 'course';
+  const rel = path.join(sub, `${item.slug}.html`);
+  return root ? path.join(root, rel) : `/premium/${rel}`;
+}
+
+module.exports = { build, extractLogicalIntro };

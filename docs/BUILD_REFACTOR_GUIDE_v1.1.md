@@ -155,8 +155,10 @@ GUI (локальный инструмент):
 - по кнопкам вызывает:
 
   - `node scripts/build.js --target=free`;
-  - `--target=premium`;
-  - `--target=recommendations`.
+  - `node scripts/build.js --target=premium`;
+  - `node scripts/build.js --target=recommendations`.
+
+Отдельные действия в GUI для free/premium/recommendations обязательны: сборка не должна запускаться одной общей кнопкой. Для каждой команды желательно выводить статус/логи, чтобы можно было проверить корректность изменения контента перед загрузкой на хостинг.
 
 ---
 
