@@ -402,6 +402,43 @@
       </div>
     </footer>
 
+    <!-- МОДАЛЬНОЕ ОКНО ДЛЯ CTA (ОПЛАТА) -->
+    <div class="modal cta-modal" id="cta-payment-modal" hidden>
+      <div class="modal-overlay"></div>
+      <div class="modal-content">
+        <button class="modal-close" type="button" aria-label="Закрыть">×</button>
+        <h2 class="modal-title">Получить полный доступ к курсу</h2>
+
+        <form id="payment-form">
+          <div class="form-group">
+            <label for="payment-email">Email для получения доступа</label>
+            <input
+              type="email"
+              id="payment-email"
+              name="email"
+              placeholder="your@email.com"
+              required
+              autocomplete="email">
+          </div>
+
+          <div class="form-group checkbox-group">
+            <label>
+              <input type="checkbox" name="accept_offer" required>
+              <span>Согласен с условиями <a href="#" onclick="openLegalModal('offer'); return false;">публичной оферты</a></span>
+            </label>
+          </div>
+
+          <button type="submit" class="cta-button cta-button--large">
+            Перейти к оплате (990 ₽)
+          </button>
+
+          <div class="error-message" id="payment-error" style="display:none"></div>
+        </form>
+
+        <p class="modal-footnote">После оплаты вы получите пароль для входа на email</p>
+      </div>
+    </div>
+
     <!-- МОДАЛЬНЫЕ ОКНА ДЛЯ LEGAL РАЗДЕЛОВ -->
     <div class="modal legal-modal" id="legal-offer-modal" hidden>
       <div class="modal-overlay" onclick="closeLegalModal('offer')"></div>
@@ -478,5 +515,6 @@
     </script>
 
     <script src="script.js" type="module"></script>
+    <script src="cta.js"></script>
   </body>
 </html>
