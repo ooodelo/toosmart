@@ -8,7 +8,8 @@
   "ctaTexts": {
     "enterFull": "Войти в полную версию",
     "next": "Далее",
-    "goToCourse": "Перейти к курсу"
+    "goToCourse": "Перейти к курсу",
+    "openCourse": "Открыть курс"
   },
   "footer": {
     "companyName": "ООО \"Название компании\"",
