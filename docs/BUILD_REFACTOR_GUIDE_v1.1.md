@@ -87,7 +87,9 @@
      - H1;
      - время чтения;
      - `fullHtml`;
-     - ссылки «Назад/Далее» из навигационной структуры.
+     - data-атрибуты для Progress Widget (`data-page-type`, `data-button-text`, `data-next-page`).
+
+> **Примечание:** Кнопка «Назад» удалена из интерфейса. Навигация однонаправленная — только вперед через Progress Widget. Возврат возможен через боковое меню или браузерную кнопку «Назад».
 
 ### 2.5. Меню и навигация
 
@@ -96,9 +98,14 @@
 2. На основе `MenuItem`:
 
    - сформировать JSON/объект меню и передавать его в шаблоны;
-   - вычислить `prevUrlPremium` и `nextUrlPremium` для навигации в premium.
+   - вычислить `nextUrlPremium` для навигации в premium (передается через `data-next-page`).
 
 3. В шаблонах заменить статические списки на циклы по `menuItems`.
+
+4. Для каждой страницы передавать:
+   - `data-page-type` — тип страницы для определения поведения Progress Widget;
+   - `data-button-text` — текст кнопки CTA;
+   - `data-next-page` — URL следующей страницы.
 
 ### 2.6. Рекомендации
 
@@ -106,9 +113,19 @@
 
 2. Реализовать:
 
-   - генерацию страниц `/recommendations/<slug>/`;
+   - генерацию страниц `/recommendations/<slug>/` с `data-page-type="recommendation"`;
    - сборку `dist/shared/recommendations.json` из front matter;
-   - работу блока «Рекомендуем» на основе этого JSON.
+   - **динамическую загрузку** карусели рекомендаций из JSON.
+
+3. Динамическая карусель:
+
+   - HTML-шаблон содержит только пустой контейнер `.stack-carousel`;
+   - JavaScript при загрузке:
+     1. запрашивает `/shared/recommendations.json`;
+     2. создает слайды по 2 карточки;
+     3. генерирует точки индикатора;
+     4. подключает автопрокрутку и свайпы.
+   - При ошибке загрузки — fallback на статичный контент.
 
 ### 2.7. Legal
 
@@ -126,11 +143,17 @@
 
 - `domain`;
 - `pricing`: `originalAmount`, `currentAmount`, `currency`;
-- `ctaTexts`: `enterFull`, `next`, `goToCourse`;
+- `ctaTexts`: `enterFull`, `next`, `goToCourse`, `openCourse`;
 - `footer`: `companyName`, `inn`, `year`;
 - `legal`: имена md‑файлов;
 - `robokassa`: `merchantLogin`, `password1`, `password2`, `isTest`, `invoicePrefix`, `successUrl`, `failUrl`, `resultUrl`;
 - `build.wordsPerMinute`.
+
+Тексты CTA используются так:
+- `enterFull` — «Войти в полную версию» (free-версия, открывает модалку оплаты);
+- `next` — «Далее» (premium-версия, переход на следующую страницу);
+- `goToCourse` — «Перейти к курсу» (возврат из appendix);
+- `openCourse` — «Открыть курс» (рекомендации, переход на intro или сохраненную позицию).
 
 Билд‑скрипт должен:
 
@@ -187,11 +210,18 @@ CLI:
    - убрать жёстко прошитые `href="#..."`;
    - использовать `menuItems` из билда.
 
-2. CTA‑виджет:
+2. Progress Widget (CTA‑виджет):
 
    - один компонент (проценты + кнопка);
-   - опираться на `pageType`, `userState`, `nextUrlPremium`, `entryUrlPremium`;
-   - использовать только 3 текста: `Войти в полную версию`, `Далее`, `Перейти к курсу`.
+   - определяет поведение на основе `data-page-type`:
+     - `free`, `intro-free` → открывает модалку оплаты;
+     - `premium`, `intro-premium` → переход на `data-next-page`;
+     - `recommendation` → умная навигация с проверкой localStorage;
+   - использовать 4 текста из `site.json.ctaTexts`:
+     - «Войти в полную версию»;
+     - «Далее»;
+     - «Перейти к курсу»;
+     - «Открыть курс».
 
 3. Paywall‑блок в free:
 
