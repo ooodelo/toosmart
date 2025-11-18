@@ -33,12 +33,27 @@ const MIME_TYPES = {
   '.svg': 'image/svg+xml'
 };
 
+// Разрешенные origins для CORS (только localhost)
+const ALLOWED_ORIGINS = [
+  'http://localhost:3001',
+  'http://127.0.0.1:3001',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000'
+];
+
 // Создание HTTP сервера
 const server = http.createServer(async (req, res) => {
-  // CORS заголовки
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  // CORS заголовки - только для localhost
+  const origin = req.headers.origin;
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else if (!origin) {
+    // Разрешаем запросы без origin (прямой доступ)
+    res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3001');
+  }
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
 
   // Preflight запрос
   if (req.method === 'OPTIONS') {

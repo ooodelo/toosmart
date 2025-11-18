@@ -96,12 +96,27 @@
     event.preventDefault();
 
     const form = event.target;
-    const email = form.email.value.trim();
-    const acceptOffer = form.accept_offer.checked;
-    const submitButton = form.querySelector('button[type="submit"]');
     const errorDiv = document.getElementById('payment-error');
 
-    // Валидация
+    // Проверка наличия обязательных полей формы
+    const emailField = form.email;
+    const acceptOfferField = form.accept_offer;
+    const submitButton = form.querySelector('button[type="submit"]');
+
+    if (!emailField) {
+      showError(errorDiv, 'Ошибка формы: поле email не найдено');
+      return;
+    }
+
+    if (!acceptOfferField) {
+      showError(errorDiv, 'Ошибка формы: поле согласия не найдено');
+      return;
+    }
+
+    const email = emailField.value ? emailField.value.trim() : '';
+    const acceptOffer = acceptOfferField.checked;
+
+    // Валидация email
     if (!email) {
       showError(errorDiv, 'Пожалуйста, укажите email');
       return;
@@ -112,18 +127,33 @@
       return;
     }
 
-    // Простая валидация email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    // Улучшенная валидация email (более строгая проверка)
+    // Проверяем: локальная часть @ домен с TLD
+    const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
     if (!emailRegex.test(email)) {
       showError(errorDiv, 'Неверный формат email');
       return;
     }
 
+    // Дополнительная проверка длины
+    if (email.length > 254) {
+      showError(errorDiv, 'Email слишком длинный');
+      return;
+    }
+
     // Показываем загрузку
+    if (!submitButton) {
+      showError(errorDiv, 'Ошибка формы: кнопка отправки не найдена');
+      return;
+    }
+
     const originalText = submitButton.textContent;
     submitButton.disabled = true;
     submitButton.textContent = 'Создание счёта...';
-    errorDiv.style.display = 'none';
+
+    if (errorDiv) {
+      errorDiv.style.display = 'none';
+    }
 
     try {
       // Отправляем запрос на создание invoice

@@ -5,10 +5,14 @@
   var doc = globalObject && globalObject.document ? globalObject.document : null;
   var docElement = doc ? doc.documentElement : null;
 
+  // Breakpoints для адаптивности (соответствуют документации)
   var BREAKPOINTS = {
-    MOBILE_MAX: 767,
-    TABLET_MAX: 899,
-    DESKTOP_MAX: 1279,
+    MOBILE_MAX: 767,      // < 768px - мобильные устройства
+    TABLET_MIN: 768,      // >= 768px - начало планшета
+    TABLET_MAX: 899,      // < 900px - конец планшета
+    DESKTOP_MIN: 900,     // >= 900px - начало десктопа
+    DESKTOP_MAX: 1279,    // < 1280px - конец стандартного десктопа
+    DESKTOP_WIDE_MIN: 1280 // >= 1280px - широкий десктоп
   };
 
   function isNumber(value) {
@@ -42,22 +46,22 @@
     var isTouchDevice = inputType === 'touch';
 
     if (isTouchDevice) {
-      if (width < 768) {
+      if (width < BREAKPOINTS.TABLET_MIN) {
         return 'mobile';
       }
-      if (width < 900) {
+      if (width < BREAKPOINTS.DESKTOP_MIN) {
         return 'tablet';
       }
       return 'desktop';
     }
 
-    if (width < 768) {
+    if (width < BREAKPOINTS.TABLET_MIN) {
       return 'mobile';
     }
-    if (width < 900) {
+    if (width < BREAKPOINTS.DESKTOP_MIN) {
       return 'tablet';
     }
-    if (width < 1280) {
+    if (width < BREAKPOINTS.DESKTOP_WIDE_MIN) {
       return 'desktop';
     }
     return 'desktop-wide';

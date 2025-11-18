@@ -30,6 +30,9 @@
     "resultUrl": "/robokassa-callback.php"
   },
   "build": {
-    "wordsPerMinute": 180
+    "wordsPerMinute": 200
+  },
+  "features": {
+    "cookiesBannerEnabled": true
   }
 }

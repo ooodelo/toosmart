@@ -450,6 +450,20 @@
       </div>
     </div>
 
+    <!-- COOKIE CONSENT BANNER -->
+    <div class="cookie-banner" id="cookie-banner" hidden>
+      <div class="cookie-content">
+        <p class="cookie-text">
+          Мы используем cookies для улучшения работы сайта и аналитики посещаемости.
+          <a href="#" onclick="openLegalModal('cookies'); return false;">Подробнее</a>
+        </p>
+        <div class="cookie-buttons">
+          <button class="cookie-btn cookie-btn-accept" onclick="acceptCookies()">Принять</button>
+          <button class="cookie-btn cookie-btn-decline" onclick="declineCookies()">Отклонить</button>
+        </div>
+      </div>
+    </div>
+
     <script>
       function openLegalModal(type) {
         const modalId = 'legal-' + type + '-modal';
@@ -476,6 +490,37 @@
           closeLegalModal('privacy');
           closeLegalModal('requisites');
           closeLegalModal('cookies');
+        }
+      });
+
+      // Функции для cookie consent banner
+      function acceptCookies() {
+        localStorage.setItem('cookieConsent', 'accepted');
+        const banner = document.getElementById('cookie-banner');
+        if (banner) {
+          banner.setAttribute('hidden', '');
+        }
+        // Здесь можно загрузить аналитику
+        console.log('Cookies accepted - analytics can be loaded');
+      }
+
+      function declineCookies() {
+        localStorage.setItem('cookieConsent', 'declined');
+        const banner = document.getElementById('cookie-banner');
+        if (banner) {
+          banner.setAttribute('hidden', '');
+        }
+        console.log('Cookies declined - analytics will not be loaded');
+      }
+
+      // Показать cookie banner при загрузке страницы
+      document.addEventListener('DOMContentLoaded', function() {
+        const cookieConsent = localStorage.getItem('cookieConsent');
+        if (!cookieConsent) {
+          const banner = document.getElementById('cookie-banner');
+          if (banner) {
+            banner.removeAttribute('hidden');
+          }
         }
       });
     </script>
