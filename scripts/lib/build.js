@@ -74,7 +74,10 @@ const DEFAULT_SITE_CONFIG = {
     resultUrl: '/robokassa-callback.php'
   },
   build: {
-    wordsPerMinute: 180
+    wordsPerMinute: 150 // Вдумчивое чтение учебного материала
+  },
+  features: {
+    cookiesBannerEnabled: true
   }
 };
 
@@ -111,12 +114,40 @@ async function buildAll() {
 }
 
 async function buildFree() {
-  const config = await loadSiteConfig();
-  const content = await loadContent(config.build.wordsPerMinute);
-  const template = await readTemplate('free');
-  await cleanDir(PATHS.dist.free);
-  await ensureDir(PATHS.dist.free);
-  await copyStaticAssets(PATHS.dist.free);
+  console.log('\n🔨 Сборка FREE версии...\n');
+
+  let config, content, template;
+
+  try {
+    config = await loadSiteConfig();
+  } catch (error) {
+    throw new Error(`Ошибка загрузки конфигурации: ${error.message}`);
+  }
+
+  try {
+    content = await loadContent(config.build.wordsPerMinute);
+  } catch (error) {
+    throw new Error(`Ошибка загрузки контента: ${error.message}`);
+  }
+
+  try {
+    template = await readTemplate('free');
+  } catch (error) {
+    throw new Error(`Ошибка загрузки шаблона: ${error.message}`);
+  }
+
+  try {
+    await cleanDir(PATHS.dist.free);
+    await ensureDir(PATHS.dist.free);
+  } catch (error) {
+    throw new Error(`Ошибка подготовки директории dist/free: ${error.message}`);
+  }
+
+  try {
+    await copyStaticAssets(PATHS.dist.free);
+  } catch (error) {
+    console.warn(`⚠️ Ошибка копирования статических файлов: ${error.message}`);
+  }
 
   const menuItems = buildMenuItems(content, 'free');
 
@@ -618,9 +649,10 @@ function extractLogicalIntro(markdown) {
     const h2Index = findNextHeading(tokens, nextTokenIndex + 1, 2);
     if (h2Index !== -1) {
       const h2Token = tokens[h2Index];
+      // Если H2 содержит "введение", берем до 3 параграфов, иначе только 1-2
       const paragraphCount = hasIntroductionKeyword(h2Token.text)
         ? MAX_INTRO_PARAGRAPHS
-        : MAX_INTRO_PARAGRAPHS;
+        : 2;
       introEndIndex = collectParagraphs(tokens, h2Index + 1, paragraphCount);
     } else {
       introEndIndex = nextTokenIndex + 1; // Только H1 + HR
@@ -628,9 +660,10 @@ function extractLogicalIntro(markdown) {
   }
   // === Ветка C: после H1 сразу идет H2 ===
   else if (firstSignificantToken.type === 'heading' && firstSignificantToken.depth === 2) {
+    // Если H2 содержит "введение", берем до 3 параграфов, иначе только 1-2
     const paragraphCount = hasIntroductionKeyword(firstSignificantToken.text)
       ? MAX_INTRO_PARAGRAPHS
-      : MAX_INTRO_PARAGRAPHS;
+      : 2;
     introEndIndex = collectParagraphs(tokens, nextTokenIndex + 1, paragraphCount);
   }
   // === Другие случаи: только H1 ===
@@ -1138,7 +1171,7 @@ async function minifyAndCopyJS(src, dest) {
     const result = await minifyJS(code, {
       compress: {
         dead_code: true,
-        drop_console: false,
+        drop_console: true, // Убираем console.log в production
         drop_debugger: true,
         passes: 2
       },
