@@ -54,7 +54,8 @@ const DEFAULT_SITE_CONFIG = {
   ctaTexts: {
     enterFull: 'Войти в полную версию',
     next: 'Далее',
-    goToCourse: 'Перейти к курсу'
+    goToCourse: 'Перейти к курсу',
+    openCourse: 'Открыть курс'
   },
   footer: {
     companyName: 'ООО "Название компании"',
@@ -120,7 +121,10 @@ async function buildFree() {
   const menuItems = buildMenuItems(content, 'free');
 
   for (const intro of content.intro) {
-    const page = buildIntroPage(intro, menuItems, config, template, 'free');
+    // Определяем URL первой страницы курса для навигации с intro
+    const firstCourse = content.course[0];
+    const nextUrl = firstCourse ? `/course/${firstCourse.slug}.html` : '';
+    const page = buildIntroPage(intro, menuItems, config, template, 'free', nextUrl);
     const targetPath = path.join(PATHS.dist.free, 'index.html');
     await fsp.writeFile(targetPath, page, 'utf8');
     break;
@@ -404,14 +408,19 @@ function buildMenuItems(content, mode) {
   return menu.sort((a, b) => a.order - b.order);
 }
 
-function buildIntroPage(item, menuItems, config, template, mode) {
+function buildIntroPage(item, menuItems, config, template, mode, nextUrl = '') {
+  // Задача 3: Intro - особая публичная страница без paywall
+  // Навигация всегда только вперед - на первую страницу курса
+  const buttonText = mode === 'premium' ? config.ctaTexts.next : config.ctaTexts.enterFull;
+  const pageType = mode === 'premium' ? 'intro-premium' : 'intro-free';
+
   const body = `
   <main>
     <header>
       <h1>${item.title}</h1>
       <p class="meta">${formatReadingTime(item.readingTimeMinutes)} чтения</p>
     </header>
-    <article>${item.fullHtml}</article>
+    <article data-page-type="${pageType}" data-button-text="${buttonText}" data-next-page="${nextUrl}">${item.fullHtml}</article>
   </main>
   ${renderMenu(menuItems)}
   ${renderFooter(config, mode)}
@@ -437,7 +446,7 @@ function buildFreeCoursePage(item, menuItems, config, template) {
       <h1>${item.title}</h1>
       <p class="meta">${formatReadingTime(item.readingTimeMinutes)} чтения</p>
     </header>
-    <article>
+    <article data-page-type="free" data-button-text="${config.ctaTexts.enterFull}">
       ${item.introHtml}
       <div class="premium-teaser">
         <div class="premium-teaser__blurred" data-nosnippet><!--noindex-->${item.teaserHtml}<!--/noindex--></div>
@@ -461,7 +470,8 @@ function buildFreeCoursePage(item, menuItems, config, template) {
 }
 
 function buildPremiumPage(item, menuItems, config, template, { prevUrl, nextUrl }) {
-  const prevText = prevUrl ? (prevUrl.includes('/premium/') ? 'Назад' : config.ctaTexts.goToCourse) : '';
+  // Задача 1: Упрощение навигации - только однонаправленная (кнопка "Назад" убрана)
+  // Возврат происходит через боковое меню или браузерную кнопку "Назад"
 
   const body = `
   <main>
@@ -469,11 +479,7 @@ function buildPremiumPage(item, menuItems, config, template, { prevUrl, nextUrl 
       <h1>${item.title}</h1>
       <p class="meta">${formatReadingTime(item.readingTimeMinutes)} чтения</p>
     </header>
-    <article>${item.fullHtml}</article>
-    <nav class="premium-nav">
-      ${prevUrl ? `<a class="nav-prev" href="${prevUrl}" data-analytics="nav-prev">${prevText}</a>` : ''}
-      ${nextUrl ? `<a class="nav-next" href="${nextUrl}" data-analytics="nav-next">${config.ctaTexts.next}</a>` : ''}
-    </nav>
+    <article data-page-type="premium" data-button-text="${config.ctaTexts.next}" data-next-page="${nextUrl || ''}">${item.fullHtml}</article>
   </main>
   ${renderMenu(menuItems)}
   ${renderFooter(config, 'premium')}
@@ -490,13 +496,16 @@ function buildPremiumPage(item, menuItems, config, template, { prevUrl, nextUrl 
 }
 
 function buildRecommendationPage(item, menuItems, config, template, mode) {
+  // Задача 2: Для рекомендаций кнопка "Открыть курс" ведет на intro или последнюю позицию
+  const introUrl = mode === 'premium' ? '/premium/' : '/';
+
   const body = `
   <main>
     <header>
       <h1>${item.title}</h1>
       <p class="meta">${formatReadingTime(item.readingTimeMinutes)} чтения</p>
     </header>
-    <article>${item.fullHtml}</article>
+    <article data-page-type="recommendation" data-button-text="${config.ctaTexts.openCourse}" data-next-page="${introUrl}">${item.fullHtml}</article>
   </main>
   ${renderMenu(menuItems)}
   ${renderFooter(config, mode)}

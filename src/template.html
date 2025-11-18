@@ -331,51 +331,17 @@
         <div class="dot-flyout is-hidden" hidden role="navigation" aria-label="Оглавление разделов"></div>
       </section>
 
+      <!-- Задача 4: Динамическая карусель рекомендаций -->
+      <!-- Контент генерируется из /shared/recommendations.json -->
       <aside class="stack" aria-label="Рекомендации" data-lazy="stack-carousel">
         <h2 class="stack__title">🔥 Рекомендуем</h2>
 
         <div class="stack-carousel">
-          <!-- Слайд 1 -->
-          <div class="stack-slide" data-slide="0" data-active="true">
-            <div class="stack-card">
-              <div class="stack-card__image"></div>
-              <div class="stack-card__content">
-                <h3>Переплата за «эко»-средства</h3>
-                <p>Разбираем состав экологичных средств и их стоимость...</p>
-              </div>
-            </div>
-            <div class="stack-card">
-              <div class="stack-card__image"></div>
-              <div class="stack-card__content">
-                <h3>Опасные комбинации бытовой химии</h3>
-                <p>Смертельно опасные комбинации химии в вашей квартире...</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Слайд 2 -->
-          <div class="stack-slide" data-slide="1" data-active="false">
-            <div class="stack-card">
-              <div class="stack-card__image"></div>
-              <div class="stack-card__content">
-                <h3>Сода + уксус не работает</h3>
-                <p>Почему главный интернет-совет по уборке — ерунда...</p>
-              </div>
-            </div>
-            <div class="stack-card">
-              <div class="stack-card__image"></div>
-              <div class="stack-card__content">
-                <h3>pH-нейтрально — маркетинговая уловка</h3>
-                <p>pH-нейтральное средство не расщепляет жир физически...</p>
-              </div>
-            </div>
-          </div>
+          <!-- Слайды генерируются динамически из JSON -->
         </div>
 
-        <!-- Индикатор прогресса -->
+        <!-- Индикатор прогресса (точки генерируются динамически) -->
         <div class="stack-indicator">
-          <button class="stack-dot" data-dot="0" data-active="true" aria-label="Слайд 1"></button>
-          <button class="stack-dot" data-dot="1" data-active="false" aria-label="Слайд 2"></button>
         </div>
       </aside>
     </main>

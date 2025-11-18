@@ -2552,10 +2552,140 @@ function initMenuLinks() {
  */
 function initStackCarousel() {
   const stack = document.querySelector('.stack');
-  const slides = document.querySelectorAll('.stack-slide');
-  const dots = document.querySelectorAll('.stack-dot');
+  if (!stack) return;
 
-  if (slides.length === 0) return;
+  const carousel = stack.querySelector('.stack-carousel');
+  const indicator = stack.querySelector('.stack-indicator');
+
+  if (!carousel || !indicator) return;
+
+  // Задача 4: Динамическая карусель рекомендаций
+  // Загружаем данные из JSON и генерируем слайды программно
+  const RECOMMENDATIONS_URL = '/shared/recommendations.json';
+  const CARDS_PER_SLIDE = 2;
+
+  // Функция создания карточки рекомендации
+  function createCard(rec) {
+    const card = document.createElement('a');
+    card.className = 'stack-card';
+    card.href = `/recommendations/${rec.slug}.html`;
+    card.setAttribute('data-analytics', 'recommendation-card');
+
+    const imageDiv = document.createElement('div');
+    imageDiv.className = 'stack-card__image';
+
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'stack-card__content';
+
+    const title = document.createElement('h3');
+    title.textContent = rec.title;
+
+    const excerpt = document.createElement('p');
+    excerpt.textContent = rec.excerpt || '';
+
+    contentDiv.appendChild(title);
+    contentDiv.appendChild(excerpt);
+    card.appendChild(imageDiv);
+    card.appendChild(contentDiv);
+
+    return card;
+  }
+
+  // Функция создания слайда с карточками
+  function createSlide(cards, index, isActive) {
+    const slide = document.createElement('div');
+    slide.className = 'stack-slide';
+    slide.setAttribute('data-slide', index.toString());
+    slide.setAttribute('data-active', isActive ? 'true' : 'false');
+
+    cards.forEach(card => slide.appendChild(card));
+    return slide;
+  }
+
+  // Функция создания точки индикатора
+  function createDot(index, isActive) {
+    const dot = document.createElement('button');
+    dot.className = 'stack-dot';
+    dot.setAttribute('data-dot', index.toString());
+    dot.setAttribute('data-active', isActive ? 'true' : 'false');
+    dot.setAttribute('aria-label', `Слайд ${index + 1}`);
+    return dot;
+  }
+
+  // Функция генерации карусели из данных
+  function buildCarousel(recommendations) {
+    // Очищаем существующий контент
+    clearElement(carousel);
+    clearElement(indicator);
+
+    if (recommendations.length === 0) {
+      stack.style.display = 'none';
+      return { slides: [], dots: [] };
+    }
+
+    const slidesArray = [];
+    const dotsArray = [];
+
+    // Разбиваем рекомендации на слайды по CARDS_PER_SLIDE карточек
+    const slideCount = Math.ceil(recommendations.length / CARDS_PER_SLIDE);
+
+    for (let i = 0; i < slideCount; i++) {
+      const startIdx = i * CARDS_PER_SLIDE;
+      const endIdx = Math.min(startIdx + CARDS_PER_SLIDE, recommendations.length);
+      const slideRecs = recommendations.slice(startIdx, endIdx);
+
+      const cards = slideRecs.map(rec => createCard(rec));
+      const slide = createSlide(cards, i, i === 0);
+      carousel.appendChild(slide);
+      slidesArray.push(slide);
+
+      const dot = createDot(i, i === 0);
+      indicator.appendChild(dot);
+      dotsArray.push(dot);
+    }
+
+    return { slides: slidesArray, dots: dotsArray };
+  }
+
+  // Загружаем данные и инициализируем карусель
+  let slides = [];
+  let dots = [];
+  let carouselInitialized = false;
+
+  // Пробуем загрузить JSON с рекомендациями
+  fetch(RECOMMENDATIONS_URL)
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(recommendations => {
+      const result = buildCarousel(recommendations);
+      slides = result.slides;
+      dots = result.dots;
+
+      if (slides.length > 0) {
+        initCarouselInteractivity();
+      }
+    })
+    .catch(error => {
+      console.warn('[StackCarousel] Не удалось загрузить рекомендации:', error);
+      // Используем существующие статичные слайды как fallback
+      slides = Array.from(document.querySelectorAll('.stack-slide'));
+      dots = Array.from(document.querySelectorAll('.stack-dot'));
+
+      if (slides.length > 0) {
+        initCarouselInteractivity();
+      }
+    });
+
+  // Инициализация интерактивности карусели
+  function initCarouselInteractivity() {
+    if (carouselInitialized) return;
+    carouselInitialized = true;
+
+    if (slides.length === 0) return;
 
   let currentSlide = 0;
   let intervalDisposer = null;
@@ -2770,6 +2900,14 @@ function initStackCarousel() {
       console.error('[StackCarousel] Failed to deregister lifecycle cleanup', error);
     }
   };
+  } // Конец initCarouselInteractivity
+
+  // Возвращаем cleanup для внешнего использования
+  const mainCleanup = () => {
+    carouselInitialized = false;
+  };
+
+  return mainCleanup;
 }
 
 /**
@@ -3057,10 +3195,46 @@ function initProgressWidget() {
 
   const NEXT_URL = detectNextUrl();
 
-  // Определяем тип версии: FREE (с payment-modal) или PREMIUM
-  const isFreeVersion = document.getElementById('payment-modal') !== null;
+  // Задача 2: Определяем тип страницы из data-атрибута
+  const article = document.querySelector('article[data-page-type]');
+  const pageType = article?.dataset.pageType || 'unknown';
+
+  // Типы страниц: free, premium, recommendation, intro-free, intro-premium
+  const isFreeVersion = pageType === 'free' || pageType === 'intro-free';
+  const isRecommendation = pageType === 'recommendation';
+  const isPremium = pageType === 'premium' || pageType === 'intro-premium';
+
   if (isFreeVersion) {
     root.setAttribute('data-free-version', 'true');
+  }
+
+  // Ключ для localStorage - сохранение последней позиции в premium
+  const LAST_POSITION_KEY = 'toosmart_last_premium_position';
+
+  // Для premium страниц: сохраняем текущую позицию при достижении 100%
+  function saveLastPosition() {
+    if (isPremium && typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem(LAST_POSITION_KEY, window.location.pathname);
+      } catch (e) {
+        console.warn('[ProgressWidget] Не удалось сохранить позицию:', e);
+      }
+    }
+  }
+
+  // Для рекомендаций: получаем последнюю сохраненную позицию
+  function getSmartNextUrl() {
+    if (isRecommendation && typeof localStorage !== 'undefined') {
+      try {
+        const savedPosition = localStorage.getItem(LAST_POSITION_KEY);
+        if (savedPosition && savedPosition.includes('/premium/')) {
+          return savedPosition;
+        }
+      } catch (e) {
+        console.warn('[ProgressWidget] Не удалось получить позицию:', e);
+      }
+    }
+    return NEXT_URL;
   }
 
   // 5. Анимации
@@ -3278,11 +3452,16 @@ function initProgressWidget() {
         // FREE версия - открываем модальное окно покупки
         e.preventDefault();
         window.openPaymentModal();
-      } else if (NEXT_URL && NEXT_URL !== '#') {
-        // PREMIUM версия - переход на следующую страницу
-        window.location.href = NEXT_URL;
       } else {
-        console.warn('Progress Widget: следующая страница не найдена');
+        // PREMIUM или рекомендации - переход на следующую страницу
+        const targetUrl = getSmartNextUrl();
+        if (targetUrl && targetUrl !== '#') {
+          // Сохраняем позицию для premium перед переходом
+          saveLastPosition();
+          window.location.href = targetUrl;
+        } else {
+          console.warn('Progress Widget: следующая страница не найдена');
+        }
       }
     } else {
       // До 100%: докрутить до конца
