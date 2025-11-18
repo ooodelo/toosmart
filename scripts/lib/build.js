@@ -144,6 +144,14 @@ async function buildFree() {
   }
 }
 
+/**
+ * Собирает premium версию курса
+ *
+ * Порядок согласно ARCHITECTURE_v1.1:277:
+ * intro → course[1..N] → appendix[1..M]
+ *
+ * Каждая страница имеет ссылки "Назад/Далее" по линейной цепочке
+ */
 async function buildPremium() {
   const config = await loadSiteConfig();
   const content = await loadContent(config.build.wordsPerMinute);
@@ -154,21 +162,69 @@ async function buildPremium() {
   await copyServerFiles(PATHS.dist.premium);
 
   const menuItems = buildMenuItems(content, 'premium');
-  const premiumOrder = [...content.course, ...content.appendix];
 
-  for (let index = 0; index < premiumOrder.length; index++) {
-    const item = premiumOrder[index];
-    const prevUrl = premiumOrder[index - 1]
-      ? premiumUrlFor(premiumOrder[index - 1])
-      : null;
-    const nextUrl = premiumOrder[index + 1]
-      ? premiumUrlFor(premiumOrder[index + 1])
-      : null;
-    const page = buildPremiumPage(item, menuItems, config, template, { prevUrl, nextUrl });
-    const targetPath = premiumUrlFor(item, PATHS.dist.premium);
+  // Цепочка навигации: intro → course → appendix
+  const navigationChain = [...content.intro, ...content.course, ...content.appendix];
+
+  // Генерируем страницы с навигацией
+  for (let index = 0; index < navigationChain.length; index++) {
+    const item = navigationChain[index];
+    const prevItem = navigationChain[index - 1];
+    const nextItem = navigationChain[index + 1];
+
+    const prevUrl = prevItem ? getPremiumUrlForItem(prevItem) : null;
+    const nextUrl = nextItem ? getPremiumUrlForItem(nextItem) : null;
+
+    const page = buildPremiumContentPage(item, menuItems, config, template, { prevUrl, nextUrl });
+    const targetPath = getPremiumPathForItem(item, PATHS.dist.premium);
+
     await ensureDir(path.dirname(targetPath));
     await fsp.writeFile(targetPath, page, 'utf8');
   }
+}
+
+/**
+ * Генерирует URL для элемента в premium версии
+ * @param {Object} item - элемент контента (intro/course/appendix)
+ * @returns {string} - URL
+ */
+function getPremiumUrlForItem(item) {
+  if (item.branch === 'intro') {
+    return '/premium/';
+  } else if (item.branch === 'appendix') {
+    return `/premium/appendix/${item.slug}/`;
+  } else {
+    return `/premium/course/${item.slug}/`;
+  }
+}
+
+/**
+ * Генерирует путь к файлу для элемента в premium версии
+ * @param {Object} item - элемент контента
+ * @param {string} root - корневая директория
+ * @returns {string} - путь к файлу
+ */
+function getPremiumPathForItem(item, root) {
+  if (item.branch === 'intro') {
+    return path.join(root, 'index.html');
+  } else if (item.branch === 'appendix') {
+    return path.join(root, 'appendix', `${item.slug}.html`);
+  } else {
+    return path.join(root, 'course', `${item.slug}.html`);
+  }
+}
+
+/**
+ * Генерирует страницу контента для premium (универсальная для intro/course/appendix)
+ * @param {Object} item - элемент контента
+ * @param {Array} menuItems - меню
+ * @param {Object} config - конфигурация
+ * @param {string} template - шаблон
+ * @param {Object} navigation - объект с prevUrl и nextUrl
+ * @returns {string} - HTML страницы
+ */
+function buildPremiumContentPage(item, menuItems, config, template, { prevUrl, nextUrl }) {
+  return buildPremiumPage(item, menuItems, config, template, { prevUrl, nextUrl });
 }
 
 async function buildRecommendations() {
@@ -284,19 +340,33 @@ async function loadMarkdownBranch(dirPath, branch, wordsPerMinute = DEFAULT_SITE
   return items.sort((a, b) => a.order - b.order);
 }
 
+/**
+ * Формирует элементы меню курса согласно ARCHITECTURE_v1.1
+ *
+ * Free: intro → course (БЕЗ recommendations и legal)
+ * Premium: intro → course → appendix
+ *
+ * Recommendations и legal НИКОГДА не входят в меню курса (только в карусель и прямые URL)
+ *
+ * @param {Object} content - загруженный контент
+ * @param {string} mode - режим ('free' или 'premium')
+ * @returns {Array<MenuItem>} - отсортированный массив элементов меню
+ */
 function buildMenuItems(content, mode) {
   const menu = [];
 
+  // Intro всегда первый (order должен быть 0)
   for (const intro of content.intro) {
     menu.push({
       type: 'intro',
       title: intro.title,
       url: mode === 'premium' ? '/premium/' : '/',
-      order: intro.order,
+      order: 0, // Явно устанавливаем order=0 для intro
       readingTimeMinutes: intro.readingTimeMinutes
     });
   }
 
+  // Разделы курса
   for (const course of content.course) {
     menu.push({
       type: 'course',
@@ -307,6 +377,7 @@ function buildMenuItems(content, mode) {
     });
   }
 
+  // Приложения только в premium
   if (mode === 'premium') {
     for (const appendix of content.appendix) {
       menu.push({
@@ -319,27 +390,8 @@ function buildMenuItems(content, mode) {
     }
   }
 
-  if (mode === 'free') {
-    for (const rec of content.recommendations) {
-      menu.push({
-        type: 'recommendations',
-        title: rec.title,
-        url: `/recommendations/${rec.slug}/`,
-        order: rec.order,
-        readingTimeMinutes: rec.readingTimeMinutes
-      });
-    }
-
-    for (const legal of content.legal) {
-      menu.push({
-        type: 'legal',
-        title: legal.title,
-        url: `/legal/${legal.slug}/`,
-        order: legal.order,
-        readingTimeMinutes: legal.readingTimeMinutes
-      });
-    }
-  }
+  // НЕ добавляем recommendations и legal в меню курса!
+  // Они доступны только по прямым URL и через карусель рекомендаций
 
   return menu.sort((a, b) => a.order - b.order);
 }
@@ -349,7 +401,7 @@ function buildIntroPage(item, menuItems, config, template, mode) {
   <main>
     <header>
       <h1>${item.title}</h1>
-      <p class="meta">~${item.readingTimeMinutes} мин чтения</p>
+      <p class="meta">${formatReadingTime(item.readingTimeMinutes)} чтения</p>
     </header>
     <article>${item.fullHtml}</article>
   </main>
@@ -368,13 +420,16 @@ function buildFreeCoursePage(item, menuItems, config, template) {
   <main>
     <header>
       <h1>${item.title}</h1>
-      <p class="meta">~${item.readingTimeMinutes} мин чтения</p>
+      <p class="meta">${formatReadingTime(item.readingTimeMinutes)} чтения</p>
     </header>
     <article>
       ${item.introHtml}
       <div class="premium-teaser">
         <div class="premium-teaser__blurred" data-nosnippet><!--noindex-->${item.teaserHtml}<!--/noindex--></div>
-        <div class="premium-teaser__overlay">Осталось ~${item.readingTimeMinutes} минут · ${config.ctaTexts.enterFull}</div>
+        <div class="premium-teaser__overlay">
+          <p class="teaser-text">Осталось ${formatReadingTime(item.readingTimeMinutes)}</p>
+          <button class="cta-button">${config.ctaTexts.enterFull}</button>
+        </div>
       </div>
     </article>
   </main>
@@ -393,12 +448,12 @@ function buildPremiumPage(item, menuItems, config, template, { prevUrl, nextUrl 
   <main>
     <header>
       <h1>${item.title}</h1>
-      <p class="meta">~${item.readingTimeMinutes} мин чтения</p>
+      <p class="meta">${formatReadingTime(item.readingTimeMinutes)} чтения</p>
     </header>
     <article>${item.fullHtml}</article>
     <nav class="premium-nav">
-      ${prevUrl ? `<a class="nav-prev" href="${prevUrl}">Назад</a>` : ''}
-      ${nextUrl ? `<a class="nav-next" href="${nextUrl}">Далее</a>` : ''}
+      ${prevUrl ? `<a class="nav-prev" href="${prevUrl}">${config.ctaTexts.goToCourse}</a>` : ''}
+      ${nextUrl ? `<a class="nav-next" href="${nextUrl}">${config.ctaTexts.next}</a>` : ''}
     </nav>
   </main>
   ${renderMenu(menuItems)}
@@ -416,7 +471,7 @@ function buildRecommendationPage(item, menuItems, config, template, mode) {
   <main>
     <header>
       <h1>${item.title}</h1>
-      <p class="meta">~${item.readingTimeMinutes} мин просмотра</p>
+      <p class="meta">${formatReadingTime(item.readingTimeMinutes)} чтения</p>
     </header>
     <article>${item.fullHtml}</article>
   </main>
@@ -450,7 +505,7 @@ function buildLegalPage(item, menuItems, config, template, mode) {
 
 function renderMenu(items) {
   const links = items
-    .map(item => `<li class="menu-item menu-item--${item.type}"><a href="${item.url}">${item.title}</a><span class="menu-item__time">${item.readingTimeMinutes} мин</span></li>`)
+    .map(item => `<li class="menu-item menu-item--${item.type}"><a href="${item.url}">${item.title}</a><span class="menu-item__time">${pluralizeMinutes(item.readingTimeMinutes)}</span></li>`)
     .join('\n');
   return `<nav class="menu"><ul>${links}</ul></nav>`;
 }
@@ -470,32 +525,142 @@ function applyTemplate(template, { title, body }) {
     .replace('{{body}}', body);
 }
 
+/**
+ * Извлекает логическое введение из markdown согласно ARCHITECTURE_v1.1
+ *
+ * Алгоритм:
+ * - Ветка A: после H1 идут параграфы — берем до 3-х параграфов
+ * - Ветка B: после H1 идет HR, затем H2 — анализируем H2 на наличие "введение"
+ * - Ветка C: после H1 сразу идет H2 — анализируем H2 на наличие "введение"
+ *
+ * @param {string} markdown - исходный markdown текст
+ * @returns {{introMd: string, restMd: string}} - разделенный текст
+ */
 function extractLogicalIntro(markdown) {
   const tokens = marked.lexer(markdown, { mangle: false, headerIds: true });
   const h1Index = tokens.findIndex(token => token.type === 'heading' && token.depth === 1);
+
+  // Если H1 не найден, весь текст — это введение
   if (h1Index === -1) {
     return { introMd: markdown, restMd: '' };
   }
 
-  const afterH1 = tokens[h1Index + 1];
-  const afterH1Second = tokens[h1Index + 2];
+  let introEndIndex = h1Index + 1;
+  const MAX_INTRO_PARAGRAPHS = 3;
 
-  let splitIndex = h1Index + 1;
-  if (afterH1 && afterH1.type === 'paragraph') {
-    splitIndex = h1Index + 2;
-  } else if (afterH1 && afterH1.type === 'hr' && afterH1Second && afterH1Second.type === 'heading' && afterH1Second.depth === 2) {
-    splitIndex = h1Index + 3;
-  } else if (afterH1 && afterH1.type === 'heading' && afterH1.depth === 2) {
-    splitIndex = h1Index + 2;
+  // Пропускаем пробельные токены после H1
+  let nextTokenIndex = h1Index + 1;
+  while (nextTokenIndex < tokens.length && tokens[nextTokenIndex].type === 'space') {
+    nextTokenIndex++;
   }
 
-  const introTokens = tokens.slice(0, splitIndex);
-  const restTokens = tokens.slice(splitIndex);
+  if (nextTokenIndex >= tokens.length) {
+    return { introMd: tokensToMarkdown(tokens.slice(0, h1Index + 1)), restMd: '' };
+  }
+
+  const firstSignificantToken = tokens[nextTokenIndex];
+  const secondSignificantToken = tokens[nextTokenIndex + 1];
+
+  // === Ветка A: после H1 сразу идут параграфы ===
+  if (firstSignificantToken.type === 'paragraph') {
+    introEndIndex = collectParagraphs(tokens, nextTokenIndex, MAX_INTRO_PARAGRAPHS);
+  }
+  // === Ветка B: после H1 идет HR, затем H2 ===
+  else if (firstSignificantToken.type === 'hr') {
+    const h2Index = findNextHeading(tokens, nextTokenIndex + 1, 2);
+    if (h2Index !== -1) {
+      const h2Token = tokens[h2Index];
+      const paragraphCount = hasIntroductionKeyword(h2Token.text)
+        ? MAX_INTRO_PARAGRAPHS
+        : MAX_INTRO_PARAGRAPHS;
+      introEndIndex = collectParagraphs(tokens, h2Index + 1, paragraphCount);
+    } else {
+      introEndIndex = nextTokenIndex + 1; // Только H1 + HR
+    }
+  }
+  // === Ветка C: после H1 сразу идет H2 ===
+  else if (firstSignificantToken.type === 'heading' && firstSignificantToken.depth === 2) {
+    const paragraphCount = hasIntroductionKeyword(firstSignificantToken.text)
+      ? MAX_INTRO_PARAGRAPHS
+      : MAX_INTRO_PARAGRAPHS;
+    introEndIndex = collectParagraphs(tokens, nextTokenIndex + 1, paragraphCount);
+  }
+  // === Другие случаи: только H1 ===
+  else {
+    introEndIndex = nextTokenIndex;
+  }
+
+  const introTokens = tokens.slice(0, introEndIndex);
+  const restTokens = tokens.slice(introEndIndex);
 
   return {
     introMd: tokensToMarkdown(introTokens),
     restMd: tokensToMarkdown(restTokens)
   };
+}
+
+/**
+ * Собирает указанное количество параграфов начиная с позиции
+ * @param {Array} tokens - массив токенов
+ * @param {number} startIndex - начальная позиция
+ * @param {number} maxParagraphs - максимум параграфов
+ * @returns {number} - индекс конца введения
+ */
+function collectParagraphs(tokens, startIndex, maxParagraphs) {
+  let paragraphCount = 0;
+  let currentIndex = startIndex;
+
+  while (currentIndex < tokens.length && paragraphCount < maxParagraphs) {
+    const token = tokens[currentIndex];
+
+    // Параграф найден
+    if (token.type === 'paragraph') {
+      paragraphCount++;
+      currentIndex++;
+    }
+    // Пробельные токены пропускаем
+    else if (token.type === 'space') {
+      currentIndex++;
+    }
+    // Остановка на H2 или HR
+    else if (token.type === 'heading' && token.depth === 2) {
+      break;
+    }
+    else if (token.type === 'hr') {
+      break;
+    }
+    // Другие блоки (списки, код) считаем как контент и продолжаем
+    else {
+      currentIndex++;
+    }
+  }
+
+  return currentIndex;
+}
+
+/**
+ * Ищет следующий заголовок указанного уровня
+ * @param {Array} tokens - массив токенов
+ * @param {number} startIndex - начальная позиция
+ * @param {number} depth - уровень заголовка
+ * @returns {number} - индекс заголовка или -1
+ */
+function findNextHeading(tokens, startIndex, depth) {
+  for (let i = startIndex; i < tokens.length; i++) {
+    if (tokens[i].type === 'heading' && tokens[i].depth === depth) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+/**
+ * Проверяет наличие слова "введение" в тексте (регистронезависимо)
+ * @param {string} text - текст для проверки
+ * @returns {boolean} - содержит ли текст слово "введение"
+ */
+function hasIntroductionKeyword(text) {
+  return /введение/i.test(text || '');
 }
 
 function tokensToMarkdown(tokens) {
@@ -523,17 +688,41 @@ function buildTeaser(restHtml) {
   return paragraphs.slice(0, 2).join('');
 }
 
+/**
+ * Парсит YAML front matter из markdown
+ * @param {string} markdown - markdown текст с front matter
+ * @returns {{data: Object, body: string}} - распарсенные данные и тело
+ */
 function parseFrontMatter(markdown) {
   const fmMatch = markdown.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
   if (!fmMatch) return { data: {}, body: markdown };
 
   const [, yamlBlock, body] = fmMatch;
   const data = {};
+
   yamlBlock.split(/\n/).forEach(line => {
-    const [key, ...rest] = line.split(':');
+    const colonIndex = line.indexOf(':');
+    if (colonIndex === -1) return;
+
+    const key = line.substring(0, colonIndex).trim();
+    let value = line.substring(colonIndex + 1).trim();
+
     if (!key) return;
-    data[key.trim()] = rest.join(':').trim();
+
+    // Убираем кавычки, если они окружают значение
+    if ((value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
+    }
+
+    // Преобразуем числа
+    if (/^\d+$/.test(value)) {
+      data[key] = parseInt(value, 10);
+    } else {
+      data[key] = value;
+    }
   });
+
   return { data, body };
 }
 
@@ -625,6 +814,38 @@ function deepMerge(base, next) {
 
 function isPlainObject(value) {
   return value && typeof value === 'object' && !Array.isArray(value);
+}
+
+/**
+ * Склоняет слово "минута" в зависимости от числа
+ * @param {number} count - количество минут
+ * @returns {string} - правильная форма слова
+ *
+ * @example
+ * pluralizeMinutes(1) // "1 минута"
+ * pluralizeMinutes(2) // "2 минуты"
+ * pluralizeMinutes(5) // "5 минут"
+ * pluralizeMinutes(21) // "21 минута"
+ */
+function pluralizeMinutes(count) {
+  const cases = [2, 0, 1, 1, 1, 2];
+  const titles = ['минута', 'минуты', 'минут'];
+  const index = (count % 100 > 4 && count % 100 < 20)
+    ? 2
+    : cases[Math.min(count % 10, 5)];
+  return `${count} ${titles[index]}`;
+}
+
+/**
+ * Форматирует время чтения в удобочитаемый формат
+ * @param {number} minutes - количество минут
+ * @returns {string} - отформатированная строка
+ *
+ * @example
+ * formatReadingTime(5) // "~5 минут"
+ */
+function formatReadingTime(minutes) {
+  return `~${pluralizeMinutes(minutes)}`;
 }
 
 function premiumUrlFor(item, root = '') {
