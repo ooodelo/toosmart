@@ -5,7 +5,8 @@ const { build } = require('./lib/build');
 (async () => {
   try {
     const args = process.argv.slice(2);
-    const target = args.find(arg => arg.startsWith('--target='))?.split('=')[1] || null;
+    const targetArg = args.find(arg => arg.startsWith('--target='));
+    const target = targetArg ? targetArg.split('=')[1] : null;
     await build({ target });
     console.log('✅ Сборка завершена');
   } catch (error) {
