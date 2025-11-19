@@ -230,82 +230,164 @@ sqlite3 /private/database.sqlite "SELECT id, email, created_at FROM users;"
 
 ## 5. Настройка и тестирование отправки email
 
-### Конфигурация в `.env`
+### Как это работает
+
+Когда пользователь оплачивает курс через Robokassa, происходит следующее:
+
+1. **Robokassa уведомляет сервер** — после успешной оплаты Robokassa отправляет POST-запрос на `/robokassa-callback.php`
+2. **Создаётся аккаунт** — система генерирует криптографически безопасный пароль (16 символов) и сохраняет пользователя в базу
+3. **Отправляется письмо** — пароль отправляется на email покупателя через стандартную PHP-функцию `mail()`
+
+### С какого адреса приходит письмо
+
+Адрес отправителя настраивается в файле `.env`:
 
 ```env
-# Email отправителя
-MAIL_FROM=noreply@yourdomain.com
-MAIL_REPLY_TO=support@yourdomain.com
-
-# URL сайта (для письма)
-SITE_URL=https://yourdomain.com
-
-# Robokassa (тестовый режим)
-ROBOKASSA_TEST_MODE=true
-ROBOKASSA_MERCHANT_LOGIN=your_login
-ROBOKASSA_PASSWORD1=password1
-ROBOKASSA_PASSWORD2=password2
+MAIL_FROM=noreply@yourdomain.com      # От кого придёт письмо
+MAIL_REPLY_TO=support@yourdomain.com  # Куда пойдёт ответ пользователя
 ```
 
-### Как работает отправка
+**По умолчанию** (если не настроено): `noreply@toosmart.com`
 
-Email отправляется автоматически при успешной оплате:
-1. Robokassa вызывает `/robokassa-callback.php`
-2. Система создаёт пользователя с случайным паролем
-3. Пароль отправляется на email покупателя
+### Что получит покупатель
 
-### Тестирование через логи (рекомендуется)
+```
+Тема: Ваш доступ к курсу Clean - Теория правильной уборки
 
-**Способ 1: Перехват mail()**
+Здравствуйте!
 
-Добавьте в начало `robokassa-callback.php`:
+Спасибо за покупку курса «Clean - Теория правильной уборки».
+
+Ваши данные для входа в закрытую версию:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Email: buyer@example.com
+Пароль: a8Kj2mNx9pQr4sLw
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Ссылка для входа: https://yourdomain.com/premium/
+
+⚠️ ВАЖНО: Сохраните это письмо - пароль больше нигде не отображается.
+```
+
+### Настройка email на сервере
+
+#### Требования
+
+Функция PHP `mail()` требует настроенный почтовый сервер (MTA) на хостинге:
+- **sendmail** — стандартный MTA на Linux
+- **postfix** — популярная альтернатива
+- **msmtp** — лёгкий клиент для отправки через внешний SMTP
+
+На большинстве хостингов (Beget, TimeWeb, REG.RU и т.д.) `mail()` работает "из коробки".
+
+#### Конфигурация `.env`
+
+Скопируйте `.env.example` в `.env` и заполните:
+
+```env
+# === Email настройки ===
+MAIL_FROM=noreply@yourdomain.com      # Адрес отправителя
+MAIL_REPLY_TO=support@yourdomain.com  # Адрес для ответов
+SITE_URL=https://yourdomain.com       # URL сайта (для ссылки в письме)
+
+# === Robokassa ===
+ROBOKASSA_MERCHANT_LOGIN=your_login   # Логин магазина
+ROBOKASSA_PASSWORD1=password1         # Пароль #1 (для создания счёта)
+ROBOKASSA_PASSWORD2=password2         # Пароль #2 (для проверки callback)
+ROBOKASSA_TEST_MODE=true              # true для тестов, false для продакшена
+```
+
+#### Проверка работы mail() на сервере
 
 ```php
-// Для тестирования - логировать вместо отправки
-function test_mail($to, $subject, $message, $headers) {
-    $log_file = __DIR__ . '/../logs/mail.log';
-    $log_entry = sprintf(
-        "[%s]\nTo: %s\nSubject: %s\nHeaders: %s\nBody:\n%s\n\n%s\n",
-        date('Y-m-d H:i:s'),
-        $to,
-        $subject,
-        $headers,
-        $message,
-        str_repeat('=', 50)
-    );
-    file_put_contents($log_file, $log_entry, FILE_APPEND);
-    return true;
-}
-
-// Замените mail() на test_mail() в функции sendPasswordEmail()
+<?php
+// test-mail.php - проверка отправки
+$result = mail(
+    'your-email@gmail.com',
+    'Тест отправки',
+    'Если вы видите это письмо, mail() работает!',
+    'From: noreply@yourdomain.com'
+);
+echo $result ? 'Отправлено!' : 'Ошибка отправки';
 ```
 
-**Способ 2: Использовать MailHog**
+### Локальное тестирование (без реальной отправки)
+
+На локальной машине `mail()` обычно не работает. Есть 3 способа тестировать:
+
+#### Способ 1: Логирование в файл (самый простой)
+
+Временно замените отправку на запись в лог. В файле `server/robokassa-callback.php` найдите строку:
+
+```php
+if (mail($to, $subject, $message, implode("\r\n", $headers))) {
+```
+
+И замените на:
+
+```php
+// Для локального тестирования - пишем в файл вместо отправки
+$log_file = __DIR__ . '/../logs/mail.log';
+$log_entry = sprintf(
+    "=== %s ===\nTo: %s\nSubject: %s\n\n%s\n\n",
+    date('Y-m-d H:i:s'),
+    $to,
+    $subject,
+    $message
+);
+file_put_contents($log_file, $log_entry, FILE_APPEND);
+$mail_sent = true; // Имитируем успешную отправку
+
+if ($mail_sent) {
+```
+
+Теперь письма будут сохраняться в `logs/mail.log`. Не забудьте создать папку:
 
 ```bash
-# Установка
+mkdir -p logs
+```
+
+#### Способ 2: MailHog (визуальный интерфейс)
+
+MailHog — это фейковый SMTP-сервер с веб-интерфейсом для просмотра писем.
+
+```bash
+# Установка (нужен Go)
 go install github.com/mailhog/MailHog@latest
 
-# Запуск (SMTP на :1025, Web UI на :8025)
-MailHog
+# Или через Docker
+docker run -p 1025:1025 -p 8025:8025 mailhog/mailhog
 
-# Настройка PHP
-# В php.ini:
+# Запуск
+MailHog
+```
+
+Настройте PHP использовать MailHog. В `php.ini`:
+
+```ini
 sendmail_path = /usr/local/bin/mhsendmail
 ```
 
-Откройте http://localhost:8025 для просмотра писем.
+Или для Docker/macOS:
 
-**Способ 3: Проверка логов**
-
-После callback'а проверьте лог:
-
-```bash
-# Ищите записи об отправке
-grep "Password email sent" /var/log/apache2/error.log
+```ini
+sendmail_path = "/usr/bin/env php -r 'print_r(stream_socket_client(\"tcp://127.0.0.1:1025\"));'"
 ```
 
-Пример записи в логе:
+Откройте http://localhost:8025 — там будут все "отправленные" письма.
+
+#### Способ 3: Проверка через логи системы
+
+Даже без реальной отправки, система логирует попытки:
+
+```bash
+# Ищите записи об отправке в логах PHP
+grep "Password email sent" /var/log/apache2/error.log
+
+# Или для встроенного PHP-сервера - смотрите вывод в терминале
+```
+
+Пример записи:
 ```json
 {
   "level": "INFO",
@@ -317,18 +399,31 @@ grep "Password email sent" /var/log/apache2/error.log
 }
 ```
 
-### Тестирование платёжного callback
+### Тестирование полного процесса оплаты
+
+Чтобы проверить весь процесс (оплата → создание пользователя → отправка письма):
+
+#### 1. Запустите локальный PHP-сервер
 
 ```bash
-# Имитация callback от Robokassa
-# Подпись: MD5(OutSum:InvId:Password2:Shp_email=email)
+php -S localhost:8000 -t server/
+```
 
+#### 2. Имитируйте callback от Robokassa
+
+Robokassa отправляет POST-запрос с подписью. Создайте её так:
+
+```bash
+# Параметры платежа
 INV_ID=12345
 OUT_SUM=990.00
 EMAIL=test@example.com
-PASSWORD2=your_password2
+PASSWORD2=your_password2   # Из .env (ROBOKASSA_PASSWORD2)
+
+# Генерация подписи: MD5(OutSum:InvId:Password2:Shp_email=email)
 SIGN=$(echo -n "${OUT_SUM}:${INV_ID}:${PASSWORD2}:Shp_email=${EMAIL}" | md5sum | cut -d' ' -f1)
 
+# Отправка запроса
 curl -X POST http://localhost:8000/robokassa-callback.php \
   -d "OutSum=${OUT_SUM}" \
   -d "InvId=${INV_ID}" \
@@ -336,14 +431,36 @@ curl -X POST http://localhost:8000/robokassa-callback.php \
   -d "Shp_email=${EMAIL}"
 ```
 
-При успехе вернётся: `OK${INV_ID}`
+При успехе ответ: `OK12345`
 
-### Проверка созданного пользователя
+#### 3. Проверьте результат
 
 ```bash
+# Пользователь в базе
 sqlite3 /private/database.sqlite \
   "SELECT email, invoice_id, amount, created_at FROM users WHERE invoice_id='12345';"
+
+# Письмо в логе (если использовали способ 1)
+cat logs/mail.log
 ```
+
+### Частые проблемы
+
+| Проблема | Причина | Решение |
+|----------|---------|---------|
+| `mail()` возвращает `false` | Не настроен MTA | Установите sendmail/postfix или используйте внешний SMTP |
+| Письма в спаме | Нет SPF/DKIM записей | Добавьте DNS записи для домена |
+| Письма не доходят | Блокировка провайдером | Используйте сервис типа SendGrid/Mailgun |
+| `Bad signature` в callback | Неверный PASSWORD2 | Проверьте ROBOKASSA_PASSWORD2 в .env |
+
+### Использование внешних сервисов (рекомендуется для продакшена)
+
+Для надёжной доставки используйте API почтовых сервисов:
+- **SendGrid** — 100 писем/день бесплатно
+- **Mailgun** — 5000 писем/месяц бесплатно
+- **Unisender** — российский сервис
+
+Потребуется заменить `mail()` на HTTP-запрос к API сервиса.
 
 ---
 
