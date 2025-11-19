@@ -4,42 +4,41 @@
  * Управляет модальным окном оплаты и интеграцией с Robokassa
  */
 
-(function() {
-  'use strict';
-
+export function initCta() {
   // Ждём загрузки DOM
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
+    document.addEventListener('DOMContentLoaded', init, { once: true });
   } else {
     init();
   }
+}
 
-  function init() {
-    // Навешиваем обработчики на все CTA кнопки
-    const ctaButtons = document.querySelectorAll('.cta-button');
-    ctaButtons.forEach(button => {
-      button.addEventListener('click', openCTAModal);
+function init() {
+  // Навешиваем обработчики на все CTA кнопки
+  const ctaButtons = document.querySelectorAll('.cta-button');
+  ctaButtons.forEach(button => {
+    button.addEventListener('click', openCTAModal);
+  });
+
+  // Обработчики для модального окна
+  const modal = document.getElementById('cta-payment-modal');
+  if (modal) {
+    const closeBtn = modal.querySelector('.modal-close');
+    const overlay = modal.querySelector('.modal-overlay');
+    const form = modal.querySelector('#payment-form');
+
+    if (closeBtn) closeBtn.addEventListener('click', closeCTAModal);
+    if (overlay) overlay.addEventListener('click', closeCTAModal);
+    if (form) form.addEventListener('submit', handlePayment);
+
+    // Закрытие по Escape
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && !modal.hasAttribute('hidden')) {
+        closeCTAModal();
+      }
     });
-
-    // Обработчики для модального окна
-    const modal = document.getElementById('cta-payment-modal');
-    if (modal) {
-      const closeBtn = modal.querySelector('.modal-close');
-      const overlay = modal.querySelector('.modal-overlay');
-      const form = modal.querySelector('#payment-form');
-
-      if (closeBtn) closeBtn.addEventListener('click', closeCTAModal);
-      if (overlay) overlay.addEventListener('click', closeCTAModal);
-      if (form) form.addEventListener('submit', handlePayment);
-
-      // Закрытие по Escape
-      document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape' && !modal.hasAttribute('hidden')) {
-          closeCTAModal();
-        }
-      });
-    }
   }
+}
 
   /**
    * Открывает модальное окно CTA
@@ -204,5 +203,4 @@
     errorDiv.style.display = 'block';
     errorDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
-
-})();
+}

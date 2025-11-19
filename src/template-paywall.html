@@ -5,48 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:;" />
     <title>UI-каркас адаптивов</title>
-    <script src="mode-utils.js"></script>
-    <script>
-      (function () {
-        var win = window;
-        var d = win.document;
-        var ModeUtils = win.ModeUtils;
-
-        if (!ModeUtils) {
-          return;
-        }
-
-        var initialState = ModeUtils.detectInitialState(win, d);
-        var mode = initialState.mode;
-        var input = initialState.input;
-
-        win.__INITIAL_MODE__ = mode;
-        if (typeof input === 'string') {
-          win.__INITIAL_INPUT__ = input;
-        }
-
-        function applyInitialState() {
-          if (!ModeUtils.applyStateToBody(d, initialState)) {
-            return false;
-          }
-          return true;
-        }
-
-        if (!applyInitialState()) {
-          d.addEventListener('readystatechange', function onReady() {
-            if (d.readyState !== 'loading' && applyInitialState()) {
-              d.removeEventListener('readystatechange', onReady);
-            }
-          });
-        }
-      })();
-    </script>
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="/assets/styles.css" />
   </head>
   <body>
     <header class="header" role="banner">
-      <img src="assets/PointingToClean.png" alt="Логотип" class="header__logo">
-      <img src="assets/CleanLogo.svg" alt="Clean - Теория правильной уборки. Практикум" class="header__svg">
+      <img src="/premium/assets/PointingToClean.png" alt="Логотип" class="header__logo">
+      <img src="/premium/assets/CleanLogo.svg" alt="Clean - Теория правильной уборки. Практикум" class="header__svg">
     </header>
 
     <aside class="menu-rail" aria-label="Структура курса">
@@ -606,5 +570,6 @@
         }, 500);
       });
     </script>
+    <script src="/premium/script.js" type="module"></script>
   </body>
 </html>

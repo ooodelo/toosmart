@@ -1,3 +1,6 @@
+import { ModeUtils } from './mode-utils.js';
+import { initCta } from './cta.js';
+
 /**
  * АРХИТЕКТУРА: Разделение режимов верстки и типов ввода
  *
@@ -26,8 +29,6 @@
  *    Desktop 27" (1920px, pointer) → mode=desktop-wide, input=pointer
  *    Dev Tools iPhone (375px, pointer) → mode=mobile, input=pointer
  */
-
-const ModeUtils = window.ModeUtils;
 
 if (!ModeUtils) {
   throw new Error('ModeUtils module is required for responsive mode detection.');
@@ -4104,6 +4105,8 @@ if (window.DEBUG_METRICS_OVERLAY) {
 if (document.visibilityState !== 'hidden') {
   resumeApp({ reason: 'init' });
 }
+
+initCta();
 
 const appApi = {
   dispose: disposeApp,
