@@ -3631,6 +3631,13 @@ function activateProgressWidgetFeature() {
     return () => {};
   }
 
+  // Не показывать виджет на страницах с paywall - там статичная кнопка
+  const article = document.querySelector('article[data-page-type]');
+  const pageType = article?.dataset.pageType || 'unknown';
+  if (pageType === 'free') {
+    return () => {};
+  }
+
   // Safari fix: Убедимся что элементы найдены перед инициализацией
   ensureElements();
 
