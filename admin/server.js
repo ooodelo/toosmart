@@ -17,7 +17,7 @@ const fs = require('fs');
 const path = require('path');
 const { execSync, spawn } = require('child_process');
 
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 const CONFIG_PATH = path.join(__dirname, '..', 'config', 'site.json');
 const ADMIN_DIR = __dirname;
 const PROJECT_ROOT = path.join(__dirname, '..');
@@ -33,23 +33,12 @@ const MIME_TYPES = {
   '.svg': 'image/svg+xml'
 };
 
-// Разрешенные origins для CORS (только localhost)
-const ALLOWED_ORIGINS = [
-  'http://localhost:3001',
-  'http://127.0.0.1:3001',
-  'http://localhost:3000',
-  'http://127.0.0.1:3000'
-];
-
 // Создание HTTP сервера
 const server = http.createServer(async (req, res) => {
   // CORS заголовки - только для localhost
   const origin = req.headers.origin;
-  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+  if (origin) {
     res.setHeader('Access-Control-Allow-Origin', origin);
-  } else if (!origin) {
-    // Разрешаем запросы без origin (прямой доступ)
-    res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3001');
   }
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -62,7 +51,8 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  const url = new URL(req.url, `http://localhost:${PORT}`);
+  const host = req.headers.host || `localhost:${PORT}`;
+  const url = new URL(req.url, `http://${host}`);
   const pathname = url.pathname;
 
   try {
