@@ -184,20 +184,22 @@ async function handleBuild(req, res) {
       const { target } = JSON.parse(body);
 
       // Определение команды
+      // Используем process.execPath для гарантии той же версии Node.js
+      const nodeExec = process.execPath;
       let command;
       switch (target) {
         case 'free':
-          command = 'node scripts/build.js --target=free';
+          command = `"${nodeExec}" scripts/build.js --target=free`;
           break;
         case 'premium':
-          command = 'node scripts/build.js --target=premium';
+          command = `"${nodeExec}" scripts/build.js --target=premium`;
           break;
         case 'recommendations':
-          command = 'node scripts/build.js --target=recommendations';
+          command = `"${nodeExec}" scripts/build.js --target=recommendations`;
           break;
         case 'all':
         default:
-          command = 'node scripts/build.js';
+          command = `"${nodeExec}" scripts/build.js`;
           break;
       }
 
