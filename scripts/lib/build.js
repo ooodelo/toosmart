@@ -10,20 +10,26 @@ const csso = require('csso');
 const PATHS = {
   content: path.resolve(__dirname, '../../content'),
   dist: {
+    root: path.resolve(__dirname, '../../dist'),
     free: path.resolve(__dirname, '../../dist/free'),
     premium: path.resolve(__dirname, '../../dist/premium'),
-    shared: path.resolve(__dirname, '../../dist/shared')
+    premiumAssets: path.resolve(__dirname, '../../dist/premium/assets'),
+    recommendations: path.resolve(__dirname, '../../dist/recommendations'),
+    shared: path.resolve(__dirname, '../../dist/shared'),
+    assets: path.resolve(__dirname, '../../dist/assets')
   },
   assets: {
-    script: path.resolve(__dirname, '../../src/script.js'),
+    freeScript: path.resolve(__dirname, '../../src/script.js'),
+    premiumScript: path.resolve(__dirname, '../../src/script.js'),
     cta: path.resolve(__dirname, '../../src/cta.js'),
     styles: path.resolve(__dirname, '../../src/styles.css'),
     modeUtils: path.resolve(__dirname, '../../src/mode-utils.js'),
-    assetsDir: path.resolve(__dirname, '../../src/assets')
+    assetsDir: path.resolve(__dirname, '../../src/assets'),
+    premiumAssetsDir: path.resolve(__dirname, '../../src/premium/assets')
   },
   templates: {
     free: path.resolve(__dirname, '../../src/template.html'),
-    premium: path.resolve(__dirname, '../../src/template.html')
+    premium: path.resolve(__dirname, '../../src/template-paywall.html')
   },
   config: {
     site: path.resolve(__dirname, '../../config/site.json')
@@ -102,6 +108,9 @@ async function build({ target } = {}) {
     case 'recommendations':
       await buildRecommendations();
       break;
+    case 'all':
+      await buildAll();
+      break;
     default:
       throw new Error(`Неизвестный target: ${target}`);
   }
@@ -137,6 +146,7 @@ async function buildFree() {
   }
 
   try {
+    await ensureDir(PATHS.dist.root);
     await cleanDir(PATHS.dist.free);
     await ensureDir(PATHS.dist.free);
   } catch (error) {
@@ -144,7 +154,7 @@ async function buildFree() {
   }
 
   try {
-    await copyStaticAssets(PATHS.dist.free);
+    await copyStaticAssets('free');
   } catch (error) {
     console.warn(`⚠️ Ошибка копирования статических файлов: ${error.message}`);
   }
@@ -154,9 +164,9 @@ async function buildFree() {
   for (const intro of content.intro) {
     // Определяем URL первой страницы курса для навигации с intro
     const firstCourse = content.course[0];
-    const nextUrl = firstCourse ? `/course/${firstCourse.slug}.html` : '';
+    const nextUrl = firstCourse ? `/free/course/${firstCourse.slug}.html` : '';
     const page = buildIntroPage(intro, menuItems, config, template, 'free', nextUrl);
-    const targetPath = path.join(PATHS.dist.free, 'index.html');
+    const targetPath = path.join(PATHS.dist.root, 'index.html');
     await fsp.writeFile(targetPath, page, 'utf8');
     break;
   }
@@ -164,13 +174,6 @@ async function buildFree() {
   for (const course of content.course) {
     const page = buildFreeCoursePage(course, menuItems, config, template);
     const targetPath = path.join(PATHS.dist.free, 'course', `${course.slug}.html`);
-    await ensureDir(path.dirname(targetPath));
-    await fsp.writeFile(targetPath, page, 'utf8');
-  }
-
-  for (const rec of content.recommendations) {
-    const page = buildRecommendationPage(rec, menuItems, config, template, 'free');
-    const targetPath = path.join(PATHS.dist.free, 'recommendations', `${rec.slug}.html`);
     await ensureDir(path.dirname(targetPath));
     await fsp.writeFile(targetPath, page, 'utf8');
   }
@@ -183,8 +186,8 @@ async function buildFree() {
   }
 
   // Генерация SEO файлов
-  await generateRobotsTxt(PATHS.dist.free, config);
-  await generateSitemap(content, PATHS.dist.free, config);
+  await generateRobotsTxt(PATHS.dist.root, config);
+  await generateSitemap(content, PATHS.dist.root, config);
 }
 
 /**
@@ -201,7 +204,7 @@ async function buildPremium() {
   const template = await readTemplate('premium');
   await cleanDir(PATHS.dist.premium);
   await ensureDir(PATHS.dist.premium);
-  await copyStaticAssets(PATHS.dist.premium);
+  await copyStaticAssets('premium');
   await copyServerFiles(PATHS.dist.premium);
 
   const menuItems = buildMenuItems(content, 'premium');
@@ -273,13 +276,21 @@ function buildPremiumContentPage(item, menuItems, config, template, { prevUrl, n
 async function buildRecommendations() {
   const config = await loadSiteConfig();
   const content = await loadContent(config.build.wordsPerMinute);
+  const template = await readTemplate('free');
+  const menuItems = buildMenuItems(content, 'free');
+
+  await copyStaticAssets('free');
+
   await ensureDir(PATHS.dist.shared);
+  await cleanDir(PATHS.dist.recommendations);
+  await ensureDir(PATHS.dist.recommendations);
 
   const recommendations = content.recommendations.map(rec => ({
     slug: rec.slug,
     title: rec.title,
     excerpt: rec.excerpt,
-    readingTimeMinutes: rec.readingTimeMinutes
+    readingTimeMinutes: rec.readingTimeMinutes,
+    url: `/recommendations/${rec.slug}.html`
   }));
 
   await fsp.writeFile(
@@ -288,14 +299,10 @@ async function buildRecommendations() {
     'utf8'
   );
 
-  for (const legal of content.legal) {
-    const html = renderMarkdown(legal.markdown);
-    await ensureDir(path.join(PATHS.dist.shared, 'legal'));
-    await fsp.writeFile(
-      path.join(PATHS.dist.shared, 'legal', `${legal.slug}.html`),
-      html,
-      'utf8'
-    );
+  for (const rec of content.recommendations) {
+    const page = buildRecommendationPage(rec, menuItems, config, template, 'free');
+    const targetPath = path.join(PATHS.dist.recommendations, `${rec.slug}.html`);
+    await fsp.writeFile(targetPath, page, 'utf8');
   }
 
   // optional shared config passthrough for GUI
@@ -414,7 +421,7 @@ function buildMenuItems(content, mode) {
     menu.push({
       type: 'course',
       title: course.title,
-      url: mode === 'premium' ? `/premium/course/${course.slug}.html` : `/course/${course.slug}.html`,
+      url: mode === 'premium' ? `/premium/course/${course.slug}.html` : `/free/course/${course.slug}.html`,
       order: course.order,
       readingTimeMinutes: course.readingTimeMinutes
     });
@@ -829,18 +836,17 @@ async function cleanDir(dir) {
   await Promise.all(entries.map(entry => fsp.rm(path.join(dir, entry), { recursive: true, force: true })));
 }
 
-async function copyStaticAssets(targetRoot) {
-  // Копируем изображения и прочие ресурсы как есть
-  await copyIfExists(PATHS.assets.assetsDir, path.join(targetRoot, 'assets'));
+async function copyStaticAssets(mode) {
+  const isPremium = mode === 'premium';
+  const targetRoot = isPremium ? PATHS.dist.premium : PATHS.dist.free;
+  const targetAssets = isPremium ? PATHS.dist.premiumAssets : PATHS.dist.assets;
+  const scriptSource = isPremium ? PATHS.assets.premiumScript : PATHS.assets.freeScript;
 
-  // Запускаем Vite build (если еще не запускали)
-  // В идеале это нужно делать один раз перед сборкой всех таргетов
-  // Но для простоты можно просто скопировать уже собранные ассеты
+  await ensureDir(PATHS.dist.root);
+  await ensureDir(targetRoot);
 
-  const viteDist = path.resolve(__dirname, '../../dist/assets');
-
-  // Проверяем, есть ли собранные ассеты, если нет - запускаем сборку
-  if (!fs.existsSync(viteDist)) {
+  // Собираем ассеты Vite один раз, если они отсутствуют
+  if (!fs.existsSync(PATHS.dist.assets)) {
     console.log('📦 Запуск Vite build...');
     const { execSync } = require('child_process');
     try {
@@ -850,8 +856,19 @@ async function copyStaticAssets(targetRoot) {
     }
   }
 
-  // Копируем собранные Vite ассеты
-  await copyIfExists(viteDist, targetRoot);
+  await copyIfExists(PATHS.assets.assetsDir, PATHS.dist.assets);
+
+  if (isPremium) {
+    await copyIfExists(PATHS.assets.assetsDir, targetAssets);
+    await copyIfExists(PATHS.assets.premiumAssetsDir, targetAssets);
+  }
+
+  await copyIfExists(PATHS.assets.modeUtils, path.join(targetRoot, 'mode-utils.js'));
+  await copyIfExists(PATHS.assets.cta, path.join(targetRoot, 'cta.js'));
+  await copyIfExists(scriptSource, path.join(targetRoot, 'script.js'));
+
+  // Стили и скрипты, собранные Vite, располагаются в dist/assets
+  // и доступны по абсолютному пути /assets/*
 }
 
 async function copyIfExists(src, dest) {
@@ -954,9 +971,10 @@ async function generateRobotsTxt(distPath, config) {
 
 User-agent: *
 Allow: /
-Allow: /course/
+Allow: /free/
+Allow: /free/course/
+Allow: /free/legal/
 Allow: /recommendations/
-Allow: /legal/
 
 Disallow: /premium/
 Disallow: /server/
@@ -992,7 +1010,7 @@ async function generateSitemap(content, distPath, config) {
   // Разделы курса
   for (const course of content.course) {
     urls.push({
-      loc: `${baseUrl}/course/${course.slug}/`,
+      loc: `${baseUrl}/free/course/${course.slug}.html`,
       lastmod: now,
       changefreq: 'monthly',
       priority: '0.8'
@@ -1002,7 +1020,7 @@ async function generateSitemap(content, distPath, config) {
   // Рекомендации
   for (const rec of content.recommendations) {
     urls.push({
-      loc: `${baseUrl}/recommendations/${rec.slug}/`,
+      loc: `${baseUrl}/recommendations/${rec.slug}.html`,
       lastmod: now,
       changefreq: 'monthly',
       priority: '0.7'
@@ -1012,7 +1030,7 @@ async function generateSitemap(content, distPath, config) {
   // Legal страницы
   for (const legal of content.legal) {
     urls.push({
-      loc: `${baseUrl}/legal/${legal.slug}/`,
+      loc: `${baseUrl}/free/legal/${legal.slug}.html`,
       lastmod: now,
       changefreq: 'yearly',
       priority: '0.3'
@@ -1050,14 +1068,16 @@ function generateMetaTags(item, config, mode, type) {
   let url = baseUrl;
   if (type === 'course') {
     url = mode === 'premium'
-      ? `${baseUrl}/premium/course/${item.slug}/`
-      : `${baseUrl}/course/${item.slug}/`;
+      ? `${baseUrl}/premium/course/${item.slug}.html`
+      : `${baseUrl}/free/course/${item.slug}.html`;
   } else if (type === 'recommendation') {
-    url = `${baseUrl}/recommendations/${item.slug}/`;
+    url = `${baseUrl}/recommendations/${item.slug}.html`;
   } else if (type === 'legal') {
-    url = `${baseUrl}/legal/${item.slug}/`;
+    url = `${baseUrl}/free/legal/${item.slug}.html`;
   } else if (type === 'appendix' && mode === 'premium') {
-    url = `${baseUrl}/premium/appendix/${item.slug}/`;
+    url = `${baseUrl}/premium/appendix/${item.slug}.html`;
+  } else if (type === 'intro' && mode === 'premium') {
+    url = `${baseUrl}/premium/`;
   }
 
   const ogType = type === 'recommendation' ? 'article' : 'website';

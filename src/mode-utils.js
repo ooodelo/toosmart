@@ -1,4 +1,4 @@
-(function (global) {
+const ModeUtils = (function (global) {
   'use strict';
 
   var globalObject = global || (typeof window !== 'undefined' ? window : (typeof self !== 'undefined' ? self : this));
@@ -208,5 +208,15 @@
     },
   };
 
-  globalObject.ModeUtils = ModeUtils;
+  if (globalObject) {
+    globalObject.ModeUtils = ModeUtils;
+  }
+
+  return ModeUtils;
 })(typeof window !== 'undefined' ? window : null);
+
+if (typeof window !== 'undefined' && window) {
+  window.ModeUtils = ModeUtils;
+}
+
+export { ModeUtils };
