@@ -22,6 +22,9 @@
   ],
   "author": "",
   "license": "MIT",
+  "engines": {
+    "node": ">=12"
+  },
   "dependencies": {
     "dompurify": "^3.1.6",
     "jsdom": "^24.0.0",
