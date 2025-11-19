@@ -466,11 +466,6 @@ function buildIntroPage(item, menuItems, config, template, mode, nextUrl = '') {
 }
 
 function buildFreeCoursePage(item, menuItems, config, template) {
-  // Рассчитываем оставшееся время (полное время минус время введения)
-  const introWords = item.introMd.split(/\s+/).filter(Boolean).length;
-  const introMinutes = Math.max(1, Math.ceil(introWords / (config.build.wordsPerMinute || 180)));
-  const remainingMinutes = Math.max(1, item.readingTimeMinutes - introMinutes);
-
   const body = `
   <main>
     <header>
@@ -482,7 +477,6 @@ function buildFreeCoursePage(item, menuItems, config, template) {
       <div class="premium-teaser">
         <div class="premium-teaser__blurred" data-nosnippet><!--noindex-->${item.teaserHtml}<!--/noindex--></div>
         <div class="premium-teaser__overlay">
-          <p class="teaser-text">Осталось ещё ${formatReadingTime(remainingMinutes)}</p>
           <button class="cta-button" data-analytics="cta-premium">${config.ctaTexts.enterFull}</button>
         </div>
       </div>
