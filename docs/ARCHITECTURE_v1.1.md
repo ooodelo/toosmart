@@ -275,17 +275,16 @@ project-root/
 2. Этот фрагмент оборачивается в контейнер:
 
    ```html
-   <section class="premium-teaser" data-nosnippet>
-     <div class="premium-teaser__blurred">
-       <!-- noindex -->
+   <div class="premium-teaser">
+     <div class="premium-teaser__blurred" data-nosnippet>
+       <!--noindex-->
        <!-- здесь абзацы тизера -->
-       <!-- /noindex -->
+       <!--/noindex-->
      </div>
      <div class="premium-teaser__overlay">
-       <p>Осталось ещё ~N минут чтения</p>
-       <button class="premium-teaser__cta">Получить полный доступ</button>
+       <button class="cta-button" data-analytics="cta-premium">Войти в полную версию</button>
      </div>
-   </section>
+   </div>
    ```
 
 3. Весь остальной текст раздела **не попадает** в HTML free-страницы.
@@ -307,8 +306,7 @@ project-root/
 
 Время чтения:
 
-- отображается рядом с пунктами меню;
-- используется в блоках «Осталось ~N минут чтения» (на основе разницы между общим временем раздела и введением).
+- отображается рядом с пунктами меню.
 
 ---
 

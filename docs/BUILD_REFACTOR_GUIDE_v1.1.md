@@ -73,7 +73,7 @@
    - блок `premium-teaser`:
 
      - в `premium-teaser__blurred` — тизер в обёртке `<!--noindex-->` и с `data-nosnippet`;
-     - в `premium-teaser__overlay` — текст «осталось ~N минут» + CTA‑кнопка.
+     - в `premium-teaser__overlay` — статичная CTA‑кнопка «Войти в полную версию» (без текста о времени).
 
 4. Полный текст раздела в free‑HTML **не должен присутствовать**.
 
