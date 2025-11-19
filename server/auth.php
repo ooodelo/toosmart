@@ -59,79 +59,49 @@ if (!Security::checkRateLimit($validated_email)) {
     exit;
 }
 
-// 5. ЗАГРУЗКА БАЗЫ ПОЛЬЗОВАТЕЛЕЙ
-$users_file = Config::get('USERS_FILE_PATH', __DIR__ . '/../../private/users.json');
+// 5. ПОИСК ПОЛЬЗОВАТЕЛЯ И ПРОВЕРКА ПАРОЛЯ
+require_once __DIR__ . '/Database.php';
 
-if (!file_exists($users_file)) {
-    Security::secureLog('ERROR', 'Users file not found', ['path' => $users_file]);
-    header('Location: index.php?error=system');
-    exit;
-}
+try {
+    $pdo = Database::getConnection();
+    $stmt = $pdo->prepare("SELECT * FROM users WHERE email = :email LIMIT 1");
+    $stmt->execute([':email' => $validated_email]);
+    $user = $stmt->fetch();
 
-// Чтение базы пользователей с блокировкой
-$fp = fopen($users_file, 'r');
-if (!$fp) {
-    Security::secureLog('ERROR', 'Cannot open users file', ['path' => $users_file]);
-    header('Location: index.php?error=system');
-    exit;
-}
+    if ($user && password_verify($password, $user['password_hash'])) {
+        // УСПЕШНАЯ АВТОРИЗАЦИЯ
+        $authenticated = true;
 
-if (flock($fp, LOCK_SH)) {
-    $users_json = stream_get_contents($fp);
-    flock($fp, LOCK_UN);
-} else {
-    Security::secureLog('ERROR', 'Cannot lock users file', ['path' => $users_file]);
-    fclose($fp);
-    header('Location: index.php?error=system');
-    exit;
-}
+        // Регенерация ID сессии (защита от session fixation)
+        Security::regenerateSession();
 
-fclose($fp);
+        // Установка данных сессии
+        $_SESSION['premium_user'] = $validated_email;
+        $_SESSION['login_time'] = time();
+        $_SESSION['last_activity'] = time();
 
-$users = json_decode($users_json, true);
-
-if (!$users || !is_array($users)) {
-    Security::secureLog('ERROR', 'Invalid users.json format');
-    header('Location: index.php?error=system');
-    exit;
-}
-
-// 6. ПОИСК ПОЛЬЗОВАТЕЛЯ И ПРОВЕРКА ПАРОЛЯ
-$authenticated = false;
-foreach ($users as $user) {
-    if ($user['email'] === $validated_email) {
-        if (password_verify($password, $user['password_hash'])) {
-            // УСПЕШНАЯ АВТОРИЗАЦИЯ
-            $authenticated = true;
-
-            // Регенерация ID сессии (защита от session fixation)
-            Security::regenerateSession();
-
-            // Установка данных сессии
-            $_SESSION['premium_user'] = $validated_email;
-            $_SESSION['login_time'] = time();
-            $_SESSION['last_activity'] = time();
-
-            // Установка IP для дополнительной проверки (опционально)
-            if (Config::getBool('SESSION_CHECK_IP', false)) {
-                $_SESSION['user_ip'] = $_SERVER['REMOTE_ADDR'] ?? '';
-            }
-
-            Security::secureLog('INFO', 'User logged in successfully', [
-                'email' => $validated_email
-            ]);
-
-            // Редирект на главную страницу курса
-            header('Location: home.html');
-            exit;
-        } else {
-            // Неверный пароль
-            Security::secureLog('WARNING', 'Invalid password attempt', [
-                'email' => $validated_email
-            ]);
-            break;
+        // Установка IP для дополнительной проверки (опционально)
+        if (Config::getBool('SESSION_CHECK_IP', false)) {
+            $_SESSION['user_ip'] = $_SERVER['REMOTE_ADDR'] ?? '';
         }
+
+        Security::secureLog('INFO', 'User logged in successfully', [
+            'email' => $validated_email
+        ]);
+
+        // Редирект на главную страницу курса
+        header('Location: home.html');
+        exit;
+    } else {
+        // Неверный пароль или пользователь не найден
+        Security::secureLog('WARNING', 'Invalid password or user not found', [
+            'email' => $validated_email
+        ]);
     }
+} catch (Exception $e) {
+    Security::secureLog('ERROR', 'Database error during login', ['error' => $e->getMessage()]);
+    header('Location: index.php?error=system');
+    exit;
 }
 
 // Если не авторизованы - неверные учетные данные

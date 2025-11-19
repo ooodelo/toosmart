@@ -4,14 +4,16 @@
  * Загрузка переменных окружения из .env файла
  */
 
-class Config {
+class Config
+{
     private static $loaded = false;
     private static $config = [];
 
     /**
      * Загрузить .env файл
      */
-    public static function load($envPath = null) {
+    public static function load($envPath = null)
+    {
         if (self::$loaded) {
             return;
         }
@@ -58,7 +60,8 @@ class Config {
     /**
      * Получить значение из конфига
      */
-    public static function get($key, $default = null) {
+    public static function get($key, $default = null)
+    {
         self::load();
 
         // Проверить в порядке приоритета: $_ENV, self::$config, getenv
@@ -81,7 +84,8 @@ class Config {
     /**
      * Получить обязательное значение (бросает исключение если не найдено)
      */
-    public static function require($key) {
+    public static function require($key)
+    {
         $value = self::get($key);
         if ($value === null) {
             throw new RuntimeException("Required configuration key '$key' is not set");
@@ -92,7 +96,8 @@ class Config {
     /**
      * Получить boolean значение
      */
-    public static function getBool($key, $default = false) {
+    public static function getBool($key, $default = false)
+    {
         $value = self::get($key);
         if ($value === null) {
             return $default;
@@ -103,11 +108,26 @@ class Config {
     /**
      * Получить integer значение
      */
-    public static function getInt($key, $default = 0) {
+    public static function getInt($key, $default = 0)
+    {
         $value = self::get($key);
         if ($value === null) {
             return $default;
         }
-        return (int)$value;
+        return (int) $value;
+    }
+
+    /**
+     * Centralized File Paths
+     */
+    public static function getPath($key)
+    {
+        $root = realpath(__DIR__ . '/../..');
+        $paths = [
+            'db' => $root . '/private/database.sqlite',
+            'users_json' => $root . '/private/users.json', // Legacy
+            'logs' => $root . '/logs',
+        ];
+        return $paths[$key] ?? null;
     }
 }

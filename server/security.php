@@ -6,11 +6,13 @@
 
 require_once __DIR__ . '/config.php';
 
-class Security {
+class Security
+{
     /**
      * Инициализация безопасной сессии
      */
-    public static function initSession() {
+    public static function initSession()
+    {
         if (session_status() === PHP_SESSION_ACTIVE) {
             return;
         }
@@ -28,8 +30,10 @@ class Security {
 
         // Проверка таймаута сессии
         $lifetime = Config::getInt('SESSION_LIFETIME', 86400); // 24 часа по умолчанию
-        if (isset($_SESSION['last_activity']) &&
-            (time() - $_SESSION['last_activity']) > $lifetime) {
+        if (
+            isset($_SESSION['last_activity']) &&
+            (time() - $_SESSION['last_activity']) > $lifetime
+        ) {
             self::destroySession();
             return false;
         }
@@ -51,7 +55,8 @@ class Security {
     /**
      * Регенерация ID сессии (вызывать после логина)
      */
-    public static function regenerateSession() {
+    public static function regenerateSession()
+    {
         if (session_status() === PHP_SESSION_ACTIVE) {
             session_regenerate_id(true);
         }
@@ -60,7 +65,8 @@ class Security {
     /**
      * Уничтожение сессии
      */
-    public static function destroySession() {
+    public static function destroySession()
+    {
         if (session_status() === PHP_SESSION_ACTIVE) {
             $_SESSION = [];
             session_destroy();
@@ -70,7 +76,8 @@ class Security {
     /**
      * Генерация CSRF токена
      */
-    public static function generateCSRFToken() {
+    public static function generateCSRFToken()
+    {
         if (empty($_SESSION['csrf_token'])) {
             $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
         }
@@ -80,7 +87,8 @@ class Security {
     /**
      * Проверка CSRF токена
      */
-    public static function validateCSRFToken($token) {
+    public static function validateCSRFToken($token)
+    {
         if (empty($_SESSION['csrf_token']) || empty($token)) {
             return false;
         }
@@ -95,7 +103,8 @@ class Security {
      * @param int $windowSeconds Временное окно в секундах
      * @return bool True если попытка разрешена
      */
-    public static function checkRateLimit($identifier, $maxAttempts = null, $windowSeconds = null) {
+    public static function checkRateLimit($identifier, $maxAttempts = null, $windowSeconds = null)
+    {
         if ($maxAttempts === null) {
             $maxAttempts = Config::getInt('RATE_LIMIT_MAX_ATTEMPTS', 5);
         }
@@ -131,7 +140,8 @@ class Security {
     /**
      * Получить оставшееся время блокировки
      */
-    public static function getRateLimitTimeRemaining($identifier) {
+    public static function getRateLimitTimeRemaining($identifier)
+    {
         $key = 'rate_limit_' . md5($identifier);
         if (!isset($_SESSION[$key])) {
             return 0;
@@ -142,7 +152,8 @@ class Security {
     /**
      * Валидация email
      */
-    public static function validateEmail($email) {
+    public static function validateEmail($email)
+    {
         $email = filter_var($email, FILTER_VALIDATE_EMAIL);
         if (!$email) {
             return false;
@@ -157,7 +168,8 @@ class Security {
     /**
      * Безопасное логирование (без чувствительных данных)
      */
-    public static function secureLog($level, $message, $context = []) {
+    public static function secureLog($level, $message, $context = [])
+    {
         $log = [
             'timestamp' => date('c'),
             'level' => strtoupper($level),
@@ -177,7 +189,8 @@ class Security {
     /**
      * Получение IP клиента (с учетом proxy)
      */
-    private static function getClientIP() {
+    public static function getClientIP()
+    {
         $headers = [
             'HTTP_CF_CONNECTING_IP', // Cloudflare
             'HTTP_X_FORWARDED_FOR',
@@ -204,7 +217,8 @@ class Security {
     /**
      * Генерация криптографически безопасного пароля
      */
-    public static function generatePassword($length = 16) {
+    public static function generatePassword($length = 16)
+    {
         if ($length < 12) {
             $length = 12; // Минимум 12 символов
         }
@@ -214,7 +228,8 @@ class Security {
     /**
      * Валидация пути (защита от path traversal)
      */
-    public static function validatePath($basePath, $userPath) {
+    public static function validatePath($basePath, $userPath)
+    {
         $basePath = realpath($basePath);
         $fullPath = realpath($basePath . '/' . $userPath);
 

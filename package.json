@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "live-server src --port=3000",
     "build": "node scripts/build.js",
+    "build:assets": "vite build",
     "build:free": "node scripts/build.js --target=free",
     "build:premium": "node scripts/build.js --target=premium",
     "preview:free": "live-server dist/free --port=3003",
@@ -29,6 +30,7 @@
   "devDependencies": {
     "csso": "^5.0.5",
     "live-server": "^1.2.0",
-    "terser": "^5.44.1"
+    "terser": "^5.44.1",
+    "vite": "^5.0.0"
   }
 }

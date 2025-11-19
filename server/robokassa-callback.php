@@ -68,91 +68,55 @@ $password = Security::generatePassword(16); // Криптографически 
 $password_hash = password_hash($password, PASSWORD_DEFAULT);
 
 // 4. ДОБАВЛЕНИЕ ПОЛЬЗОВАТЕЛЯ В БАЗУ С FILE LOCKING
-$users_file = Config::get('USERS_FILE_PATH', __DIR__ . '/../../private/users.json');
+require_once __DIR__ . '/Database.php';
 
-// Создать директорию если не существует
-$dir = dirname($users_file);
-if (!is_dir($dir)) {
-    if (!mkdir($dir, 0755, true)) {
-        Security::secureLog('ERROR', 'Failed to create users directory', ['path' => $dir]);
-        http_response_code(500);
-        die('Internal error');
+try {
+    $pdo = Database::getConnection();
+    $pdo->beginTransaction();
+
+    // Проверить, нет ли уже такого email
+    $stmt = $pdo->prepare("SELECT id FROM users WHERE email = :email LIMIT 1");
+    $stmt->execute([':email' => $validated_email]);
+    $existingUser = $stmt->fetch();
+
+    $user_exists = false;
+
+    if ($existingUser) {
+        $user_exists = true;
+        Security::secureLog('WARNING', 'Duplicate payment attempt', [
+            'email' => $validated_email,
+            'invoice_id' => $inv_id
+        ]);
+    } else {
+        // Добавить нового пользователя
+        $stmt = $pdo->prepare("INSERT INTO users (email, password_hash, created_at, invoice_id, amount) VALUES (:email, :password_hash, :created_at, :invoice_id, :amount)");
+        $stmt->execute([
+            ':email' => $validated_email,
+            ':password_hash' => $password_hash,
+            ':created_at' => date('Y-m-d H:i:s'),
+            ':invoice_id' => $inv_id,
+            ':amount' => $out_sum
+        ]);
+
+        Security::secureLog('INFO', 'New user created', [
+            'email' => $validated_email,
+            'invoice_id' => $inv_id
+        ]);
     }
-}
 
-// Создать файл если не существует
-if (!file_exists($users_file)) {
-    file_put_contents($users_file, '[]');
-    chmod($users_file, 0600); // Только владелец может читать/писать
-}
+    $pdo->commit();
 
-// Открыть файл с эксклюзивной блокировкой
-$fp = fopen($users_file, 'c+');
-if (!$fp) {
-    Security::secureLog('ERROR', 'Failed to open users file', ['path' => $users_file]);
+} catch (Exception $e) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    Security::secureLog('ERROR', 'Database error processing payment', [
+        'error' => $e->getMessage(),
+        'invoice_id' => $inv_id
+    ]);
     http_response_code(500);
     die('Internal error');
 }
-
-if (flock($fp, LOCK_EX)) {
-    try {
-        // Прочитать текущих пользователей
-        $content = stream_get_contents($fp);
-        $users = json_decode($content, true);
-
-        if (!is_array($users)) {
-            $users = [];
-        }
-
-        // Проверить, нет ли уже такого email
-        $user_exists = false;
-        foreach ($users as $user) {
-            if ($user['email'] === $validated_email) {
-                $user_exists = true;
-                Security::secureLog('WARNING', 'Duplicate payment attempt', [
-                    'email' => $validated_email,
-                    'invoice_id' => $inv_id
-                ]);
-                break;
-            }
-        }
-
-        if (!$user_exists) {
-            // Добавить нового пользователя
-            $users[] = [
-                'email' => $validated_email,
-                'password_hash' => $password_hash,
-                'created_at' => date('Y-m-d H:i:s'),
-                'invoice_id' => $inv_id,
-                'amount' => $out_sum
-            ];
-
-            // Записать обратно в файл
-            ftruncate($fp, 0);
-            rewind($fp);
-            fwrite($fp, json_encode($users, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-            fflush($fp);
-
-            Security::secureLog('INFO', 'New user created', [
-                'email' => $validated_email,
-                'invoice_id' => $inv_id
-            ]);
-        }
-
-        flock($fp, LOCK_UN);
-    } catch (Exception $e) {
-        flock($fp, LOCK_UN);
-        Security::secureLog('ERROR', 'Error processing payment', [
-            'error' => $e->getMessage(),
-            'invoice_id' => $inv_id
-        ]);
-        fclose($fp);
-        http_response_code(500);
-        die('Internal error');
-    }
-}
-
-fclose($fp);
 
 // 5. ОТПРАВКА EMAIL С ПАРОЛЕМ (только для новых пользователей)
 if (!$user_exists) {

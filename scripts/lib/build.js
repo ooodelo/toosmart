@@ -786,7 +786,7 @@ function parseFrontMatter(markdown) {
 
     // Убираем кавычки, если они окружают значение
     if ((value.startsWith('"') && value.endsWith('"')) ||
-        (value.startsWith("'") && value.endsWith("'"))) {
+      (value.startsWith("'") && value.endsWith("'"))) {
       value = value.slice(1, -1);
     }
 
@@ -833,11 +833,25 @@ async function copyStaticAssets(targetRoot) {
   // Копируем изображения и прочие ресурсы как есть
   await copyIfExists(PATHS.assets.assetsDir, path.join(targetRoot, 'assets'));
 
-  // JavaScript и CSS минифицируем
-  await minifyAndCopyJS(PATHS.assets.script, path.join(targetRoot, 'script.js'));
-  await minifyAndCopyJS(PATHS.assets.cta, path.join(targetRoot, 'cta.js'));
-  await minifyAndCopyJS(PATHS.assets.modeUtils, path.join(targetRoot, 'mode-utils.js'));
-  await minifyAndCopyCSS(PATHS.assets.styles, path.join(targetRoot, 'styles.css'));
+  // Запускаем Vite build (если еще не запускали)
+  // В идеале это нужно делать один раз перед сборкой всех таргетов
+  // Но для простоты можно просто скопировать уже собранные ассеты
+
+  const viteDist = path.resolve(__dirname, '../../dist/assets');
+
+  // Проверяем, есть ли собранные ассеты, если нет - запускаем сборку
+  if (!fs.existsSync(viteDist)) {
+    console.log('📦 Запуск Vite build...');
+    const { execSync } = require('child_process');
+    try {
+      execSync('npm run build:assets', { stdio: 'inherit', cwd: path.resolve(__dirname, '../../') });
+    } catch (e) {
+      console.error('❌ Ошибка Vite build:', e.message);
+    }
+  }
+
+  // Копируем собранные Vite ассеты
+  await copyIfExists(viteDist, targetRoot);
 }
 
 async function copyIfExists(src, dest) {
