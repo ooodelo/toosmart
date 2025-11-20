@@ -194,13 +194,12 @@ function init() {
     }
   }
 
-  /**
-   * Показывает сообщение об ошибке
-   */
-  function showError(errorDiv, message) {
-    if (!errorDiv) return;
-    errorDiv.textContent = message;
-    errorDiv.style.display = 'block';
-    errorDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }
+/**
+ * Показывает сообщение об ошибке
+ */
+function showError(errorDiv, message) {
+  if (!errorDiv) return;
+  errorDiv.textContent = message;
+  errorDiv.style.display = 'block';
+  errorDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }

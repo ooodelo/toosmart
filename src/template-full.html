@@ -5,38 +5,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:;" />
     <title>UI-каркас адаптивов</title>
-    <script src="mode-utils.js"></script>
+    <!-- Inline ModeUtils init для предотвращения FOUC -->
     <script>
-      (function () {
-        var win = window;
-        var d = win.document;
-        var ModeUtils = win.ModeUtils;
-
-        if (!ModeUtils) {
-          return;
+      (function() {
+        var w = window, d = document, de = d.documentElement;
+        function getWidth() {
+          return w.innerWidth || de.clientWidth || 0;
         }
-
-        var initialState = ModeUtils.detectInitialState(win, d);
-        var mode = initialState.mode;
-        var input = initialState.input;
-
-        win.__INITIAL_MODE__ = mode;
-        if (typeof input === 'string') {
-          win.__INITIAL_INPUT__ = input;
+        function isTouch() {
+          return w.matchMedia && w.matchMedia('(any-pointer: coarse)').matches ||
+                 (navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
         }
-
-        function applyInitialState() {
-          if (!ModeUtils.applyStateToBody(d, initialState)) {
-            return false;
-          }
-          return true;
+        var width = getWidth(), touch = isTouch(), mode = 'desktop';
+        if (touch) {
+          mode = width < 768 ? 'mobile' : width < 900 ? 'tablet' : 'desktop';
+        } else {
+          mode = width < 768 ? 'mobile' : width < 900 ? 'tablet' : width < 1280 ? 'desktop' : 'desktop-wide';
         }
-
-        if (!applyInitialState()) {
-          d.addEventListener('readystatechange', function onReady() {
-            if (d.readyState !== 'loading' && applyInitialState()) {
-              d.removeEventListener('readystatechange', onReady);
-            }
+        w.__INITIAL_MODE__ = mode;
+        w.__INITIAL_INPUT__ = touch ? 'touch' : 'pointer';
+        if (d.body) {
+          d.body.dataset.mode = mode;
+          d.body.dataset.input = w.__INITIAL_INPUT__;
+        } else {
+          d.addEventListener('DOMContentLoaded', function() {
+            d.body.dataset.mode = mode;
+            d.body.dataset.input = w.__INITIAL_INPUT__;
           });
         }
       })();
@@ -472,7 +466,7 @@
       </div>
     </div>
 
-    <script src="script.js" type="module"></script>
+    <script src="entries/free.js" type="module"></script>
     <script>
       // Функции для модальных окон с юридическими документами
       function openLegalModal(type) {

@@ -47,8 +47,51 @@ const PATHS = {
       '.htaccess',
       'users.json.example'
     ]
-  }
+  },
+  viteManifest: path.resolve(__dirname, '../../dist/assets/.vite/manifest.json')
 };
+
+/**
+ * Загружает Vite manifest для получения путей к собранным ассетам
+ */
+function loadViteManifest() {
+  const manifestPath = PATHS.viteManifest;
+  if (!fs.existsSync(manifestPath)) {
+    console.warn('⚠️  Vite manifest не найден. Запустите npm run build:assets');
+    return null;
+  }
+  try {
+    const raw = fs.readFileSync(manifestPath, 'utf8');
+    return JSON.parse(raw);
+  } catch (error) {
+    console.error('❌ Ошибка чтения Vite manifest:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Получает пути к ассетам из Vite manifest
+ */
+function getViteAssets(manifest, mode) {
+  if (!manifest) {
+    // Fallback если manifest не найден
+    return {
+      css: '/assets/styles.css',
+      js: `/assets/${mode}.js`
+    };
+  }
+
+  const entryKey = `entries/${mode}.js`;
+  const stylesKey = 'styles.css';
+
+  const entry = manifest[entryKey];
+  const styles = manifest[stylesKey];
+
+  return {
+    css: styles ? `/assets/${styles.file}` : '/assets/styles.css',
+    js: entry ? `/assets/${entry.file}` : `/assets/${mode}.js`
+  };
+}
 
 const DEFAULT_SITE_CONFIG = {
   domain: 'example.com',
@@ -145,6 +188,10 @@ async function buildFree() {
     throw new Error(`Ошибка загрузки шаблона: ${error.message}`);
   }
 
+  // Загружаем Vite manifest для получения путей к ассетам
+  const manifest = loadViteManifest();
+  const viteAssets = getViteAssets(manifest, 'free');
+
   try {
     await ensureDir(PATHS.dist.root);
     await cleanDir(PATHS.dist.free);
@@ -165,21 +212,21 @@ async function buildFree() {
     // Определяем URL первой страницы курса для навигации с intro
     const firstCourse = content.course[0];
     const nextUrl = firstCourse ? `/free/course/${firstCourse.slug}.html` : '';
-    const page = buildIntroPage(intro, menuItems, config, template, 'free', nextUrl);
+    const page = buildIntroPage(intro, menuItems, config, template, 'free', nextUrl, viteAssets);
     const targetPath = path.join(PATHS.dist.root, 'index.html');
     await fsp.writeFile(targetPath, page, 'utf8');
     break;
   }
 
   for (const course of content.course) {
-    const page = buildFreeCoursePage(course, menuItems, config, template);
+    const page = buildFreeCoursePage(course, menuItems, config, template, viteAssets);
     const targetPath = path.join(PATHS.dist.free, 'course', `${course.slug}.html`);
     await ensureDir(path.dirname(targetPath));
     await fsp.writeFile(targetPath, page, 'utf8');
   }
 
   for (const legal of content.legal) {
-    const page = buildLegalPage(legal, menuItems, config, template, 'free');
+    const page = buildLegalPage(legal, menuItems, config, template, 'free', viteAssets);
     const targetPath = path.join(PATHS.dist.free, 'legal', `${legal.slug}.html`);
     await ensureDir(path.dirname(targetPath));
     await fsp.writeFile(targetPath, page, 'utf8');
@@ -202,6 +249,11 @@ async function buildPremium() {
   const config = await loadSiteConfig();
   const content = await loadContent(config.build.wordsPerMinute);
   const template = await readTemplate('premium');
+
+  // Загружаем Vite manifest для получения путей к ассетам
+  const manifest = loadViteManifest();
+  const viteAssets = getViteAssets(manifest, 'premium');
+
   await cleanDir(PATHS.dist.premium);
   await ensureDir(PATHS.dist.premium);
   await copyStaticAssets('premium');
@@ -221,7 +273,7 @@ async function buildPremium() {
     const prevUrl = prevItem ? getPremiumUrlForItem(prevItem) : null;
     const nextUrl = nextItem ? getPremiumUrlForItem(nextItem) : null;
 
-    const page = buildPremiumContentPage(item, menuItems, config, template, { prevUrl, nextUrl });
+    const page = buildPremiumContentPage(item, menuItems, config, template, { prevUrl, nextUrl }, viteAssets);
     const targetPath = getPremiumPathForItem(item, PATHS.dist.premium);
 
     await ensureDir(path.dirname(targetPath));
@@ -269,8 +321,8 @@ function getPremiumPathForItem(item, root) {
  * @param {Object} navigation - объект с prevUrl и nextUrl
  * @returns {string} - HTML страницы
  */
-function buildPremiumContentPage(item, menuItems, config, template, { prevUrl, nextUrl }) {
-  return buildPremiumPage(item, menuItems, config, template, { prevUrl, nextUrl });
+function buildPremiumContentPage(item, menuItems, config, template, { prevUrl, nextUrl }, viteAssets = null) {
+  return buildPremiumPage(item, menuItems, config, template, { prevUrl, nextUrl }, viteAssets);
 }
 
 async function buildRecommendations() {
@@ -446,7 +498,7 @@ function buildMenuItems(content, mode) {
   return menu.sort((a, b) => a.order - b.order);
 }
 
-function buildIntroPage(item, menuItems, config, template, mode, nextUrl = '') {
+function buildIntroPage(item, menuItems, config, template, mode, nextUrl = '', viteAssets = null) {
   // Задача 3: Intro - особая публичная страница без paywall
   // Навигация всегда только вперед - на первую страницу курса
   const buttonText = mode === 'premium' ? config.ctaTexts.next : config.ctaTexts.enterFull;
@@ -468,11 +520,12 @@ function buildIntroPage(item, menuItems, config, template, mode, nextUrl = '') {
     title: `${item.title} — ${config.domain || 'TooSmart'}`,
     body,
     meta: generateMetaTags(item, config, mode, 'intro'),
-    schema: generateSchemaOrg(item, config, 'intro')
+    schema: generateSchemaOrg(item, config, 'intro'),
+    viteAssets
   });
 }
 
-function buildFreeCoursePage(item, menuItems, config, template) {
+function buildFreeCoursePage(item, menuItems, config, template, viteAssets = null) {
   const body = `
   <main>
     <header>
@@ -497,11 +550,12 @@ function buildFreeCoursePage(item, menuItems, config, template) {
     title: `${item.title} — ${config.domain || 'TooSmart'}`,
     body,
     meta: generateMetaTags(item, config, 'free', 'course'),
-    schema: generateSchemaOrg(item, config, 'course')
+    schema: generateSchemaOrg(item, config, 'course'),
+    viteAssets
   });
 }
 
-function buildPremiumPage(item, menuItems, config, template, { prevUrl, nextUrl }) {
+function buildPremiumPage(item, menuItems, config, template, { prevUrl, nextUrl }, viteAssets = null) {
   // Задача 1: Упрощение навигации - только однонаправленная (кнопка "Назад" убрана)
   // Возврат происходит через боковое меню или браузерную кнопку "Назад"
 
@@ -523,7 +577,8 @@ function buildPremiumPage(item, menuItems, config, template, { prevUrl, nextUrl 
     title: `${item.title} — ${config.domain || 'TooSmart'}`,
     body,
     meta: generateMetaTags(item, config, 'premium', pageType),
-    schema: generateSchemaOrg(item, config, pageType)
+    schema: generateSchemaOrg(item, config, pageType),
+    viteAssets
   });
 }
 
@@ -551,7 +606,7 @@ function buildRecommendationPage(item, menuItems, config, template, mode) {
   });
 }
 
-function buildLegalPage(item, menuItems, config, template, mode) {
+function buildLegalPage(item, menuItems, config, template, mode, viteAssets = null) {
   const body = `
   <main>
     <header>
@@ -567,7 +622,8 @@ function buildLegalPage(item, menuItems, config, template, mode) {
     title: `${item.title} — ${config.domain || 'TooSmart'}`,
     body,
     meta: generateMetaTags(item, config, mode, 'legal'),
-    schema: ''
+    schema: '',
+    viteAssets
   });
 }
 
@@ -585,7 +641,7 @@ function renderFooter(config, mode) {
   </footer>`;
 }
 
-function applyTemplate(template, { title, body, meta = '', schema = '' }) {
+function applyTemplate(template, { title, body, meta = '', schema = '', viteAssets = null }) {
   let result = template
     .replace(/<title>.*?<\/title>/, `<title>${title}</title>`)
     .replace(/<div id="article-content">[\s\S]*?<\/div>/, `<div id="article-content">${body}</div>`)
@@ -600,6 +656,18 @@ function applyTemplate(template, { title, body, meta = '', schema = '' }) {
   // Вставляем Schema.org перед закрывающим </body>
   if (schema) {
     result = result.replace('</body>', `  ${schema}\n  </body>`);
+  }
+
+  // Заменяем Vite плейсхолдеры
+  if (viteAssets) {
+    result = result.replace(
+      '<!-- VITE_CSS_PLACEHOLDER -->',
+      `<link rel="stylesheet" href="${viteAssets.css}">`
+    );
+    result = result.replace(
+      '<!-- VITE_JS_PLACEHOLDER -->',
+      `<script type="module" src="${viteAssets.js}"></script>`
+    );
   }
 
   return result;
@@ -856,6 +924,7 @@ async function copyStaticAssets(mode) {
     }
   }
 
+  // Копируем статические ассеты (изображения)
   await copyIfExists(PATHS.assets.assetsDir, PATHS.dist.assets);
 
   if (isPremium) {
@@ -863,12 +932,8 @@ async function copyStaticAssets(mode) {
     await copyIfExists(PATHS.assets.premiumAssetsDir, targetAssets);
   }
 
-  await copyIfExists(PATHS.assets.modeUtils, path.join(targetRoot, 'mode-utils.js'));
-  await copyIfExists(PATHS.assets.cta, path.join(targetRoot, 'cta.js'));
-  await copyIfExists(scriptSource, path.join(targetRoot, 'script.js'));
-
-  // Стили и скрипты, собранные Vite, располагаются в dist/assets
-  // и доступны по абсолютному пути /assets/*
+  // JS и CSS теперь бандлятся Vite и находятся в dist/assets
+  // Отдельное копирование mode-utils.js, cta.js, script.js больше не требуется
 }
 
 async function copyIfExists(src, dest) {

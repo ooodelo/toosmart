@@ -5,7 +5,37 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';" />
     <title>UI-каркас адаптивов</title>
-    <link rel="stylesheet" href="/assets/styles.css" />
+    <!-- Inline ModeUtils init для предотвращения FOUC -->
+    <script>
+      (function() {
+        var w = window, d = document, de = d.documentElement;
+        function getWidth() {
+          return w.innerWidth || de.clientWidth || 0;
+        }
+        function isTouch() {
+          return w.matchMedia && w.matchMedia('(any-pointer: coarse)').matches ||
+                 (navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
+        }
+        var width = getWidth(), touch = isTouch(), mode = 'desktop';
+        if (touch) {
+          mode = width < 768 ? 'mobile' : width < 900 ? 'tablet' : 'desktop';
+        } else {
+          mode = width < 768 ? 'mobile' : width < 900 ? 'tablet' : width < 1280 ? 'desktop' : 'desktop-wide';
+        }
+        w.__INITIAL_MODE__ = mode;
+        w.__INITIAL_INPUT__ = touch ? 'touch' : 'pointer';
+        if (d.body) {
+          d.body.dataset.mode = mode;
+          d.body.dataset.input = w.__INITIAL_INPUT__;
+        } else {
+          d.addEventListener('DOMContentLoaded', function() {
+            d.body.dataset.mode = mode;
+            d.body.dataset.input = w.__INITIAL_INPUT__;
+          });
+        }
+      })();
+    </script>
+    <!-- VITE_CSS_PLACEHOLDER -->
   </head>
   <body>
     <header class="header" role="banner">
@@ -489,6 +519,6 @@
       });
     </script>
 
-    <script src="/free/script.js" type="module"></script>
+    <!-- VITE_JS_PLACEHOLDER -->
   </body>
 </html>
