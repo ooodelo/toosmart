@@ -1,222 +1,203 @@
-const ModeUtils = (function (global) {
-  'use strict';
+/**
+ * ModeUtils - модуль для определения режима отображения
+ * ES Module version
+ */
 
-  var globalObject = global || (typeof window !== 'undefined' ? window : (typeof self !== 'undefined' ? self : this));
-  var doc = globalObject && globalObject.document ? globalObject.document : null;
-  var docElement = doc ? doc.documentElement : null;
+const doc = typeof document !== 'undefined' ? document : null;
+const docElement = doc ? doc.documentElement : null;
 
-  // Breakpoints для адаптивности (соответствуют документации)
-  var BREAKPOINTS = {
-    MOBILE_MAX: 767,      // < 768px - мобильные устройства
-    TABLET_MIN: 768,      // >= 768px - начало планшета
-    TABLET_MAX: 899,      // < 900px - конец планшета
-    DESKTOP_MIN: 900,     // >= 900px - начало десктопа
-    DESKTOP_MAX: 1279,    // < 1280px - конец стандартного десктопа
-    DESKTOP_WIDE_MIN: 1280 // >= 1280px - широкий десктоп
-  };
+// Breakpoints для адаптивности
+const BREAKPOINTS = {
+  MOBILE_MAX: 767,
+  TABLET_MIN: 768,
+  TABLET_MAX: 899,
+  DESKTOP_MIN: 900,
+  DESKTOP_MAX: 1279,
+  DESKTOP_WIDE_MIN: 1280
+};
 
-  function isNumber(value) {
-    return typeof value === 'number' && isFinite(value);
+function isNumber(value) {
+  return typeof value === 'number' && isFinite(value);
+}
+
+function getMatchMediaResult(win, query) {
+  if (!win || typeof win.matchMedia !== 'function') {
+    return false;
   }
-
-  function getMatchMediaResult(win, query) {
-    if (!win || typeof win.matchMedia !== 'function') {
-      return false;
-    }
-    try {
-      return win.matchMedia(query).matches;
-    } catch (error) {
-      return false;
-    }
+  try {
+    return win.matchMedia(query).matches;
+  } catch (error) {
+    return false;
   }
+}
 
-  function detectInputType(win) {
-    var host = win || globalObject;
-    var hasCoarsePointer = getMatchMediaResult(host, '(any-pointer: coarse)');
-    var navigatorObject = host && host.navigator ? host.navigator : null;
-    var maxTouchPoints = navigatorObject && typeof navigatorObject.maxTouchPoints === 'number'
-      ? navigatorObject.maxTouchPoints
-      : 0;
-    var hasTouchPoints = maxTouchPoints > 0;
+function detectInputType(win) {
+  const host = win || window;
+  const hasCoarsePointer = getMatchMediaResult(host, '(any-pointer: coarse)');
+  const navigatorObject = host && host.navigator ? host.navigator : null;
+  const maxTouchPoints = navigatorObject && typeof navigatorObject.maxTouchPoints === 'number'
+    ? navigatorObject.maxTouchPoints
+    : 0;
+  const hasTouchPoints = maxTouchPoints > 0;
 
-    return hasCoarsePointer || hasTouchPoints ? 'touch' : 'pointer';
-  }
+  return hasCoarsePointer || hasTouchPoints ? 'touch' : 'pointer';
+}
 
-  function classifyMode(width, inputType) {
-    var isTouchDevice = inputType === 'touch';
+function classifyMode(width, inputType) {
+  const isTouchDevice = inputType === 'touch';
 
-    if (isTouchDevice) {
-      if (width < BREAKPOINTS.TABLET_MIN) {
-        return 'mobile';
-      }
-      if (width < BREAKPOINTS.DESKTOP_MIN) {
-        return 'tablet';
-      }
-      return 'desktop';
-    }
-
+  if (isTouchDevice) {
     if (width < BREAKPOINTS.TABLET_MIN) {
       return 'mobile';
     }
     if (width < BREAKPOINTS.DESKTOP_MIN) {
       return 'tablet';
     }
-    if (width < BREAKPOINTS.DESKTOP_WIDE_MIN) {
-      return 'desktop';
-    }
-    return 'desktop-wide';
-  }
-
-  function collectWidthSources(win, element) {
-    var host = win || globalObject;
-    var el = element || docElement;
-
-    return [
-      {
-        source: 'visualViewportWidth',
-        value:
-          host && host.visualViewport && isNumber(host.visualViewport.width) && host.visualViewport.width > 0
-            ? host.visualViewport.width
-            : null,
-      },
-      {
-        source: 'rootClientWidth',
-        value: el && isNumber(el.clientWidth) && el.clientWidth > 0 ? el.clientWidth : null,
-      },
-      {
-        source: 'innerWidth',
-        value: host && isNumber(host.innerWidth) && host.innerWidth > 0 ? host.innerWidth : null,
-      },
-      {
-        source: 'outerWidth',
-        value: host && isNumber(host.outerWidth) && host.outerWidth > 0 ? host.outerWidth : null,
-      },
-      {
-        source: 'screenWidth',
-        value: host && host.screen && isNumber(host.screen.width) && host.screen.width > 0 ? host.screen.width : null,
-      },
-    ];
-  }
-
-  function detectModeInternal(win, element, inputType) {
-    var host = win || globalObject;
-    var el = element || docElement;
-    var sources = collectWidthSources(host, el);
-
-    for (var i = 0; i < sources.length; i += 1) {
-      var entry = sources[i];
-      var value = entry ? entry.value : null;
-      if (isNumber(value) && value > 0) {
-        return classifyMode(value, inputType);
-      }
-    }
-
-    var fallbackQueries = [
-      ['mobile', '(max-width: 767px)'],
-      ['tablet', '(min-width: 768px) and (max-width: 899px)'],
-      ['desktop', '(min-width: 900px) and (max-width: 1279px)'],
-      ['desktop-wide', '(min-width: 1280px)'],
-    ];
-
-    for (var j = 0; j < fallbackQueries.length; j += 1) {
-      var pair = fallbackQueries[j];
-      if (getMatchMediaResult(host, pair[1])) {
-        return pair[0];
-      }
-    }
-
     return 'desktop';
   }
 
-  function detectInitialState(win, docObject) {
-    var host = win || globalObject;
-    var documentObject = docObject || doc;
-    var element = documentObject && documentObject.documentElement ? documentObject.documentElement : docElement;
-    var width = null;
+  if (width < BREAKPOINTS.TABLET_MIN) {
+    return 'mobile';
+  }
+  if (width < BREAKPOINTS.DESKTOP_MIN) {
+    return 'tablet';
+  }
+  if (width < BREAKPOINTS.DESKTOP_WIDE_MIN) {
+    return 'desktop';
+  }
+  return 'desktop-wide';
+}
 
-    if (host && isNumber(host.innerWidth) && host.innerWidth > 0) {
-      width = host.innerWidth;
-    } else if (element && isNumber(element.clientWidth) && element.clientWidth > 0) {
-      width = element.clientWidth;
+function collectWidthSources(win, element) {
+  const host = win || window;
+  const el = element || docElement;
+
+  return [
+    {
+      source: 'visualViewportWidth',
+      value: host && host.visualViewport && isNumber(host.visualViewport.width) && host.visualViewport.width > 0
+        ? host.visualViewport.width
+        : null,
+    },
+    {
+      source: 'rootClientWidth',
+      value: el && isNumber(el.clientWidth) && el.clientWidth > 0 ? el.clientWidth : null,
+    },
+    {
+      source: 'innerWidth',
+      value: host && isNumber(host.innerWidth) && host.innerWidth > 0 ? host.innerWidth : null,
+    },
+    {
+      source: 'outerWidth',
+      value: host && isNumber(host.outerWidth) && host.outerWidth > 0 ? host.outerWidth : null,
+    },
+    {
+      source: 'screenWidth',
+      value: host && host.screen && isNumber(host.screen.width) && host.screen.width > 0 ? host.screen.width : null,
+    },
+  ];
+}
+
+function detectModeInternal(win, element, inputType) {
+  const host = win || window;
+  const el = element || docElement;
+  const sources = collectWidthSources(host, el);
+
+  for (let i = 0; i < sources.length; i += 1) {
+    const entry = sources[i];
+    const value = entry ? entry.value : null;
+    if (isNumber(value) && value > 0) {
+      return classifyMode(value, inputType);
     }
-
-    var inputType = detectInputType(host);
-    var mode = 'desktop';
-
-    if (isNumber(width) && width > 0) {
-      mode = classifyMode(width, inputType);
-    } else {
-      mode = detectModeInternal(host, element, inputType);
-    }
-
-    return {
-      mode: mode,
-      input: inputType,
-    };
   }
 
-  function applyModeToBody(docObject, mode) {
-    var documentObject = docObject || doc;
-    if (!documentObject || !documentObject.body) {
-      return false;
+  const fallbackQueries = [
+    ['mobile', '(max-width: 767px)'],
+    ['tablet', '(min-width: 768px) and (max-width: 899px)'],
+    ['desktop', '(min-width: 900px) and (max-width: 1279px)'],
+    ['desktop-wide', '(min-width: 1280px)'],
+  ];
+
+  for (let j = 0; j < fallbackQueries.length; j += 1) {
+    const pair = fallbackQueries[j];
+    if (getMatchMediaResult(host, pair[1])) {
+      return pair[0];
     }
-    documentObject.body.dataset.mode = mode;
-    return true;
   }
 
-  function applyStateToBody(docObject, state) {
-    var documentObject = docObject || doc;
-    if (!documentObject || !documentObject.body || !state) {
-      return false;
-    }
+  return 'desktop';
+}
 
-    var bodyElement = documentObject.body;
+function detectInitialState(win, docObject) {
+  const host = win || window;
+  const documentObject = docObject || doc;
+  const element = documentObject && documentObject.documentElement ? documentObject.documentElement : docElement;
+  let width = null;
 
-    if (state.mode) {
-      bodyElement.dataset.mode = state.mode;
-    }
-
-    if (state.input) {
-      bodyElement.dataset.input = state.input;
-    }
-
-    return true;
+  if (host && isNumber(host.innerWidth) && host.innerWidth > 0) {
+    width = host.innerWidth;
+  } else if (element && isNumber(element.clientWidth) && element.clientWidth > 0) {
+    width = element.clientWidth;
   }
 
-  var ModeUtils = {
-    BREAKPOINTS: BREAKPOINTS,
-    classifyMode: function (width, inputType) {
-      return classifyMode(width, inputType);
-    },
-    detectInput: function (win) {
-      return detectInputType(win || globalObject);
-    },
-    detectMode: function (win, element, inputType) {
-      return detectModeInternal(win || globalObject, element || docElement, inputType);
-    },
-    getWidthSources: function (win, element) {
-      return collectWidthSources(win || globalObject, element || docElement);
-    },
-    detectInitialState: function (win, docObject) {
-      return detectInitialState(win || globalObject, docObject || doc);
-    },
-    applyModeToBody: function (docObject, mode) {
-      return applyModeToBody(docObject || doc, mode);
-    },
-    applyStateToBody: function (docObject, state) {
-      return applyStateToBody(docObject || doc, state);
-    },
+  const inputType = detectInputType(host);
+  let mode = 'desktop';
+
+  if (isNumber(width) && width > 0) {
+    mode = classifyMode(width, inputType);
+  } else {
+    mode = detectModeInternal(host, element, inputType);
+  }
+
+  return {
+    mode: mode,
+    input: inputType,
   };
+}
 
-  if (globalObject) {
-    globalObject.ModeUtils = ModeUtils;
+function applyModeToBody(docObject, mode) {
+  const documentObject = docObject || doc;
+  if (!documentObject || !documentObject.body) {
+    return false;
+  }
+  documentObject.body.dataset.mode = mode;
+  return true;
+}
+
+function applyStateToBody(docObject, state) {
+  const documentObject = docObject || doc;
+  if (!documentObject || !documentObject.body || !state) {
+    return false;
   }
 
-  return ModeUtils;
-})(typeof window !== 'undefined' ? window : null);
+  const bodyElement = documentObject.body;
 
-if (typeof window !== 'undefined' && window) {
+  if (state.mode) {
+    bodyElement.dataset.mode = state.mode;
+  }
+
+  if (state.input) {
+    bodyElement.dataset.input = state.input;
+  }
+
+  return true;
+}
+
+// Public API
+export const ModeUtils = {
+  BREAKPOINTS,
+  classifyMode: (width, inputType) => classifyMode(width, inputType),
+  detectInput: (win) => detectInputType(win || window),
+  detectMode: (win, element, inputType) => detectModeInternal(win || window, element || docElement, inputType),
+  getWidthSources: (win, element) => collectWidthSources(win || window, element || docElement),
+  detectInitialState: (win, docObject) => detectInitialState(win || window, docObject || doc),
+  applyModeToBody: (docObject, mode) => applyModeToBody(docObject || doc, mode),
+  applyStateToBody: (docObject, state) => applyStateToBody(docObject || doc, state),
+};
+
+// Also expose to window for inline scripts
+if (typeof window !== 'undefined') {
   window.ModeUtils = ModeUtils;
 }
 
-export { ModeUtils };
+export default ModeUtils;

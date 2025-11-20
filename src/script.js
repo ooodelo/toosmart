@@ -1,5 +1,4 @@
 import { ModeUtils } from './mode-utils.js';
-import { initCta } from './cta.js';
 
 /**
  * АРХИТЕКТУРА: Разделение режимов верстки и типов ввода
