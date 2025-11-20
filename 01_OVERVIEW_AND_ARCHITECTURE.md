@@ -7,7 +7,7 @@
 
 ## Типы страниц и их цепочки
 - **Free** (`dist/free`): корневой `index.html` собирается из ветки `intro`, курс из `content/course` рендерится в `/free/course/<slug>.html`, юридические страницы идут в `/free/legal/`. Меню формируется только из intro+course.
-- **Premium** (`dist/premium`): цепочка навигации линейная `intro → course[1..N] → appendix[1..M]`; страницы кладутся в `/premium/` (intro), `/premium/course/` и `/premium/appendix/`. Для каждой страницы генерируются ссылки «Назад/Далее» по цепочке.
+- **Premium** (`dist/premium`): цепочка навигации линейная `intro → course[1..N] → appendix[1..M]`; страницы кладутся в `/premium/` (intro), `/premium/course/` и `/premium/appendix/`. Для каждой страницы генерируются ссылки «Далее» по цепочке.
 - **Recommendations** (`dist/recommendations`): каждая статья из `content/recommendations` строится в отдельный HTML и экспортируется в JSON-карусель `/shared/recommendations.json`. Меню курса их не показывает.
 - **Shared** (`dist/shared`): вспомогательные JSON и конфиг `site.json` для GUI/карусели.
 

@@ -1,0 +1,196 @@
+<!-- МОДАЛЬНОЕ ОКНО ОПЛАТЫ -->
+<div class="modal" id="payment-modal" hidden>
+    <div class="modal-overlay" onclick="closePaymentModal()"></div>
+    <div class="modal-content">
+        <button class="modal-close" type="button" onclick="closePaymentModal()" aria-label="Закрыть">×</button>
+
+        <h2 class="modal-title">Получите полный доступ к курсу</h2>
+
+        <ul class="modal-benefits">
+            <li>✅ 10 полных разделов с подробными объяснениями</li>
+            <li>✅ Практические рецепты и таблицы</li>
+            <li>✅ Пожизненный доступ к материалам</li>
+            <li>✅ Бесплатные обновления курса</li>
+        </ul>
+
+        <p class="modal-price">
+            <span class="price-old">1990 ₽</span>
+            <span class="price-current">990 ₽</span>
+        </p>
+
+        <form id="payment-form" action="https://auth.robokassa.ru/Merchant/Index.aspx" method="GET">
+            <input type="email" name="Shp_email" class="modal-input" placeholder="Введите ваш email" required
+                pattern="[^@]+@[^@]+\.[a-zA-Z]{2,}">
+
+            <!-- Параметры Robokassa (build.js заполнит) -->
+            <input type="hidden" name="MerchantLogin" value="YOUR_MERCHANT_LOGIN">
+            <input type="hidden" name="OutSum" value="990">
+            <input type="hidden" name="InvId" value="0">
+            <input type="hidden" name="Description" value="Доступ к курсу Clean">
+            <input type="hidden" name="SignatureValue" value="SIGNATURE">
+            <input type="hidden" name="Culture" value="ru">
+            <input type="hidden" name="Encoding" value="utf-8">
+
+            <button type="submit" class="modal-submit">
+                Оплатить 990 ₽
+            </button>
+        </form>
+
+        <p class="modal-security">
+            🔒 Безопасная оплата через Robokassa
+        </p>
+    </div>
+</div>
+
+<!-- МОДАЛЬНЫЕ ОКНА ДЛЯ LEGAL РАЗДЕЛОВ -->
+<div class="modal legal-modal" id="legal-offer-modal" hidden>
+    <div class="modal-overlay" onclick="closeLegalModal('offer')"></div>
+    <div class="modal-content legal-modal-content">
+        <button class="modal-close" type="button" onclick="closeLegalModal('offer')" aria-label="Закрыть">×</button>
+        <h2 class="modal-title">Публичная оферта</h2>
+        <div class="legal-text">
+            <p>Здесь будет размещен текст публичной оферты...</p>
+        </div>
+    </div>
+</div>
+
+<div class="modal legal-modal" id="legal-privacy-modal" hidden>
+    <div class="modal-overlay" onclick="closeLegalModal('privacy')"></div>
+    <div class="modal-content legal-modal-content">
+        <button class="modal-close" type="button" onclick="closeLegalModal('privacy')" aria-label="Закрыть">×</button>
+        <h2 class="modal-title">Политика конфиденциальности</h2>
+        <div class="legal-text">
+            <p>Здесь будет размещена политика конфиденциальности...</p>
+        </div>
+    </div>
+</div>
+
+<div class="modal legal-modal" id="legal-requisites-modal" hidden>
+    <div class="modal-overlay" onclick="closeLegalModal('requisites')"></div>
+    <div class="modal-content legal-modal-content">
+        <button class="modal-close" type="button" onclick="closeLegalModal('requisites')"
+            aria-label="Закрыть">×</button>
+        <h2 class="modal-title">Реквизиты</h2>
+        <div class="legal-text">
+            <p><strong>ИП Иванов И.И. · ИНН 1234567890</strong></p>
+        </div>
+    </div>
+</div>
+
+<div class="modal legal-modal" id="legal-cookies-modal" hidden>
+    <div class="modal-overlay" onclick="closeLegalModal('cookies')"></div>
+    <div class="modal-content legal-modal-content">
+        <button class="modal-close" type="button" onclick="closeLegalModal('cookies')" aria-label="Закрыть">×</button>
+        <h2 class="modal-title">Политика Cookies</h2>
+        <div class="legal-text">
+            <p>Здесь будет размещена политика использования cookies...</p>
+        </div>
+    </div>
+</div>
+
+<div class="modal legal-modal" id="legal-refund-modal" hidden>
+    <div class="modal-overlay" onclick="closeLegalModal('refund')"></div>
+    <div class="modal-content legal-modal-content">
+        <button class="modal-close" type="button" onclick="closeLegalModal('refund')" aria-label="Закрыть">×</button>
+        <h2 class="modal-title">Порядок возврата</h2>
+        <div class="legal-text">
+            <p>Здесь будет размещен порядок возврата...</p>
+        </div>
+    </div>
+</div>
+
+<!-- COOKIE CONSENT BANNER -->
+<div class="cookie-banner" id="cookie-banner" hidden>
+    <div class="cookie-content">
+        <p class="cookie-text">
+            🍪 Мы используем cookies для улучшения работы сайта и аналитики посещаемости.
+            Продолжая использовать сайт, вы соглашаетесь с
+            <a href="#" onclick="openLegalModal('privacy'); return false;">Политикой конфиденциальности</a>.
+        </p>
+        <div class="cookie-buttons">
+            <button class="cookie-btn cookie-btn-accept" onclick="acceptCookies()">Принять</button>
+            <button class="cookie-btn cookie-btn-decline" onclick="declineCookies()">Отклонить</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Функции для модального окна оплаты
+    function openPaymentModal() {
+        const modal = document.getElementById('payment-modal');
+        if (modal) {
+            modal.removeAttribute('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+    }
+
+    function closePaymentModal() {
+        const modal = document.getElementById('payment-modal');
+        if (modal) {
+            modal.setAttribute('hidden', '');
+            document.body.style.overflow = '';
+        }
+    }
+
+    // Функции для модальных окон с юридическими документами
+    function openLegalModal(type) {
+        const modalId = 'legal-' + type + '-modal';
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.removeAttribute('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+    }
+
+    function closeLegalModal(type) {
+        const modalId = 'legal-' + type + '-modal';
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.setAttribute('hidden', '');
+            document.body.style.overflow = '';
+        }
+    }
+
+    // Функции для cookie consent banner
+    function acceptCookies() {
+        localStorage.setItem('cookieConsent', 'accepted');
+        const banner = document.getElementById('cookie-banner');
+        if (banner) {
+            banner.setAttribute('hidden', '');
+        }
+        // Здесь можно загрузить скрипты аналитики
+        console.log('Cookies accepted - analytics can be loaded');
+    }
+
+    function declineCookies() {
+        localStorage.setItem('cookieConsent', 'declined');
+        const banner = document.getElementById('cookie-banner');
+        if (banner) {
+            banner.setAttribute('hidden', '');
+        }
+        console.log('Cookies declined - analytics will not be loaded');
+    }
+
+    // Показать cookie banner при загрузке страницы
+    document.addEventListener('DOMContentLoaded', function () {
+        const cookieConsent = localStorage.getItem('cookieConsent');
+        if (!cookieConsent) {
+            const banner = document.getElementById('cookie-banner');
+            if (banner) {
+                banner.removeAttribute('hidden');
+            }
+        }
+    });
+
+    // Закрытие всех модальных окон по Escape
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            closePaymentModal();
+            closeLegalModal('offer');
+            closeLegalModal('privacy');
+            closeLegalModal('refund');
+            closeLegalModal('requisites');
+            closeLegalModal('cookies');
+        }
+    });
+</script>

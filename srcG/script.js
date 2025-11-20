@@ -1,7 +1,3 @@
-// ModeUtils is loaded globally in head-scripts.html
-// import { ModeUtils } from './public/mode-utils.js';
-const ModeUtils = window.ModeUtils;
-
 /**
  * АРХИТЕКТУРА: Разделение режимов верстки и типов ввода
  *
@@ -30,6 +26,8 @@ const ModeUtils = window.ModeUtils;
  *    Desktop 27" (1920px, pointer) → mode=desktop-wide, input=pointer
  *    Dev Tools iPhone (375px, pointer) → mode=mobile, input=pointer
  */
+
+const ModeUtils = window.ModeUtils;
 
 if (!ModeUtils) {
   throw new Error('ModeUtils module is required for responsive mode detection.');
@@ -70,7 +68,7 @@ let activeSectionId = sections[0]?.id ?? null;
 let previousFocus = null;
 let trapDisposer = null;
 let observer = null;
-let observerDisposer = () => { };
+let observerDisposer = () => {};
 let edgeGestureHandler = null;
 let flyoutHideTimeoutCancel = null;
 let flyoutListenersAttached = false;
@@ -85,9 +83,9 @@ let flyoutSetActiveDisposer = null;
 let menuSwipeDisposers = [];
 let edgeGestureDisposer = null;
 let scrollHideControls = {
-  suppress: () => { },
-  setMode: () => { },
-  detach: () => { },
+  suppress: () => {},
+  setMode: () => {},
+  detach: () => {},
 };
 let layoutMetricsInitialized = false;
 let viewportGeometryDirty = false;
@@ -99,20 +97,6 @@ const menuState = createMenuStateController({
   body,
   handles: [menuHandle, dockHandle],
 });
-
-// Security helpers for safe DOM manipulation
-function clearElement(element) {
-  if (!element) return;
-  while (element.firstChild) {
-    element.removeChild(element.firstChild);
-  }
-}
-
-function escapeHTML(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
-}
 
 function isMenuAvailable() {
   return Boolean(menuRail || siteMenu);
@@ -175,7 +159,7 @@ function createMenuStateController({ body, handles = [] } = {}) {
 
   function subscribe(listener) {
     if (typeof listener !== 'function') {
-      return () => { };
+      return () => {};
     }
     listeners.add(listener);
     return () => {
@@ -228,7 +212,6 @@ let originalSetActiveSection = null;
 let lastExternalSetActiveSection = null;
 const setActiveSectionListeners = new Map();
 let setActiveSectionListenerSeq = 0;
-let scrollLockOffset = 0;
 
 function logFlyout(...args) {
   if (!DEBUG_FLYOUT) return;
@@ -386,7 +369,7 @@ function releaseSetActiveSectionBridge(reason) {
 
 function addSetActiveSectionListener(label, callback) {
   if (typeof callback !== 'function') {
-    return () => { };
+    return () => {};
   }
 
   ensureSetActiveSectionBridge(`listener:${label}`);
@@ -593,7 +576,7 @@ function createLifecycleRegistry(label) {
 
   function track(disposer, meta = {}) {
     if (typeof disposer !== 'function') {
-      return () => { };
+      return () => {};
     }
 
     const record = {
@@ -686,7 +669,7 @@ function normalizeListenerOptions(options) {
 
 function registerLifecycleDisposer(disposer, meta) {
   if (typeof disposer !== 'function') {
-    return () => { };
+    return () => {};
   }
 
   const lifecycle = getActiveLifecycle();
@@ -718,7 +701,7 @@ function registerLifecycleDisposer(disposer, meta) {
 
 function trackEvent(target, type, handler, options, meta = {}) {
   if (!target || typeof target.addEventListener !== 'function') {
-    return () => { };
+    return () => {};
   }
 
   let controller = null;
@@ -779,7 +762,7 @@ function mergeListenerOptionsWithSignal(options, signal) {
 
 function trackMediaQuery(mql, handler, meta = {}) {
   if (!mql || typeof handler !== 'function') {
-    return () => { };
+    return () => {};
   }
 
   let unsubscribe = null;
@@ -800,7 +783,7 @@ function trackMediaQuery(mql, handler, meta = {}) {
   }
 
   if (!unsubscribe) {
-    return () => { };
+    return () => {};
   }
 
   return registerLifecycleDisposer(() => {
@@ -853,7 +836,7 @@ function trackInterval(callback, delay, meta = {}) {
 
 function trackObserver(observer, meta = {}) {
   if (!observer || typeof observer.disconnect !== 'function') {
-    return () => { };
+    return () => {};
   }
 
   return registerLifecycleDisposer(() => {
@@ -1045,7 +1028,7 @@ function createLazyFeatureManager(options = {}) {
 
   function register(id, handlers = {}) {
     if (!id) {
-      return () => { };
+      return () => {};
     }
     features.set(id, handlers);
 
@@ -1380,17 +1363,11 @@ function requestLayoutMetricsUpdate({ force = false, modeChanged = false, viewpo
 }
 
 function scheduleLayoutMetricsUpdate() {
-  // Первый расчёт — сразу, чтобы sticky позиции применились до первого кадра
-  if (!layoutMetricsInitialized) {
-    updateLayoutMetrics(progressWidgetRoot);
-    layoutMetricsInitialized = true;
-    return;
-  }
-
   if (layoutMetricsRaf !== null) return;
   layoutMetricsRaf = requestAnimationFrame(() => {
     layoutMetricsRaf = null;
     updateLayoutMetrics(progressWidgetRoot);
+    layoutMetricsInitialized = true;
   });
 }
 
@@ -1521,7 +1498,7 @@ function teardownObserver() {
       console.error('[Observer] Failed to dispose section observer', error);
     }
   }
-  observerDisposer = () => { };
+  observerDisposer = () => {};
   observer = null;
 
   // Отменяем все pending RAF для предотвращения утечек памяти
@@ -1535,13 +1512,13 @@ function configureDots() {
   if (!dotsFeatureActive) {
     teardownObserver();
     if (dotsRail) {
-      clearElement(dotsRail);
+      dotsRail.innerHTML = '';
       dotsRail.hidden = true;
     }
     return;
   }
   if (!dotsRail) return;
-  clearElement(dotsRail);
+  dotsRail.innerHTML = '';
   const shouldEnable = (currentMode === 'desktop' || currentMode === 'desktop-wide') && sections.length >= 2;
   dotsRail.hidden = !shouldEnable;
   if (!shouldEnable) {
@@ -1765,27 +1742,13 @@ function toggleMenu(origin) {
 }
 
 function lockScroll() {
-  const shouldLock = body.classList.contains('menu-open');
-  const isLocked = body.dataset.lock === 'scroll';
-
-  if (shouldLock && !isLocked) {
-    scrollLockOffset = window.scrollY || root.scrollTop || 0;
+  const shouldLock = currentMode !== 'desktop' && body.classList.contains('menu-open');
+  if (shouldLock) {
     body.dataset.lock = 'scroll';
     root.dataset.lock = 'scroll';
-    body.style.position = 'fixed';
-    body.style.inset = '0';
-    body.style.width = '100%';
-    body.style.top = `-${scrollLockOffset}px`;
-  } else if (!shouldLock && isLocked) {
+  } else {
     delete body.dataset.lock;
     delete root.dataset.lock;
-    body.style.position = '';
-    body.style.inset = '';
-    body.style.width = '';
-    body.style.top = '';
-    if (typeof window.scrollTo === 'function') {
-      window.scrollTo(0, scrollLockOffset);
-    }
   }
 }
 
@@ -1903,7 +1866,7 @@ function initDotsFlyout() {
     flyoutSetActiveDisposer = null;
     detachFlyoutListeners();
     if (dotFlyout) {
-      clearElement(dotFlyout);
+      dotFlyout.innerHTML = '';
       dotFlyout.setAttribute('hidden', '');
       dotFlyout.classList.add('is-hidden');
     }
@@ -1959,7 +1922,7 @@ function initDotsFlyout() {
 
   // Построение списка разделов
   function buildFlyoutMenu() {
-    clearElement(dotFlyout);
+    dotFlyout.innerHTML = '';
 
     sections.forEach((section, index) => {
       const btn = document.createElement('button');
@@ -1970,8 +1933,8 @@ function initDotsFlyout() {
 
       // Текст из data-section или h2
       const sectionTitle = section.dataset.section ||
-        section.querySelector('h2')?.textContent ||
-        `Раздел ${index + 1}`;
+                          section.querySelector('h2')?.textContent ||
+                          `Раздел ${index + 1}`;
       btn.textContent = sectionTitle.trim();
       btn.setAttribute('aria-controls', section.id);
 
@@ -2212,27 +2175,6 @@ function initMenuInteractions() {
   }
 
   if (menuRail) {
-    const stopBodyScrollFromMenu = (event) => {
-      if (!(event?.target instanceof HTMLElement)) return;
-      if (!menuRail.contains(event.target)) return;
-      // Перехватываем колесо/трекпад чтобы курсор над меню не скролил основной контент
-      if (siteMenu && typeof event.deltaY === 'number') {
-        const maxScroll = Math.max(0, siteMenu.scrollHeight - siteMenu.clientHeight);
-        if (maxScroll > 0) {
-          const nextScroll = Math.min(maxScroll, Math.max(0, siteMenu.scrollTop + event.deltaY));
-          siteMenu.scrollTop = nextScroll;
-        }
-      }
-      event.preventDefault();
-      event.stopPropagation();
-    };
-
-    trackEvent(menuRail, 'wheel', stopBodyScrollFromMenu, { passive: false }, {
-      module: 'menu.interactions',
-      target: describeTarget(menuRail),
-      detail: 'scrollIsolation',
-    });
-
     trackEvent(menuRail, 'mouseenter', () => {
       if (currentInput !== 'pointer') return;
       body.classList.add('is-slid');
@@ -2401,14 +2343,14 @@ function attachMenuSwipes() {
         if (currentMode === 'mobile' && swipeDirection === 'vertical') {
           // Свайп снизу вверх для открытия меню (начало в нижней зоне экрана)
           const isOpenSwipe = swipeDistanceY < 0 && // движение вверх
-            touchStartY > (viewportHeight - edgeZoneBottom) && // начало внизу
-            !body.classList.contains('menu-open');
+                             touchStartY > (viewportHeight - edgeZoneBottom) && // начало внизу
+                             !body.classList.contains('menu-open');
 
           // Свайп сверху вниз для закрытия меню
           // ВАЖНО: только если свайп начался на cap ИЛИ в верхней зоне меню
           const isCloseSwipe = swipeDistanceY > 0 && // движение вниз
-            body.classList.contains('menu-open') &&
-            (startedOnMenuCap || touchStartY < closeZoneTop);
+                              body.classList.contains('menu-open') &&
+                              (startedOnMenuCap || touchStartY < closeZoneTop);
 
           shouldHandleSwipe = isOpenSwipe || isCloseSwipe;
         }
@@ -2417,12 +2359,12 @@ function attachMenuSwipes() {
         if (currentMode === 'tablet' && swipeDirection === 'horizontal') {
           // Свайп слева направо для открытия меню (начало у левого края)
           const isOpenSwipe = swipeDistanceX > 0 && // движение вправо
-            touchStartX <= edgeZoneLeft && // начало у левого края
-            !body.classList.contains('menu-open');
+                             touchStartX <= edgeZoneLeft && // начало у левого края
+                             !body.classList.contains('menu-open');
 
           // Свайп справа налево для закрытия меню (когда меню открыто)
           const isCloseSwipe = swipeDistanceX < 0 && // движение влево
-            body.classList.contains('menu-open');
+                              body.classList.contains('menu-open');
 
           shouldHandleSwipe = isOpenSwipe || isCloseSwipe;
         }
@@ -2458,8 +2400,8 @@ function attachMenuSwipes() {
     if (currentMode === 'mobile') {
       // Свайп снизу вверх - открыть меню
       if (swipeDistanceY < -minSwipeDistanceOpen &&
-        touchStartY > (viewportHeight - edgeZoneBottom) &&
-        !body.classList.contains('menu-open')) {
+          touchStartY > (viewportHeight - edgeZoneBottom) &&
+          !body.classList.contains('menu-open')) {
         openMenu({ focusOrigin: dockHandle });
         return;
       }
@@ -2467,8 +2409,8 @@ function attachMenuSwipes() {
       // Свайп сверху вниз - закрыть меню
       // ВАЖНО: только если начался на cap или в верхней зоне, и достаточно длинный
       if (swipeDistanceY > minSwipeDistanceClose &&
-        body.classList.contains('menu-open') &&
-        (startedOnMenuCap || touchStartY < closeZoneTop)) {
+          body.classList.contains('menu-open') &&
+          (startedOnMenuCap || touchStartY < closeZoneTop)) {
         closeMenu({ focusOrigin: dockHandle });
         return;
       }
@@ -2478,15 +2420,15 @@ function attachMenuSwipes() {
     if (currentMode === 'tablet') {
       // Свайп слева направо от края - открыть меню
       if (swipeDistanceX > minSwipeDistanceOpen &&
-        touchStartX <= edgeZoneLeft &&
-        !body.classList.contains('menu-open')) {
+          touchStartX <= edgeZoneLeft &&
+          !body.classList.contains('menu-open')) {
         openMenu({ focusOrigin: menuHandle });
         return;
       }
 
       // Свайп справа налево - закрыть меню
       if (swipeDistanceX < -minSwipeDistanceClose &&
-        body.classList.contains('menu-open')) {
+          body.classList.contains('menu-open')) {
         closeMenu({ focusOrigin: menuHandle });
         return;
       }
@@ -2596,364 +2538,224 @@ function initMenuLinks() {
  */
 function initStackCarousel() {
   const stack = document.querySelector('.stack');
-  if (!stack) return;
+  const slides = document.querySelectorAll('.stack-slide');
+  const dots = document.querySelectorAll('.stack-dot');
 
-  const carousel = stack.querySelector('.stack-carousel');
-  const indicator = stack.querySelector('.stack-indicator');
+  if (slides.length === 0) return;
 
-  if (!carousel || !indicator) return;
+  let currentSlide = 0;
+  let intervalDisposer = null;
+  const pauseReasons = new Set();
 
-  // Задача 4: Динамическая карусель рекомендаций
-  // Загружаем данные из JSON и генерируем слайды программно
-  const RECOMMENDATIONS_URL = '/shared/recommendations.json';
-  const CARDS_PER_SLIDE = 2;
+  // Интервал между сменами слайдов (миллисекунды)
+  const SLIDE_INTERVAL = 6000; // 6 секунд
 
-  // Функция создания карточки рекомендации
-  function createCard(rec) {
-    const card = document.createElement('a');
-    card.className = 'stack-card';
-    card.href = `/recommendations/${rec.slug}.html`;
-    card.setAttribute('data-analytics', 'recommendation-card');
+  const disposers = [];
 
-    const imageDiv = document.createElement('div');
-    imageDiv.className = 'stack-card__image';
+  function setActiveSlide(index) {
+    // Циклическое переключение
+    const safeIndex = index % slides.length;
 
-    const contentDiv = document.createElement('div');
-    contentDiv.className = 'stack-card__content';
+    if (safeIndex === currentSlide) return;
 
-    const title = document.createElement('h3');
-    title.textContent = rec.title;
+    currentSlide = safeIndex;
 
-    const excerpt = document.createElement('p');
-    excerpt.textContent = rec.excerpt || '';
-
-    contentDiv.appendChild(title);
-    contentDiv.appendChild(excerpt);
-    card.appendChild(imageDiv);
-    card.appendChild(contentDiv);
-
-    return card;
-  }
-
-  // Функция создания слайда с карточками
-  function createSlide(cards, index, isActive) {
-    const slide = document.createElement('div');
-    slide.className = 'stack-slide';
-    slide.setAttribute('data-slide', index.toString());
-    slide.setAttribute('data-active', isActive ? 'true' : 'false');
-
-    cards.forEach(card => slide.appendChild(card));
-    return slide;
-  }
-
-  // Функция создания точки индикатора
-  function createDot(index, isActive) {
-    const dot = document.createElement('button');
-    dot.className = 'stack-dot';
-    dot.setAttribute('data-dot', index.toString());
-    dot.setAttribute('data-active', isActive ? 'true' : 'false');
-    dot.setAttribute('aria-label', `Слайд ${index + 1}`);
-    return dot;
-  }
-
-  // Функция генерации карусели из данных
-  function buildCarousel(recommendations) {
-    // Очищаем существующий контент
-    clearElement(carousel);
-    clearElement(indicator);
-
-    if (recommendations.length === 0) {
-      stack.style.display = 'none';
-      return { slides: [], dots: [] };
-    }
-
-    const slidesArray = [];
-    const dotsArray = [];
-
-    // Разбиваем рекомендации на слайды по CARDS_PER_SLIDE карточек
-    const slideCount = Math.ceil(recommendations.length / CARDS_PER_SLIDE);
-
-    for (let i = 0; i < slideCount; i++) {
-      const startIdx = i * CARDS_PER_SLIDE;
-      const endIdx = Math.min(startIdx + CARDS_PER_SLIDE, recommendations.length);
-      const slideRecs = recommendations.slice(startIdx, endIdx);
-
-      const cards = slideRecs.map(rec => createCard(rec));
-      const slide = createSlide(cards, i, i === 0);
-      carousel.appendChild(slide);
-      slidesArray.push(slide);
-
-      const dot = createDot(i, i === 0);
-      indicator.appendChild(dot);
-      dotsArray.push(dot);
-    }
-
-    return { slides: slidesArray, dots: dotsArray };
-  }
-
-  // Загружаем данные и инициализируем карусель
-  let slides = [];
-  let dots = [];
-  let carouselInitialized = false;
-
-  // Пробуем загрузить JSON с рекомендациями
-  fetch(RECOMMENDATIONS_URL)
-    .then(response => {
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      return response.json();
-    })
-    .then(recommendations => {
-      const result = buildCarousel(recommendations);
-      slides = result.slides;
-      dots = result.dots;
-
-      if (slides.length > 0) {
-        initCarouselInteractivity();
-      }
-      requestLayoutMetricsUpdate({ elementChanged: true });
-    })
-    .catch(error => {
-      console.warn('[StackCarousel] Не удалось загрузить рекомендации:', error);
-      // Используем существующие статичные слайды как fallback
-      slides = Array.from(document.querySelectorAll('.stack-slide'));
-      dots = Array.from(document.querySelectorAll('.stack-dot'));
-
-      if (slides.length > 0) {
-        initCarouselInteractivity();
-      }
-      requestLayoutMetricsUpdate({ elementChanged: true });
+    // Обновляем слайды
+    slides.forEach((slide, i) => {
+      slide.setAttribute('data-active', i === currentSlide ? 'true' : 'false');
     });
 
-  // Инициализация интерактивности карусели
-  function initCarouselInteractivity() {
-    if (carouselInitialized) return;
-    carouselInitialized = true;
+    // Обновляем точки
+    dots.forEach((dot, i) => {
+      dot.setAttribute('data-active', i === currentSlide ? 'true' : 'false');
+    });
+  }
 
-    if (slides.length === 0) return;
+  function isAutoplayPaused() {
+    return pauseReasons.size > 0;
+  }
 
-    let currentSlide = 0;
-    let intervalDisposer = null;
-    const pauseReasons = new Set();
-
-    // Интервал между сменами слайдов (миллисекунды)
-    const SLIDE_INTERVAL = 6000; // 6 секунд
-
-    const disposers = [];
-
-    function setActiveSlide(index) {
-      // Циклическое переключение
-      const safeIndex = index % slides.length;
-
-      if (safeIndex === currentSlide) return;
-
-      currentSlide = safeIndex;
-
-      // Обновляем слайды
-      slides.forEach((slide, i) => {
-        slide.setAttribute('data-active', i === currentSlide ? 'true' : 'false');
-      });
-
-      // Обновляем точки
-      dots.forEach((dot, i) => {
-        dot.setAttribute('data-active', i === currentSlide ? 'true' : 'false');
-      });
+  function scheduleAutoplay() {
+    if (intervalDisposer) {
+      intervalDisposer();
     }
+    intervalDisposer = trackInterval(nextSlide, SLIDE_INTERVAL, {
+      module: 'stackCarousel',
+      detail: 'autoplay',
+    });
+  }
 
-    function isAutoplayPaused() {
-      return pauseReasons.size > 0;
+  function restartAutoplay() {
+    if (isAutoplayPaused()) {
+      return;
     }
+    scheduleAutoplay();
+  }
 
-    function scheduleAutoplay() {
-      if (intervalDisposer) {
-        intervalDisposer();
-      }
-      intervalDisposer = trackInterval(nextSlide, SLIDE_INTERVAL, {
-        module: 'stackCarousel',
-        detail: 'autoplay',
-      });
+  function nextSlide() {
+    if (isAutoplayPaused()) {
+      return;
     }
+    setActiveSlide(currentSlide + 1);
+  }
 
-    function restartAutoplay() {
-      if (isAutoplayPaused()) {
-        return;
-      }
+  function stopAutoplay() {
+    if (intervalDisposer) {
+      intervalDisposer();
+      intervalDisposer = null;
+    }
+  }
+
+  function pauseAutoplay(reason) {
+    if (!reason || pauseReasons.has(reason)) {
+      return;
+    }
+    pauseReasons.add(reason);
+    stopAutoplay();
+  }
+
+  function resumeAutoplay(reason) {
+    if (!reason || !pauseReasons.has(reason)) {
+      return;
+    }
+    pauseReasons.delete(reason);
+    if (!isAutoplayPaused()) {
       scheduleAutoplay();
     }
+  }
 
-    function nextSlide() {
-      if (isAutoplayPaused()) {
-        return;
+  // Клики на точки для ручного переключения
+  dots.forEach((dot, index) => {
+    disposers.push(trackEvent(dot, 'click', () => {
+      setActiveSlide(index);
+      // Перезапускаем таймер после ручного переключения
+      restartAutoplay();
+    }, undefined, { module: 'stackCarousel', target: describeTarget(dot) }));
+  });
+
+  // Пауза при наведении мыши
+  if (stack) {
+    disposers.push(trackEvent(stack, 'mouseenter', () => {
+      pauseAutoplay('hover');
+    }, undefined, { module: 'stackCarousel', target: describeTarget(stack) }));
+
+    disposers.push(trackEvent(stack, 'mouseleave', () => {
+      resumeAutoplay('hover');
+    }, undefined, { module: 'stackCarousel', target: describeTarget(stack) }));
+
+    // Поддержка свайпов на тач-устройствах с предотвращением вертикального скролла
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchEndX = 0;
+    let touchEndY = 0;
+    let isSwiping = false;
+    let swipeDirection = null; // 'horizontal' или 'vertical'
+    const minSwipeDistance = 50; // минимальная дистанция для переключения слайда
+    const directionThreshold = 10; // порог для определения направления
+
+    disposers.push(trackEvent(stack, 'touchstart', (e) => {
+      touchStartX = e.changedTouches[0].clientX;
+      touchStartY = e.changedTouches[0].clientY;
+      isSwiping = false;
+      swipeDirection = null;
+      pauseAutoplay('touch');
+    }, { passive: true }, { module: 'stackCarousel', target: describeTarget(stack) }));
+
+    disposers.push(trackEvent(stack, 'touchmove', (e) => {
+      if (!isSwiping) {
+        const deltaX = Math.abs(e.changedTouches[0].clientX - touchStartX);
+        const deltaY = Math.abs(e.changedTouches[0].clientY - touchStartY);
+
+        // Определяем направление при первом значительном движении
+        if (deltaX > directionThreshold || deltaY > directionThreshold) {
+          isSwiping = true;
+          swipeDirection = deltaX > deltaY ? 'horizontal' : 'vertical';
+        }
       }
-      setActiveSlide(currentSlide + 1);
+
+      // Если свайп горизонтальный - предотвращаем вертикальный скролл
+      if (swipeDirection === 'horizontal') {
+        e.preventDefault();
+      }
+    }, { passive: false }, { module: 'stackCarousel', target: describeTarget(stack) })); // passive: false чтобы preventDefault работал
+
+    disposers.push(trackEvent(stack, 'touchend', (e) => {
+      touchEndX = e.changedTouches[0].clientX;
+      touchEndY = e.changedTouches[0].clientY;
+
+      // Обрабатываем свайп только если это был горизонтальный жест
+      if (swipeDirection === 'horizontal') {
+        handleSwipe();
+      }
+
+      isSwiping = false;
+      swipeDirection = null;
+      resumeAutoplay('touch');
+    }, { passive: true }, { module: 'stackCarousel', target: describeTarget(stack) }));
+
+    disposers.push(trackEvent(stack, 'touchcancel', () => {
+      isSwiping = false;
+      swipeDirection = null;
+      resumeAutoplay('touch');
+    }, { passive: true }, { module: 'stackCarousel', target: describeTarget(stack) }));
+
+    function handleSwipe() {
+      const swipeDistance = touchStartX - touchEndX;
+
+      if (Math.abs(swipeDistance) < minSwipeDistance) {
+        return; // Свайп слишком короткий, игнорируем
+      }
+
+      if (swipeDistance > 0) {
+        // Свайп влево - следующий слайд
+        setActiveSlide(currentSlide + 1);
+      } else {
+        // Свайп вправо - предыдущий слайд
+        setActiveSlide(currentSlide - 1 + slides.length);
+      }
+
+      // Перезапускаем таймер после свайпа
+      restartAutoplay();
     }
+  }
 
-    function stopAutoplay() {
-      if (intervalDisposer) {
-        intervalDisposer();
-        intervalDisposer = null;
-      }
+  // Первоначальное обновление
+  setActiveSlide(0);
+
+  // Запускаем автопроигрывание
+  restartAutoplay();
+
+  let cleaned = false;
+
+  const cleanup = () => {
+    if (cleaned) {
+      return;
     }
-
-    function pauseAutoplay(reason) {
-      if (!reason || pauseReasons.has(reason)) {
-        return;
-      }
-      pauseReasons.add(reason);
-      stopAutoplay();
-    }
-
-    function resumeAutoplay(reason) {
-      if (!reason || !pauseReasons.has(reason)) {
-        return;
-      }
-      pauseReasons.delete(reason);
-      if (!isAutoplayPaused()) {
-        scheduleAutoplay();
-      }
-    }
-
-    // Клики на точки для ручного переключения
-    dots.forEach((dot, index) => {
-      disposers.push(trackEvent(dot, 'click', () => {
-        setActiveSlide(index);
-        // Перезапускаем таймер после ручного переключения
-        restartAutoplay();
-      }, undefined, { module: 'stackCarousel', target: describeTarget(dot) }));
-    });
-
-    // Пауза при наведении мыши
-    if (stack) {
-      disposers.push(trackEvent(stack, 'mouseenter', () => {
-        pauseAutoplay('hover');
-      }, undefined, { module: 'stackCarousel', target: describeTarget(stack) }));
-
-      disposers.push(trackEvent(stack, 'mouseleave', () => {
-        resumeAutoplay('hover');
-      }, undefined, { module: 'stackCarousel', target: describeTarget(stack) }));
-
-      // Поддержка свайпов на тач-устройствах с предотвращением вертикального скролла
-      let touchStartX = 0;
-      let touchStartY = 0;
-      let touchEndX = 0;
-      let touchEndY = 0;
-      let isSwiping = false;
-      let swipeDirection = null; // 'horizontal' или 'vertical'
-      const minSwipeDistance = 50; // минимальная дистанция для переключения слайда
-      const directionThreshold = 10; // порог для определения направления
-
-      disposers.push(trackEvent(stack, 'touchstart', (e) => {
-        touchStartX = e.changedTouches[0].clientX;
-        touchStartY = e.changedTouches[0].clientY;
-        isSwiping = false;
-        swipeDirection = null;
-        pauseAutoplay('touch');
-      }, { passive: true }, { module: 'stackCarousel', target: describeTarget(stack) }));
-
-      disposers.push(trackEvent(stack, 'touchmove', (e) => {
-        if (!isSwiping) {
-          const deltaX = Math.abs(e.changedTouches[0].clientX - touchStartX);
-          const deltaY = Math.abs(e.changedTouches[0].clientY - touchStartY);
-
-          // Определяем направление при первом значительном движении
-          if (deltaX > directionThreshold || deltaY > directionThreshold) {
-            isSwiping = true;
-            swipeDirection = deltaX > deltaY ? 'horizontal' : 'vertical';
-          }
-        }
-
-        // Если свайп горизонтальный - предотвращаем вертикальный скролл
-        if (swipeDirection === 'horizontal') {
-          e.preventDefault();
-        }
-      }, { passive: false }, { module: 'stackCarousel', target: describeTarget(stack) })); // passive: false чтобы preventDefault работал
-
-      disposers.push(trackEvent(stack, 'touchend', (e) => {
-        touchEndX = e.changedTouches[0].clientX;
-        touchEndY = e.changedTouches[0].clientY;
-
-        // Обрабатываем свайп только если это был горизонтальный жест
-        if (swipeDirection === 'horizontal') {
-          handleSwipe();
-        }
-
-        isSwiping = false;
-        swipeDirection = null;
-        resumeAutoplay('touch');
-      }, { passive: true }, { module: 'stackCarousel', target: describeTarget(stack) }));
-
-      disposers.push(trackEvent(stack, 'touchcancel', () => {
-        isSwiping = false;
-        swipeDirection = null;
-        resumeAutoplay('touch');
-      }, { passive: true }, { module: 'stackCarousel', target: describeTarget(stack) }));
-
-      function handleSwipe() {
-        const swipeDistance = touchStartX - touchEndX;
-
-        if (Math.abs(swipeDistance) < minSwipeDistance) {
-          return; // Свайп слишком короткий, игнорируем
-        }
-
-        if (swipeDistance > 0) {
-          // Свайп влево - следующий слайд
-          setActiveSlide(currentSlide + 1);
-        } else {
-          // Свайп вправо - предыдущий слайд
-          setActiveSlide(currentSlide - 1 + slides.length);
-        }
-
-        // Перезапускаем таймер после свайпа
-        restartAutoplay();
-      }
-    }
-
-    // Первоначальное обновление
-    setActiveSlide(0);
-
-    // Запускаем автопроигрывание
-    restartAutoplay();
-
-    let cleaned = false;
-
-    const cleanup = () => {
-      if (cleaned) {
-        return;
-      }
-      cleaned = true;
-      stopAutoplay();
-      pauseReasons.clear();
-      while (disposers.length) {
-        const dispose = disposers.pop();
-        try {
-          dispose();
-        } catch (error) {
-          console.error('[StackCarousel] Failed to dispose listener', error);
-        }
-      }
-    };
-
-    const deregisterLifecycleCleanup = registerLifecycleDisposer(() => {
-      cleanup();
-    }, { module: 'stackCarousel', kind: 'cleanup' });
-
-    return () => {
-      cleanup();
+    cleaned = true;
+    stopAutoplay();
+    pauseReasons.clear();
+    while (disposers.length) {
+      const dispose = disposers.pop();
       try {
-        deregisterLifecycleCleanup?.();
+        dispose();
       } catch (error) {
-        console.error('[StackCarousel] Failed to deregister lifecycle cleanup', error);
+        console.error('[StackCarousel] Failed to dispose listener', error);
       }
-    };
-  } // Конец initCarouselInteractivity
-
-  // Возвращаем cleanup для внешнего использования
-  const mainCleanup = () => {
-    carouselInitialized = false;
+    }
   };
 
-  return mainCleanup;
+  const deregisterLifecycleCleanup = registerLifecycleDisposer(() => {
+    cleanup();
+  }, { module: 'stackCarousel', kind: 'cleanup' });
+
+  return () => {
+    cleanup();
+    try {
+      deregisterLifecycleCleanup?.();
+    } catch (error) {
+      console.error('[StackCarousel] Failed to deregister lifecycle cleanup', error);
+    }
+  };
 }
 
 /**
@@ -3086,9 +2888,9 @@ function attachScrollHideHeader() {
   registerLifecycleDisposer(() => {
     detach();
     scrollHideControls = {
-      suppress: () => { },
-      setMode: () => { },
-      detach: () => { },
+      suppress: () => {},
+      setMode: () => {},
+      detach: () => {},
     };
   }, { module: 'scroll.hideHeader', kind: 'cleanup' });
 }
@@ -3148,37 +2950,19 @@ function initProgressWidget() {
   // Приоритет: 1) slot (.pw-slot), 2) textContainer (.text-box), 3) "Далее" по умолчанию
   const buttonText = slot?.dataset.buttonText || textContainer?.dataset.buttonText || 'Далее';
 
-  // Build DOM safely without innerHTML
-  clearElement(root);
-  const visual = document.createElement('div');
-  visual.className = 'pw-visual';
+  root.innerHTML = `<div class="pw-visual">
+    <div class="pw-dot"></div>
+    <div class="pw-pill"></div>
+    <div class="pw-pct"><span id="pwPct">0%</span></div>
+    <div class="pw-next">${buttonText}</div>
+  </div>`;
 
-  const dot = document.createElement('div');
-  dot.className = 'pw-dot';
-
-  const pill = document.createElement('div');
-  pill.className = 'pw-pill';
-
-  const pctDiv = document.createElement('div');
-  pctDiv.className = 'pw-pct';
-  const pctSpan = document.createElement('span');
-  pctSpan.id = 'pwPct';
-  pctSpan.textContent = '0%';
-  pctDiv.appendChild(pctSpan);
-
-  const nextDiv = document.createElement('div');
-  nextDiv.className = 'pw-next';
-  nextDiv.textContent = buttonText; // Safe: uses textContent instead of innerHTML
-
-  visual.appendChild(dot);
-  visual.appendChild(pill);
-  visual.appendChild(pctDiv);
-  visual.appendChild(nextDiv);
-  root.appendChild(visual);
-
-  // 3. References to elements (already created above)
-  const pct = pctDiv;
-  const next = nextDiv;
+  // 3. Получение элементов
+  const dot = root.querySelector('.pw-dot');
+  const pill = root.querySelector('.pw-pill');
+  const pct = root.querySelector('.pw-pct');
+  const next = root.querySelector('.pw-next');
+  const pctSpan = root.querySelector('#pwPct');
 
   const prefersReduced = typeof window.matchMedia === 'function'
     ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -3214,8 +2998,8 @@ function initProgressWidget() {
     // ПРИОРИТЕТ 1: data-next-page из article
     const article = document.querySelector('.text-box');
     const explicit = article?.dataset.nextPage ||
-      document.body.dataset.nextPage ||
-      root.getAttribute('data-next-url');
+                     document.body.dataset.nextPage ||
+                     root.getAttribute('data-next-url');
     if (explicit && explicit !== '#') return explicit;
 
     // ПРИОРИТЕТ 2: <link rel="next">
@@ -3241,46 +3025,10 @@ function initProgressWidget() {
 
   const NEXT_URL = detectNextUrl();
 
-  // Задача 2: Определяем тип страницы из data-атрибута
-  const article = document.querySelector('article[data-page-type]');
-  const pageType = article?.dataset.pageType || 'unknown';
-
-  // Типы страниц: free, premium, recommendation, intro-free, intro-premium
-  const isFreeVersion = pageType === 'free' || pageType === 'intro-free';
-  const isRecommendation = pageType === 'recommendation';
-  const isPremium = pageType === 'premium' || pageType === 'intro-premium';
-
+  // Определяем тип версии: FREE (с payment-modal) или PREMIUM
+  const isFreeVersion = document.getElementById('payment-modal') !== null;
   if (isFreeVersion) {
     root.setAttribute('data-free-version', 'true');
-  }
-
-  // Ключ для localStorage - сохранение последней позиции в premium
-  const LAST_POSITION_KEY = 'toosmart_last_premium_position';
-
-  // Для premium страниц: сохраняем текущую позицию при достижении 100%
-  function saveLastPosition() {
-    if (isPremium && typeof localStorage !== 'undefined') {
-      try {
-        localStorage.setItem(LAST_POSITION_KEY, window.location.pathname);
-      } catch (e) {
-        console.warn('[ProgressWidget] Не удалось сохранить позицию:', e);
-      }
-    }
-  }
-
-  // Для рекомендаций: получаем последнюю сохраненную позицию
-  function getSmartNextUrl() {
-    if (isRecommendation && typeof localStorage !== 'undefined') {
-      try {
-        const savedPosition = localStorage.getItem(LAST_POSITION_KEY);
-        if (savedPosition && savedPosition.includes('/premium/')) {
-          return savedPosition;
-        }
-      } catch (e) {
-        console.warn('[ProgressWidget] Не удалось получить позицию:', e);
-      }
-    }
-    return NEXT_URL;
   }
 
   // 5. Анимации
@@ -3312,7 +3060,7 @@ function initProgressWidget() {
 
   updateMenuOverlapState();
 
-  let disconnectMenuObserver = () => { };
+  let disconnectMenuObserver = () => {};
   if (typeof MutationObserver === 'function') {
     const menuStateObserver = new MutationObserver((records) => {
       for (const record of records) {
@@ -3345,22 +3093,18 @@ function initProgressWidget() {
 
   function killAnims() {
     for (const a of [aDot, aPill, aPct, aNext]) {
-      try { a && a.cancel(); } catch (e) { }
+      try { a && a.cancel(); } catch(e) {}
     }
     aDot = aPill = aPct = aNext = null;
   }
 
   function playForward() {
-    const dotBaseTransform = 'translate(var(--pw-dot-translate-x), -50%)';
-    const pctBaseTransform = 'translate(var(--pw-dot-translate-x), -50%)';
-    const pctExitTransform = 'translate(var(--pw-dot-translate-x), calc(-50% + 8px))';
-
     if (prefersReduced) {
       dot.style.opacity = '0';
       pill.style.opacity = '1';
       pill.style.transform = 'translate(-50%,-50%) scaleX(1)';
       pct.style.opacity = '0';
-      pct.style.transform = pctExitTransform;
+      pct.style.transform = 'translateY(8px)';
       next.style.opacity = '1';
       next.style.transform = 'translateY(0)';
       next.style.letterSpacing = '0px';
@@ -3369,10 +3113,10 @@ function initProgressWidget() {
     killAnims();
     aDot = dot.animate(
       [
-        { transform: `${dotBaseTransform} scale(1)`, opacity: 1 },
-        { transform: `${dotBaseTransform} scale(1.08)`, opacity: 0.85, offset: 0.18 },
-        { transform: `${dotBaseTransform} scale(0.82)`, opacity: 0.45, offset: 0.48 },
-        { transform: `${dotBaseTransform} scale(0.6)`, opacity: 0 }
+        { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 },
+        { transform: 'translate(-50%,-50%) scale(1.08)', opacity: 0.85, offset: 0.18 },
+        { transform: 'translate(-50%,-50%) scale(0.82)', opacity: 0.45, offset: 0.48 },
+        { transform: 'translate(-50%,-50%) scale(0.6)', opacity: 0 }
       ],
       { duration: 760, easing: 'cubic-bezier(0.16, 1, 0.3, 1)', fill: 'forwards' }
     );
@@ -3387,8 +3131,8 @@ function initProgressWidget() {
     );
     aPct = pct.animate(
       [
-        { opacity: 1, transform: pctBaseTransform },
-        { opacity: 0, transform: pctExitTransform }
+        { opacity: 1, transform: 'translateY(0)' },
+        { opacity: 0, transform: 'translateY(8px)' }
       ],
       { duration: 360, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards', delay: 140 }
     );
@@ -3402,17 +3146,13 @@ function initProgressWidget() {
   }
 
   function playReverse() {
-    const dotBaseTransform = 'translate(var(--pw-dot-translate-x), -50%)';
-    const pctBaseTransform = 'translate(var(--pw-dot-translate-x), -50%)';
-    const pctEnterTransform = 'translate(var(--pw-dot-translate-x), calc(-50% - 6px))';
-
     if (prefersReduced) {
       dot.style.opacity = '1';
-      dot.style.transform = `${dotBaseTransform} scale(1)`;
+      dot.style.transform = 'translate(-50%,-50%) scale(1)';
       pill.style.opacity = '0';
       pill.style.transform = 'translate(-50%,-50%) scaleX(0.001)';
       pct.style.opacity = '1';
-      pct.style.transform = pctBaseTransform;
+      pct.style.transform = 'translateY(0)';
       next.style.opacity = '0';
       next.style.transform = 'translateY(6px)';
       next.style.letterSpacing = '0.4px';
@@ -3421,10 +3161,10 @@ function initProgressWidget() {
     killAnims();
     aDot = dot.animate(
       [
-        { transform: `${dotBaseTransform} scale(0.62)`, opacity: 0 },
-        { transform: `${dotBaseTransform} scale(0.92)`, opacity: 0.55, offset: 0.28 },
-        { transform: `${dotBaseTransform} scale(1.04)`, opacity: 0.85, offset: 0.58 },
-        { transform: `${dotBaseTransform} scale(1)`, opacity: 1 }
+        { transform: 'translate(-50%,-50%) scale(0.62)', opacity: 0 },
+        { transform: 'translate(-50%,-50%) scale(0.92)', opacity: 0.55, offset: 0.28 },
+        { transform: 'translate(-50%,-50%) scale(1.04)', opacity: 0.85, offset: 0.58 },
+        { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 }
       ],
       { duration: 720, easing: 'cubic-bezier(0.16, 1, 0.3, 1)', fill: 'forwards' }
     );
@@ -3438,8 +3178,8 @@ function initProgressWidget() {
     );
     aPct = pct.animate(
       [
-        { opacity: 0, transform: pctEnterTransform },
-        { opacity: 1, transform: pctBaseTransform }
+        { opacity: 0, transform: 'translateY(-6px)' },
+        { opacity: 1, transform: 'translateY(0)' }
       ],
       { duration: 420, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards', delay: 280 }
     );
@@ -3506,16 +3246,11 @@ function initProgressWidget() {
         // FREE версия - открываем модальное окно покупки
         e.preventDefault();
         window.openPaymentModal();
+      } else if (NEXT_URL && NEXT_URL !== '#') {
+        // PREMIUM версия - переход на следующую страницу
+        window.location.href = NEXT_URL;
       } else {
-        // PREMIUM или рекомендации - переход на следующую страницу
-        const targetUrl = getSmartNextUrl();
-        if (targetUrl && targetUrl !== '#') {
-          // Сохраняем позицию для premium перед переходом
-          saveLastPosition();
-          window.location.href = targetUrl;
-        } else {
-          console.warn('Progress Widget: следующая страница не найдена');
-        }
+        console.warn('Progress Widget: следующая страница не найдена');
       }
     } else {
       // До 100%: докрутить до конца
@@ -3603,7 +3338,7 @@ function initProgressWidget() {
 
 function activateDotsNavigationFeature() {
   if (dotsFeatureActive) {
-    return () => { };
+    return () => {};
   }
 
   // Safari fix: Убедимся что элементы найдены перед инициализацией
@@ -3637,12 +3372,12 @@ function activateDotsNavigationFeature() {
 
     detachFlyoutListeners();
     if (dotFlyout) {
-      clearElement(dotFlyout);
+      dotFlyout.innerHTML = '';
       dotFlyout.setAttribute('hidden', '');
       dotFlyout.classList.add('is-hidden');
     }
     if (dotsRail) {
-      clearElement(dotsRail);
+      dotsRail.innerHTML = '';
       dotsRail.hidden = true;
     }
     releaseSetActiveSectionBridge('dotsFlyout.lazy-cleanup');
@@ -3651,7 +3386,7 @@ function activateDotsNavigationFeature() {
 
 function activateStackCarouselFeature() {
   if (typeof stackCarouselCleanup === 'function') {
-    return () => { };
+    return () => {};
   }
 
   let cleanup = null;
@@ -3677,19 +3412,12 @@ function activateStackCarouselFeature() {
   }
 
   stackCarouselCleanup = null;
-  return () => { };
+  return () => {};
 }
 
 function activateProgressWidgetFeature() {
   if (typeof progressWidgetCleanup === 'function') {
-    return () => { };
-  }
-
-  // Не показывать виджет на страницах с paywall - там статичная кнопка
-  const article = document.querySelector('article[data-page-type]');
-  const pageType = article?.dataset.pageType || 'unknown';
-  if (pageType === 'free') {
-    return () => { };
+    return () => {};
   }
 
   // Safari fix: Убедимся что элементы найдены перед инициализацией
@@ -3718,7 +3446,7 @@ function activateProgressWidgetFeature() {
   }
 
   progressWidgetCleanup = null;
-  return () => { };
+  return () => {};
 }
 
 lazyFeatures.register('dots-nav', {
@@ -3822,6 +3550,11 @@ function init() {
     };
 
     trackEvent(viewport, 'resize', handleViewportGeometry, undefined, {
+      module: 'layout.mode',
+      target: 'visualViewport',
+    });
+
+    trackEvent(viewport, 'scroll', handleViewportGeometry, { passive: true }, {
       module: 'layout.mode',
       target: 'visualViewport',
     });
@@ -4037,8 +3770,8 @@ if (previousApp && typeof previousApp.dispose === 'function') {
 
 let lifecycle = null;
 let initCleanup = null;
-let disposeLoadListener = () => { };
-let removePageHooks = () => { };
+let disposeLoadListener = () => {};
+let removePageHooks = () => {};
 let disposed = false;
 let paused = true;
 
@@ -4084,7 +3817,7 @@ function unmountInteractive(payload = {}) {
   } catch (error) {
     console.error('[Lifecycle] Failed to remove load listener', error);
   }
-  disposeLoadListener = () => { };
+  disposeLoadListener = () => {};
 
   if (lifecycle) {
     try {
@@ -4136,7 +3869,7 @@ function disposeApp(payload = {}) {
   paused = true;
 
   removePageHooks();
-  removePageHooks = () => { };
+  removePageHooks = () => {};
 
   unmountInteractive(payload);
   logLifecycleEvent('dispose:complete', payload);
@@ -4154,15 +3887,13 @@ if (document.visibilityState !== 'hidden') {
   resumeApp({ reason: 'init' });
 }
 
-initCta();
-
 const appApi = {
   dispose: disposeApp,
   pause: pauseApp,
   resume: resumeApp,
   teardown() {
     removePageHooks();
-    removePageHooks = () => { };
+    removePageHooks = () => {};
   },
   getResources() {
     return lifecycle ? lifecycle.report() : [];

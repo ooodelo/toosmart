@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
+import handlebars from 'vite-plugin-handlebars';
 
 export default defineConfig({
   root: 'src',
@@ -7,8 +8,14 @@ export default defineConfig({
   // Dev server configuration
   server: {
     port: 3000,
-    open: '/template-full.html'
+    open: '/template.html'
   },
+
+  plugins: [
+    handlebars({
+      partialDirectory: resolve(__dirname, 'src/partials'),
+    }),
+  ],
 
   build: {
     outDir: '../dist/assets',
@@ -19,7 +26,9 @@ export default defineConfig({
       input: {
         free: resolve(__dirname, 'src/entries/free.js'),
         premium: resolve(__dirname, 'src/entries/premium.js'),
-        styles: resolve(__dirname, 'src/styles.css')
+        styles: resolve(__dirname, 'src/styles.css'),
+        template: resolve(__dirname, 'src/template.html'),
+        templatePaywall: resolve(__dirname, 'src/template-paywall.html')
       },
       output: {
         entryFileNames: '[name].[hash].js',
