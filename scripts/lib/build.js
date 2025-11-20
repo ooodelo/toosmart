@@ -16,7 +16,8 @@ const PATHS = {
     premiumAssets: path.resolve(__dirname, '../../dist/premium/assets'),
     recommendations: path.resolve(__dirname, '../../dist/recommendations'),
     shared: path.resolve(__dirname, '../../dist/shared'),
-    assets: path.resolve(__dirname, '../../dist/assets')
+    assets: path.resolve(__dirname, '../../dist/assets'),
+    contentAssets: path.resolve(__dirname, '../../dist/assets/content')
   },
   assets: {
     freeScript: path.resolve(__dirname, '../../src/script.js'),
@@ -169,6 +170,7 @@ async function buildFree() {
   console.log('\n🔨 Сборка FREE версии...\n');
 
   let config, content, template;
+  const contentAssets = new Map();
 
   try {
     config = await loadSiteConfig();
@@ -177,7 +179,7 @@ async function buildFree() {
   }
 
   try {
-    content = await loadContent(config.build.wordsPerMinute);
+    content = await loadContent(config.build.wordsPerMinute, contentAssets);
   } catch (error) {
     throw new Error(`Ошибка загрузки контента: ${error.message}`);
   }
@@ -202,6 +204,7 @@ async function buildFree() {
 
   try {
     await copyStaticAssets('free');
+    await copyContentAssets(contentAssets);
   } catch (error) {
     console.warn(`⚠️ Ошибка копирования статических файлов: ${error.message}`);
   }
@@ -247,7 +250,8 @@ async function buildFree() {
  */
 async function buildPremium() {
   const config = await loadSiteConfig();
-  const content = await loadContent(config.build.wordsPerMinute);
+  const contentAssets = new Map();
+  const content = await loadContent(config.build.wordsPerMinute, contentAssets);
   const template = await readTemplate('premium');
 
   // Загружаем Vite manifest для получения путей к ассетам
@@ -257,6 +261,7 @@ async function buildPremium() {
   await cleanDir(PATHS.dist.premium);
   await ensureDir(PATHS.dist.premium);
   await copyStaticAssets('premium');
+  await copyContentAssets(contentAssets);
   await copyServerFiles(PATHS.dist.premium);
 
   const menuItems = buildMenuItems(content, 'premium');
@@ -327,11 +332,16 @@ function buildPremiumContentPage(item, menuItems, config, template, { prevUrl, n
 
 async function buildRecommendations() {
   const config = await loadSiteConfig();
-  const content = await loadContent(config.build.wordsPerMinute);
+  const contentAssets = new Map();
+  const content = await loadContent(config.build.wordsPerMinute, contentAssets);
   const template = await readTemplate('free');
   const menuItems = buildMenuItems(content, 'free');
 
+  const manifest = loadViteManifest();
+  const viteAssets = getViteAssets(manifest, 'free');
+
   await copyStaticAssets('free');
+  await copyContentAssets(contentAssets);
 
   await ensureDir(PATHS.dist.shared);
   await cleanDir(PATHS.dist.recommendations);
@@ -352,7 +362,7 @@ async function buildRecommendations() {
   );
 
   for (const rec of content.recommendations) {
-    const page = buildRecommendationPage(rec, menuItems, config, template, 'free');
+    const page = buildRecommendationPage(rec, menuItems, config, template, 'free', viteAssets);
     const targetPath = path.join(PATHS.dist.recommendations, `${rec.slug}.html`);
     await fsp.writeFile(targetPath, page, 'utf8');
   }
@@ -384,24 +394,47 @@ async function readTemplate(mode) {
   const fallback = '<!doctype html><html lang="ru"><head><meta charset="utf-8"><title>{{title}}</title></head><body>{{body}}</body></html>';
   if (!templatePath || !fs.existsSync(templatePath)) return fallback;
   try {
-    return await fsp.readFile(templatePath, 'utf8');
+    const raw = await fsp.readFile(templatePath, 'utf8');
+    return sanitizeTemplateForBuild(raw);
   } catch (error) {
     console.warn('⚠️  Не удалось прочитать шаблон, используется дефолтный HTML:', error.message);
     return fallback;
   }
 }
 
-async function loadContent(wordsPerMinute) {
-  const intro = await loadMarkdownBranch(path.join(PATHS.content, 'intro'), 'intro', wordsPerMinute);
-  const course = await loadMarkdownBranch(path.join(PATHS.content, 'course'), 'course', wordsPerMinute);
-  const appendix = await loadMarkdownBranch(path.join(PATHS.content, 'appendix'), 'appendix', wordsPerMinute);
-  const recommendations = await loadMarkdownBranch(path.join(PATHS.content, 'recommendations'), 'recommendations', wordsPerMinute);
-  const legal = await loadMarkdownBranch(path.join(PATHS.content, 'legal'), 'legal', wordsPerMinute);
+function sanitizeTemplateForBuild(templateHtml) {
+  const dom = new JSDOM(templateHtml);
+  const { document } = dom.window;
+
+  // Позволяем помечать тестовые блоки атрибутом data-demo-only (не влияет на dev-сценарий)
+  document.querySelectorAll('[data-demo-only]').forEach(node => node.remove());
+
+  const bodySlot = document.querySelector('[data-build-slot="body"]');
+  if (bodySlot) {
+    const placeholder = document.createComment('BUILD_BODY_SLOT');
+    bodySlot.replaceWith(placeholder);
+    return dom.serialize().replace('<!--BUILD_BODY_SLOT-->', '{{body}}');
+  }
+
+  const articleContent = document.querySelector('#article-content');
+  if (articleContent) {
+    articleContent.innerHTML = '{{body}}';
+  }
+
+  return dom.serialize();
+}
+
+async function loadContent(wordsPerMinute, assetRegistry = new Map()) {
+  const intro = await loadMarkdownBranch(path.join(PATHS.content, 'intro'), 'intro', wordsPerMinute, assetRegistry);
+  const course = await loadMarkdownBranch(path.join(PATHS.content, 'course'), 'course', wordsPerMinute, assetRegistry);
+  const appendix = await loadMarkdownBranch(path.join(PATHS.content, 'appendix'), 'appendix', wordsPerMinute, assetRegistry);
+  const recommendations = await loadMarkdownBranch(path.join(PATHS.content, 'recommendations'), 'recommendations', wordsPerMinute, assetRegistry);
+  const legal = await loadMarkdownBranch(path.join(PATHS.content, 'legal'), 'legal', wordsPerMinute, assetRegistry);
 
   return { intro, course, appendix, recommendations, legal };
 }
 
-async function loadMarkdownBranch(dirPath, branch, wordsPerMinute = DEFAULT_SITE_CONFIG.build.wordsPerMinute) {
+async function loadMarkdownBranch(dirPath, branch, wordsPerMinute = DEFAULT_SITE_CONFIG.build.wordsPerMinute, assetRegistry = new Map()) {
   if (!fs.existsSync(dirPath)) return [];
   const entries = await fsp.readdir(dirPath);
   const files = entries.filter(name => name.endsWith('.md')).sort();
@@ -411,15 +444,16 @@ async function loadMarkdownBranch(dirPath, branch, wordsPerMinute = DEFAULT_SITE
     const fullPath = path.join(dirPath, file);
     const rawMarkdown = await fsp.readFile(fullPath, 'utf8');
     const { data, body } = parseFrontMatter(rawMarkdown);
+    const normalizedFrontMatter = normalizeFrontMatterMedia(data, dirPath, assetRegistry);
     const slug = data.slug || slugify(file.replace(/^(\d+[-_]?)/, '').replace(/\.md$/, ''));
-    const title = data.title || extractH1(body) || slug;
+    const title = normalizedFrontMatter.title || extractH1(body) || slug;
     const readingTimeMinutes = calculateReadingTime(body, wordsPerMinute);
     const { introMd, restMd } = extractLogicalIntro(body);
-    const introHtml = renderMarkdown(introMd);
-    const restHtml = renderMarkdown(restMd);
-    const fullHtml = renderMarkdown(body);
+    const introHtml = rewriteContentMedia(renderMarkdown(introMd), dirPath, assetRegistry);
+    const restHtml = rewriteContentMedia(renderMarkdown(restMd), dirPath, assetRegistry);
+    const fullHtml = rewriteContentMedia(renderMarkdown(body), dirPath, assetRegistry);
     const teaserHtml = buildTeaser(restHtml);
-    const excerpt = data.excerpt || teaserHtml.replace(/<[^>]+>/g, '').trim();
+    const excerpt = normalizedFrontMatter.excerpt || teaserHtml.replace(/<[^>]+>/g, '').trim();
     items.push({
       file,
       slug,
@@ -434,7 +468,7 @@ async function loadMarkdownBranch(dirPath, branch, wordsPerMinute = DEFAULT_SITE
       teaserHtml,
       excerpt,
       readingTimeMinutes,
-      frontMatter: data,
+      frontMatter: normalizedFrontMatter,
       branch
     });
   }
@@ -582,7 +616,7 @@ function buildPremiumPage(item, menuItems, config, template, { prevUrl, nextUrl 
   });
 }
 
-function buildRecommendationPage(item, menuItems, config, template, mode) {
+function buildRecommendationPage(item, menuItems, config, template, mode, viteAssets = null) {
   // Задача 2: Для рекомендаций кнопка "Открыть курс" ведет на intro или последнюю позицию
   const introUrl = mode === 'premium' ? '/premium/' : '/';
 
@@ -602,7 +636,8 @@ function buildRecommendationPage(item, menuItems, config, template, mode) {
     title: `${item.title} — ${config.domain || 'TooSmart'}`,
     body,
     meta: generateMetaTags(item, config, mode, 'recommendation'),
-    schema: generateSchemaOrg(item, config, 'recommendation')
+    schema: generateSchemaOrg(item, config, 'recommendation'),
+    viteAssets
   });
 }
 
@@ -817,6 +852,81 @@ function tokensToMarkdown(tokens) {
   return tokens.map(token => token.raw || '').join('').trim();
 }
 
+function normalizeFrontMatterMedia(data, dirPath, assetRegistry) {
+  if (!data || typeof data !== 'object') return {};
+  const normalized = { ...data };
+
+  if (data.image) {
+    const resolved = resolveContentAsset(data.image, dirPath, assetRegistry);
+    if (resolved) {
+      normalized.image = resolved.publicUrl;
+    }
+  }
+
+  return normalized;
+}
+
+function rewriteContentMedia(html, markdownDir, assetRegistry) {
+  if (!html) return html;
+  const dom = new JSDOM(`<body>${html}</body>`);
+  const { document } = dom.window;
+
+  const nodes = [
+    ...document.querySelectorAll('img[src]'),
+    ...document.querySelectorAll('video[src]'),
+    ...document.querySelectorAll('audio[src]'),
+    ...document.querySelectorAll('source[src]'),
+    ...document.querySelectorAll('a[href]')
+  ];
+
+  nodes.forEach(node => {
+    const attr = node.tagName === 'A' ? 'href' : 'src';
+    const original = node.getAttribute(attr);
+    const resolved = resolveContentAsset(original, markdownDir, assetRegistry);
+    if (resolved) {
+      node.setAttribute(attr, resolved.publicUrl);
+    }
+  });
+
+  return document.body.innerHTML;
+}
+
+function resolveContentAsset(value, markdownDir, assetRegistry) {
+  if (!value) return null;
+
+  const trimmed = value.trim();
+
+  if (/^(https?:)?\/\//i.test(trimmed) || trimmed.startsWith('data:') || trimmed.startsWith('#')) {
+    return null;
+  }
+
+  let candidate = trimmed.replace(/^file:\/\//, '');
+  let sourcePath;
+
+  if (path.isAbsolute(candidate)) {
+    sourcePath = candidate;
+  } else if (candidate.startsWith('/')) {
+    sourcePath = path.join(PATHS.content, candidate.replace(/^\/+/, ''));
+  } else {
+    sourcePath = path.resolve(markdownDir, candidate);
+  }
+
+  if (!fs.existsSync(sourcePath)) return null;
+
+  const normalizedSource = path.resolve(sourcePath);
+  if (!normalizedSource.startsWith(PATHS.content)) return null;
+
+  const relative = path.relative(PATHS.content, normalizedSource);
+  const publicUrl = `/assets/content/${relative.replace(/\\/g, '/')}`;
+  const targetPath = path.join(PATHS.dist.contentAssets, relative);
+
+  if (assetRegistry && !assetRegistry.has(targetPath)) {
+    assetRegistry.set(targetPath, { sourcePath: normalizedSource, publicUrl });
+  }
+
+  return { sourcePath: normalizedSource, publicUrl, targetPath };
+}
+
 function renderMarkdown(markdown) {
   const html = marked.parse(markdown, { mangle: false, headerIds: true });
   return sanitize.sanitize(html);
@@ -934,6 +1044,15 @@ async function copyStaticAssets(mode) {
 
   // JS и CSS теперь бандлятся Vite и находятся в dist/assets
   // Отдельное копирование mode-utils.js, cta.js, script.js больше не требуется
+}
+
+async function copyContentAssets(assetRegistry = new Map()) {
+  if (!assetRegistry || assetRegistry.size === 0) return;
+
+  for (const [targetPath, { sourcePath }] of assetRegistry.entries()) {
+    await ensureDir(path.dirname(targetPath));
+    await fsp.copyFile(sourcePath, targetPath);
+  }
 }
 
 async function copyIfExists(src, dest) {
