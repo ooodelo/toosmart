@@ -37,11 +37,26 @@ const PATHS = {
       'auth.php',
       'check-auth.php',
       'logout.php',
-      'robokassa-callback.php',
       'success.php',
-      'create-invoice.php',
       '.htaccess',
-      'users.json.example'
+      'users.json.example',
+      'health.php'
+    ],
+    // Новая модульная структура
+    directories: [
+      'api',
+      'src',
+      'robokassa',
+      'sql',
+      'storage'
+    ],
+    // Старые файлы для обратной совместимости (deprecated)
+    legacyFiles: [
+      'robokassa-callback.php',
+      'create-invoice.php',
+      'Database.php',
+      'config.php',
+      'security.php'
     ]
   },
   viteManifest: path.resolve(__dirname, '../../dist/assets/.vite/manifest.json')
@@ -1397,10 +1412,52 @@ async function copyContentAssets(assets) {
 }
 
 async function copyServerFiles(dest) {
+  // Копируем отдельные файлы
   for (const file of PATHS.server.files) {
     const src = path.join(PATHS.server.root, file);
     if (fs.existsSync(src)) {
       await fsp.copyFile(src, path.join(dest, file));
+    }
+  }
+
+  // Копируем директории рекурсивно (новая модульная структура)
+  if (PATHS.server.directories) {
+    for (const dir of PATHS.server.directories) {
+      const srcDir = path.join(PATHS.server.root, dir);
+      const destDir = path.join(dest, dir);
+      if (fs.existsSync(srcDir)) {
+        await copyDirectory(srcDir, destDir);
+        console.log(`✅ Скопирована директория server/${dir}/`);
+      }
+    }
+  }
+
+  // Копируем legacy файлы для обратной совместимости (если есть)
+  if (PATHS.server.legacyFiles) {
+    for (const file of PATHS.server.legacyFiles) {
+      const src = path.join(PATHS.server.root, file);
+      if (fs.existsSync(src)) {
+        await fsp.copyFile(src, path.join(dest, file));
+      }
+    }
+  }
+}
+
+/**
+ * Рекурсивно копирует директорию
+ */
+async function copyDirectory(src, dest) {
+  await ensureDir(dest);
+  const entries = await fsp.readdir(src, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+
+    if (entry.isDirectory()) {
+      await copyDirectory(srcPath, destPath);
+    } else {
+      await fsp.copyFile(srcPath, destPath);
     }
   }
 }
