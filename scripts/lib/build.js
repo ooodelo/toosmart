@@ -480,6 +480,15 @@ function applyTemplate(template, { title, body, menu, meta = '', schema = '', se
     .replace('{{body}}', body)
     .replace('{{menu}}', menu || '');
 
+  // Добавляем favicon если его нет
+  if (!result.includes('rel="icon"')) {
+    const faviconLinks = `
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">`;
+    result = result.replace('</head>', `${faviconLinks}\n  </head>`);
+  }
+
   // Вставляем мета-теги перед закрывающим </head>
   if (meta) {
     result = result.replace('</head>', `${meta}\n  </head>`);
@@ -1295,7 +1304,25 @@ async function copyStaticAssets(mode) {
   // For now, assume Vite handles it.
 }
 
+async function copyFavicon() {
+  const faviconSrc = path.resolve(__dirname, '../../src/assets/favicon.svg');
+  const faviconDest = path.join(PATHS.dist.assets, 'favicon.svg');
+
+  try {
+    if (fs.existsSync(faviconSrc)) {
+      await ensureDir(PATHS.dist.assets);
+      await fsp.copyFile(faviconSrc, faviconDest);
+      console.log('✅ Favicon скопирован');
+    }
+  } catch (error) {
+    console.warn('⚠️  Ошибка копирования favicon:', error.message);
+  }
+}
+
 async function copyContentAssets(assets) {
+  // Копируем favicon
+  await copyFavicon();
+
   if (!assets || assets.size === 0) {
     return;
   }
