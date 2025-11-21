@@ -26,7 +26,8 @@ const PATHS = {
     contentAssets: path.resolve(__dirname, '../../dist/assets/content')
   },
   config: {
-    site: path.resolve(__dirname, '../../config/site.json')
+    site: path.resolve(__dirname, '../../config/site.json'),
+    seo: path.resolve(__dirname, '../../config/seo-data.json')
   },
   server: {
     root: path.resolve(__dirname, '../../server'),
@@ -44,6 +45,9 @@ const PATHS = {
   },
   viteManifest: path.resolve(__dirname, '../../dist/assets/.vite/manifest.json')
 };
+
+// Кэш SEO данных
+let cachedSeoData = null;
 
 /**
  * Загружает Vite manifest для получения путей к собранным ассетам
@@ -467,9 +471,12 @@ function ensureInlineModeUtils(document) {
   }
 }
 
-function applyTemplate(template, { title, body, menu, meta = '', schema = '' }) {
+function applyTemplate(template, { title, body, menu, meta = '', schema = '', seoTitle = '' }) {
+  // Используем SEO title если задан, иначе обычный title
+  const finalTitle = seoTitle || title;
+
   let result = template
-    .replace(/<title>.*?<\/title>/, `<title>${title}</title>`)
+    .replace(/<title>.*?<\/title>/, `<title>${escapeAttr(finalTitle)}</title>`)
     .replace('{{body}}', body)
     .replace('{{menu}}', menu || '');
 
@@ -602,11 +609,13 @@ function generateMenuItemsHtml(items) {
 function buildIntroPage(item, menuHtml, config, template, mode, nextUrl = '') {
   const buttonText = mode === 'premium' ? config.ctaTexts.next : config.ctaTexts.enterFull;
   const pageType = mode === 'premium' ? 'intro-premium' : 'intro-free';
+  const seo = getSeoForItem(item);
 
   const body = wrapAsSection(item.fullHtml);
 
   return applyTemplate(template, {
     title: `${item.title} — ${config.domain || 'TooSmart'}`,
+    seoTitle: seo?.title || '',
     body,
     menu: menuHtml,
     meta: generateMetaTags(item, config, mode, 'intro'),
@@ -619,10 +628,11 @@ function buildIntroPage(item, menuHtml, config, template, mode, nextUrl = '') {
 }
 
 function buildFreeCoursePage(item, menuHtml, config, template) {
+  const seo = getSeoForItem(item);
   const body = `
         <div class="text-box__intro">
           <header>
-            <h1>${item.title}</h1>
+            <h1>${seo?.h1 || item.title}</h1>
             <p class="meta">${formatReadingTime(item.readingTimeMinutes)} чтения</p>
           </header>
           ${item.paywallOpenHtml}
@@ -640,6 +650,7 @@ function buildFreeCoursePage(item, menuHtml, config, template) {
 
   return applyTemplate(template, {
     title: `${item.title} — ${config.domain || 'TooSmart'}`,
+    seoTitle: seo?.title || '',
     body,
     menu: menuHtml,
     meta: generateMetaTags(item, config, 'free', 'course'),
@@ -651,12 +662,14 @@ function buildFreeCoursePage(item, menuHtml, config, template) {
 }
 
 function buildPremiumPage(item, menuHtml, config, template, { prevUrl, nextUrl }) {
+  const seo = getSeoForItem(item);
   const body = wrapAsSection(item.fullHtml);
 
   const pageType = item.branch === 'intro' ? 'intro' : (item.branch === 'appendix' ? 'appendix' : 'course');
 
   return applyTemplate(template, {
     title: `${item.title} — ${config.domain || 'TooSmart'}`,
+    seoTitle: seo?.title || '',
     body,
     menu: menuHtml,
     meta: generateMetaTags(item, config, 'premium', pageType),
@@ -668,12 +681,14 @@ function buildPremiumPage(item, menuHtml, config, template, { prevUrl, nextUrl }
 }
 
 function buildRecommendationPage(item, menuHtml, config, template, mode) {
+  const seo = getSeoForItem(item);
   const introUrl = mode === 'premium' ? '/premium/' : '/';
 
   const body = wrapAsSection(item.fullHtml);
 
   return applyTemplate(template, {
     title: `${item.title} — ${config.domain || 'TooSmart'}`,
+    seoTitle: seo?.title || '',
     body,
     menu: menuHtml,
     meta: generateMetaTags(item, config, mode, 'recommendation'),
@@ -685,12 +700,12 @@ function buildRecommendationPage(item, menuHtml, config, template, mode) {
 }
 
 function buildLegalPage(item, menuHtml, config, template, mode) {
-  // Legal pages are simpler, they might not fit into the .text-box structure perfectly if we enforce it.
-  // But let's try to fit them.
+  const seo = getSeoForItem(item);
   const body = wrapAsSection(item.fullHtml);
 
   return applyTemplate(template, {
     title: `${item.title} — ${config.domain || 'TooSmart'}`,
+    seoTitle: seo?.title || '',
     body,
     menu: menuHtml,
     meta: generateMetaTags(item, config, mode, 'legal'),
@@ -1129,11 +1144,137 @@ function parseOrder(filename) {
   return match ? parseInt(match[1], 10) : 999;
 }
 
+/**
+ * Загружает SEO данные из config/seo-data.json
+ */
+function loadSeoData() {
+  if (cachedSeoData !== null) {
+    return cachedSeoData;
+  }
+
+  try {
+    if (fs.existsSync(PATHS.config.seo)) {
+      const raw = fs.readFileSync(PATHS.config.seo, 'utf8');
+      cachedSeoData = JSON.parse(raw);
+      console.log(`✅ Загружены SEO данные (${Object.keys(cachedSeoData).length} записей)`);
+    } else {
+      cachedSeoData = {};
+    }
+  } catch (error) {
+    console.warn('⚠️  Ошибка чтения seo-data.json:', error.message);
+    cachedSeoData = {};
+  }
+
+  return cachedSeoData;
+}
+
+/**
+ * Получает SEO данные для конкретного элемента контента
+ */
+function getSeoForItem(item) {
+  const seoData = loadSeoData();
+
+  // Генерируем ID в том же формате, что и в админке
+  const seoId = `${item.branch}/${item.file}`.replace(/[^a-zA-Z0-9]/g, '-');
+
+  if (seoData[seoId] && seoData[seoId].values) {
+    return seoData[seoId].values;
+  }
+
+  return null;
+}
+
+/**
+ * Экранирует HTML атрибуты
+ */
+function escapeAttr(str) {
+  if (!str) return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 function generateMetaTags(item, config, mode, type) {
-  return `<meta name="description" content="${item.excerpt || ''}">`;
+  const seo = getSeoForItem(item);
+  const domain = config.domain || 'example.com';
+  const baseUrl = `https://${domain}`;
+
+  // Получаем значения из SEO данных или fallback к defaults
+  const description = seo?.description || item.excerpt || '';
+  const ogTitle = seo?.ogTitle || seo?.title || item.title || '';
+  const ogDescription = seo?.ogDescription || description;
+  const ogImage = seo?.ogImage || '';
+  const robots = seo?.robots || 'index,follow';
+  const canonical = seo?.canonical || '';
+  const twitterCard = seo?.twitterCard || 'summary_large_image';
+
+  let meta = [];
+
+  // Базовые мета-теги
+  meta.push(`<meta name="description" content="${escapeAttr(description)}">`);
+  meta.push(`<meta name="robots" content="${escapeAttr(robots)}">`);
+
+  // Canonical URL
+  if (canonical) {
+    meta.push(`<link rel="canonical" href="${escapeAttr(canonical)}">`);
+  }
+
+  // Open Graph
+  meta.push(`<meta property="og:title" content="${escapeAttr(ogTitle)}">`);
+  meta.push(`<meta property="og:description" content="${escapeAttr(ogDescription)}">`);
+  meta.push(`<meta property="og:type" content="${seo?.ogType || 'article'}">`);
+  meta.push(`<meta property="og:site_name" content="${escapeAttr(domain)}">`);
+
+  if (ogImage) {
+    const imageUrl = ogImage.startsWith('http') ? ogImage : `${baseUrl}${ogImage}`;
+    meta.push(`<meta property="og:image" content="${escapeAttr(imageUrl)}">`);
+  }
+
+  // Twitter Card
+  if (twitterCard && twitterCard !== 'none') {
+    meta.push(`<meta name="twitter:card" content="${escapeAttr(twitterCard)}">`);
+    meta.push(`<meta name="twitter:title" content="${escapeAttr(ogTitle)}">`);
+    meta.push(`<meta name="twitter:description" content="${escapeAttr(ogDescription)}">`);
+    if (ogImage) {
+      const imageUrl = ogImage.startsWith('http') ? ogImage : `${baseUrl}${ogImage}`;
+      meta.push(`<meta name="twitter:image" content="${escapeAttr(imageUrl)}">`);
+    }
+  }
+
+  return meta.join('\n  ');
 }
 
 function generateSchemaOrg(item, config, type) {
+  const seo = getSeoForItem(item);
+  const domain = config.domain || 'example.com';
+  const baseUrl = `https://${domain}`;
+
+  // Базовая Schema.org разметка для статей
+  if (type === 'course' || type === 'recommendation') {
+    const schema = {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": seo?.title || item.title,
+      "description": seo?.description || item.excerpt || '',
+      "author": {
+        "@type": "Organization",
+        "name": config.footer?.companyName || domain
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": config.footer?.companyName || domain
+      }
+    };
+
+    if (seo?.ogImage) {
+      schema.image = seo.ogImage.startsWith('http') ? seo.ogImage : `${baseUrl}${seo.ogImage}`;
+    }
+
+    return `<script type="application/ld+json">${JSON.stringify(schema)}</script>`;
+  }
+
   return '';
 }
 
