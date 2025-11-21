@@ -1,0 +1,6 @@
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:999}
+.modal-card{width:min(92vw,520px);background:#fff;border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,.25);overflow:hidden}
+.modal-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid #eee}
+.modal-title{font-weight:600}
+.modal-x{border:0;background:transparent;font-size:22px;line-height:1;cursor:pointer}
+.modal-body{padding:14px}

@@ -1,0 +1,9 @@
+{
+  "premium_course": {
+    "name": "Доступ к премиум-курсу",
+    "price": 990.0,
+    "tax": "none",
+    "payment_method": "full_payment",
+    "payment_object": "service"
+  }
+}
