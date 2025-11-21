@@ -155,8 +155,8 @@ function init() {
     }
 
     try {
-      // Отправляем запрос на создание invoice
-      const response = await fetch('/server/create-invoice.php', {
+      // Отправляем запрос на создание invoice через новый API
+      const response = await fetch('/server/api/order/create.php', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -170,19 +170,35 @@ function init() {
         throw new Error(data.error || `HTTP ${response.status}`);
       }
 
-      if (data.success && data.robokassa_url) {
+      if (data.endpoint && data.params) {
         // Отправляем событие аналитики
         if (window.analytics && typeof window.analytics.track === 'function') {
           window.analytics.track('payment_initiated', {
-            invoice_id: data.invoice_id,
-            amount: data.amount
+            invoice_id: data.params.InvId,
+            amount: data.params.OutSum
           });
         } else {
-          console.log('Analytics: Payment initiated', data.invoice_id);
+          console.log('Analytics: Payment initiated', data.params.InvId);
         }
 
-        // Редирект на Robokassa
-        window.location.href = data.robokassa_url;
+        // Создаем форму для POST-редиректа на Robokassa
+        const paymentForm = document.createElement('form');
+        paymentForm.method = 'POST';
+        paymentForm.action = data.endpoint;
+
+        // Добавляем все параметры как скрытые поля
+        for (const [key, value] of Object.entries(data.params)) {
+          if (value !== null && value !== undefined) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = value;
+            paymentForm.appendChild(input);
+          }
+        }
+
+        document.body.appendChild(paymentForm);
+        paymentForm.submit();
       } else {
         throw new Error(data.error || 'Не удалось создать счёт');
       }

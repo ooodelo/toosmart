@@ -16,14 +16,16 @@ const PATHS = {
   },
   dist: {
     root: path.resolve(__dirname, '../../dist'),
-    free: path.resolve(__dirname, '../../dist/free'),
     premium: path.resolve(__dirname, '../../dist/premium'),
     premiumAssets: path.resolve(__dirname, '../../dist/premium/assets'),
     recommendations: path.resolve(__dirname, '../../dist/recommendations'),
     shared: path.resolve(__dirname, '../../dist/shared'),
     modeUtils: path.resolve(__dirname, '../../src/js/mode-utils.js'),
     assets: path.resolve(__dirname, '../../dist/assets'),
-    contentAssets: path.resolve(__dirname, '../../dist/assets/content')
+    contentAssets: path.resolve(__dirname, '../../dist/assets/content'),
+    // Новая логичная структура - free контент в корне
+    course: path.resolve(__dirname, '../../dist/course'),
+    legal: path.resolve(__dirname, '../../dist/legal')
   },
   config: {
     site: path.resolve(__dirname, '../../config/site.json'),
@@ -37,11 +39,26 @@ const PATHS = {
       'auth.php',
       'check-auth.php',
       'logout.php',
-      'robokassa-callback.php',
       'success.php',
-      'create-invoice.php',
       '.htaccess',
-      'users.json.example'
+      'users.json.example',
+      'health.php'
+    ],
+    // Новая модульная структура
+    directories: [
+      'api',
+      'src',
+      'robokassa',
+      'sql',
+      'storage'
+    ],
+    // Старые файлы для обратной совместимости (deprecated)
+    legacyFiles: [
+      'robokassa-callback.php',
+      'create-invoice.php',
+      'Database.php',
+      'config.php',
+      'security.php'
     ]
   },
   viteManifest: path.resolve(__dirname, '../../dist/assets/.vite/manifest.json')
@@ -192,10 +209,13 @@ async function buildFree() {
 
   try {
     await ensureDir(PATHS.dist.root);
-    await cleanDir(PATHS.dist.free);
-    await ensureDir(PATHS.dist.free);
+    // Очищаем только course и legal директории, не весь dist
+    await cleanDir(PATHS.dist.course);
+    await cleanDir(PATHS.dist.legal);
+    await ensureDir(PATHS.dist.course);
+    await ensureDir(PATHS.dist.legal);
   } catch (error) {
-    throw new Error(`Ошибка подготовки директории dist/free: ${error.message}`);
+    throw new Error(`Ошибка подготовки директорий: ${error.message}`);
   }
 
   try {
@@ -210,7 +230,7 @@ async function buildFree() {
   for (const intro of content.intro) {
     // Определяем URL первой страницы курса для навигации с intro
     const firstCourse = content.course[0];
-    const nextUrl = firstCourse ? `/free/course/${firstCourse.slug}.html` : '';
+    const nextUrl = firstCourse ? `/course/${firstCourse.slug}.html` : '';
     const page = buildIntroPage(intro, menuHtml, config, introTemplate, 'free', nextUrl);
     const targetPath = path.join(PATHS.dist.root, 'index.html');
     await fsp.writeFile(targetPath, page, 'utf8');
@@ -219,14 +239,14 @@ async function buildFree() {
 
   for (const course of content.course) {
     const page = buildFreeCoursePage(course, menuHtml, config, template);
-    const targetPath = path.join(PATHS.dist.free, 'course', `${course.slug}.html`);
+    const targetPath = path.join(PATHS.dist.course, `${course.slug}.html`);
     await ensureDir(path.dirname(targetPath));
     await fsp.writeFile(targetPath, page, 'utf8');
   }
 
   for (const legal of content.legal) {
     const page = buildLegalPage(legal, menuHtml, config, template, 'free');
-    const targetPath = path.join(PATHS.dist.free, 'legal', `${legal.slug}.html`);
+    const targetPath = path.join(PATHS.dist.legal, `${legal.slug}.html`);
     await ensureDir(path.dirname(targetPath));
     await fsp.writeFile(targetPath, page, 'utf8');
   }
@@ -603,12 +623,12 @@ function buildMenuItems(content, mode) {
     });
   }
 
-  // Разделы курса
+  // Разделы курса - новая логичная структура
   for (const course of content.course) {
     menu.push({
       type: 'course',
       title: course.title,
-      url: mode === 'premium' ? `/premium/course/${course.slug}.html` : `/free/course/${course.slug}.html`,
+      url: mode === 'premium' ? `/premium/course/${course.slug}.html` : `/course/${course.slug}.html`,
       order: course.order,
       readingTimeMinutes: course.readingTimeMinutes
     });
@@ -1397,10 +1417,52 @@ async function copyContentAssets(assets) {
 }
 
 async function copyServerFiles(dest) {
+  // Копируем отдельные файлы
   for (const file of PATHS.server.files) {
     const src = path.join(PATHS.server.root, file);
     if (fs.existsSync(src)) {
       await fsp.copyFile(src, path.join(dest, file));
+    }
+  }
+
+  // Копируем директории рекурсивно (новая модульная структура)
+  if (PATHS.server.directories) {
+    for (const dir of PATHS.server.directories) {
+      const srcDir = path.join(PATHS.server.root, dir);
+      const destDir = path.join(dest, dir);
+      if (fs.existsSync(srcDir)) {
+        await copyDirectory(srcDir, destDir);
+        console.log(`✅ Скопирована директория server/${dir}/`);
+      }
+    }
+  }
+
+  // Копируем legacy файлы для обратной совместимости (если есть)
+  if (PATHS.server.legacyFiles) {
+    for (const file of PATHS.server.legacyFiles) {
+      const src = path.join(PATHS.server.root, file);
+      if (fs.existsSync(src)) {
+        await fsp.copyFile(src, path.join(dest, file));
+      }
+    }
+  }
+}
+
+/**
+ * Рекурсивно копирует директорию
+ */
+async function copyDirectory(src, dest) {
+  await ensureDir(dest);
+  const entries = await fsp.readdir(src, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+
+    if (entry.isDirectory()) {
+      await copyDirectory(srcPath, destPath);
+    } else {
+      await fsp.copyFile(srcPath, destPath);
     }
   }
 }
