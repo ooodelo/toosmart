@@ -513,9 +513,15 @@ async function loadMarkdownBranch(dirPath, branch, wordsPerMinute = DEFAULT_SITE
     const title = normalizedFrontMatter.title || extractH1(body) || slug;
     const readingTimeMinutes = calculateReadingTime(body, wordsPerMinute);
     const { introMd, restMd } = extractLogicalIntro(body);
-    const introHtml = rewriteContentMedia(renderMarkdown(introMd), dirPath, assetRegistry);
-    const restHtml = rewriteContentMedia(renderMarkdown(restMd), dirPath, assetRegistry);
-    const fullHtml = rewriteContentMedia(renderMarkdown(body), dirPath, assetRegistry);
+
+    // Preprocess markdown to convert absolute image paths before rendering
+    const processedIntroMd = preprocessMarkdownMedia(introMd, dirPath, assetRegistry);
+    const processedRestMd = preprocessMarkdownMedia(restMd, dirPath, assetRegistry);
+    const processedBody = preprocessMarkdownMedia(body, dirPath, assetRegistry);
+
+    const introHtml = rewriteContentMedia(renderMarkdown(processedIntroMd), dirPath, assetRegistry);
+    const restHtml = rewriteContentMedia(renderMarkdown(processedRestMd), dirPath, assetRegistry);
+    const fullHtml = rewriteContentMedia(renderMarkdown(processedBody), dirPath, assetRegistry);
     const teaserHtml = buildTeaser(restHtml);
     const excerpt = normalizedFrontMatter.excerpt || teaserHtml.replace(/<[^>]+>/g, '').trim();
     items.push({
@@ -534,8 +540,8 @@ async function loadMarkdownBranch(dirPath, branch, wordsPerMinute = DEFAULT_SITE
       readingTimeMinutes,
       frontMatter: normalizedFrontMatter,
       branch,
-      paywallOpenHtml: analyzePaywallStructure(body).openHtml,
-      paywallTeaserHtml: analyzePaywallStructure(body).teaserHtml
+      paywallOpenHtml: analyzePaywallStructure(processedBody).openHtml,
+      paywallTeaserHtml: analyzePaywallStructure(processedBody).teaserHtml
     });
   }
 
@@ -912,13 +918,204 @@ function analyzePaywallStructure(markdown) {
   return { openHtml, teaserHtml };
 }
 
+function preprocessMarkdownMedia(markdown, dirPath, assetRegistry) {
+  if (!markdown || !markdown.trim()) {
+    return markdown;
+  }
+
+  // Match markdown image syntax: ![alt](path)
+  const imageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+
+  // Collect all replacements to avoid mutating while iterating
+  const replacements = [];
+  let match;
+
+  while ((match = imageRegex.exec(markdown)) !== null) {
+    const fullMatch = match[0];
+    const matchIndex = match.index;
+    const altText = match[1];
+    const imagePath = match[2];
+
+    // Skip external URLs
+    if (/^(https?:)?\/\//.test(imagePath)) continue;
+
+    // Skip data URLs
+    if (imagePath.startsWith('data:')) continue;
+
+    // Skip already processed assets paths
+    if (imagePath.startsWith('/assets/content/')) continue;
+
+    let resolvedPath = null;
+
+    // Case 1: Absolute filesystem path (e.g., /Users/..., /home/..., C:\\...)
+    if (isAbsoluteFilesystemPath(imagePath)) {
+      if (fs.existsSync(imagePath)) {
+        resolvedPath = imagePath;
+      } else {
+        console.warn(`⚠️  Image not found in markdown: ${imagePath}`);
+        continue;
+      }
+    }
+    // Case 2: Project-relative path (e.g., /content/images/...)
+    else if (imagePath.startsWith('/content/')) {
+      const projectRoot = path.resolve(__dirname, '../..');
+      resolvedPath = path.join(projectRoot, imagePath.substring(1));
+      if (!fs.existsSync(resolvedPath)) {
+        console.warn(`⚠️  Image not found in markdown: ${resolvedPath}`);
+        continue;
+      }
+    }
+    // Case 3: Relative path (e.g., ../images/..., ./images/..., images/...)
+    else if (!imagePath.startsWith('/')) {
+      resolvedPath = path.resolve(dirPath, imagePath);
+      if (!fs.existsSync(resolvedPath)) {
+        console.warn(`⚠️  Image not found in markdown: ${resolvedPath}`);
+        continue;
+      }
+    }
+
+    // If we resolved a path, prepare the replacement
+    if (resolvedPath) {
+      const filename = sanitizeFilename(path.basename(resolvedPath));
+      const webPath = `/assets/content/${filename}`;
+
+      // Register the asset for later copying
+      if (!assetRegistry.has(resolvedPath)) {
+        assetRegistry.set(resolvedPath, {
+          source: resolvedPath,
+          destination: filename,
+          url: webPath
+        });
+      }
+
+      // Store the replacement
+      replacements.push({
+        index: matchIndex,
+        length: fullMatch.length,
+        newText: `![${altText}](${webPath})`
+      });
+    }
+  }
+
+  // Apply replacements in reverse order to maintain correct indices
+  let processed = markdown;
+  for (let i = replacements.length - 1; i >= 0; i--) {
+    const r = replacements[i];
+    processed = processed.substring(0, r.index) + r.newText + processed.substring(r.index + r.length);
+  }
+
+  return processed;
+}
+
 function renderMarkdown(markdown) {
   return marked(markdown);
 }
 
 function rewriteContentMedia(html, dirPath, assetRegistry) {
-  // Placeholder for media rewriting logic
-  return html;
+  if (!html || !html.trim()) {
+    return html;
+  }
+
+  const dom = new JSDOM(html);
+  const { document } = dom.window;
+  const images = document.querySelectorAll('img');
+
+  images.forEach(img => {
+    const src = img.getAttribute('src');
+    if (!src) return;
+
+    // Skip external URLs (http://, https://, //)
+    if (/^(https?:)?\/\//.test(src)) return;
+
+    // Skip data URLs
+    if (src.startsWith('data:')) return;
+
+    // Skip already processed assets paths
+    if (src.startsWith('/assets/content/')) return;
+
+    let resolvedPath = null;
+
+    // Case 1: Absolute filesystem path (e.g., /Users/..., /home/..., C:\...)
+    if (isAbsoluteFilesystemPath(src)) {
+      if (fs.existsSync(src)) {
+        resolvedPath = src;
+      } else {
+        console.warn(`⚠️  Image not found: ${src}`);
+        return;
+      }
+    }
+    // Case 2: Project-relative path (e.g., /content/images/...)
+    else if (src.startsWith('/content/')) {
+      const projectRoot = path.resolve(__dirname, '../..');
+      resolvedPath = path.join(projectRoot, src.substring(1)); // Remove leading /
+      if (!fs.existsSync(resolvedPath)) {
+        console.warn(`⚠️  Image not found: ${resolvedPath}`);
+        return;
+      }
+    }
+    // Case 3: Relative path (e.g., ../images/..., ./images/..., images/...)
+    else if (!src.startsWith('/')) {
+      resolvedPath = path.resolve(dirPath, src);
+      if (!fs.existsSync(resolvedPath)) {
+        console.warn(`⚠️  Image not found: ${resolvedPath}`);
+        return;
+      }
+    }
+    // Case 4: Web path starting with / but not /content/ (leave as is)
+    else {
+      return;
+    }
+
+    // If we resolved a path, register it and rewrite the URL
+    if (resolvedPath) {
+      const filename = sanitizeFilename(path.basename(resolvedPath));
+      const webPath = `/assets/content/${filename}`;
+
+      // Register the asset for later copying
+      if (!assetRegistry.has(resolvedPath)) {
+        assetRegistry.set(resolvedPath, {
+          source: resolvedPath,
+          destination: filename,
+          url: webPath
+        });
+      }
+
+      // Update the img src attribute
+      img.setAttribute('src', webPath);
+    }
+  });
+
+  return dom.window.document.body.innerHTML;
+}
+
+function isAbsoluteFilesystemPath(filepath) {
+  // Unix-like absolute paths: /Users/..., /home/..., /root/...
+  if (filepath.startsWith('/') && !filepath.startsWith('//')) {
+    // Check if it looks like a filesystem path by checking for common root directories
+    const unixRoots = ['/Users/', '/home/', '/root/', '/var/', '/tmp/', '/opt/'];
+    if (unixRoots.some(root => filepath.startsWith(root))) {
+      return true;
+    }
+  }
+  // Windows absolute paths: C:\..., D:\...
+  if (/^[a-zA-Z]:\\/.test(filepath)) {
+    return true;
+  }
+  return false;
+}
+
+function sanitizeFilename(filename) {
+  // Replace spaces with underscores
+  let sanitized = filename.replace(/\s+/g, '_');
+
+  // Remove or replace other potentially problematic characters
+  // Keep alphanumeric, dots, hyphens, and underscores
+  sanitized = sanitized.replace(/[^a-zA-Z0-9._-]/g, '_');
+
+  // Remove multiple consecutive underscores
+  sanitized = sanitized.replace(/_+/g, '_');
+
+  return sanitized;
 }
 
 function buildTeaser(html) {
@@ -958,7 +1155,42 @@ async function copyStaticAssets(mode) {
 }
 
 async function copyContentAssets(assets) {
-  // Copy images referenced in markdown
+  if (!assets || assets.size === 0) {
+    return;
+  }
+
+  // Ensure destination directory exists
+  await ensureDir(PATHS.dist.contentAssets);
+
+  let copiedCount = 0;
+  let errorCount = 0;
+
+  for (const [sourcePath, assetInfo] of assets.entries()) {
+    try {
+      const destPath = path.join(PATHS.dist.contentAssets, assetInfo.destination);
+
+      // Check if source file exists
+      if (!fs.existsSync(sourcePath)) {
+        console.warn(`⚠️  Source file not found: ${sourcePath}`);
+        errorCount++;
+        continue;
+      }
+
+      // Copy the file
+      await fsp.copyFile(sourcePath, destPath);
+      copiedCount++;
+    } catch (error) {
+      console.error(`❌ Error copying asset ${sourcePath}:`, error.message);
+      errorCount++;
+    }
+  }
+
+  if (copiedCount > 0) {
+    console.log(`✅ Copied ${copiedCount} content asset(s) to dist/assets/content/`);
+  }
+  if (errorCount > 0) {
+    console.warn(`⚠️  ${errorCount} asset(s) failed to copy`);
+  }
 }
 
 async function copyServerFiles(dest) {
