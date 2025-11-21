@@ -16,14 +16,16 @@ const PATHS = {
   },
   dist: {
     root: path.resolve(__dirname, '../../dist'),
-    free: path.resolve(__dirname, '../../dist/free'),
     premium: path.resolve(__dirname, '../../dist/premium'),
     premiumAssets: path.resolve(__dirname, '../../dist/premium/assets'),
     recommendations: path.resolve(__dirname, '../../dist/recommendations'),
     shared: path.resolve(__dirname, '../../dist/shared'),
     modeUtils: path.resolve(__dirname, '../../src/js/mode-utils.js'),
     assets: path.resolve(__dirname, '../../dist/assets'),
-    contentAssets: path.resolve(__dirname, '../../dist/assets/content')
+    contentAssets: path.resolve(__dirname, '../../dist/assets/content'),
+    // Новая логичная структура - free контент в корне
+    course: path.resolve(__dirname, '../../dist/course'),
+    legal: path.resolve(__dirname, '../../dist/legal')
   },
   config: {
     site: path.resolve(__dirname, '../../config/site.json'),
@@ -207,10 +209,13 @@ async function buildFree() {
 
   try {
     await ensureDir(PATHS.dist.root);
-    await cleanDir(PATHS.dist.free);
-    await ensureDir(PATHS.dist.free);
+    // Очищаем только course и legal директории, не весь dist
+    await cleanDir(PATHS.dist.course);
+    await cleanDir(PATHS.dist.legal);
+    await ensureDir(PATHS.dist.course);
+    await ensureDir(PATHS.dist.legal);
   } catch (error) {
-    throw new Error(`Ошибка подготовки директории dist/free: ${error.message}`);
+    throw new Error(`Ошибка подготовки директорий: ${error.message}`);
   }
 
   try {
@@ -225,7 +230,7 @@ async function buildFree() {
   for (const intro of content.intro) {
     // Определяем URL первой страницы курса для навигации с intro
     const firstCourse = content.course[0];
-    const nextUrl = firstCourse ? `/free/course/${firstCourse.slug}.html` : '';
+    const nextUrl = firstCourse ? `/course/${firstCourse.slug}.html` : '';
     const page = buildIntroPage(intro, menuHtml, config, introTemplate, 'free', nextUrl);
     const targetPath = path.join(PATHS.dist.root, 'index.html');
     await fsp.writeFile(targetPath, page, 'utf8');
@@ -234,14 +239,14 @@ async function buildFree() {
 
   for (const course of content.course) {
     const page = buildFreeCoursePage(course, menuHtml, config, template);
-    const targetPath = path.join(PATHS.dist.free, 'course', `${course.slug}.html`);
+    const targetPath = path.join(PATHS.dist.course, `${course.slug}.html`);
     await ensureDir(path.dirname(targetPath));
     await fsp.writeFile(targetPath, page, 'utf8');
   }
 
   for (const legal of content.legal) {
     const page = buildLegalPage(legal, menuHtml, config, template, 'free');
-    const targetPath = path.join(PATHS.dist.free, 'legal', `${legal.slug}.html`);
+    const targetPath = path.join(PATHS.dist.legal, `${legal.slug}.html`);
     await ensureDir(path.dirname(targetPath));
     await fsp.writeFile(targetPath, page, 'utf8');
   }
@@ -618,12 +623,12 @@ function buildMenuItems(content, mode) {
     });
   }
 
-  // Разделы курса
+  // Разделы курса - новая логичная структура
   for (const course of content.course) {
     menu.push({
       type: 'course',
       title: course.title,
-      url: mode === 'premium' ? `/premium/course/${course.slug}.html` : `/free/course/${course.slug}.html`,
+      url: mode === 'premium' ? `/premium/course/${course.slug}.html` : `/course/${course.slug}.html`,
       order: course.order,
       readingTimeMinutes: course.readingTimeMinutes
     });
