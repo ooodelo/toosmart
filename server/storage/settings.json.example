@@ -1,0 +1,37 @@
+{
+  "db": {
+    "dsn": "mysql:host=localhost;dbname=robokassa_cabinet;charset=utf8mb4",
+    "user": "dbuser",
+    "pass": "dbpass"
+  },
+  "robokassa": {
+    "merchant_login": "CHANGE_ME",
+    "pass1": "CHANGE_ME",
+    "pass2": "CHANGE_ME",
+    "is_test": true,
+    "signature_alg": "md5",
+    "success_url": "https://your-site.com/success",
+    "fail_url": "https://your-site.com/fail",
+    "default_sno": "usn_income",
+    "default_tax": "none",
+    "product_code": "premium_course"
+  },
+  "security": {
+    "session_name": "cabinet_sess",
+    "admin_token": "CHANGE_ME_LONG_RANDOM"
+  },
+  "emails": {
+    "from": "noreply@your-site.com",
+    "transport": "phpmail",
+    "smtp": {
+      "host": "smtp.yourmail.com",
+      "port": 587,
+      "user": "user@yourmail.com",
+      "pass": "app_password",
+      "secure": "tls"
+    }
+  },
+  "site": {
+    "base_url": "https://your-site.com"
+  }
+}
