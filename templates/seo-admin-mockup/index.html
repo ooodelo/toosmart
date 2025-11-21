@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>SEO и метаданные — админка «Слишком Умная Уборка»</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">
+      <span class="brand-logo">СУ</span>
+      <div class="brand-text">
+        <div class="brand-title">Слишком Умная Уборка</div>
+        <div class="brand-subtitle">SEO и метаданные контента</div>
+      </div>
+    </div>
+    <div class="header-controls">
+      <button class="btn btn-secondary" id="btnCollapseAll">Свернуть все</button>
+      <button class="btn btn-secondary" id="btnExpandAll">Развернуть все</button>
+      <button class="btn btn-primary" id="btnSaveAll">Сохранить изменения</button>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <aside class="sidebar">
+      <section class="sidebar-section">
+        <h2>Фильтры</h2>
+        <label class="field-label">Поиск по названию или пути</label>
+        <input type="search" id="searchInput" class="input" placeholder="Поиск...">
+
+        <div class="chips-group">
+          <div class="chips-label">Тип контента</div>
+          <div class="chips" id="typeFilters">
+            <button class="chip chip-active" data-type="all">Все</button>
+            <button class="chip" data-type="course">Курс</button>
+            <button class="chip" data-type="recommendation">Рекомендации</button>
+            <button class="chip" data-type="image">Изображения</button>
+            <button class="chip" data-type="other">Другое</button>
+          </div>
+        </div>
+
+        <div class="chips-group">
+          <div class="chips-label">Состояние</div>
+          <div class="chips" id="statusFilters">
+            <button class="chip chip-active" data-status="all">Все</button>
+            <button class="chip" data-status="missing-required">Нет обязательных</button>
+            <button class="chip" data-status="missing-og">Нет Open Graph</button>
+            <button class="chip" data-status="complete">Заполнено</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="sidebar-section summary">
+        <h2>Итого</h2>
+        <div class="summary-row">
+          <span>Всего карточек</span>
+          <span id="statTotal">0</span>
+        </div>
+        <div class="summary-row">
+          <span>Требуют внимания</span>
+          <span id="statMissing">0</span>
+        </div>
+        <div class="summary-row">
+          <span>Заполнено</span>
+          <span id="statComplete">0</span>
+        </div>
+        <p class="summary-hint">
+          Скрипт может автоматически находить markdown-файлы и изображения,
+          а эта панель — только интерфейс для заполнения SEO-полей.
+        </p>
+      </section>
+    </aside>
+
+    <section class="content">
+      <div id="cardsContainer" class="cards-container">
+        <!-- Карточки наполняются скриптом -->
+      </div>
+    </section>
+  </main>
+
+  <template id="cardTemplate">
+    <article class="card" data-id="">
+      <header class="card-header">
+        <div class="card-main">
+          <div class="card-path"></div>
+          <div class="card-title"></div>
+        </div>
+        <div class="card-meta">
+          <span class="badge badge-type"></span>
+          <span class="badge badge-status"></span>
+          <button class="card-toggle" type="button" aria-label="Развернуть/свернуть">
+            ▾
+          </button>
+        </div>
+      </header>
+      <div class="card-body">
+        <section class="card-section card-section-main">
+          <h3>Основные метаданные</h3>
+
+          <!-- Только для страниц (course / recommendation / other) -->
+          <div class="field-row field-row-title field-row--page-only">
+            <label class="field-label">Title</label>
+            <div class="field-with-meta">
+              <input type="text" class="input field-title" maxlength="120">
+              <div class="field-meta">
+                <span class="counter counter-title">0 / 60</span>
+                <span class="hint">Оптимум: 45–60 символов</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="field-row field-row-description field-row--page-only">
+            <label class="field-label">Meta description</label>
+            <div class="field-with-meta">
+              <textarea class="textarea field-description" rows="2" maxlength="260"></textarea>
+              <div class="field-meta">
+                <span class="counter counter-description">0 / 160</span>
+                <span class="hint">Оптимум: 120–160 символов</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="field-row field-row-h1 field-row--page-only">
+            <label class="field-label">H1</label>
+            <input type="text" class="input field-h1">
+          </div>
+
+          <!-- Общий для всех типов: путь / slug -->
+          <div class="field-row field-row-slug field-row--all">
+            <label class="field-label">URL / slug</label>
+            <input type="text" class="input field-slug">
+          </div>
+
+          <!-- Только страницы: robots/canonical/type -->
+          <div class="field-row three-cols field-row--page-only field-row-robots">
+            <div>
+              <label class="field-label">Индексирование</label>
+              <select class="select field-robots">
+                <option value="index,follow">index,follow</option>
+                <option value="noindex,follow">noindex,follow</option>
+                <option value="noindex,nofollow">noindex,nofollow</option>
+              </select>
+            </div>
+            <div>
+              <label class="field-label">Canonical</label>
+              <input type="text" class="input field-canonical" placeholder="https://...">
+            </div>
+            <div>
+              <label class="field-label">Тип страницы</label>
+              <select class="select field-page-type">
+                <option value="course">Курс</option>
+                <option value="recommendation">Рекомендация</option>
+                <option value="image">Изображение</option>
+                <option value="other">Другое</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
+        <!-- Блок OG: только для страниц -->
+        <section class="card-section card-section-og">
+          <h3>Open Graph / соцсети</h3>
+
+          <div class="field-row field-row-og-title field-row--page-only">
+            <label class="field-label">OG title</label>
+            <input type="text" class="input field-og-title">
+          </div>
+
+          <div class="field-row field-row-og-description field-row--page-only">
+            <label class="field-label">OG description</label>
+            <textarea class="textarea field-og-description" rows="2"></textarea>
+          </div>
+
+          <div class="field-row image-row field-row--page-only">
+            <div class="image-meta">
+              <label class="field-label">OG image</label>
+              <input type="text" class="input field-og-image" placeholder="/assets/og/filename.jpg">
+              <p class="hint">Рекомендованный размер: ~1200×630px</p>
+            </div>
+            <div class="image-preview">
+              <div class="image-preview-box">
+                <span class="image-preview-placeholder">Превью</span>
+                <img src="" alt="" class="image-preview-img" hidden>
+              </div>
+            </div>
+          </div>
+
+          <div class="field-row two-cols field-row-og-extra field-row--page-only">
+            <div>
+              <label class="field-label">Twitter card</label>
+              <select class="select field-twitter-card">
+                <option value="summary_large_image">summary_large_image</option>
+                <option value="summary">summary</option>
+                <option value="none">не задавать</option>
+              </select>
+            </div>
+            <div>
+              <label class="field-label">OG type</label>
+              <select class="select field-og-type">
+                <option value="article">article</option>
+                <option value="website">website</option>
+                <option value="other">other</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
+        <!-- Блок для изображений: только для type=image -->
+        <section class="card-section card-section-image">
+          <h3>Изображение / alt-текст</h3>
+          <div class="field-row">
+            <label class="field-label">Alt-текст (по умолчанию)</label>
+            <input type="text" class="input field-image-alt">
+          </div>
+          <div class="field-row">
+            <label class="field-label">Подпись / описание изображения</label>
+            <textarea class="textarea field-image-caption" rows="2"></textarea>
+          </div>
+        </section>
+
+        <section class="card-section card-section--footer">
+          <div class="section-left">
+            <label class="checkbox">
+              <input type="checkbox" class="field-complete-flag">
+              <span>Отметить карточку как заполненную</span>
+            </label>
+          </div>
+          <div class="section-right">
+            <button class="btn btn-ghost btn-small btn-reset" type="button">Сбросить</button>
+            <button class="btn btn-primary btn-small btn-save-one" type="button">Сохранить</button>
+          </div>
+        </section>
+      </div>
+    </article>
+  </template>
+
+  <div class="toast" id="toast" role="status" aria-live="polite">
+    <span id="toastMessage">Сохранено</span>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
