@@ -1,6 +1,7 @@
-// ModeUtils is loaded globally in head-scripts.html
-// import { ModeUtils } from './public/mode-utils.js';
-const ModeUtils = window.ModeUtils;
+import { ModeUtils as ModeUtilsModule } from './js/mode-utils.js';
+
+// Head inline partial should expose window.ModeUtils; fall back to module import when it doesn't.
+const ModeUtils = window.ModeUtils || ModeUtilsModule;
 
 /**
  * АРХИТЕКТУРА: Разделение режимов верстки и типов ввода
@@ -37,12 +38,15 @@ if (!ModeUtils) {
 
 const root = document.documentElement;
 const body = document.body;
-const initialMode = window.__INITIAL_MODE__;
-if (typeof initialMode === 'string') {
+const hadInitialMode = typeof window.__INITIAL_MODE__ === 'string';
+const hadInitialInput = typeof window.__INITIAL_INPUT__ === 'string';
+const initialState = ensureInitialModeState(body);
+const initialMode = initialState.mode;
+const initialInput = initialState.input;
+if (hadInitialMode) {
   delete window.__INITIAL_MODE__;
 }
-const initialInput = window.__INITIAL_INPUT__;
-if (typeof initialInput === 'string') {
+if (hadInitialInput) {
   delete window.__INITIAL_INPUT__;
 }
 // Safari fix: Элементы могут быть не готовы при загрузке модуля
@@ -116,6 +120,34 @@ function escapeHTML(str) {
 
 function isMenuAvailable() {
   return Boolean(menuRail || siteMenu);
+}
+
+function ensureInitialModeState(bodyElement) {
+  const { body: docBody } = document;
+  const targetBody = bodyElement || docBody;
+
+  const modeFromInline = typeof window.__INITIAL_MODE__ === 'string' ? window.__INITIAL_MODE__ : targetBody?.dataset.mode;
+  const inputFromInline = typeof window.__INITIAL_INPUT__ === 'string' ? window.__INITIAL_INPUT__ : targetBody?.dataset.input;
+
+  const needsDetection = !modeFromInline || !inputFromInline;
+  if (!needsDetection) {
+    return { mode: modeFromInline, input: inputFromInline };
+  }
+
+  const detected = ModeUtils.detectInitialState(window, document);
+  const mode = modeFromInline || detected.mode;
+  const input = inputFromInline || detected.input;
+
+  if (targetBody) {
+    if (!targetBody.dataset.mode) {
+      targetBody.dataset.mode = mode;
+    }
+    if (!targetBody.dataset.input) {
+      targetBody.dataset.input = input;
+    }
+  }
+
+  return { mode, input };
 }
 
 function createMenuStateController({ body, handles = [] } = {}) {
@@ -3286,7 +3318,10 @@ function initProgressWidget() {
   // 5. Анимации
   let aDot = null, aPill = null, aPct = null, aNext = null;
   let doneState = false;
+  let centeringPending = false;
+  let centeringTimerId = null;
   let ticking = false;
+  const CENTERING_DELAY_MS = 720;
 
   function isMobileMode() {
     return body.dataset.mode === 'mobile';
@@ -3452,6 +3487,60 @@ function initProgressWidget() {
     );
   }
 
+  const clearCenteringTimer = () => {
+    if (centeringTimerId !== null) {
+      clearTimeout(centeringTimerId);
+      centeringTimerId = null;
+    }
+  };
+
+  function finalizeDoneTransition() {
+    if (doneState) return;
+    clearCenteringTimer();
+    centeringPending = false;
+    doneState = true;
+    root.classList.remove('is-centering');
+    root.classList.add('is-done');
+    root.setAttribute('aria-disabled', 'false');
+    root.setAttribute('aria-label', 'Кнопка: Далее');
+    playForward();
+    requestLayoutMetricsUpdate({ elementChanged: true });
+  }
+
+  function startCenteringPhase(progressValue) {
+    if (centeringPending || doneState) return;
+    centeringPending = true;
+    root.classList.add('is-centering');
+    root.classList.remove('is-done');
+    root.setAttribute('aria-disabled', 'true');
+    root.setAttribute('aria-label', 'Прогресс чтения: ' + progressValue + '%');
+    requestLayoutMetricsUpdate({ elementChanged: true });
+    clearCenteringTimer();
+    const delay = prefersReduced ? 0 : CENTERING_DELAY_MS;
+    centeringTimerId = window.setTimeout(() => finalizeDoneTransition(), delay);
+  }
+
+  function resetProgressState(progressValue) {
+    const hadButtonState = doneState || centeringPending;
+    clearCenteringTimer();
+    centeringPending = false;
+    doneState = false;
+    root.classList.remove('is-done', 'is-centering');
+    root.setAttribute('aria-disabled', 'true');
+    root.setAttribute('aria-label', 'Прогресс чтения: ' + progressValue + '%');
+    if (hadButtonState) {
+      playReverse();
+      requestLayoutMetricsUpdate({ elementChanged: true });
+    }
+  }
+
+  trackEvent(root, 'transitionend', (event) => {
+    if (!centeringPending) return;
+    if (event.target !== root) return;
+    if (event.propertyName !== 'left' && event.propertyName !== 'transform') return;
+    finalizeDoneTransition();
+  }, undefined, { module: 'progressWidget', target: describeTarget(root) });
+
   // 6. Обновление на скролл
   function onScroll() {
     if (ticking) return;
@@ -3469,33 +3558,26 @@ function initProgressWidget() {
 
     const shouldBeDone = perc >= 100;
 
-    if (shouldBeDone && !doneState) {
-      doneState = true;
-      root.classList.add('is-done');
-      root.setAttribute('aria-disabled', 'false');
-      root.setAttribute('aria-label', 'Кнопка: Далее');
-      playForward();
-      requestLayoutMetricsUpdate({ elementChanged: true });
-      return;
-    }
-
-    if (!shouldBeDone && doneState) {
-      doneState = false;
-      root.classList.remove('is-done');
-      root.setAttribute('aria-disabled', 'true');
-      root.setAttribute('aria-label', 'Прогресс чтения: ' + perc + '%');
-      playReverse();
-      requestLayoutMetricsUpdate({ elementChanged: true });
-      return;
-    }
-
     if (shouldBeDone) {
-      root.setAttribute('aria-disabled', 'false');
-      root.setAttribute('aria-label', 'Кнопка: Далее');
-    } else {
-      root.setAttribute('aria-disabled', 'true');
-      root.setAttribute('aria-label', 'Прогресс чтения: ' + perc + '%');
+      if (doneState) {
+        root.setAttribute('aria-disabled', 'false');
+        root.setAttribute('aria-label', 'Кнопка: Далее');
+        return;
+      }
+
+      if (centeringPending) {
+        return;
+      }
+
+      if (isMobileMode() && !isFreeVersion) {
+        startCenteringPhase(perc);
+      } else {
+        finalizeDoneTransition();
+      }
+      return;
     }
+
+    resetProgressState(perc);
   }
 
   // 7. Клик
@@ -3568,13 +3650,14 @@ function initProgressWidget() {
   requestLayoutMetricsUpdate({ elementChanged: true });
 
   const releaseLifecycleCleanup = registerLifecycleDisposer(() => {
+    clearCenteringTimer();
     killAnims();
     try {
       disconnectMenuObserver();
     } catch (error) {
       console.error('[ProgressWidget] Failed to disconnect menu observer', error);
     }
-    root.classList.remove('is-done', 'is-menu-covered', 'is-floating');
+    root.classList.remove('is-done', 'is-menu-covered', 'is-floating', 'is-centering');
     if (root.isConnected && typeof root.remove === 'function') {
       root.remove();
     } else if (root.parentElement) {
@@ -3688,7 +3771,9 @@ function activateProgressWidgetFeature() {
   // Не показывать виджет на страницах с paywall - там статичная кнопка
   const article = document.querySelector('article[data-page-type]');
   const pageType = article?.dataset.pageType || 'unknown';
-  if (pageType === 'free') {
+  const hasPaywallTeaser = Boolean(document.querySelector('.premium-teaser'));
+  const isPaywallPage = pageType === 'free' || pageType === 'paywall' || hasPaywallTeaser;
+  if (isPaywallPage) {
     return () => { };
   }
 

@@ -28,7 +28,9 @@ export default defineConfig({
         premium: resolve(__dirname, 'src/entries/premium.js'),
         styles: resolve(__dirname, 'src/styles.css'),
         template: resolve(__dirname, 'src/template.html'),
-        templatePaywall: resolve(__dirname, 'src/template-paywall.html')
+        templatePaywall: resolve(__dirname, 'src/template-paywall.html'),
+        templateIndex: resolve(__dirname, 'src/template-index.html'),
+        templateRecommendations: resolve(__dirname, 'src/template-recommendations.html')
       },
       output: {
         entryFileNames: '[name].[hash].js',

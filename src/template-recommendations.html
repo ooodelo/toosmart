@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';" />
+    <title>UI-каркас (Recommendations)</title>
+    {{> head-scripts }}
+    <link rel="stylesheet" href="./styles.css">
+</head>
+
+<body>
+    {{> header }}
+
+    {{> menu }}
+    <!-- Mock Menu Content for Dev -->
+    <script>
+        (function () {
+            function initMenu() {
+                const menuList = document.querySelector('[data-build-slot="menu"]');
+                if (menuList && menuList.children.length <= 1) { // Check if empty or just has "loading"
+                    menuList.innerHTML = `
+            <li><a href="./template-index.html">1. Intro (Index)</a></li>
+            <li><a href="./template-paywall.html">2. Free Article (Paywall)</a></li>
+            <li><a href="./template-paywall.html">3. Another Free Article</a></li>
+            <li><a href="./template.html">4. Premium Article (Full)</a></li>
+            <li><a href="./template.html">5. Deep Cleaning</a></li>
+            <li><a href="./template.html">6. Kitchen Chemistry</a></li>
+            <li><a href="./template.html">7. Bathroom Science</a></li>
+            <li><a href="./template.html">8. Floor Care</a></li>
+            <li><a href="./template-recommendations.html">9. Recommendation Example</a></li>
+            <li><a href="./template.html">10. Safe Storage</a></li>
+          `;
+                }
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initMenu);
+            } else {
+                initMenu();
+            }
+        })();
+    </script>
+
+    <div class="backdrop" aria-hidden="true"></div>
+
+    <main class="main">
+        <section class="panel" data-lazy="dots-nav progress-widget">
+            <article class="text-box" aria-label="Основной материал" data-build-slot="body">
+                <section class="text-section">
+                    <h1>Топ-5 средств для ванной комнаты</h1>
+                    <p class="meta">Подборка эксперта</p>
+                </section>
+
+                <section class="text-section">
+                    <h2>Критерии выбора</h2>
+                    <p>Мы оценивали средства по трем параметрам: эффективность против кальциевых отложений (налет),
+                        безопасность для хромированных поверхностей и запах. Важно, чтобы кислота в составе была
+                        достаточно сильной для растворения камня, но не разъедала металл смесителей.</p>
+                    <p>Многие дешевые средства содержат соляную кислоту, которая мгновенно убивает хром. В нашем рейтинге
+                        — только продукты на основе сульфаминовой, лимонной или ортофосфорной кислот.</p>
+                </section>
+
+                <section class="text-section">
+                    <h3>Наш выбор</h3>
+                    <ul>
+                        <li><strong>1. AcidGel Pro:</strong> Лучшее средство от застарелого камня. Гелевая формула
+                            позволяет средству держаться на вертикальных поверхностях.</li>
+                        <li><strong>2. EcoClean Bath:</strong> Идеально для ежедневной уборки. Биоразлагаемое, без
+                            резкого запаха, на основе лимонной кислоты.</li>
+                        <li><strong>3. MoldOff Spray:</strong> Специализированное средство против черной плесени в швах
+                            плитки. Содержит активный хлор (осторожно, запах!).</li>
+                        <li><strong>4. ShineMaster:</strong> Полироль для смесителей. Создает водоотталкивающую пленку,
+                            предотвращая появление новых пятен.</li>
+                    </ul>
+                    <p>Используйте эти средства регулярно, и ваша ванная всегда будет сиять, как в пятизвездочном
+                        отеле.</p>
+                </section>
+            </article>
+            <nav class="dots-rail" aria-label="Навигация по разделам"></nav>
+            <div class="dot-flyout is-hidden" hidden role="navigation" aria-label="Оглавление разделов"></div>
+        </section>
+
+        <aside class="stack" aria-label="Рекомендации" data-lazy="stack-carousel">
+            <h2 class="stack__title">🔥 Рекомендуем</h2>
+            <div class="stack-carousel">
+                <!-- Slide 0 -->
+                <div class="stack-slide" data-slide="0" data-active="true">
+                    <div class="stack-card" onclick="window.location.href='./template-recommendations.html'"
+                        style="cursor: pointer;">
+                        <div class="stack-card__image" style="background: #eee; height: 120px;"></div>
+                        <div class="stack-card__content">
+                            <h3><a href="./template-recommendations.html"
+                                    style="text-decoration: none; color: inherit;">1. Lorem Ipsum (Recs)</a></h3>
+                            <p>Dolor sit amet consectetur adipiscing elit.</p>
+                        </div>
+                    </div>
+                    <div class="stack-card" onclick="window.location.href='./template-recommendations.html'"
+                        style="cursor: pointer;">
+                        <div class="stack-card__image" style="background: #e0e0e0; height: 120px;"></div>
+                        <div class="stack-card__content">
+                            <h3><a href="./template-recommendations.html"
+                                    style="text-decoration: none; color: inherit;">2. Sed Do Eiusmod (Recs)</a></h3>
+                            <p>Tempor incididunt ut labore et dolore magna aliqua.</p>
+                        </div>
+                    </div>
+                </div>
+                <!-- Slide 1 -->
+                <div class="stack-slide" data-slide="1" data-active="false">
+                    <div class="stack-card" onclick="window.location.href='./template-recommendations.html'"
+                        style="cursor: pointer;">
+                        <div class="stack-card__image" style="background: #d0d0d0; height: 120px;"></div>
+                        <div class="stack-card__content">
+                            <h3><a href="./template-recommendations.html"
+                                    style="text-decoration: none; color: inherit;">3. Ut Enim Ad (Recs)</a></h3>
+                            <p>Minim veniam quis nostrud exercitation ullamco.</p>
+                        </div>
+                    </div>
+                    <div class="stack-card" onclick="window.location.href='./template-recommendations.html'"
+                        style="cursor: pointer;">
+                        <div class="stack-card__image" style="background: #c0c0c0; height: 120px;"></div>
+                        <div class="stack-card__content">
+                            <h3><a href="./template-recommendations.html"
+                                    style="text-decoration: none; color: inherit;">4. Laboris Nisi (Recs)</a></h3>
+                            <p>Ut aliquip ex ea commodo consequat.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="stack-indicator">
+                <button class="stack-dot" data-dot="0" data-active="true" aria-label="Слайд 1"></button>
+                <button class="stack-dot" data-dot="1" data-active="false" aria-label="Слайд 2"></button>
+            </div>
+        </aside>
+    </main>
+
+    <div class="dock" role="presentation">
+        <button class="dock-handle" type="button" aria-controls="site-menu" aria-expanded="false">
+            Структура курса
+        </button>
+    </div>
+
+    {{> footer }}
+
+    {{> modals }}
+
+    <script type="module" src="./entries/free.js"></script>
+</body>
+
+</html>

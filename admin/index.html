@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -43,7 +44,7 @@
       padding: 20px;
       background: var(--card-bg);
       border-radius: 12px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
 
     header h1 {
@@ -80,8 +81,15 @@
     }
 
     @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.5;
+      }
     }
 
     .grid {
@@ -95,7 +103,7 @@
       background: var(--card-bg);
       border-radius: 12px;
       padding: 20px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
 
     .card h2 {
@@ -124,7 +132,9 @@
       color: var(--text-muted);
     }
 
-    input, select, textarea {
+    input,
+    select,
+    textarea {
       width: 100%;
       padding: 10px 12px;
       border: 1px solid var(--border);
@@ -133,7 +143,9 @@
       transition: border-color 0.2s;
     }
 
-    input:focus, select:focus, textarea:focus {
+    input:focus,
+    select:focus,
+    textarea:focus {
       outline: none;
       border-color: var(--primary);
     }
@@ -166,7 +178,7 @@
       background: var(--card-bg);
       border-radius: 12px;
       padding: 20px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
       margin-bottom: 20px;
     }
 
@@ -244,7 +256,7 @@
       padding: 20px;
       background: var(--card-bg);
       border-radius: 12px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
       margin-bottom: 20px;
     }
 
@@ -257,7 +269,7 @@
       background: var(--card-bg);
       border-radius: 12px;
       padding: 20px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
 
     .logs-section h2 {
@@ -373,8 +385,81 @@
         justify-content: center;
       }
     }
+
+    /* Новые стили для разделов и модального окна */
+    .sections-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .section-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 12px;
+      background: var(--bg);
+      border-radius: 6px;
+      font-size: 0.9rem;
+      border-left: 3px solid var(--primary);
+    }
+
+    .section-item.premium {
+      border-left-color: var(--success);
+    }
+
+    .section-item.recommendation {
+      border-left-color: var(--warning);
+    }
+
+    .section-badge {
+      background: var(--primary);
+      color: white;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .section-badge.premium {
+      background: var(--success);
+    }
+
+    .section-badge.recommendation {
+      background: var(--warning);
+    }
+
+    .payment-modal-editor {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+    }
+
+    .payment-modal-editor h2 {
+      font-size: 1.1rem;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid var(--primary);
+    }
+
+    .editor-actions {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    @media (max-width: 768px) {
+      .editor-actions {
+        flex-direction: column;
+      }
+    }
   </style>
 </head>
+
 <body>
   <div class="container">
     <header>
@@ -402,6 +487,29 @@
         <button class="btn btn-outline" onclick="runBuild('all')" id="btnAll">
           <span class="icon">🔄</span> Собрать всё
         </button>
+      </div>
+    </section>
+
+    <!-- Блок редактора модального окна оплаты -->
+    <section class="payment-modal-editor">
+      <h2>💳 Редактор модального окна оплаты</h2>
+
+      <div class="editor-actions">
+        <button class="btn btn-primary" onclick="loadPaymentModal()" id="btnLoadModal">
+          📄 Загрузить текущий HTML
+        </button>
+        <button class="btn btn-success" onclick="savePaymentModal()" id="btnSaveModal">
+          💾 Сохранить изменения
+        </button>
+      </div>
+
+      <div class="form-group">
+        <label for="modalHtml">HTML код модального окна</label>
+        <textarea id="modalHtml" rows="20" style="font-family: 'Monaco', 'Menlo', monospace; font-size: 0.85rem;"
+          placeholder="Нажмите 'Загрузить текущий HTML' для редактирования"></textarea>
+        <div class="hint">
+          ⚠️ Будьте осторожны! Неправильный HTML может сломать страницу. Изменения можно откатить из backup файла.
+        </div>
       </div>
     </section>
 
@@ -527,6 +635,26 @@
         </div>
       </div>
 
+      <!-- Разделы курса -->
+      <div class="card">
+        <h2><span class="icon">📚</span> Разделы курса</h2>
+        <div id="courseSections" class="sections-list">
+          <div style="text-align: center; color: var(--text-muted); padding: 20px;">
+            Загрузка разделов...
+          </div>
+        </div>
+      </div>
+
+      <!-- Рекомендации -->
+      <div class="card">
+        <h2><span class="icon">📖</span> Рекомендации</h2>
+        <div id="recommendationsSections" class="sections-list">
+          <div style="text-align: center; color: var(--text-muted); padding: 20px;">
+            Загрузка рекомендаций...
+          </div>
+        </div>
+      </div>
+
       <!-- Legal документы -->
       <div class="card">
         <h2><span class="icon">📄</span> Legal документы</h2>
@@ -575,6 +703,7 @@
     // Инициализация при загрузке страницы
     document.addEventListener('DOMContentLoaded', () => {
       loadConfig();
+      loadSections();
     });
 
     // Загрузка конфигурации
@@ -768,7 +897,7 @@
     }
 
     // Обработка загрузки файлов футера
-    document.getElementById('footerFiles').addEventListener('change', function(e) {
+    document.getElementById('footerFiles').addEventListener('change', function (e) {
       const fileList = document.getElementById('footerFileList');
       fileList.innerHTML = '';
 
@@ -782,6 +911,117 @@
         fileList.appendChild(item);
       });
     });
+
+    // Загрузка списка разделов
+    async function loadSections() {
+      try {
+        const response = await fetch(`${API_URL}/api/sections`);
+        if (!response.ok) throw new Error('Failed to load sections');
+
+        const sections = await response.json();
+
+        displayCourseSections(sections.course);
+        displayRecommendations(sections.recommendations);
+      } catch (error) {
+        console.error('Failed to load sections:', error);
+        document.getElementById('courseSections').innerHTML = '<div style="text-align: center; color: var(--danger); padding: 20px;">Ошибка загрузки разделов</div>';
+        document.getElementById('recommendationsSections').innerHTML = '<div style="text-align: center; color: var(--danger); padding: 20px;">Ошибка загрузки рекомендаций</div>';
+      }
+    }
+
+    function displayCourseSections(sections) {
+      const container = document.getElementById('courseSections');
+
+      if (!sections || sections.length === 0) {
+        container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 20px;">Разделы не найдены</div>';
+        return;
+      }
+
+      container.innerHTML = sections.map((file, idx) => {
+        const name = file.replace(/^\d+_раздел_\d+_/, '').replace('.md', '').replace(/_/g, ' ');
+        const isPremium = idx >= 1; // Первый раздел Free, остальные Premium
+
+        return `
+          <div class="section-item ${isPremium ? 'premium' : ''}">
+            <span>${idx + 1}. ${name}</span>
+            <span class="section-badge ${isPremium ? 'premium' : ''}">${isPremium ? 'PREMIUM' : 'FREE'}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function displayRecommendations(sections) {
+      const container = document.getElementById('recommendationsSections');
+
+      if (!sections || sections.length === 0) {
+        container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 20px;">Рекомендации не найдены</div>';
+        return;
+      }
+
+      container.innerHTML = sections.map((file, idx) => {
+        const name = file.replace('.md', '');
+
+        return `
+          <div class="section-item recommendation">
+            <span>${idx + 1}. ${name}</span>
+            <span class="section-badge recommendation">РЕКОМЕНДАЦИЯ</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Загрузка HTML модального окна
+    async function loadPaymentModal() {
+      const btn = document.getElementById('btnLoadModal');
+      btn.disabled = true;
+      btn.textContent = '⏳ Загрузка...';
+
+      try {
+        const response = await fetch(`${API_URL}/api/payment-modal`);
+        if (!response.ok) throw new Error('Failed to load');
+
+        const html = await response.text();
+        document.getElementById('modalHtml').value = html;
+        showToast('HTML модального окна загружен', 'success');
+      } catch (error) {
+        showToast('Ошибка загрузки: ' + error.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '📄 Загрузить текущий HTML';
+      }
+    }
+
+    // Сохранение HTML модального окна
+    async function savePaymentModal() {
+      const btn = document.getElementById('btnSaveModal');
+      const html = document.getElementById('modalHtml').value.trim();
+
+      if (!html) {
+        showToast('HTML не может быть пустым', 'error');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = '⏳ Сохранение...';
+
+      try {
+        const response = await fetch(`${API_URL}/api/payment-modal`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+          body: html
+        });
+
+        if (!response.ok) throw new Error('Failed to save');
+
+        showToast('Модальное окно успешно сохранено! Создан backup файл.', 'success');
+      } catch (error) {
+        showToast('Ошибка сохранения: ' + error.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '💾 Сохранить изменения';
+      }
+    }
   </script>
 </body>
+
 </html>

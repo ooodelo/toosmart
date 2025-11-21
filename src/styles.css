@@ -1472,6 +1472,8 @@ body[data-mode="mobile"] #pw-root {
 
 body[data-mode="mobile"] #pw-root.is-floating:not(.is-done) {
   width: var(--pw-circle-size);
+  min-width: var(--pw-circle-size);
+  max-width: var(--pw-circle-size);
   height: var(--pw-circle-size);
 }
 
@@ -1487,6 +1489,7 @@ body[data-mode="mobile"] #pw-root.is-floating {
 }
 
 /* PREMIUM версия: кнопка "Далее" центрируется при 100% */
+body[data-mode="mobile"] #pw-root.is-floating.is-centering:not([data-free-version]),
 body[data-mode="mobile"] #pw-root.is-floating.is-done:not([data-free-version]) {
   left: 50%;
   transform: translate(-50%, 0);

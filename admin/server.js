@@ -76,6 +76,20 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if (pathname === '/api/sections' && req.method === 'GET') {
+      await handleGetSections(req, res);
+      return;
+    }
+
+    if (pathname === '/api/payment-modal') {
+      if (req.method === 'GET') {
+        await handleGetPaymentModal(req, res);
+      } else if (req.method === 'POST') {
+        await handleSavePaymentModal(req, res);
+      }
+      return;
+    }
+
     // Статические файлы
     await serveStatic(req, res, pathname);
 
@@ -230,6 +244,77 @@ async function handleFileUpload(req, res) {
   // In production, use proper multipart/form-data parser
   res.writeHead(501, { 'Content-Type': 'application/json' });
   res.end(JSON.stringify({ error: 'Загрузка файлов пока не реализована' }));
+}
+
+// Получение списка разделов
+async function handleGetSections(req, res) {
+  try {
+    const courseDir = path.join(PROJECT_ROOT, 'content', 'course');
+    const recsDir = path.join(PROJECT_ROOT, 'content', 'recommendations');
+
+    const courseSections = fs.readdirSync(courseDir)
+      .filter(f => f.endsWith('.md'))
+      .sort();
+
+    const recommendations = fs.readdirSync(recsDir)
+      .filter(f => f.endsWith('.md'))
+      .sort();
+
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      course: courseSections,
+      recommendations: recommendations
+    }));
+  } catch (error) {
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Ошибка чтения разделов: ' + error.message }));
+  }
+}
+
+// Получение HTML модального окна оплаты
+async function handleGetPaymentModal(req, res) {
+  try {
+    const modalPath = path.join(PROJECT_ROOT, 'src', 'partials', 'payment-modal.html');
+    const content = fs.readFileSync(modalPath, 'utf8');
+
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end(content);
+  } catch (error) {
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Ошибка чтения модального окна: ' + error.message }));
+  }
+}
+
+// Сохранение HTML модального окна оплаты
+async function handleSavePaymentModal(req, res) {
+  let body = '';
+
+  req.on('data', chunk => {
+    body += chunk.toString();
+  });
+
+  req.on('end', () => {
+    try {
+      const modalPath = path.join(PROJECT_ROOT, 'src', 'partials', 'payment-modal.html');
+      const backupPath = modalPath + '.backup';
+
+      // Создание бэкапа
+      if (fs.existsSync(modalPath)) {
+        fs.copyFileSync(modalPath, backupPath);
+      }
+
+      // Сохранение нового содержимого
+      fs.writeFileSync(modalPath, body, 'utf8');
+
+      console.log(`[${new Date().toISOString()}] Модальное окно оплаты обновлено`);
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true }));
+    } catch (error) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Ошибка сохранения: ' + error.message }));
+    }
+  });
 }
 
 // Обслуживание статических файлов

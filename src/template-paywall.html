@@ -22,16 +22,16 @@
         const menuList = document.querySelector('[data-build-slot="menu"]');
         if (menuList && menuList.children.length <= 1) { // Check if empty or just has "loading"
           menuList.innerHTML = `
-            <li><a href="#">1. Введение в химию уборки</a></li>
-            <li><a href="#">2. Кислоты и щелочи в быту</a></li>
-            <li><a href="#">3. Моющие средства</a></li>
-            <li><a href="#">4. Дезинфекция и санитария</a></li>
-            <li><a href="#">5. Химия кухонной уборки</a></li>
-            <li><a href="#">6. Ванная комната</a></li>
-            <li><a href="#">7. Стирка и текстиль</a></li>
-            <li><a href="#">8. Уход за полами</a></li>
-            <li><a href="#">9. Экологичные альтернативы</a></li>
-            <li><a href="#">10. Безопасное хранение</a></li>
+            <li><a href="./template-index.html">1. Intro (Index)</a></li>
+            <li><a href="./template-paywall.html">2. Free Article (Paywall)</a></li>
+            <li><a href="./template-paywall.html">3. Another Free Article</a></li>
+            <li><a href="./template.html">4. Premium Article (Full)</a></li>
+            <li><a href="./template.html">5. Deep Cleaning</a></li>
+            <li><a href="./template.html">6. Kitchen Chemistry</a></li>
+            <li><a href="./template.html">7. Bathroom Science</a></li>
+            <li><a href="./template.html">8. Floor Care</a></li>
+            <li><a href="./template-recommendations.html">9. Recommendation Example</a></li>
+            <li><a href="./template.html">10. Safe Storage</a></li>
           `;
         }
       }
@@ -46,56 +46,40 @@
   <div class="backdrop" aria-hidden="true"></div>
 
   <main class="main">
-    <section class="panel" data-lazy="dots-nav progress-widget">
-      <article class="text-box" aria-label="Основной материал" data-build-slot="body">
+    <section class="panel" data-lazy="progress-widget">
+      <article class="text-box" aria-label="Основной материал" data-build-slot="body" data-page-type="free">
         <div class="text-box__intro">
           <header>
-            <h1>Удаление жира (Premium)</h1>
+            <h1>Наука чистоты: Почему мы убираем неправильно?</h1>
             <p class="meta">~5 минут чтения</p>
           </header>
-          <p>Здесь расположен основной материал. Тестовое содержание имитирует структуру урока.</p>
+          <section class="text-section">
+            <p>Уборка — это не просто рутина, а сложный химический процесс. Большинство из нас использует средства,
+              которые нейтрализуют друг друга, или применяет техники, размазывающие грязь вместо её удаления. Давайте
+              разберемся, как работает химия чистоты и как тратить на уборку в два раза меньше времени.</p>
+          </section>
         </div>
         <div id="article-content">
-          <section id="intro" class="text-section">
-            <h2>Удаление жира: почему обычная вода не помогает</h2>
-            <p>Жир — один из самых стойких загрязнений на кухне. Он оседает на плите, вытяжке, стенах и даже потолке,
-              образуя липкую плёнку, которая со временем затвердевает и превращается в настоящую броню. Почему же
-              обычная вода не справляется с жиром, и какие химические процессы лежат в основе эффективной очистки?</p>
-            <p>Всё дело в <strong>молекулярной структуре жиров</strong>. Молекулы жира (триглицериды) состоят из длинных
-              углеводородных цепочек, которые являются гидрофобными — то есть они отталкивают воду. Именно поэтому жир и
-              вода не смешиваются.</p>
-          </section>
-
           <section id="paywall-content" class="text-section">
             <div class="premium-teaser">
               <div class="premium-teaser__blurred" data-nosnippet>
                 <!--noindex-->
-                <p>Для эффективного удаления жира нужны <strong>поверхностно-активные вещества (ПАВ)</strong>, которые
-                  содержатся в моющих средствах. Молекулы ПАВ устроены гениально: у них есть две части — гидрофильная
-                  «голова» (которая любит воду) и гидрофобный «хвост» (который любит жир).</p>
-                <p>Затем происходит процесс эмульгирования: молекулы ПАВ окружают частицы жира со всех сторон, формируя
-                  микроскопические сферы — мицеллы.</p>
+                <p>At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum
+                  deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non
+                  provident.</p>
+                <p>Similique sunt in culpa qui officia deserunt mollitia animi, id est laborum et dolorum fuga. Et harum
+                  quidem rerum facilis est et expedita distinctio.</p>
                 <!--/noindex-->
               </div>
               <div class="premium-teaser__overlay">
-                <button class="cta-button" data-analytics="cta-premium">Читать полностью</button>
+                <button class="cta-button" data-analytics="cta-premium" onclick="openPaymentModal()">Читать
+                  полностью</button>
               </div>
             </div>
-            <h3>Практические советы по удалению жира</h3>
-            <ul>
-              <li><strong>Для свежих загрязнений:</strong> обычное средство для мытья посуды + горячая вода + губка</li>
-              <li><strong>Для застарелого жира на плите:</strong> распылите щелочное средство, оставьте на 10-15 минут,
-                затем смойте горячей водой</li>
-              <li><strong>Для вытяжки:</strong> съёмные детали замочите в горячей воде с моющим средством на 30 минут
-              </li>
-            </ul>
-            <p>Помните, что <strong>профилактика лучше лечения</strong>. Регулярная очистка поверхностей (раз в 2-3 дня)
-              не даёт жиру накапливаться и полимеризоваться, что значительно облегчает уборку.</p>
+
           </section>
         </div>
       </article>
-      <nav class="dots-rail" aria-label="Навигация по разделам"></nav>
-      <div class="dot-flyout is-hidden" hidden role="navigation" aria-label="Оглавление разделов"></div>
     </section>
 
     <aside class="stack" aria-label="Рекомендации" data-lazy="stack-carousel">
@@ -103,35 +87,43 @@
       <div class="stack-carousel">
         <!-- Slide 0 -->
         <div class="stack-slide" data-slide="0" data-active="true">
-          <div class="stack-card">
+          <div class="stack-card" onclick="window.location.href='./template-recommendations.html'"
+            style="cursor: pointer;">
             <div class="stack-card__image" style="background: #eee; height: 120px;"></div>
             <div class="stack-card__content">
-              <h3>1. Переплата за «эко»</h3>
-              <p>Разбираем состав экологичных средств и ищем маркетинговые уловки.</p>
+              <h3><a href="./template-recommendations.html" style="text-decoration: none; color: inherit;">1. Lorem
+                  Ipsum (Recs)</a></h3>
+              <p>Dolor sit amet consectetur adipiscing elit.</p>
             </div>
           </div>
-          <div class="stack-card">
+          <div class="stack-card" onclick="window.location.href='./template-recommendations.html'"
+            style="cursor: pointer;">
             <div class="stack-card__image" style="background: #e0e0e0; height: 120px;"></div>
             <div class="stack-card__content">
-              <h3>2. Мифы о хлорке</h3>
-              <p>Почему хлорка не так страшна, как ее малюют, и когда она незаменима.</p>
+              <h3><a href="./template-recommendations.html" style="text-decoration: none; color: inherit;">2. Sed Do
+                  Eiusmod (Recs)</a></h3>
+              <p>Tempor incididunt ut labore et dolore magna aliqua.</p>
             </div>
           </div>
         </div>
         <!-- Slide 1 -->
         <div class="stack-slide" data-slide="1" data-active="false">
-          <div class="stack-card">
+          <div class="stack-card" onclick="window.location.href='./template-recommendations.html'"
+            style="cursor: pointer;">
             <div class="stack-card__image" style="background: #d0d0d0; height: 120px;"></div>
             <div class="stack-card__content">
-              <h3>3. Уксус vs Лимон</h3>
-              <p>Сравниваем эффективность народных средств в борьбе с накипью.</p>
+              <h3><a href="./template-recommendations.html" style="text-decoration: none; color: inherit;">3. Ut Enim Ad
+                  (Recs)</a></h3>
+              <p>Minim veniam quis nostrud exercitation ullamco.</p>
             </div>
           </div>
-          <div class="stack-card">
+          <div class="stack-card" onclick="window.location.href='./template-recommendations.html'"
+            style="cursor: pointer;">
             <div class="stack-card__image" style="background: #c0c0c0; height: 120px;"></div>
             <div class="stack-card__content">
-              <h3>4. Секреты меламина</h3>
-              <p>Как работает меламиновая губка и почему она стирается.</p>
+              <h3><a href="./template-recommendations.html" style="text-decoration: none; color: inherit;">4. Laboris
+                  Nisi (Recs)</a></h3>
+              <p>Ut aliquip ex ea commodo consequat.</p>
             </div>
           </div>
         </div>
@@ -150,6 +142,8 @@
   </div>
 
   {{> footer }}
+
+  {{> payment-modal }}
 
   {{> modals }}
 

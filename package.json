@@ -5,7 +5,7 @@
   "main": "scripts/build.js",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && node scripts/build.js",
+    "build": "vite build && node scripts/build.js && node scripts/open-build-preview.js",
     "build:assets": "vite build",
     "build:free": "vite build && node scripts/build.js --target=free",
     "build:premium": "vite build && node scripts/build.js --target=premium",
@@ -13,6 +13,7 @@
     "build:all": "vite build && node scripts/build.js",
     "preview": "vite preview",
     "preview:dist": "live-server dist --port=3003",
+    "dev:lan": "node scripts/dev-lan.js",
     "admin": "node admin/server.js",
     "clean": "rm -rf dist/*",
     "lint:links": "node scripts/link-linter.js",

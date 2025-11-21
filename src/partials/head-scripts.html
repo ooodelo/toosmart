@@ -235,3 +235,31 @@
         }
     })();
 </script>
+<script type="module">
+    if (!window.ModeUtils) {
+        var fallbackScript = document.createElement('script');
+        fallbackScript.type = 'module';
+        fallbackScript.src = '/mode-utils.js';
+
+        fallbackScript.onload = function () {
+            var exported = window.ModeUtils;
+            if (!exported) {
+                return;
+            }
+            if (typeof window.__INITIAL_MODE__ !== 'string') {
+                var state = exported.detectInitialState(window, document);
+                window.__INITIAL_MODE__ = state.mode;
+                if (state.input) {
+                    window.__INITIAL_INPUT__ = state.input;
+                }
+                exported.applyStateToBody(document, state);
+            }
+        };
+
+        fallbackScript.onerror = function (error) {
+            console.warn('[ModeUtils] fallback load failed', error);
+        };
+
+        document.head.appendChild(fallbackScript);
+    }
+</script>
