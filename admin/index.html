@@ -649,6 +649,21 @@
           <input type="number" id="wordsPerMinute" min="100" max="400">
           <div class="hint">Для расчета времени прочтения раздела</div>
         </div>
+        <div class="form-group">
+          <label>Favicon сайта</label>
+          <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
+            <img id="faviconPreview" src="/assets/favicon.svg" alt="Favicon" style="width: 32px; height: 32px; border-radius: 4px; border: 1px solid var(--border);">
+            <span id="faviconName" style="color: var(--text-muted); font-size: 0.85rem;">favicon.svg (по умолчанию)</span>
+          </div>
+          <div class="file-upload" onclick="document.getElementById('faviconFile').click()" style="padding: 15px;">
+            <input type="file" id="faviconFile" accept=".svg,.png,.ico" onchange="uploadFavicon(this)">
+            <p>📁 Загрузить новый favicon</p>
+            <div class="hint">Поддерживаются: .svg, .png, .ico (рекомендуется SVG)</div>
+          </div>
+          <button class="btn btn-outline" onclick="resetFavicon()" style="margin-top: 10px; padding: 8px 15px; font-size: 0.85rem;">
+            🔄 Сбросить на стандартный
+          </button>
+        </div>
       </div>
 
       <!-- Разделы курса -->
@@ -720,6 +735,7 @@
     document.addEventListener('DOMContentLoaded', () => {
       loadConfig();
       loadSections();
+      loadCurrentFavicon();
     });
 
     // Загрузка конфигурации
@@ -910,6 +926,66 @@
       setTimeout(() => {
         toast.classList.remove('show');
       }, 3000);
+    }
+
+    // Загрузка favicon
+    async function uploadFavicon(input) {
+      if (!input.files || !input.files[0]) return;
+
+      const file = input.files[0];
+      const formData = new FormData();
+      formData.append('favicon', file);
+
+      try {
+        const response = await fetch(`${API_URL}/api/favicon`, {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!response.ok) throw new Error('Ошибка загрузки');
+
+        const result = await response.json();
+        document.getElementById('faviconPreview').src = result.path + '?t=' + Date.now();
+        document.getElementById('faviconName').textContent = result.filename;
+        showToast('Favicon успешно загружен!', 'success');
+      } catch (error) {
+        showToast('Ошибка загрузки favicon: ' + error.message, 'error');
+      }
+
+      input.value = '';
+    }
+
+    // Сброс favicon на стандартный
+    async function resetFavicon() {
+      try {
+        const response = await fetch(`${API_URL}/api/favicon/reset`, {
+          method: 'POST'
+        });
+
+        if (!response.ok) throw new Error('Ошибка сброса');
+
+        document.getElementById('faviconPreview').src = '/assets/favicon.svg?t=' + Date.now();
+        document.getElementById('faviconName').textContent = 'favicon.svg (по умолчанию)';
+        showToast('Favicon сброшен на стандартный', 'success');
+      } catch (error) {
+        showToast('Ошибка сброса favicon: ' + error.message, 'error');
+      }
+    }
+
+    // Загрузка текущего favicon при старте
+    async function loadCurrentFavicon() {
+      try {
+        const response = await fetch(`${API_URL}/api/favicon`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.path) {
+            document.getElementById('faviconPreview').src = data.path + '?t=' + Date.now();
+            document.getElementById('faviconName').textContent = data.filename || 'favicon.svg';
+          }
+        }
+      } catch (e) {
+        // Игнорируем ошибку - используем дефолтный
+      }
     }
 
     // Обработка загрузки файлов футера

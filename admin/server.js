@@ -106,6 +106,21 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // Favicon API endpoints
+    if (pathname === '/api/favicon') {
+      if (req.method === 'GET') {
+        await handleGetFavicon(req, res);
+      } else if (req.method === 'POST') {
+        await handleUploadFavicon(req, res);
+      }
+      return;
+    }
+
+    if (pathname === '/api/favicon/reset' && req.method === 'POST') {
+      await handleResetFavicon(req, res);
+      return;
+    }
+
     // Статические файлы
     await serveStatic(req, res, pathname);
 
@@ -648,6 +663,142 @@ async function handleLoadSeoData(req, res) {
   } catch (error) {
     res.writeHead(500, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'Ошибка загрузки: ' + error.message }));
+  }
+}
+
+// Favicon paths
+const FAVICON_CONFIG_PATH = path.join(PROJECT_ROOT, 'config', 'favicon.json');
+const FAVICON_DIR = path.join(ADMIN_DIR, 'assets');
+const DEFAULT_FAVICON = 'favicon.svg';
+
+// Получение информации о текущем favicon
+async function handleGetFavicon(req, res) {
+  try {
+    let faviconInfo = { path: '/assets/favicon.svg', filename: 'favicon.svg (по умолчанию)', isDefault: true };
+
+    if (fs.existsSync(FAVICON_CONFIG_PATH)) {
+      const config = JSON.parse(fs.readFileSync(FAVICON_CONFIG_PATH, 'utf8'));
+      if (config.filename && config.filename !== DEFAULT_FAVICON) {
+        faviconInfo = {
+          path: `/assets/${config.filename}`,
+          filename: config.filename,
+          isDefault: false
+        };
+      }
+    }
+
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(faviconInfo));
+  } catch (error) {
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Ошибка: ' + error.message }));
+  }
+}
+
+// Загрузка нового favicon
+async function handleUploadFavicon(req, res) {
+  const contentType = req.headers['content-type'] || '';
+
+  if (!contentType.includes('multipart/form-data')) {
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Требуется multipart/form-data' }));
+    return;
+  }
+
+  const boundary = contentType.split('boundary=')[1];
+  if (!boundary) {
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Не найден boundary' }));
+    return;
+  }
+
+  const chunks = [];
+  req.on('data', chunk => chunks.push(chunk));
+
+  req.on('end', () => {
+    try {
+      const buffer = Buffer.concat(chunks);
+      const parts = parseMultipart(buffer, boundary);
+
+      for (const part of parts) {
+        if (part.filename && part.name === 'favicon') {
+          // Проверяем расширение
+          const ext = path.extname(part.filename).toLowerCase();
+          if (!['.svg', '.png', '.ico'].includes(ext)) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Поддерживаются только .svg, .png, .ico' }));
+            return;
+          }
+
+          // Создаем директорию если нет
+          if (!fs.existsSync(FAVICON_DIR)) {
+            fs.mkdirSync(FAVICON_DIR, { recursive: true });
+          }
+
+          // Сохраняем файл с уникальным именем
+          const filename = 'custom-favicon' + ext;
+          const filePath = path.join(FAVICON_DIR, filename);
+          fs.writeFileSync(filePath, part.data);
+
+          // Также копируем в src/assets для билда
+          const srcAssetsDir = path.join(PROJECT_ROOT, 'src', 'assets');
+          if (!fs.existsSync(srcAssetsDir)) {
+            fs.mkdirSync(srcAssetsDir, { recursive: true });
+          }
+          fs.writeFileSync(path.join(srcAssetsDir, filename), part.data);
+
+          // Сохраняем конфиг
+          fs.writeFileSync(FAVICON_CONFIG_PATH, JSON.stringify({
+            filename: filename,
+            originalName: part.filename,
+            uploadedAt: new Date().toISOString()
+          }, null, 2), 'utf8');
+
+          console.log(`[${new Date().toISOString()}] Favicon загружен: ${filename}`);
+
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            success: true,
+            path: `/assets/${filename}`,
+            filename: part.filename
+          }));
+          return;
+        }
+      }
+
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Файл favicon не найден в запросе' }));
+    } catch (error) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Ошибка загрузки: ' + error.message }));
+    }
+  });
+}
+
+// Сброс favicon на стандартный
+async function handleResetFavicon(req, res) {
+  try {
+    // Удаляем конфиг
+    if (fs.existsSync(FAVICON_CONFIG_PATH)) {
+      fs.unlinkSync(FAVICON_CONFIG_PATH);
+    }
+
+    // Удаляем кастомные favicon файлы
+    const customFiles = ['custom-favicon.svg', 'custom-favicon.png', 'custom-favicon.ico'];
+    for (const file of customFiles) {
+      const adminPath = path.join(FAVICON_DIR, file);
+      const srcPath = path.join(PROJECT_ROOT, 'src', 'assets', file);
+      if (fs.existsSync(adminPath)) fs.unlinkSync(adminPath);
+      if (fs.existsSync(srcPath)) fs.unlinkSync(srcPath);
+    }
+
+    console.log(`[${new Date().toISOString()}] Favicon сброшен на стандартный`);
+
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ success: true }));
+  } catch (error) {
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Ошибка сброса: ' + error.message }));
   }
 }
 

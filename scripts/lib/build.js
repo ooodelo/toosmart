@@ -27,7 +27,8 @@ const PATHS = {
   },
   config: {
     site: path.resolve(__dirname, '../../config/site.json'),
-    seo: path.resolve(__dirname, '../../config/seo-data.json')
+    seo: path.resolve(__dirname, '../../config/seo-data.json'),
+    favicon: path.resolve(__dirname, '../../config/favicon.json')
   },
   server: {
     root: path.resolve(__dirname, '../../server'),
@@ -48,6 +49,27 @@ const PATHS = {
 
 // Кэш SEO данных
 let cachedSeoData = null;
+
+// Кэш favicon конфига
+let cachedFaviconConfig = null;
+
+/**
+ * Получает текущий файл favicon из конфига
+ */
+function getFaviconFilename() {
+  if (cachedFaviconConfig === null) {
+    try {
+      if (fs.existsSync(PATHS.config.favicon)) {
+        cachedFaviconConfig = JSON.parse(fs.readFileSync(PATHS.config.favicon, 'utf8'));
+      } else {
+        cachedFaviconConfig = {};
+      }
+    } catch (e) {
+      cachedFaviconConfig = {};
+    }
+  }
+  return cachedFaviconConfig.filename || 'favicon.svg';
+}
 
 /**
  * Загружает Vite manifest для получения путей к собранным ассетам
@@ -482,9 +504,12 @@ function applyTemplate(template, { title, body, menu, meta = '', schema = '', se
 
   // Добавляем favicon если его нет
   if (!result.includes('rel="icon"')) {
+    const faviconFile = getFaviconFilename();
+    const faviconExt = path.extname(faviconFile).toLowerCase();
+    const faviconType = faviconExt === '.svg' ? 'image/svg+xml' :
+                        faviconExt === '.png' ? 'image/png' : 'image/x-icon';
     const faviconLinks = `
-  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
-  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
+  <link rel="icon" type="${faviconType}" href="/assets/${faviconFile}">
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">`;
     result = result.replace('</head>', `${faviconLinks}\n  </head>`);
   }
@@ -1305,14 +1330,24 @@ async function copyStaticAssets(mode) {
 }
 
 async function copyFavicon() {
-  const faviconSrc = path.resolve(__dirname, '../../src/assets/favicon.svg');
-  const faviconDest = path.join(PATHS.dist.assets, 'favicon.svg');
+  const faviconFile = getFaviconFilename();
+  const faviconSrc = path.resolve(__dirname, '../../src/assets', faviconFile);
+  const faviconDest = path.join(PATHS.dist.assets, faviconFile);
 
   try {
+    await ensureDir(PATHS.dist.assets);
+
+    // Пробуем скопировать кастомный или дефолтный favicon
     if (fs.existsSync(faviconSrc)) {
-      await ensureDir(PATHS.dist.assets);
       await fsp.copyFile(faviconSrc, faviconDest);
-      console.log('✅ Favicon скопирован');
+      console.log(`✅ Favicon скопирован: ${faviconFile}`);
+    } else {
+      // Fallback на дефолтный favicon.svg
+      const defaultFavicon = path.resolve(__dirname, '../../src/assets/favicon.svg');
+      if (fs.existsSync(defaultFavicon)) {
+        await fsp.copyFile(defaultFavicon, path.join(PATHS.dist.assets, 'favicon.svg'));
+        console.log('✅ Favicon скопирован (по умолчанию)');
+      }
     }
   } catch (error) {
     console.warn('⚠️  Ошибка копирования favicon:', error.message);
