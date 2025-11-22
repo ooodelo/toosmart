@@ -11,7 +11,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow">
     <title>Оплата не прошла</title>
-    <link rel="stylesheet" href="../free/styles.css">
+    <link rel="stylesheet" href="/assets/styles.css">
     <style>
         .fail-page {
             display: flex;

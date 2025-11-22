@@ -90,8 +90,8 @@ if ($success === 'password_reset') {
     <meta name="robots" content="noindex, nofollow">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Вход в закрытую версию курса</title>
-    <link rel="stylesheet" href="../free/styles.css">
-    <link rel="stylesheet" href="assets/auth.css">
+    <link rel="stylesheet" href="/assets/styles.css">
+    <link rel="stylesheet" href="/premium/assets/auth.css">
 </head>
 
 <body class="auth-page">
