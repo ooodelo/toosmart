@@ -25,9 +25,9 @@
     "password2": "",
     "isTest": true,
     "invoicePrefix": "CLEAN",
-    "successUrl": "/success.php",
-    "failUrl": "/fail.php",
-    "resultUrl": "/robokassa-callback.php"
+    "successUrl": "/premium/success.php",
+    "failUrl": "/premium/fail.php",
+    "resultUrl": "/premium/src/robokassa/result.php"
   },
   "build": {
     "wordsPerMinute": 150

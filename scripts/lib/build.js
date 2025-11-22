@@ -40,6 +40,7 @@ const PATHS = {
       'check-auth.php',
       'logout.php',
       'success.php',
+      'fail.php',
       '.htaccess',
       'users.json.example',
       'health.php'
@@ -124,7 +125,11 @@ const DEFAULT_SITE_CONFIG = {
     inn: '0000000000',
     year: new Date().getFullYear()
   },
-  legal: {},
+  legal: {
+    "terms": "01-legal-terms.md",
+    "privacy": "02-privacy-policy.md",
+    "offer": "03-public-offer.md"
+  },
   robokassa: {
     merchantLogin: '',
     password1: '',
@@ -527,7 +532,7 @@ function applyTemplate(template, { title, body, menu, meta = '', schema = '', se
     const faviconFile = getFaviconFilename();
     const faviconExt = path.extname(faviconFile).toLowerCase();
     const faviconType = faviconExt === '.svg' ? 'image/svg+xml' :
-                        faviconExt === '.png' ? 'image/png' : 'image/x-icon';
+      faviconExt === '.png' ? 'image/png' : 'image/x-icon';
     const faviconLinks = `
   <link rel="icon" type="${faviconType}" href="/assets/${faviconFile}">
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">`;
@@ -645,6 +650,17 @@ function buildMenuItems(content, mode) {
         readingTimeMinutes: appendix.readingTimeMinutes
       });
     }
+  }
+
+  // Добавляем кнопку выхода в меню для Premium версии
+  if (mode === 'premium') {
+    menu.push({
+      type: 'logout',
+      title: 'Выйти',
+      url: '/server/logout.php',
+      order: 9999,
+      readingTimeMinutes: 0
+    });
   }
 
   return menu.sort((a, b) => a.order - b.order);
@@ -1472,7 +1488,71 @@ async function generateRobotsTxt(dest, config) {
 }
 
 async function generateSitemap(content, dest, config) {
-  // Placeholder
+  const domain = config.domain || 'example.com';
+  const baseUrl = `https://${domain}`;
+  const today = new Date().toISOString().split('T')[0];
+
+  let urls = [];
+
+  // 1. Intro (Главная страница)
+  // Обычно intro[0] это главная
+  if (content.intro && content.intro.length > 0) {
+    urls.push({
+      loc: `${baseUrl}/`,
+      lastmod: today,
+      changefreq: 'weekly',
+      priority: '1.0'
+    });
+  }
+
+  // 2. Course (Курс)
+  if (content.course) {
+    content.course.forEach(item => {
+      urls.push({
+        loc: `${baseUrl}/course/${item.slug}.html`,
+        lastmod: today, // В идеале брать из git или file mtime, но пока today
+        changefreq: 'weekly',
+        priority: '0.8'
+      });
+    });
+  }
+
+  // 3. Recommendations (Рекомендации)
+  if (content.recommendations) {
+    content.recommendations.forEach(item => {
+      urls.push({
+        loc: `${baseUrl}/recommendations/${item.slug}.html`,
+        lastmod: today,
+        changefreq: 'monthly',
+        priority: '0.6'
+      });
+    });
+  }
+
+  // 4. Legal (Юридическая информация)
+  if (content.legal) {
+    content.legal.forEach(item => {
+      urls.push({
+        loc: `${baseUrl}/legal/${item.slug}.html`,
+        lastmod: today,
+        changefreq: 'monthly',
+        priority: '0.3'
+      });
+    });
+  }
+
+  const sitemapContent = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls.map(url => `  <url>
+    <loc>${url.loc}</loc>
+    <lastmod>${url.lastmod}</lastmod>
+    <changefreq>${url.changefreq}</changefreq>
+    <priority>${url.priority}</priority>
+  </url>`).join('\n')}
+</urlset>`;
+
+  await fsp.writeFile(path.join(dest, 'sitemap.xml'), sitemapContent, 'utf8');
+  console.log(`✅ Sitemap сгенерирован: ${urls.length} URL(s)`);
 }
 
 function deepMerge(target, source) {

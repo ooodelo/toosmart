@@ -36,7 +36,14 @@
     # Все запросы к .html файлам проксировать через check-auth.php
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule ^(.+)\.html$ check-auth.php?page=$1 [L,QSA]
+    
+    # HTTPS Redirect
+    RewriteCond %{HTTPS} off
+    RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 </IfModule>
+
+# Отключить листинг директорий
+Options -Indexes
 
 # Защитить прямой доступ к HTML, JS, CSS файлам
 <FilesMatch "\.(html|js|css)$">

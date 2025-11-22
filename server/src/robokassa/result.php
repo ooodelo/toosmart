@@ -46,15 +46,31 @@ if (!$order) {
   $stmt->execute([$invId, $email, $outSum, 'pending']);
 }
 
-$stmt = $pdo->prepare("SELECT * FROM users WHERE email=?");
-$stmt->execute([$email]);
-$user = $stmt->fetch();
+// Generate password for new users or if they don't have one?
+// Actually, better to always generate a password for new users.
+// For existing users, we shouldn't overwrite their password unless they requested it.
+// But if they just bought the course, maybe they expect a password?
+// Let's generate password only if it's a NEW user.
+// If existing user, we just send magic link.
+
+$password_generated = null;
+
 if (!$user) {
-  $stmt = $pdo->prepare("INSERT INTO users (email) VALUES (?)");
-  $stmt->execute([$email]);
+  $password_generated = bin2hex(random_bytes(4)); // 8 chars
+  $hash = password_hash($password_generated, PASSWORD_BCRYPT);
+  
+  $stmt = $pdo->prepare("INSERT INTO users (email, password_hash) VALUES (?, ?)");
+  $stmt->execute([$email, $hash]);
   $uid = (int)$pdo->lastInsertId();
 } else {
   $uid = (int)$user['id'];
+  // Optional: check if user has no password (e.g. created via magic link before)
+  if (empty($user['password_hash'])) {
+      $password_generated = bin2hex(random_bytes(4));
+      $hash = password_hash($password_generated, PASSWORD_BCRYPT);
+      $stmt = $pdo->prepare("UPDATE users SET password_hash=? WHERE id=?");
+      $stmt->execute([$hash, $uid]);
+  }
 }
 
 // magic link
@@ -78,9 +94,17 @@ if (!$base_url) {
   $base_url = $origin;
 }
 $base_url = rtrim($base_url, '/');
-$magic_url = $base_url . '/magic?token=' . $token . '&email=' . rawurlencode($email);
+$magic_url = $base_url . '/server/magic?token=' . $token . '&email=' . rawurlencode($email);
 
-$body = "Оплата получена. Вход по ссылке:\n{$magic_url}\n\nЕсли ссылка не работает — используйте восстановление пароля на сайте.";
-send_mail($email, "Доступ к кабинету", $body);
+$body = "Оплата получена. Спасибо за покупку!\n\n";
+$body .= "Ваш доступ к курсу:\n";
+if ($password_generated) {
+    $body .= "Email: {$email}\n";
+    $body .= "Пароль: {$password_generated}\n\n";
+}
+$body .= "Быстрый вход по ссылке (действует 24 часа):\n{$magic_url}\n\n";
+$body .= "Если ссылка не работает — используйте Email и Пароль на странице входа.";
+
+send_mail($email, "Доступ к курсу Clean", $body);
 
 echo "OK{$invId}";

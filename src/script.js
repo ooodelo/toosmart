@@ -1,4 +1,5 @@
 import { ModeUtils as ModeUtilsModule } from './js/mode-utils.js';
+import './js/auth-check.js';
 
 // Head inline partial should expose window.ModeUtils; fall back to module import when it doesn't.
 const ModeUtils = window.ModeUtils || ModeUtilsModule;

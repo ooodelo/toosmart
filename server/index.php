@@ -15,6 +15,13 @@ require_once __DIR__ . '/security.php';
 Config::load();
 Security::initSession();
 
+// Security Headers
+header('Content-Type: text/html; charset=UTF-8');
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: SAMEORIGIN');
+header('X-XSS-Protection: 1; mode=block');
+header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';");
+
 // Если уже авторизован → редирект на главную
 if (isset($_SESSION['premium_user'])) {
     header('Location: home.html');
@@ -52,10 +59,27 @@ switch ($error) {
     case 'system':
         $errorMessage = 'Системная ошибка. Попробуйте позже.';
         break;
+    case 'invalid_token':
+        $errorMessage = 'Недействительная ссылка для восстановления';
+        break;
+    case 'token_used':
+        $errorMessage = 'Эта ссылка уже использована';
+        break;
+    case 'token_expired':
+        $errorMessage = 'Ссылка для восстановления устарела';
+        break;
     case '1':
         // Для обратной совместимости
         $errorMessage = 'Неверный email или пароль';
         break;
+}
+
+// Success messages
+$success = $_GET['success'] ?? '';
+$successMessage = '';
+
+if ($success === 'password_reset') {
+    $successMessage = 'Пароль успешно изменен! Войдите с новым паролем.';
 }
 ?>
 <!DOCTYPE html>
@@ -77,6 +101,13 @@ switch ($error) {
         <h1>Вход в закрытую версию курса</h1>
         <p>Введите данные, отправленные на email после оплаты</p>
 
+        <?php if ($successMessage): ?>
+            <div
+                style="background: #e8f5e9; color: #2e7d32; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; text-align: center; border-left: 4px solid #4caf50;">
+                ✅ <?= htmlspecialchars($successMessage, ENT_QUOTES, 'UTF-8') ?>
+            </div>
+        <?php endif; ?>
+
         <?php if ($errorMessage): ?>
             <div class="error" role="alert">⚠️ <?= htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8') ?></div>
         <?php endif; ?>
@@ -94,7 +125,8 @@ switch ($error) {
         </form>
 
         <div class="help-text">
-            Еще нет доступа? <a href="/free/">Вернуться к бесплатной версии</a><br>
+            Забыли пароль? <a href="forgot-password.html">Восстановить</a><br>
+            Еще нет доступа? <a href="/">Вернуться к бесплатной версии</a><br>
             Проблемы со входом? <a
                 href="mailto:<?= htmlspecialchars(Config::get('MAIL_REPLY_TO', 'support@toosmart.com'), ENT_QUOTES, 'UTF-8') ?>">Напишите
                 нам</a>

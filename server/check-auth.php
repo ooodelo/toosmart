@@ -34,8 +34,8 @@ if (!isset($_SESSION['premium_user'])) {
 $page = $_GET['page'] ?? 'home';
 
 // Валидация имени файла (защита от path traversal)
-// Разрешены только буквы, цифры, дефисы и подчеркивания
-if (!preg_match('/^[a-z0-9_-]+$/i', $page)) {
+// Разрешены буквы, цифры, дефисы, подчеркивания и слеши (для вложенных путей)
+if (!preg_match('/^[a-z0-9_\-\/]+$/i', $page) || strpos($page, '..') !== false) {
     Security::secureLog('WARNING', 'Invalid page name', [
         'page' => $page,
         'user' => $_SESSION['premium_user']

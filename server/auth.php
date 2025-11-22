@@ -80,6 +80,15 @@ try {
         $_SESSION['login_time'] = time();
         $_SESSION['last_activity'] = time();
 
+        // Установка cookie для клиентского JS (чтобы делать редирект с главной)
+        setcookie('premium_access', '1', [
+            'expires' => 0, // Session cookie
+            'path' => '/',
+            'secure' => true,
+            'httponly' => false, // JS needs to read this
+            'samesite' => 'Strict'
+        ]);
+
         // Установка IP для дополнительной проверки (опционально)
         if (Config::getBool('SESSION_CHECK_IP', false)) {
             $_SESSION['user_ip'] = $_SERVER['REMOTE_ADDR'] ?? '';
@@ -90,7 +99,8 @@ try {
         ]);
 
         // Редирект на главную страницу курса
-        header('Location: home.html');
+        // Редирект на главную страницу курса (Premium Index)
+        header('Location: /premium/');
         exit;
     } else {
         // Неверный пароль или пользователь не найден

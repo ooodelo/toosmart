@@ -83,7 +83,21 @@ try {
 
     if ($existingUser) {
         $user_exists = true;
-        Security::secureLog('WARNING', 'Duplicate payment attempt', [
+
+        // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: При дублирующем платеже обновляем пароль и переотправляем
+        Security::secureLog('WARNING', 'Duplicate payment attempt - updating password', [
+            'email' => $validated_email,
+            'invoice_id' => $inv_id
+        ]);
+
+        // Обновить пароль существующего пользователя
+        $stmt = $pdo->prepare("UPDATE users SET password_hash = :password_hash WHERE email = :email");
+        $stmt->execute([
+            ':password_hash' => $password_hash,
+            ':email' => $validated_email
+        ]);
+
+        Security::secureLog('INFO', 'Password updated for existing user', [
             'email' => $validated_email,
             'invoice_id' => $inv_id
         ]);
@@ -106,6 +120,16 @@ try {
 
     $pdo->commit();
 
+    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Сохранить пароль в сессии для показа на success.php
+    Security::initSession();
+    $_SESSION['new_password'] = $password;
+    $_SESSION['new_password_email'] = $validated_email;
+    $_SESSION['new_password_timestamp'] = time();
+
+    Security::secureLog('INFO', 'Password stored in session for success page', [
+        'email_hash' => md5($validated_email)
+    ]);
+
 } catch (Exception $e) {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
@@ -118,8 +142,9 @@ try {
     die('Internal error');
 }
 
-// 5. ОТПРАВКА EMAIL С ПАРОЛЕМ (только для новых пользователей)
-if (!$user_exists) {
+// 5. ОТПРАВКА EMAIL С ПАРОЛЕМ (для всех пользователей - новых и существующих)
+// При дублирующем платеже пользователь получит новый пароль
+if (true) { // Всегда отправляем email
     $site_url = Config::get('SITE_URL', 'https://toosmart.com');
     $mail_from = Config::get('MAIL_FROM', 'noreply@toosmart.com');
     $mail_reply_to = Config::get('MAIL_REPLY_TO', 'support@toosmart.com');
