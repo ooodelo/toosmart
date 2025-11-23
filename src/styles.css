@@ -1369,7 +1369,7 @@ body[data-mode="mobile"] .pw-slot {
   height: var(--pw-circle-size);
   -webkit-transform: translate(var(--pw-dot-translate-x), -50%) scale(1);
   transform: translate(var(--pw-dot-translate-x), -50%) scale(1);
-  background: #000;
+  background: #202124;
   -webkit-border-radius: 50%;
   border-radius: 50%;
   will-change: transform, opacity;
@@ -1387,7 +1387,7 @@ body[data-mode="mobile"] .pw-slot {
   transform: translate(-50%, -50%) scaleX(0.001);
   -webkit-transform-origin: center;
   transform-origin: center;
-  background: #000;
+  background: #202124;
   -webkit-border-radius: calc(var(--pw-pill-height) / 2);
   border-radius: calc(var(--pw-pill-height) / 2);
   opacity: 0;
@@ -1544,8 +1544,8 @@ body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
   position: relative;
   max-height: 300px;
   overflow: hidden;
-  mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #202124 50%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, #202124 50%, transparent 100%);
 }
 
 .blurred-content p,
@@ -1860,7 +1860,7 @@ body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
 
 .site-footer {
   background: #D9D9D9;
-  color: #000;
+  color: #202124;
   padding: 16px 24px;
   margin-top: 80px;
   border-top: 1px solid #ccc;
@@ -1890,7 +1890,7 @@ body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
 }
 
 .footer-links a {
-  color: #000;
+  color: #202124;
   text-decoration: none;
   transition: opacity 0.2s ease;
   cursor: pointer;
@@ -2130,7 +2130,7 @@ body[data-mode="mobile"] .legal-text h3 {
 }
 
 .cookie-btn-accept {
-  background: #000;
+  background: #202124;
   color: #fff;
 }
 

@@ -1,10 +1,10 @@
 <!-- МОДАЛЬНОЕ ОКНО ОПЛАТЫ -->
-<div class="modal" id="payment-modal" hidden>
-    <div class="modal-overlay" onclick="closePaymentModal()"></div>
+<div class="modal" id="cta-payment-modal" role="dialog" aria-modal="true" aria-labelledby="payment-modal-title" hidden>
+    <div class="modal-overlay" onclick="closeCTAModal()"></div>
     <div class="modal-content">
-        <button class="modal-close" type="button" onclick="closePaymentModal()" aria-label="Закрыть">×</button>
+        <button class="modal-close" type="button" onclick="closeCTAModal()" aria-label="Закрыть">×</button>
 
-        <h2 class="modal-title">Получите полный доступ к курсу</h2>
+        <h2 id="payment-modal-title" class="modal-title">Получите полный доступ к курсу</h2>
 
         <ul class="modal-benefits">
             <li>✅ 10 полных разделов с подробными объяснениями</li>
@@ -18,18 +18,20 @@
             <span class="price-current">990 ₽</span>
         </p>
 
-        <form id="payment-form" action="https://auth.robokassa.ru/Merchant/Index.aspx" method="GET">
-            <input type="email" name="Shp_email" class="modal-input" placeholder="Введите ваш email" required
-                pattern="[^@]+@[^@]+\.[a-zA-Z]{2,}">
+        <div id="payment-error" style="display: none;" role="alert"></div>
 
-            <!-- Параметры Robokassa (build.js заполнит) -->
-            <input type="hidden" name="MerchantLogin" value="YOUR_MERCHANT_LOGIN">
-            <input type="hidden" name="OutSum" value="990">
-            <input type="hidden" name="InvId" value="0">
-            <input type="hidden" name="Description" value="Доступ к курсу Clean">
-            <input type="hidden" name="SignatureValue" value="SIGNATURE">
-            <input type="hidden" name="Culture" value="ru">
-            <input type="hidden" name="Encoding" value="utf-8">
+        <form id="payment-form">
+            <input type="email" name="email" placeholder="Введите ваш email" required autocomplete="email"
+                aria-label="Email для доступа к курсу">
+
+            <label class="modal-checkbox">
+                <input type="checkbox" name="accept_offer" required>
+                <span>
+                    Согласен с
+                    <a href="/legal/public-offer.html" target="_blank">публичной офертой</a> и
+                    <a href="/legal/privacy-policy.html" target="_blank">политикой конфиденциальности</a>
+                </span>
+            </label>
 
             <button type="submit" class="modal-submit">
                 Оплатить 990 ₽
@@ -41,29 +43,3 @@
         </p>
     </div>
 </div>
-
-<script>
-    // Функции для модального окна оплаты
-    function openPaymentModal() {
-        const modal = document.getElementById('payment-modal');
-        if (modal) {
-            modal.removeAttribute('hidden');
-            document.body.style.overflow = 'hidden';
-        }
-    }
-
-    function closePaymentModal() {
-        const modal = document.getElementById('payment-modal');
-        if (modal) {
-            modal.setAttribute('hidden', '');
-            document.body.style.overflow = '';
-        }
-    }
-
-    // Закрытие модального окна оплаты по Escape
-    document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape') {
-            closePaymentModal();
-        }
-    });
-</script>
