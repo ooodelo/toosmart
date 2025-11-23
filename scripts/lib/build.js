@@ -51,7 +51,8 @@ const PATHS = {
       'src',
       'robokassa',
       'sql',
-      'storage'
+      'storage',
+      'assets'
     ],
     // Старые файлы для обратной совместимости (deprecated)
     legacyFiles: [
