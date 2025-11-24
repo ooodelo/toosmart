@@ -1,0 +1,44 @@
+<!-- МОДАЛЬНОЕ ОКНО НАСТРОЕК -->
+<div class="modal" id="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
+    <div class="modal-overlay" onclick="closeSettingsModal()"></div>
+    <div class="modal-content">
+        <button class="modal-close" type="button" onclick="closeSettingsModal()" aria-label="Закрыть">×</button>
+
+        <h2 id="settings-modal-title" class="modal-title">Настройки профиля</h2>
+
+        <div class="settings-section" style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px solid #eee;">
+            <h3 style="font-size: 16px; margin-bottom: 8px;">Ваш аккаунт</h3>
+            <div id="settings-email"
+                style="background: #f5f5f5; padding: 12px; border-radius: 8px; font-family: monospace; color: #333;">
+                Загрузка...
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <h3 style="font-size: 16px; margin-bottom: 16px;">Смена пароля</h3>
+
+            <div id="settings-error"
+                style="display: none; color: #c62828; background: #ffebee; padding: 10px; border-radius: 6px; margin-bottom: 16px; font-size: 14px;">
+            </div>
+            <div id="settings-success"
+                style="display: none; color: #2e7d32; background: #e8f5e9; padding: 10px; border-radius: 6px; margin-bottom: 16px; font-size: 14px;">
+            </div>
+
+            <form id="settings-password-form">
+                <input type="password" name="current_password" placeholder="Текущий пароль" required
+                    autocomplete="current-password" style="margin-bottom: 12px;">
+                <input type="password" name="new_password" placeholder="Новый пароль (мин. 6 символов)" required
+                    autocomplete="new-password" style="margin-bottom: 12px;">
+                <input type="password" name="confirm_password" placeholder="Подтвердите новый пароль" required
+                    autocomplete="new-password" style="margin-bottom: 16px;">
+
+                <button type="submit" class="modal-submit">Изменить пароль</button>
+            </form>
+        </div>
+
+        <div style="text-align: center; margin-top: 24px; padding-top: 16px; border-top: 1px solid #eee;">
+            <a href="/server/logout.php" style="color: #c62828; text-decoration: none; font-weight: 600;">Выйти из
+                аккаунта</a>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,23 @@
+<!-- МОДАЛЬНОЕ ОКНО ОШИБКИ ОПЛАТЫ -->
+<div class="modal" id="payment-fail-modal" role="dialog" aria-modal="true" aria-labelledby="payment-fail-title">
+    <div class="modal-overlay" onclick="closePaymentFailModal()"></div>
+    <div class="modal-content">
+        <button class="modal-close" type="button" onclick="closePaymentFailModal()" aria-label="Закрыть">×</button>
+
+        <div style="text-align: center;">
+            <div style="font-size: 64px; color: #ff6b6b; margin-bottom: 16px;">✕</div>
+            <h2 id="payment-fail-title" class="modal-title">Оплата не прошла</h2>
+            <p style="color: #666; margin-bottom: 24px;">
+                К сожалению, при обработке платежа произошла ошибка.
+            </p>
+        </div>
+
+        <button type="button" class="modal-submit" onclick="closePaymentFailModal(); openCTAModal();">
+            Попробовать снова
+        </button>
+
+        <p style="text-align: center; margin-top: 16px; font-size: 14px; color: #999;">
+            Нужна помощь? <a href="mailto:support@toosmart.ru">Напишите нам</a>
+        </p>
+    </div>
+</div>

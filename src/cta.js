@@ -26,6 +26,11 @@ function init() {
   // Обработчики для модального окна
   const modal = document.getElementById('cta-payment-modal');
   if (modal) {
+    // На всякий случай скрываем, если оно попало в DOM без hidden
+    if (!modal.hasAttribute('hidden')) {
+      modal.setAttribute('hidden', '');
+    }
+
     const closeBtn = modal.querySelector('.modal-close');
     const overlay = modal.querySelector('.modal-overlay');
     const form = modal.querySelector('#payment-form');

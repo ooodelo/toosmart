@@ -2,7 +2,8 @@
   color-scheme: light;
 
   /* Ширины текстовых блоков */
-  --text-box-width-mobile: 100%; /* Было: 500px - вызывало горизонтальный скролл */
+  --text-box-width-mobile: 100%;
+  /* Было: 500px - вызывало горизонтальный скролл */
   --text-box-width-tablet: 520px;
   --text-box-width-desktop: 580px;
   --text-box-width-desktop-wide: 660px;
@@ -27,10 +28,14 @@
 
   /* === РАЗМЕРЫ МЕНЮ === */
   /* Боковая полоска (menu-handle) - явные настройки */
-  --handle-content-width: 36px;   /* ширина контента (буквы + gap + точки) */
-  --handle-padding-left: 15px;    /* отступ слева от контента */
-  --handle-padding-right: 15px;   /* отступ справа от контента */
-  --handle-gap: 8px;              /* расстояние между буквами и точками */
+  --handle-content-width: 36px;
+  /* ширина контента (буквы + gap + точки) */
+  --handle-padding-left: 15px;
+  /* отступ слева от контента */
+  --handle-padding-right: 15px;
+  /* отступ справа от контента */
+  --handle-gap: 8px;
+  /* расстояние между буквами и точками */
 
   /* Итоговая ширина боковой полоски = 15 + 36 + 15 = 66px */
   --rail-closed: calc(var(--handle-padding-left) + var(--handle-content-width) + var(--handle-padding-right));
@@ -90,18 +95,23 @@ body {
   flex-direction: column;
   min-height: 100vh;
   overflow-x: hidden;
-  max-width: 100%; /* Было: 100vw - включало scrollbar и вызывало overflow */
+  max-width: 100%;
+  /* Было: 100vw - включало scrollbar и вызывало overflow */
   position: relative;
-  overscroll-behavior-x: none; /* Отключить bounce эффект в горизонтали */
+  overscroll-behavior-x: none;
+  /* Отключить bounce эффект в горизонтали */
 }
 
 html {
   scroll-behavior: smooth;
 
   /* Проблема 2: Отключение Safari bounce (резиновый эффект) */
-  -ms-scroll-chaining: none; /* IE 10+, старый Edge */
-  overscroll-behavior-y: none; /* Chrome 65+, Firefox 59+, Safari 16+ */
-  overscroll-behavior-x: none; /* Отключить bounce в горизонтали */
+  -ms-scroll-chaining: none;
+  /* IE 10+, старый Edge */
+  overscroll-behavior-y: none;
+  /* Chrome 65+, Firefox 59+, Safari 16+ */
+  overscroll-behavior-x: none;
+  /* Отключить bounce в горизонтали */
 }
 
 body[data-lock="scroll"] {
@@ -116,15 +126,60 @@ html[data-lock="scroll"] {
   display: grid;
   column-gap: 0;
   padding: calc(var(--gap-page) * 1.5) var(--gap-page) calc(var(--gap-page) * 2);
+  position: relative;
+  /* Context for pseudo-elements if needed, though grid items work without it */
+}
+
+/* 
+   GHOST OVERLAY SHADOW 
+   Creates a shadow on top of the header/menu while allowing clicks to pass through.
+   Lives in the same grid cell as the content panel.
+*/
+body[data-mode="desktop"] .main::before,
+body[data-mode="desktop-wide"] .main::before,
+body[data-mode="tablet"] .main::before {
+  content: "";
+  position: fixed;
+  /* Fixed so it doesn't scroll */
+  top: 85px;
+  /* Header height */
+  bottom: 0;
+  left: var(--rail-closed);
+  /* Aligns with menu edge */
+  right: 0;
+  /* Fills the rest of the width */
+  width: auto;
+  z-index: 2000;
+  /* Above header (1600) */
+  pointer-events: none;
+  /* Clicks pass through */
+  border-radius: 28px 0 0 0;
+  /* Matches .panel top-left radius */
+  box-shadow: -3px -3px 27px rgba(0, 0, 0, 0.22);
+  /* Soft shadow upwards and leftwards */
+  transition: transform var(--t-rail) var(--rail-ease);
+  /* Animate with menu */
+}
+
+/* Move shadow when menu opens, matching header behavior */
+body[data-mode="desktop"][data-input="pointer"].is-slid .main::before,
+body[data-mode="desktop-wide"][data-input="pointer"].is-slid .main::before,
+body[data-mode="tablet"][data-input="pointer"].is-slid .main::before,
+body[data-mode="desktop"].menu-open .main::before,
+body[data-mode="desktop-wide"].menu-open .main::before,
+body[data-mode="tablet"].menu-open .main::before {
+  transform: translateX(calc(var(--rail-open) - var(--rail-closed)));
 }
 
 .header {
   position: sticky;
   top: 0;
-  z-index: 1600; /* Поверх меню (menu-rail z-index: 1500) */
+  z-index: 1600;
+  /* Поверх меню (menu-rail z-index: 1500) */
   display: flex;
   align-items: center;
-  justify-content: center; /* Центрируем logo по горизонтали */
+  justify-content: center;
+  /* Центрируем logo по горизонтали */
   padding: 0 var(--gap-page);
   height: 85px;
   background: #D9D9D9;
@@ -156,12 +211,14 @@ body[data-scroll="down"] .header {
 /* КРИТИЧНО: header всегда виден при открытом меню (перекрывает data-scroll) */
 body[data-mode="mobile"].menu-open .header,
 body[data-mode="tablet"].menu-open .header {
-  position: fixed !important; /* Fixed чтобы гарантировать видимость поверх меню */
+  position: fixed !important;
+  /* Fixed чтобы гарантировать видимость поверх меню */
   top: 0 !important;
   left: 0 !important;
   right: 0 !important;
   transform: translateY(0) !important;
-  transition: none !important; /* Отключить анимацию - немедленное появление */
+  transition: none !important;
+  /* Отключить анимацию - немедленное появление */
 }
 
 /* Элементы с рамками и скруглением */
@@ -173,13 +230,15 @@ body[data-mode="tablet"].menu-open .header {
 
 /* dock-handle с отдельными стилями */
 .dock-handle {
-  border-radius: 9999px; /* Максимальное закругление (pill shape) */
+  border-radius: 9999px;
+  /* Максимальное закругление (pill shape) */
   border: none;
-  background: #FFF;
-  box-shadow: 0 4px 15px rgba(213, 216, 232, 0.7);
+  background: #F5F5F5;
+  box-shadow: 0 4px 30px rgb(213, 216, 232);
   text-transform: uppercase;
   color: #202020;
-  width: calc(var(--text-box-width) + 40px); /* Шире текста на 20px с каждой стороны */
+  width: calc(var(--text-box-width) + 40px);
+  /* Шире текста на 20px с каждой стороны */
   height: 50px;
 }
 
@@ -209,20 +268,24 @@ body[data-mode="tablet"].menu-open .header {
   position: absolute;
   left: 0;
   top: 0;
-  z-index: 1700; /* Поверх header (1600) и меню (1500) */
+  z-index: 1700;
+  /* Поверх header (1600) и меню (1500) */
   display: block;
   height: 150px;
   width: auto;
   max-width: 150px;
   object-fit: contain;
   flex-shrink: 0;
-  margin-top: -5px;  /* Было -15px, сдвинуто на 10px вниз */
+  margin-top: -5px;
+  /* Было -15px, сдвинуто на 10px вниз */
   margin-bottom: -60px;
-  margin-left: 12px; /* Было 2px, сдвинуто на 10px вправо */
+  margin-left: 12px;
+  /* Было 2px, сдвинуто на 10px вправо */
   padding: 0;
   border: none;
   background: transparent;
-  pointer-events: none; /* Не блокирует клики */
+  pointer-events: none;
+  /* Не блокирует клики */
 }
 
 /* Скрыть PNG картинку на mobile */
@@ -233,8 +296,10 @@ body[data-mode="mobile"] .header__logo {
 /* Стили для SVG логотипа по центру (ширина = ширине текстового блока минус padding) */
 .header__svg {
   display: block;
-  width: calc(var(--text-box-width) - 48px);  /* Ширина текста минус padding панели (24px × 2) */
-  height: auto;  /* Сохраняем пропорции */
+  width: calc(var(--text-box-width) - 48px);
+  /* Ширина текста минус padding панели (24px × 2) */
+  height: auto;
+  /* Сохраняем пропорции */
   padding: 0;
   border: none;
   background: transparent;
@@ -246,7 +311,8 @@ body[data-mode="mobile"] .header__logo {
   width: var(--rail-open);
   z-index: 1500;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--rail-closed); /* Ширина контролируется переменной */
+  grid-template-columns: minmax(0, 1fr) var(--rail-closed);
+  /* Ширина контролируется переменной */
   grid-template-rows: minmax(0, 1fr);
   align-items: stretch;
   background: #D9D9D9;
@@ -269,7 +335,8 @@ body[data-input="pointer"].is-slid .menu-rail {
   grid-column: 2;
   grid-row: 1;
   writing-mode: vertical-rl;
-  text-orientation: upright; /* Буквы стоят вертикально, не повернуты */
+  text-orientation: upright;
+  /* Буквы стоят вертикально, не повернуты */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -350,8 +417,10 @@ body[data-mode="tablet"] .menu-handle__dots {
   background: transparent;
 
   /* Проблема 1: Остановка scroll chaining */
-  -ms-scroll-chaining: none; /* IE 10+, старый Edge, Win 8+ */
-  overscroll-behavior: contain; /* Chrome 65+, Firefox 59+, Safari 16+ */
+  -ms-scroll-chaining: none;
+  /* IE 10+, старый Edge, Win 8+ */
+  overscroll-behavior: contain;
+  /* Chrome 65+, Firefox 59+, Safari 16+ */
 }
 
 .site-menu__intro {
@@ -661,7 +730,8 @@ body[data-mode="mobile"] .text-section table {
   position: fixed;
   top: 50%;
   /* Позиция: справа от dots-rail (между точками и текстом) */
-  left: calc(50% - var(--text-box-width) / 2 - 48px + 24px + 16px); /* rail_left + max_dot_width + gap */
+  left: calc(50% - var(--text-box-width) / 2 - 48px + 24px + 16px);
+  /* rail_left + max_dot_width + gap */
   z-index: 9999;
 
   /* Transform с префиксами для старых браузеров */
@@ -675,7 +745,8 @@ body[data-mode="mobile"] .text-section table {
   max-width: min(42vw, 360px);
   max-height: min(70vh, 520px);
   overflow: auto;
-  padding: 35px 25px; /* верх/низ: 35px, право/лево: 25px */
+  padding: 35px 25px;
+  /* верх/низ: 35px, право/лево: 25px */
 
   /* Визуальный стиль - базовый непрозрачный фон (работает везде) */
   background: rgba(255, 255, 255, 0.98);
@@ -796,6 +867,7 @@ body[data-mode="mobile"] .dot-flyout {
 
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
+
   .dot-flyout,
   .dot-flyout__item {
     -webkit-transition: none !important;
@@ -812,7 +884,8 @@ body[data-mode="mobile"] .dot-flyout {
   flex-direction: column;
   gap: 16px;
   background: transparent;
-  overflow: visible; /* позволяет ::before размытию выходить за пределы */
+  overflow: visible;
+  /* позволяет ::before размытию выходить за пределы */
 }
 
 /* Размытый овальный фон позади рекомендаций */
@@ -831,7 +904,7 @@ body[data-mode="mobile"] .dot-flyout {
   pointer-events: none;
 }
 
-.stack > * {
+.stack>* {
   position: relative;
   z-index: 1;
 }
@@ -984,13 +1057,15 @@ body.menu-open .backdrop {
   display: none;
   align-items: flex-start;
   justify-content: center;
-  padding: 0 20px env(safe-area-inset-bottom, 0px) 20px; /* 20px отступы по бокам */
+  padding: 0 20px env(safe-area-inset-bottom, 0px) 20px;
+  /* 20px отступы по бокам */
   z-index: 1600;
 }
 
 .dock-handle {
   padding: 0 24px;
-  margin-bottom: 20px; /* Визуальный отступ от нижней границы экрана */
+  margin-bottom: 20px;
+  /* Визуальный отступ от нижней границы экрана */
   font-weight: 900;
   letter-spacing: 0.08em;
   cursor: pointer;
@@ -1152,7 +1227,8 @@ body[data-mode="tablet"] .text-box {
 
 body[data-mode="tablet"] .stack {
   order: 3;
-  position: relative; /* Было: static. Фикс для позиционирования ::before псевдоэлемента */
+  position: relative;
+  /* Было: static. Фикс для позиционирования ::before псевдоэлемента */
   width: 100%;
   max-width: var(--text-box-width-tablet);
   margin: 32px auto 0;
@@ -1177,7 +1253,8 @@ body[data-mode="mobile"] .panel {
 }
 
 body[data-mode="mobile"] .stack {
-  position: relative; /* Было: static - вызывало неправильное позиционирование ::before */
+  position: relative;
+  /* Было: static - вызывало неправильное позиционирование ::before */
   width: 100%;
   padding: 14px;
 }
@@ -1211,12 +1288,14 @@ body[data-mode="mobile"] .menu-rail {
   width: auto;
   left: 0;
   right: 0;
-  top: 85px; /* Начинается ПОСЛЕ header (header height = 85px) */
+  top: 85px;
+  /* Начинается ПОСЛЕ header (header height = 85px) */
   bottom: 0;
   margin: 0;
   border-radius: 0;
   transform: translate3d(0, 100%, 0);
-  height: auto; /* Автоматическая высота от top до bottom */
+  height: auto;
+  /* Автоматическая высота от top до bottom */
   pointer-events: none;
   padding-left: env(safe-area-inset-left, 0px);
   padding-right: env(safe-area-inset-right, 0px);
@@ -1277,6 +1356,7 @@ body[data-mode="mobile"].menu-open .backdrop {
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {
@@ -1292,7 +1372,8 @@ body[data-mode="mobile"].menu-open .backdrop {
    ============================================ */
 [dir="rtl"] body[data-mode="desktop"] .stack,
 [dir="rtl"] body[data-mode="tablet"] .stack {
-  justify-self: center; /* центр работает в любом направлении */
+  justify-self: center;
+  /* центр работает в любом направлении */
 }
 
 /* Зеркалирование dots-rail для RTL */
@@ -1307,10 +1388,14 @@ body[data-mode="mobile"].menu-open .backdrop {
 
 /* CSS-переменные для виджета */
 :root {
-  --pw-circle-size: 44px;  /* Размер круга */
-  --pw-pill-min-width: 280px;  /* Минимальная ширина пилюли (увеличено для "Войти в полную версию") */
-  --pw-pill-height: 44px;  /* Высота пилюли */
-  --pw-dot-translate-x: -50%; /* Горизонтальное выравнивание круга/процентов */
+  --pw-circle-size: 44px;
+  /* Размер круга */
+  --pw-pill-min-width: 280px;
+  /* Минимальная ширина пилюли (увеличено для "Войти в полную версию") */
+  --pw-pill-height: 44px;
+  /* Высота пилюли */
+  --pw-dot-translate-x: -50%;
+  /* Горизонтальное выравнивание круга/процентов */
 }
 
 /* Базовые стили контейнера виджета */
@@ -1408,6 +1493,7 @@ body[data-mode="mobile"] .pw-slot {
   font: 700 10px/1 ui-monospace, Menlo, Consolas, monospace;
   letter-spacing: 0.2px;
   opacity: 1;
+  transition: opacity 160ms ease-out;
   -webkit-transform: translate(var(--pw-dot-translate-x), -50%);
   transform: translate(var(--pw-dot-translate-x), -50%);
   will-change: opacity, transform;
@@ -1428,6 +1514,15 @@ body[data-mode="mobile"] .pw-slot {
   will-change: opacity, transform, letter-spacing;
   white-space: nowrap;
   padding: 0 20px;
+  transition: opacity 160ms ease-out;
+}
+
+#pw-root.is-done .pw-pct {
+  opacity: 0;
+}
+
+#pw-root.is-done .pw-next {
+  opacity: 1;
 }
 
 /* Состояние "готово" (100%) */
@@ -1483,20 +1578,17 @@ body[data-mode="mobile"] #pw-root.is-floating {
   bottom: var(--pw-float-bottom, 45px);
   transform: translateX(var(--pw-float-shift, 0));
   z-index: 1700;
-  transition: transform 680ms cubic-bezier(0.22, 0.61, 0.36, 1),
-              left 680ms cubic-bezier(0.22, 0.61, 0.36, 1),
-              width 520ms cubic-bezier(0.22, 0.61, 0.36, 1);
+  transition: transform 380ms cubic-bezier(0.25, 0.9, 0.4, 1),
+    left 380ms cubic-bezier(0.25, 0.9, 0.4, 1),
+    width 380ms cubic-bezier(0.25, 0.9, 0.4, 1);
 }
 
 /* PREMIUM версия: кнопка "Далее" центрируется при 100% */
-body[data-mode="mobile"] #pw-root.is-floating.is-centering:not([data-free-version]),
-body[data-mode="mobile"] #pw-root.is-floating.is-done:not([data-free-version]) {
+body[data-mode="mobile"] #pw-root.is-floating.is-centering,
+body[data-mode="mobile"] #pw-root.is-floating.is-done {
   left: 50%;
   transform: translate(-50%, 0);
 }
-
-/* FREE версия: кнопка остается по левому краю (как и кружок) */
-/* Используется left: var(--pw-float-left) из .is-floating */
 
 body[data-mode="mobile"].menu-open #pw-root.is-floating,
 body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
@@ -1634,6 +1726,7 @@ body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -1668,6 +1761,7 @@ body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
     transform: scale(0.9);
     opacity: 0;
   }
+
   to {
     transform: scale(1);
     opacity: 1;
@@ -1911,7 +2005,8 @@ body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
 /* Responsive adaptations for footer */
 body[data-mode="mobile"] .site-footer {
   padding: 16px 12px;
-  padding-bottom: calc(var(--mobile-dock-footprint) + 16px); /* Dock кнопка 64px + safe area + отступ */
+  padding-bottom: calc(var(--mobile-dock-footprint) + 16px);
+  /* Dock кнопка 64px + safe area + отступ */
   margin-top: 60px;
   font-size: 12px;
 }
@@ -1950,7 +2045,8 @@ body[data-mode="desktop-wide"] .site-footer {
 /* Отступ слева на desktop чтобы menu-rail не закрывала footer */
 body[data-mode="desktop"] .footer-content,
 body[data-mode="desktop-wide"] .footer-content {
-  padding-left: 80px; /* 66px rail-closed + 14px gap */
+  padding-left: 80px;
+  /* 66px rail-closed + 14px gap */
 }
 
 /* Responsive adaptations for paywall */
@@ -2075,6 +2171,7 @@ body[data-mode="mobile"] .legal-text h3 {
   from {
     transform: translateY(100%);
   }
+
   to {
     transform: translateY(0);
   }

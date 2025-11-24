@@ -382,59 +382,61 @@ async function loadSiteConfig() {
 }
 
 async function readTemplate(mode, manifest) {
-  // Имя файла в src/entries (или как оно определено в vite.config.js input)
-  let entryName, srcPath;
+  // Имя файла в dist/assets, который уже собран Vite (HTML с подставленными ассетами)
+  let entryName, directName;
 
   switch (mode) {
     case 'premium':
       entryName = 'template';
-      srcPath = 'src/template.html';
+      directName = 'template.html';
       break;
     case 'free':
       entryName = 'templatePaywall';
-      srcPath = 'src/template-paywall.html';
+      directName = 'template-paywall.html';
       break;
     case 'intro':
       entryName = 'templateIndex';
-      srcPath = 'src/template-index.html';
+      directName = 'template-index.html';
       break;
     case 'recommendations':
       entryName = 'templateRecommendations';
-      srcPath = 'src/template-recommendations.html';
+      directName = 'template-recommendations.html';
       break;
     default:
       throw new Error(`Unknown template mode: ${mode}`);
   }
 
+  const directPath = path.join(PATHS.dist.assets, directName);
+
+  // 1) Приоритет - готовый HTML в dist/assets
+  if (fs.existsSync(directPath)) {
+    try {
+      const raw = await fsp.readFile(directPath, 'utf8');
+      return sanitizeTemplateForBuild(raw);
+    } catch (error) {
+      throw new Error(`Failed to read template file at ${directPath}: ${error.message}`);
+    }
+  }
+
+  // 2) Fallback: пытаемся найти HTML в манифесте (если вдруг Vite захэшировал имя)
   let templateFile = null;
-
   if (manifest) {
-    // Попробуем найти по пути к исходнику
-    if (manifest[srcPath]) {
-      templateFile = manifest[srcPath].file;
-    } else if (manifest[entryName + '.html']) {
-      templateFile = manifest[entryName + '.html'].file;
-    }
-  }
+    const manifestEntry =
+      manifest[directName] ||
+      manifest[`src/${directName}`] ||
+      manifest[`${entryName}.html`] ||
+      manifest[`src/${entryName}.html`];
 
-  // Fallback: если в манифесте нет, проверяем прямые имена (Vite может не хешировать HTML entry points)
-  if (!templateFile) {
-    let directName;
-    switch (mode) {
-      case 'premium': directName = 'template.html'; break;
-      case 'free': directName = 'template-paywall.html'; break;
-      case 'intro': directName = 'template-index.html'; break;
-      case 'recommendations': directName = 'template-recommendations.html'; break;
-    }
-    const directPath = path.join(PATHS.dist.assets, directName);
-    if (fs.existsSync(directPath)) {
-      templateFile = directName;
+    if (manifestEntry?.file && path.extname(manifestEntry.file) === '.html') {
+      templateFile = manifestEntry.file;
+    } else if (manifestEntry?.file) {
+      console.warn(`⚠️ Manifest entry for ${directName} points to ${manifestEntry.file}. Expected an HTML file.`);
     }
   }
 
   if (!templateFile) {
-    console.warn(`⚠️ Не найден шаблон для ${mode}. Доступные ключи манифеста:`, manifest ? Object.keys(manifest) : 'нет манифеста');
-    throw new Error(`Template not found for mode: ${mode}`);
+    const manifestKeys = manifest ? Object.keys(manifest) : [];
+    throw new Error(`Template not found for mode: ${mode}. Run "npm run build:assets" to generate dist/assets HTML. Manifest keys: ${manifestKeys.join(', ') || 'none'}`);
   }
 
   const templatePath = path.join(PATHS.dist.assets, templateFile);
@@ -452,9 +454,18 @@ function sanitizeTemplateForBuild(templateHtml) {
   const { document } = dom.window;
 
   ensureInlineModeUtils(document);
+  rewriteAssetUrls(document);
 
   // Позволяем помечать тестовые блоки атрибутом data-demo-only (не влияет на dev-сценарий)
   document.querySelectorAll('[data-demo-only]').forEach(node => node.remove());
+
+  // Ensure all modals and cookie banners are hidden
+  // This allows source partials to be visible for editing
+  document.querySelectorAll('.modal, .cookie-banner').forEach(el => {
+    if (!el.hasAttribute('hidden')) {
+      el.setAttribute('hidden', '');
+    }
+  });
 
   // Подготовка слота для контента
   const bodySlot = document.querySelector('[data-build-slot="body"]');
@@ -483,6 +494,47 @@ function sanitizeTemplateForBuild(templateHtml) {
   }
 
   return dom.serialize();
+}
+
+function rewriteAssetUrls(document) {
+  const prefix = '/assets/';
+  const shouldRewrite = (url) => {
+    if (!url) return false;
+    if (url.startsWith(prefix)) return false;
+    if (/^(https?:)?\/\//i.test(url)) return false;
+    if (/^(mailto:|data:|tel:)/i.test(url)) return false;
+    return url.startsWith('/');
+  };
+
+  const applyPrefix = (url) => shouldRewrite(url) ? prefix + url.replace(/^\/+/, '') : url;
+
+  document.querySelectorAll('script[src]').forEach((el) => {
+    const next = applyPrefix(el.getAttribute('src'));
+    el.setAttribute('src', next);
+  });
+
+  document.querySelectorAll('link[rel="modulepreload"][href], link[rel="stylesheet"][href]').forEach((el) => {
+    const next = applyPrefix(el.getAttribute('href'));
+    el.setAttribute('href', next);
+  });
+
+  document.querySelectorAll('img[src], source[src], source[srcset]').forEach((el) => {
+    if (el.hasAttribute('src')) {
+      el.setAttribute('src', applyPrefix(el.getAttribute('src')));
+    }
+    if (el.hasAttribute('srcset')) {
+      const srcset = el.getAttribute('srcset')
+        .split(',')
+        .map(part => part.trim())
+        .map(part => {
+          const [url, descriptor] = part.split(/\s+/, 2);
+          const rewritten = applyPrefix(url);
+          return descriptor ? `${rewritten} ${descriptor}` : rewritten;
+        })
+        .join(', ');
+      el.setAttribute('srcset', srcset);
+    }
+  });
 }
 
 function ensureInlineModeUtils(document) {

@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
 import handlebars from 'vite-plugin-handlebars';
+import { JSDOM } from 'jsdom';
 
 export default defineConfig({
   root: 'src',
@@ -15,6 +16,28 @@ export default defineConfig({
     handlebars({
       partialDirectory: resolve(__dirname, 'src/partials'),
     }),
+    {
+      name: 'inject-hidden-modal',
+      transformIndexHtml(html) {
+        // Parse HTML with JSDOM
+        const dom = new JSDOM(html);
+        const { document } = dom.window;
+
+        // Find all modals and cookie banners that should be hidden
+        const elementsToHide = document.querySelectorAll('.modal, .cookie-banner');
+
+        let modified = false;
+        elementsToHide.forEach(el => {
+          if (!el.hasAttribute('hidden')) {
+            el.setAttribute('hidden', '');
+            modified = true;
+          }
+        });
+
+        // Return serialized HTML if modified, otherwise original
+        return modified ? dom.serialize() : html;
+      }
+    }
   ],
 
   build: {

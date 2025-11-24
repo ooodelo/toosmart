@@ -1,0 +1,38 @@
+<!-- МОДАЛЬНОЕ ОКНО УСПЕШНОЙ ОПЛАТЫ -->
+<div class="modal" id="payment-success-modal" role="dialog" aria-modal="true" aria-labelledby="payment-success-title">
+    <div class="modal-overlay" onclick="closePaymentSuccessModal()"></div>
+    <div class="modal-content">
+        <button class="modal-close" type="button" onclick="closePaymentSuccessModal()" aria-label="Закрыть">×</button>
+
+        <div style="text-align: center;">
+            <div style="font-size: 64px; color: #4caf50; margin-bottom: 16px;">✓</div>
+            <h2 id="payment-success-title" class="modal-title">Оплата прошла успешно!</h2>
+            <p style="color: #666; margin-bottom: 24px;">Спасибо за покупку курса.</p>
+        </div>
+
+        <div id="success-password-container" style="display: none;">
+            <div class="password-box"
+                style="background: #fff3cd; border: 2px solid #ffc107; padding: 20px; border-radius: 12px; margin: 24px 0; text-align: center;">
+                <h3 style="color: #856404; margin: 0 0 12px 0; font-size: 16px;">🔑 Ваш пароль для входа:</h3>
+                <div id="success-password-display"
+                    style="background: white; padding: 12px; border-radius: 8px; font-family: monospace; font-size: 20px; font-weight: bold; letter-spacing: 1px; margin-bottom: 12px;">
+                </div>
+                <button type="button" onclick="copySuccessPassword()" class="modal-submit"
+                    style="background: #667eea; width: auto; padding: 8px 24px; font-size: 14px;">
+                    📋 Скопировать
+                </button>
+                <div style="font-size: 12px; color: #856404; margin-top: 12px;">
+                    ⚠️ Сохраните этот пароль! Он также отправлен на ваш email.
+                </div>
+            </div>
+        </div>
+
+        <div id="success-email-message" style="text-align: center; color: #666; margin-bottom: 24px;">
+            Мы отправили данные для входа на ваш email.
+        </div>
+
+        <button type="button" class="modal-submit" onclick="closePaymentSuccessModal()">
+            Начать обучение
+        </button>
+    </div>
+</div>

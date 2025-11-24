@@ -3216,6 +3216,7 @@ function initProgressWidget() {
   const prefersReduced = typeof window.matchMedia === 'function'
     ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
     : false;
+  const DONE_TRIGGER_PERCENT = 95;
 
   // 4. Функции измерения прогресса
   function clamp01(x) {
@@ -3319,10 +3320,41 @@ function initProgressWidget() {
   // 5. Анимации
   let aDot = null, aPill = null, aPct = null, aNext = null;
   let doneState = false;
-  let centeringPending = false;
-  let centeringTimerId = null;
+  let centeringInProgress = false;
+  let centeringFallbackId = null;
   let ticking = false;
-  const CENTERING_DELAY_MS = 720;
+  const EASING_FORWARD = 'cubic-bezier(0.25, 0.6, 0.4, 1)'; // slow start → even mid → fast finish
+  const EASING_REVERSE = 'cubic-bezier(0.7, 0, 0.25, 1)';  // fast start → smooth finish
+
+  function parseTimeListMs(raw) {
+    if (typeof raw !== 'string') return [];
+    return raw.split(',')
+      .map((part) => part.trim())
+      .map((token) => {
+        if (token.endsWith('ms')) return parseFloat(token);
+        if (token.endsWith('s')) return parseFloat(token) * 1000;
+        const num = parseFloat(token);
+        return Number.isFinite(num) ? num : 0;
+      })
+      .filter((num) => Number.isFinite(num) && num >= 0);
+  }
+
+  function getMaxTransitionMs(element) {
+    if (!(element instanceof HTMLElement)) return null;
+    const styles = window.getComputedStyle(element);
+    const durations = parseTimeListMs(styles.transitionDuration);
+    const delays = parseTimeListMs(styles.transitionDelay);
+    const count = Math.max(durations.length, delays.length);
+    if (!count) return null;
+
+    let max = 0;
+    for (let i = 0; i < count; i += 1) {
+      const d = durations[i % durations.length] ?? 0;
+      const l = delays[i % delays.length] ?? 0;
+      max = Math.max(max, d + l);
+    }
+    return max;
+  }
 
   function isMobileMode() {
     return body.dataset.mode === 'mobile';
@@ -3386,6 +3418,12 @@ function initProgressWidget() {
     aDot = aPill = aPct = aNext = null;
   }
 
+  function setVisualState(isDone) {
+    const done = Boolean(isDone);
+    pct.style.opacity = done ? '0' : '1';
+    next.style.opacity = done ? '1' : '0';
+  }
+
   function playForward() {
     const dotBaseTransform = 'translate(var(--pw-dot-translate-x), -50%)';
     const pctBaseTransform = 'translate(var(--pw-dot-translate-x), -50%)';
@@ -3395,14 +3433,14 @@ function initProgressWidget() {
       dot.style.opacity = '0';
       pill.style.opacity = '1';
       pill.style.transform = 'translate(-50%,-50%) scaleX(1)';
-      pct.style.opacity = '0';
+      setVisualState(true);
       pct.style.transform = pctExitTransform;
-      next.style.opacity = '1';
       next.style.transform = 'translateY(0)';
       next.style.letterSpacing = '0px';
       return;
     }
     killAnims();
+
     aDot = dot.animate(
       [
         { transform: `${dotBaseTransform} scale(1)`, opacity: 1 },
@@ -3410,7 +3448,7 @@ function initProgressWidget() {
         { transform: `${dotBaseTransform} scale(0.82)`, opacity: 0.45, offset: 0.48 },
         { transform: `${dotBaseTransform} scale(0.6)`, opacity: 0 }
       ],
-      { duration: 760, easing: 'cubic-bezier(0.16, 1, 0.3, 1)', fill: 'forwards' }
+      { duration: 500, easing: EASING_FORWARD, fill: 'forwards' }
     );
     aPill = pill.animate(
       [
@@ -3419,21 +3457,21 @@ function initProgressWidget() {
         { transform: 'translate(-50%,-50%) scaleX(1.08)', opacity: 1, offset: 0.72 },
         { transform: 'translate(-50%,-50%) scaleX(1)', opacity: 1 }
       ],
-      { duration: 980, easing: 'cubic-bezier(0.16, 1, 0.3, 1)', fill: 'forwards' }
+      { duration: 500, easing: EASING_FORWARD, fill: 'forwards' }
     );
     aPct = pct.animate(
       [
-        { opacity: 1, transform: pctBaseTransform },
-        { opacity: 0, transform: pctExitTransform }
+        { transform: pctBaseTransform, offset: 0 },
+        { transform: pctExitTransform, offset: 0.45 }
       ],
-      { duration: 360, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards', delay: 140 }
+      { duration: 500, easing: EASING_FORWARD, fill: 'forwards' }
     );
     aNext = next.animate(
       [
-        { opacity: 0, transform: 'translateY(8px)', letterSpacing: '0.4px' },
-        { opacity: 1, transform: 'translateY(0)', letterSpacing: '0px' }
+        { transform: 'translateY(8px)', letterSpacing: '0.4px', offset: 0.55 },
+        { transform: 'translateY(0)', letterSpacing: '0px', offset: 1 }
       ],
-      { duration: 520, easing: 'cubic-bezier(0.19, 1, 0.22, 1)', fill: 'forwards', delay: 260 }
+      { duration: 500, easing: EASING_FORWARD, fill: 'forwards' }
     );
   }
 
@@ -3455,6 +3493,7 @@ function initProgressWidget() {
       return;
     }
     killAnims();
+
     aDot = dot.animate(
       [
         { transform: `${dotBaseTransform} scale(0.62)`, opacity: 0 },
@@ -3462,7 +3501,7 @@ function initProgressWidget() {
         { transform: `${dotBaseTransform} scale(1.04)`, opacity: 0.85, offset: 0.58 },
         { transform: `${dotBaseTransform} scale(1)`, opacity: 1 }
       ],
-      { duration: 720, easing: 'cubic-bezier(0.16, 1, 0.3, 1)', fill: 'forwards' }
+      { duration: 500, easing: EASING_REVERSE, fill: 'forwards' }
     );
     aPill = pill.animate(
       [
@@ -3470,36 +3509,37 @@ function initProgressWidget() {
         { transform: 'translate(-50%,-50%) scaleX(0.66)', opacity: 1, offset: 0.32 },
         { transform: 'translate(-50%,-50%) scaleX(0.001)', opacity: 0 }
       ],
-      { duration: 820, easing: 'cubic-bezier(0.16, 1, 0.3, 1)', fill: 'forwards' }
+      { duration: 500, easing: EASING_REVERSE, fill: 'forwards' }
     );
     aPct = pct.animate(
       [
-        { opacity: 0, transform: pctEnterTransform },
-        { opacity: 1, transform: pctBaseTransform }
+        { transform: pctEnterTransform, offset: 0.35 },
+        { transform: pctBaseTransform, offset: 0.8 }
       ],
-      { duration: 420, easing: 'cubic-bezier(0.4, 0, 0.2, 1)', fill: 'forwards', delay: 280 }
+      { duration: 500, easing: EASING_REVERSE, fill: 'forwards' }
     );
     aNext = next.animate(
       [
-        { opacity: 1, transform: 'translateY(0)', letterSpacing: '0px' },
-        { opacity: 0, transform: 'translateY(6px)', letterSpacing: '0.4px' }
+        { transform: 'translateY(0)', letterSpacing: '0px', offset: 0 },
+        { transform: 'translateY(6px)', letterSpacing: '0.4px', offset: 0.3 }
       ],
-      { duration: 360, easing: 'cubic-bezier(0.55, 0.06, 0.68, 0.19)', fill: 'forwards', delay: 120 }
+      { duration: 500, easing: EASING_REVERSE, fill: 'forwards' }
     );
   }
 
-  const clearCenteringTimer = () => {
-    if (centeringTimerId !== null) {
-      clearTimeout(centeringTimerId);
-      centeringTimerId = null;
+  function clearCenteringFallback() {
+    if (centeringFallbackId !== null) {
+      clearTimeout(centeringFallbackId);
+      centeringFallbackId = null;
     }
-  };
+  }
 
-  function finalizeDoneTransition() {
+  function finalizeAfterCentering() {
     if (doneState) return;
-    clearCenteringTimer();
-    centeringPending = false;
+    centeringInProgress = false;
+    clearCenteringFallback();
     doneState = true;
+    setVisualState(true);
     root.classList.remove('is-centering');
     root.classList.add('is-done');
     root.setAttribute('aria-disabled', 'false');
@@ -3508,38 +3548,80 @@ function initProgressWidget() {
     requestLayoutMetricsUpdate({ elementChanged: true });
   }
 
-  function startCenteringPhase(progressValue) {
-    if (centeringPending || doneState) return;
-    centeringPending = true;
-    root.classList.add('is-centering');
-    root.classList.remove('is-done');
-    root.setAttribute('aria-disabled', 'true');
-    root.setAttribute('aria-label', 'Прогресс чтения: ' + progressValue + '%');
+  function startDoneAnimation(progressValue) {
+    if (doneState) {
+      root.setAttribute('aria-disabled', 'false');
+      root.setAttribute('aria-label', 'Кнопка: Далее');
+      return;
+    }
+
+    if (isMobileMode()) {
+      // MOBILE: сначала переезд в центр, потом морфинг
+      if (centeringInProgress) {
+        return;
+      }
+      centeringInProgress = true;
+      root.classList.add('is-centering');
+      root.classList.remove('is-done');
+      root.setAttribute('aria-disabled', 'true');
+      root.setAttribute('aria-label', 'Прогресс чтения: ' + progressValue + '%');
+      requestLayoutMetricsUpdate({ elementChanged: true });
+      clearCenteringFallback();
+      const plannedMs = prefersReduced ? 0 : (getMaxTransitionMs(root) ?? 500);
+      if (plannedMs === 0) {
+        requestAnimationFrame(() => finalizeAfterCentering());
+      } else {
+        centeringFallbackId = window.setTimeout(() => {
+          if (centeringInProgress) {
+            finalizeAfterCentering();
+          }
+        }, Math.max(0, Math.round(plannedMs + 40)));
+      }
+      return;
+    }
+
+    // DESKTOP/TABLET: сразу морфим в кнопку без переезда
+    doneState = true;
+    setVisualState(true);
+    root.classList.remove('is-centering');
+    root.classList.add('is-done');
+    root.setAttribute('aria-disabled', 'false');
+    root.setAttribute('aria-label', 'Кнопка: Далее');
+    playForward();
     requestLayoutMetricsUpdate({ elementChanged: true });
-    clearCenteringTimer();
-    const delay = prefersReduced ? 0 : CENTERING_DELAY_MS;
-    centeringTimerId = window.setTimeout(() => finalizeDoneTransition(), delay);
   }
 
   function resetProgressState(progressValue) {
-    const hadButtonState = doneState || centeringPending;
-    clearCenteringTimer();
-    centeringPending = false;
+    if (!doneState && !centeringInProgress && !root.classList.contains('is-centering')) {
+      root.setAttribute('aria-disabled', 'true');
+      root.setAttribute('aria-label', 'Прогресс чтения: ' + progressValue + '%');
+      return;
+    }
+
+    const hadButtonState = doneState || centeringInProgress || root.classList.contains('is-centering');
+
+    centeringInProgress = false;
+    clearCenteringFallback();
     doneState = false;
+    setVisualState(false);
     root.classList.remove('is-done', 'is-centering');
     root.setAttribute('aria-disabled', 'true');
     root.setAttribute('aria-label', 'Прогресс чтения: ' + progressValue + '%');
+
     if (hadButtonState) {
       playReverse();
       requestLayoutMetricsUpdate({ elementChanged: true });
     }
   }
 
+  // Как только элемент доезжает до центра (mobile),
+  // запускаем морфинг в кнопку без паузы
   trackEvent(root, 'transitionend', (event) => {
-    if (!centeringPending) return;
+    if (!centeringInProgress) return;
     if (event.target !== root) return;
     if (event.propertyName !== 'left' && event.propertyName !== 'transform') return;
-    finalizeDoneTransition();
+
+    finalizeAfterCentering();
   }, undefined, { module: 'progressWidget', target: describeTarget(root) });
 
   // 6. Обновление на скролл
@@ -3557,24 +3639,10 @@ function initProgressWidget() {
     const perc = Math.round(p * 100);
     pctSpan.textContent = perc + '%';
 
-    const shouldBeDone = perc >= 100;
+    const shouldBeDone = perc >= DONE_TRIGGER_PERCENT;
 
     if (shouldBeDone) {
-      if (doneState) {
-        root.setAttribute('aria-disabled', 'false');
-        root.setAttribute('aria-label', 'Кнопка: Далее');
-        return;
-      }
-
-      if (centeringPending) {
-        return;
-      }
-
-      if (isMobileMode() && !isFreeVersion) {
-        startCenteringPhase(perc);
-      } else {
-        finalizeDoneTransition();
-      }
+      startDoneAnimation(perc);
       return;
     }
 
@@ -3642,8 +3710,7 @@ function initProgressWidget() {
   dot.style.opacity = '1';
   pill.style.opacity = '0';
   pill.style.transform = 'translate(-50%,-50%) scaleX(0.001)';
-  pct.style.opacity = '1';
-  next.style.opacity = '0';
+  setVisualState(false);
   updateProgressWidgetFloatingAnchors(root);
   update();
 
@@ -3651,7 +3718,6 @@ function initProgressWidget() {
   requestLayoutMetricsUpdate({ elementChanged: true });
 
   const releaseLifecycleCleanup = registerLifecycleDisposer(() => {
-    clearCenteringTimer();
     killAnims();
     try {
       disconnectMenuObserver();
