@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
   <meta charset="UTF-8">
   <title>SEO и метаданные — Админ-панель</title>
@@ -36,7 +37,8 @@
       --border-focus: 1px solid rgba(75, 143, 255, 0.9);
     }
 
-    html, body {
+    html,
+    body {
       margin: 0;
       padding: 0;
       height: 100%;
@@ -204,7 +206,9 @@
       display: block;
     }
 
-    .input, .textarea, .select {
+    .input,
+    .textarea,
+    .select {
       width: 100%;
       padding: 7px 9px;
       border-radius: 10px;
@@ -216,7 +220,9 @@
       transition: border var(--transition-fast), box-shadow var(--transition-fast);
     }
 
-    .input:focus, .textarea:focus, .select:focus {
+    .input:focus,
+    .textarea:focus,
+    .select:focus {
       border: var(--border-focus);
       box-shadow: 0 0 0 1px rgba(75, 143, 255, 0.2);
     }
@@ -290,6 +296,85 @@
       display: flex;
       flex-direction: column;
       gap: 10px;
+    }
+
+    .type-group {
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 18px;
+      padding: 10px 12px 12px;
+      background: linear-gradient(180deg, rgba(26, 30, 43, 0.96), rgba(11, 13, 20, 0.96));
+      box-shadow: var(--shadow-soft);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .type-group__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 4px 2px;
+      border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+      flex-wrap: wrap;
+    }
+
+    .type-group__title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      color: var(--text-main);
+    }
+
+    .type-group__name {
+      font-size: 14px;
+    }
+
+    .type-group__count {
+      font-size: 12px;
+      color: var(--text-soft);
+    }
+
+    .type-group__meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-soft);
+      font-size: 12px;
+    }
+
+    .type-group__grid {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .type-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      box-shadow: 0 0 0 4px rgba(75, 143, 255, 0.16);
+    }
+
+    .type-dot--course {
+      background: #4b8fff;
+    }
+
+    .type-dot--recommendation {
+      background: #58c98a;
+      box-shadow: 0 0 0 4px rgba(88, 201, 138, 0.16);
+    }
+
+    .type-dot--image {
+      background: #ffd166;
+      box-shadow: 0 0 0 4px rgba(255, 209, 102, 0.16);
+    }
+
+    .type-dot--other {
+      background: #c792ea;
+      box-shadow: 0 0 0 4px rgba(199, 146, 234, 0.16);
     }
 
     .loading-message {
@@ -553,10 +638,40 @@
       border-color: var(--danger);
     }
 
+    .fixed-save-btn {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: white;
+      border: none;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      z-index: 1000;
+      transition: transform 0.2s, background 0.2s;
+    }
+
+    .fixed-save-btn:hover {
+      transform: scale(1.1);
+      background: var(--accent-strong);
+    }
+
+    .fixed-save-btn:active {
+      transform: scale(0.95);
+    }
+
     @media (max-width: 960px) {
       .app-main {
         grid-template-columns: minmax(0, 1fr);
       }
+
       .sidebar {
         position: static;
         max-height: none;
@@ -570,17 +685,22 @@
         align-items: flex-start;
         gap: 8px;
       }
+
       .header-controls {
         align-self: stretch;
         justify-content: flex-start;
         flex-wrap: wrap;
       }
-      .three-cols, .two-cols, .image-row {
+
+      .three-cols,
+      .two-cols,
+      .image-row {
         grid-template-columns: 1fr;
       }
     }
   </style>
 </head>
+
 <body>
   <header class="app-header">
     <div class="brand">
@@ -658,7 +778,18 @@
     <span id="toastMessage">Сохранено</span>
   </div>
 
+  <button class="fixed-save-btn" id="fixedSaveBtn" title="Сохранить все изменения">
+    💾
+  </button>
+
   <script>
+    const TYPE_LABELS = {
+      course: { card: "курс", group: "Курсы" },
+      recommendation: { card: "рекомендация", group: "Рекомендации" },
+      image: { card: "изображение", group: "Изображения" },
+      other: { card: "другое", group: "Другое" }
+    };
+    const TYPE_ORDER = ["course", "recommendation", "image", "other"];
     const API_URL = window.location.origin;
     let contentItems = [];
     let activeType = "all";
@@ -685,6 +816,7 @@
       await loadContent();
       bindFilters();
       bindBulkControls();
+      document.getElementById('fixedSaveBtn').addEventListener('click', () => elBtnSaveAll.click());
     }
 
     async function loadContent() {
@@ -710,11 +842,11 @@
       node.className = "card";
       node.dataset.id = item.id;
 
+      const itemType = normalizeType(item.type);
       const values = Object.assign({}, item.defaults, item.savedData || {});
-      const isImage = item.type === "image";
+      const isImage = itemType === "image";
 
-      const typeLabelMap = { course: "курс", recommendation: "рекомендация", image: "изображение", other: "другое" };
-      const typeLabel = typeLabelMap[item.type] || item.type;
+      const typeLabel = getTypeLabel(itemType, "card");
 
       const displayTitle = isImage ? (values.imageAlt || values.slug || "Изображение") : (values.title || "Без title");
 
@@ -760,29 +892,15 @@
             </div>
             <div class="field-row">
               <label class="field-label">URL / slug</label>
-              <input type="text" class="input field-slug" value="${escapeHtml(values.slug || "")}">
+              <input type="text" class="input field-slug" value="${escapeHtml(values.slug || "")}" readonly>
             </div>
-            <div class="field-row three-cols">
-              <div>
-                <label class="field-label">Индексирование</label>
-                <select class="select field-robots">
-                  <option value="index,follow" ${values.robots === "index,follow" ? "selected" : ""}>index,follow</option>
-                  <option value="noindex,follow" ${values.robots === "noindex,follow" ? "selected" : ""}>noindex,follow</option>
-                  <option value="noindex,nofollow" ${values.robots === "noindex,nofollow" ? "selected" : ""}>noindex,nofollow</option>
-                </select>
-              </div>
-              <div>
-                <label class="field-label">Canonical</label>
-                <input type="text" class="input field-canonical" placeholder="https://..." value="${escapeHtml(values.canonical || "")}">
-              </div>
-              <div>
-                <label class="field-label">Тип страницы</label>
-                <select class="select field-page-type">
-                  <option value="course" ${values.pageType === "course" ? "selected" : ""}>Курс</option>
-                  <option value="recommendation" ${values.pageType === "recommendation" ? "selected" : ""}>Рекомендация</option>
-                  <option value="other" ${values.pageType === "other" ? "selected" : ""}>Другое</option>
-                </select>
-              </div>
+            <div class="field-row">
+              <label class="field-label">Индексирование</label>
+              <select class="select field-robots">
+                <option value="index,follow" ${values.robots === "index,follow" ? "selected" : ""}>index,follow</option>
+                <option value="noindex,follow" ${values.robots === "noindex,follow" ? "selected" : ""}>noindex,follow</option>
+                <option value="noindex,nofollow" ${values.robots === "noindex,nofollow" ? "selected" : ""}>noindex,nofollow</option>
+              </select>
             </div>
           </section>
           <section class="card-section">
@@ -807,30 +925,13 @@
                 </div>
               </div>
             </div>
-            <div class="field-row two-cols">
-              <div>
-                <label class="field-label">Twitter card</label>
-                <select class="select field-twitter-card">
-                  <option value="summary_large_image" ${values.twitterCard === "summary_large_image" ? "selected" : ""}>summary_large_image</option>
-                  <option value="summary" ${values.twitterCard === "summary" ? "selected" : ""}>summary</option>
-                  <option value="none" ${values.twitterCard === "none" ? "selected" : ""}>не задавать</option>
-                </select>
-              </div>
-              <div>
-                <label class="field-label">OG type</label>
-                <select class="select field-og-type">
-                  <option value="article" ${values.ogType === "article" ? "selected" : ""}>article</option>
-                  <option value="website" ${values.ogType === "website" ? "selected" : ""}>website</option>
-                </select>
-              </div>
-            </div>
           </section>
           ` : `
           <section class="card-section">
             <h3>Изображение / alt-текст</h3>
             <div class="field-row">
               <label class="field-label">URL / slug</label>
-              <input type="text" class="input field-slug" value="${escapeHtml(values.slug || "")}">
+              <input type="text" class="input field-slug" value="${escapeHtml(values.slug || "")}" readonly>
             </div>
             <div class="field-row">
               <label class="field-label">Alt-текст</label>
@@ -931,6 +1032,16 @@
       return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
     }
 
+    function normalizeType(type) {
+      return type || "other";
+    }
+
+    function getTypeLabel(type, variant = "card") {
+      const map = TYPE_LABELS[type];
+      if (!map) return type;
+      return map[variant] || map.card || type;
+    }
+
     function getStatusClass(status, complete) {
       if (complete) return "badge-status--ok";
       if (status === "complete") return "badge-status--ok";
@@ -945,7 +1056,7 @@
     }
 
     function collectCardValues(node, item) {
-      const isImage = item.type === "image";
+      const isImage = normalizeType(item.type) === "image";
       const values = {
         slug: node.querySelector(".field-slug")?.value || ""
       };
@@ -958,13 +1069,9 @@
         values.description = node.querySelector(".field-description")?.value || "";
         values.h1 = node.querySelector(".field-h1")?.value || "";
         values.robots = node.querySelector(".field-robots")?.value || "";
-        values.canonical = node.querySelector(".field-canonical")?.value || "";
-        values.pageType = node.querySelector(".field-page-type")?.value || "";
         values.ogTitle = node.querySelector(".field-og-title")?.value || "";
         values.ogDescription = node.querySelector(".field-og-description")?.value || "";
         values.ogImage = node.querySelector(".field-og-image")?.value || "";
-        values.twitterCard = node.querySelector(".field-twitter-card")?.value || "";
-        values.ogType = node.querySelector(".field-og-type")?.value || "";
       }
 
       return values;
@@ -972,6 +1079,7 @@
 
     async function saveCard(node, item) {
       const values = collectCardValues(node, item);
+      const itemType = normalizeType(item.type);
       const complete = node.querySelector(".field-complete-flag")?.checked || false;
 
       try {
@@ -985,7 +1093,7 @@
 
         item.savedData = values;
         item.complete = complete;
-        item.status = inferStatus(values, item.type, complete);
+        item.status = inferStatus(values, itemType, complete);
 
         node.classList.remove("card--dirty");
         updateStatusBadge(node, item);
@@ -998,7 +1106,7 @@
 
     function resetCard(node, item) {
       const values = item.defaults;
-      const isImage = item.type === "image";
+      const isImage = normalizeType(item.type) === "image";
 
       if (node.querySelector(".field-slug")) {
         node.querySelector(".field-slug").value = values.slug || "";
@@ -1012,13 +1120,9 @@
         if (node.querySelector(".field-description")) node.querySelector(".field-description").value = values.description || "";
         if (node.querySelector(".field-h1")) node.querySelector(".field-h1").value = values.h1 || "";
         if (node.querySelector(".field-robots")) node.querySelector(".field-robots").value = values.robots || "index,follow";
-        if (node.querySelector(".field-canonical")) node.querySelector(".field-canonical").value = values.canonical || "";
-        if (node.querySelector(".field-page-type")) node.querySelector(".field-page-type").value = values.pageType || "other";
         if (node.querySelector(".field-og-title")) node.querySelector(".field-og-title").value = values.ogTitle || "";
         if (node.querySelector(".field-og-description")) node.querySelector(".field-og-description").value = values.ogDescription || "";
         if (node.querySelector(".field-og-image")) node.querySelector(".field-og-image").value = values.ogImage || "";
-        if (node.querySelector(".field-twitter-card")) node.querySelector(".field-twitter-card").value = values.twitterCard || "summary_large_image";
-        if (node.querySelector(".field-og-type")) node.querySelector(".field-og-type").value = values.ogType || "article";
       }
 
       if (node.querySelector(".field-complete-flag")) node.querySelector(".field-complete-flag").checked = false;
@@ -1049,7 +1153,8 @@
       const searchValue = (elSearch.value || "").toLowerCase().trim();
 
       const filtered = contentItems.filter(item => {
-        if (activeType !== "all" && item.type !== activeType) return false;
+        const itemType = normalizeType(item.type);
+        if (activeType !== "all" && itemType !== activeType) return false;
         if (activeStatus !== "all" && item.status !== activeStatus) return false;
 
         if (searchValue) {
@@ -1062,11 +1167,55 @@
 
       if (filtered.length === 0) {
         elCardsContainer.innerHTML = `<div class="loading-message">Ничего не найдено</div>`;
-      } else {
-        filtered.forEach(item => {
-          elCardsContainer.appendChild(createCard(item));
-        });
+        refreshStats();
+        return;
       }
+
+      const grouped = new Map();
+      filtered.forEach(item => {
+        const type = normalizeType(item.type);
+        if (!grouped.has(type)) grouped.set(type, []);
+        grouped.get(type).push(item);
+      });
+
+      const orderedTypes = [
+        ...TYPE_ORDER.filter(type => grouped.has(type)),
+        ...Array.from(grouped.keys()).filter(type => !TYPE_ORDER.includes(type))
+      ];
+
+      orderedTypes.forEach(type => {
+        const items = grouped.get(type);
+        if (!items || items.length === 0) return;
+
+        const readyCount = items.reduce((acc, el) => (el.status === "complete" || el.complete ? acc + 1 : acc), 0);
+        const attentionCount = items.length - readyCount;
+        const statusClass = attentionCount === 0 ? "badge-status--ok" : "badge-status--warning";
+        const statusLabel = attentionCount === 0 ? "всё заполнено" : `${attentionCount} требуют внимания`;
+
+        const section = document.createElement("section");
+        section.className = "type-group";
+        section.innerHTML = `
+          <header class="type-group__header">
+            <div class="type-group__title">
+              <span class="type-dot type-dot--${type}"></span>
+              <span class="type-group__name">${getTypeLabel(type, "group")}</span>
+              <span class="type-group__count">${items.length} шт.</span>
+            </div>
+            <div class="type-group__meta">
+              <span class="badge badge-type">${readyCount} заполнено</span>
+              <span class="badge ${statusClass}">${statusLabel}</span>
+            </div>
+          </header>
+          <div class="type-group__grid" data-type="${type}"></div>
+        `;
+
+        const grid = section.querySelector(".type-group__grid");
+        items.forEach(item => {
+          grid.appendChild(createCard(item));
+        });
+
+        elCardsContainer.appendChild(section);
+      });
 
       refreshStats();
     }
@@ -1135,9 +1284,10 @@
           // Update local state
           cardsRegistry.forEach(({ node, item }) => {
             const saved = bulk[item.id];
+            const itemType = normalizeType(item.type);
             item.savedData = saved.values;
             item.complete = saved.complete;
-            item.status = inferStatus(saved.values, item.type, saved.complete);
+            item.status = inferStatus(saved.values, itemType, saved.complete);
             node.classList.remove("card--dirty");
             updateStatusBadge(node, item);
           });
@@ -1151,4 +1301,5 @@
     }
   </script>
 </body>
+
 </html>

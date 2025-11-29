@@ -105,6 +105,8 @@ if (file_exists($siteConfigPath)) {
 
 $amount = $siteConfig['pricing']['currentAmount'] ?? 990;
 $currency = $siteConfig['pricing']['currency'] ?? 'RUB';
+$description = $siteConfig['robokassa']['description'] ?? 'Курс "Clean - Теория правильной уборки"';
+$culture = $siteConfig['robokassa']['culture'] ?? 'ru';
 
 // Generate unique invoice ID
 $invoiceId = uniqid('CLEAN_', true);
@@ -122,10 +124,10 @@ $params = [
     'MerchantLogin' => $merchantLogin,
     'OutSum' => $amount,
     'InvId' => $invoiceId,
-    'Description' => urlencode('Курс "Clean - Теория правильной уборки"'),
+    'Description' => urlencode($description),
     'SignatureValue' => $signature,
     'Shp_email' => $email,
-    'Culture' => 'ru',
+    'Culture' => $culture,
     'Encoding' => 'utf-8'
 ];
 

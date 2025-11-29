@@ -1,0 +1,43 @@
+{
+  "domain": "example.com",
+  "pricing": {
+    "originalAmount": 10000,
+    "currentAmount": 3400,
+    "currency": "RUB"
+  },
+  "ctaTexts": {
+    "enterFull": "Войти в полную версию",
+    "next": "Далее",
+    "goToCourse": "Перейти к курсу",
+    "openCourse": "Открыть курс"
+  },
+  "footer": {
+    "companyName": "ИП Константинова Софья Сергеевна",
+    "inn": "780503823473",
+    "year": 2025
+  },
+  "legal": {
+    "terms": "01-legal-terms.md",
+    "privacy": "",
+    "offer": ""
+  },
+  "robokassa": {
+    "merchantLogin": "",
+    "password1": "",
+    "password2": "",
+    "isTest": true,
+    "invoicePrefix": "CLEAN",
+    "description": "",
+    "successUrl": "/premium/success.php",
+    "failUrl": "/premium/fail.php",
+    "resultUrl": "/premium/src/robokassa/result.php",
+    "culture": "ru"
+  },
+  "build": {
+    "wordsPerMinute": 150
+  },
+  "recommendationCards": [],
+  "features": {
+    "cookiesBannerEnabled": true
+  }
+}

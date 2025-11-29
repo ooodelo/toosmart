@@ -1,77 +1,63 @@
 <!-- МОДАЛЬНЫЕ ОКНА ДЛЯ LEGAL РАЗДЕЛОВ -->
+<div class="modal legal-modal" id="legal-terms-modal">
+    <div class="modal-overlay" onclick="closeLegalModal('terms')"></div>
+    <div class="modal-content legal-modal-content">
+        <h2 class="modal-title">Условия использования</h2>
+        <div class="legal-text">
+            <p>Здесь будут размещены условия использования...</p>
+        </div>
+    </div>
+    <button class="modal-close" type="button" onclick="closeLegalModal('terms')" aria-label="Закрыть">×</button>
+</div>
+
 <div class="modal legal-modal" id="legal-offer-modal">
     <div class="modal-overlay" onclick="closeLegalModal('offer')"></div>
     <div class="modal-content legal-modal-content">
-        <button class="modal-close" type="button" onclick="closeLegalModal('offer')" aria-label="Закрыть">×</button>
         <h2 class="modal-title">Публичная оферта</h2>
         <div class="legal-text">
             <p>Здесь будет размещен текст публичной оферты...</p>
         </div>
     </div>
+    <button class="modal-close" type="button" onclick="closeLegalModal('offer')" aria-label="Закрыть">×</button>
 </div>
 
 <div class="modal legal-modal" id="legal-privacy-modal">
     <div class="modal-overlay" onclick="closeLegalModal('privacy')"></div>
     <div class="modal-content legal-modal-content">
-        <button class="modal-close" type="button" onclick="closeLegalModal('privacy')" aria-label="Закрыть">×</button>
         <h2 class="modal-title">Политика конфиденциальности</h2>
         <div class="legal-text">
             <p>Здесь будет размещена политика конфиденциальности...</p>
         </div>
     </div>
-</div>
-
-<div class="modal legal-modal" id="legal-requisites-modal">
-    <div class="modal-overlay" onclick="closeLegalModal('requisites')"></div>
-    <div class="modal-content legal-modal-content">
-        <button class="modal-close" type="button" onclick="closeLegalModal('requisites')"
-            aria-label="Закрыть">×</button>
-        <h2 class="modal-title">Реквизиты</h2>
-        <div class="legal-text">
-            <p><strong>ИП Иванов И.И. · ИНН 1234567890</strong></p>
-        </div>
-    </div>
-</div>
-
-<div class="modal legal-modal" id="legal-cookies-modal">
-    <div class="modal-overlay" onclick="closeLegalModal('cookies')"></div>
-    <div class="modal-content legal-modal-content">
-        <button class="modal-close" type="button" onclick="closeLegalModal('cookies')" aria-label="Закрыть">×</button>
-        <h2 class="modal-title">Политика Cookies</h2>
-        <div class="legal-text">
-            <p>Здесь будет размещена политика использования cookies...</p>
-        </div>
-    </div>
+    <button class="modal-close" type="button" onclick="closeLegalModal('privacy')" aria-label="Закрыть">×</button>
 </div>
 
 <div class="modal legal-modal" id="legal-refund-modal">
     <div class="modal-overlay" onclick="closeLegalModal('refund')"></div>
     <div class="modal-content legal-modal-content">
-        <button class="modal-close" type="button" onclick="closeLegalModal('refund')" aria-label="Закрыть">×</button>
         <h2 class="modal-title">Порядок возврата</h2>
         <div class="legal-text">
             <p>Здесь будет размещен порядок возврата...</p>
         </div>
     </div>
+    <button class="modal-close" type="button" onclick="closeLegalModal('refund')" aria-label="Закрыть">×</button>
 </div>
 
 <div class="modal legal-modal" id="legal-contacts-modal">
     <div class="modal-overlay" onclick="closeLegalModal('contacts')"></div>
     <div class="modal-content legal-modal-content">
-        <button class="modal-close" type="button" onclick="closeLegalModal('contacts')" aria-label="Закрыть">×</button>
-        <h2 class="modal-title">Контакты</h2>
+        <h2 class="modal-title">Контакты и реквизиты</h2>
         <div class="legal-text">
             <p>Здесь будет размещена контактная информация...</p>
         </div>
     </div>
+    <button class="modal-close" type="button" onclick="closeLegalModal('contacts')" aria-label="Закрыть">×</button>
 </div>
 
 <!-- МОДАЛЬНОЕ ОКНО ВХОДА В ЛК -->
 <div class="modal" id="login-modal" role="dialog" aria-modal="true" aria-labelledby="login-modal-title">
     <div class="modal-overlay" onclick="closeLoginModal()"></div>
     <div class="modal-content">
-        <button class="modal-close" type="button" onclick="closeLoginModal()" aria-label="Закрыть">×</button>
-
         <h2 id="login-modal-title" class="modal-title">Войти в личный кабинет</h2>
 
         <p style="text-align: center; color: #666; margin-bottom: 24px; font-size: 15px;">
@@ -102,19 +88,24 @@
             🔐 Ваши данные надежно защищены
         </p>
     </div>
+    <button class="modal-close" type="button" onclick="closeLoginModal()" aria-label="Закрыть">×</button>
 </div>
 
-<!-- COOKIE CONSENT BANNER -->
-<div class="cookie-banner" id="cookie-banner">
-    <div class="cookie-content">
-        <p class="cookie-text">
-            🍪 Мы используем cookies для улучшения работы сайта и аналитики посещаемости.
-            Продолжая использовать сайт, вы соглашаетесь с
-            <a href="#" onclick="openLegalModal('privacy'); return false;">Политикой конфиденциальности</a>.
-        </p>
-        <div class="cookie-buttons">
-            <button class="cookie-btn cookie-btn-accept" onclick="acceptCookies()">Принять</button>
-            <button class="cookie-btn cookie-btn-decline" onclick="declineCookies()">Отклонить</button>
+<!-- COOKIE CONSENT (modal-style bottom sheet) -->
+<div class="cookie-banner" id="cookie-banner" hidden>
+    <div class="cookie-content-wrapper">
+        <button class="cookie-close" type="button" onclick="closeCookieBanner()" aria-label="Закрыть"
+            data-cookie-action="close">×</button>
+        <div class="cookie-content">
+            <p class="cookie-text">
+                🍪 Мы используем cookies для улучшения работы сайта и аналитики посещаемости.
+                Продолжая использовать сайт, вы соглашаетесь с
+                <a href="#" onclick="openLegalModal('privacy'); return false;">Политикой конфиденциальности</a>.
+            </p>
+            <div class="cookie-buttons">
+                <button class="cookie-btn cookie-btn-accept" data-cookie-action="accept">Принять</button>
+                <button class="cookie-btn cookie-btn-decline" data-cookie-action="decline">Отклонить</button>
+            </div>
         </div>
     </div>
 </div>
@@ -138,24 +129,80 @@
             .forEach(el => el.setAttribute('hidden', ''));
     })();
 
-    // Функции для модальных окон с юридическими документами
-    function openLegalModal(type) {
-        const modalId = 'legal-' + type + '-modal';
-        const modal = document.getElementById(modalId);
-        if (modal) {
-            modal.removeAttribute('hidden');
-            document.body.style.overflow = 'hidden';
-        }
+    // Функции для модальных окон с юридическими документами (если модульная версия недоступна)
+    if (typeof window.openLegalModal !== 'function') {
+        window.openLegalModal = function (type) {
+            const modalId = 'legal-' + type + '-modal';
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.removeAttribute('hidden');
+                document.body.style.overflow = 'hidden';
+            }
+        };
     }
 
-    function closeLegalModal(type) {
-        const modalId = 'legal-' + type + '-modal';
-        const modal = document.getElementById(modalId);
-        if (modal) {
-            modal.setAttribute('hidden', '');
-            document.body.style.overflow = '';
-        }
+    if (typeof window.closeLegalModal !== 'function') {
+        window.closeLegalModal = function (type) {
+            const modalId = 'legal-' + type + '-modal';
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.setAttribute('hidden', '');
+                document.body.style.overflow = '';
+            }
+        };
     }
+
+    // Fallback-функции для cookie banner, если модульная версия не загрузилась
+    if (typeof window.closeCookieBanner !== 'function') {
+        window.closeCookieBanner = function () {
+            const banner = document.getElementById('cookie-banner');
+            if (banner) {
+                banner.setAttribute('hidden', '');
+            }
+        };
+    }
+
+    if (typeof window.openCookieBanner !== 'function') {
+        window.openCookieBanner = function () {
+            const banner = document.getElementById('cookie-banner');
+            if (banner) {
+                banner.removeAttribute('hidden');
+            }
+        };
+    }
+
+    if (typeof window.acceptCookies !== 'function') {
+        window.acceptCookies = function () {
+            try { localStorage.setItem('cookieConsent', 'accepted'); } catch (e) { }
+            window.closeCookieBanner();
+        };
+    }
+
+    if (typeof window.declineCookies !== 'function') {
+        window.declineCookies = function () {
+            try { localStorage.setItem('cookieConsent', 'declined'); } catch (e) { }
+            window.closeCookieBanner();
+        };
+    }
+
+    // Fallback биндинг на кнопки баннера, если модуль не успел
+    (function bindCookieFallbackOnce() {
+        const banner = document.getElementById('cookie-banner');
+        if (!banner || banner.dataset.bound) return;
+        banner.dataset.bound = 'true';
+        banner.addEventListener('click', function (event) {
+            const target = event.target.closest('[data-cookie-action]');
+            if (!target) return;
+            const action = target.getAttribute('data-cookie-action');
+            if (action === 'accept') {
+                window.acceptCookies();
+            } else if (action === 'decline') {
+                window.declineCookies();
+            } else if (action === 'close') {
+                window.closeCookieBanner();
+            }
+        });
+    })();
 
     // Функции для модального окна входа в ЛК
     function openLoginModal() {
@@ -191,6 +238,30 @@
     document.addEventListener('DOMContentLoaded', function () {
         const loginForm = document.getElementById('login-form');
         if (loginForm) {
+            // Локализация валидационных сообщений
+            const inputs = loginForm.querySelectorAll('input[required], input[type="email"]');
+            inputs.forEach(input => {
+                input.addEventListener('invalid', function (e) {
+                    e.preventDefault();
+                    if (this.validity.valueMissing) {
+                        if (this.type === 'email') {
+                            this.setCustomValidity('Пожалуйста, введите email');
+                        } else if (this.type === 'password') {
+                            this.setCustomValidity('Пожалуйста, введите пароль');
+                        } else {
+                            this.setCustomValidity('Пожалуйста, заполните это поле');
+                        }
+                    } else if (this.validity.typeMismatch && this.type === 'email') {
+                        this.setCustomValidity('Некорректный формат email');
+                    } else {
+                        this.setCustomValidity('');
+                    }
+                });
+                input.addEventListener('input', function () {
+                    this.setCustomValidity('');
+                });
+            });
+
             loginForm.addEventListener('submit', function (e) {
                 e.preventDefault();
 
@@ -214,8 +285,10 @@
                     return;
                 }
 
-                // DEV MODE CHECK (localhost or LAN)
-                const isDev = isDevHost(window.location.hostname);
+                // DEV MODE CHECK (compile-time flag preferred; fallback — host)
+                const isDev = (typeof window.__DEV_LOGIN_BYPASS__ === 'boolean')
+                    ? window.__DEV_LOGIN_BYPASS__
+                    : isDevHost(window.location.hostname);
 
                 // Strict Email Validation (Required for both modes)
                 const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
@@ -269,47 +342,18 @@
         }
     });
 
-    // Функции для cookie consent banner
-    function acceptCookies() {
-        localStorage.setItem('cookieConsent', 'accepted');
-        const banner = document.getElementById('cookie-banner');
-        if (banner) {
-            banner.setAttribute('hidden', '');
-        }
-        // Здесь можно загрузить скрипты аналитики
-        console.log('Cookies accepted - analytics can be loaded');
-    }
-
-    function declineCookies() {
-        localStorage.setItem('cookieConsent', 'declined');
-        const banner = document.getElementById('cookie-banner');
-        if (banner) {
-            banner.setAttribute('hidden', '');
-        }
-        console.log('Cookies declined - analytics will not be loaded');
-    }
-
-    // Показать cookie banner при загрузке страницы
-    document.addEventListener('DOMContentLoaded', function () {
-        const cookieConsent = localStorage.getItem('cookieConsent');
-        if (!cookieConsent) {
-            const banner = document.getElementById('cookie-banner');
-            if (banner) {
-                banner.removeAttribute('hidden');
-            }
-        }
-    });
+    // Cookie consent logic moved to src/js/cookie-banner.js
 
     // Закрытие всех legal модальных окон по Escape
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') {
+            closeLegalModal('terms');
             closeLegalModal('offer');
             closeLegalModal('privacy');
             closeLegalModal('refund');
-            closeLegalModal('requisites');
-            closeLegalModal('cookies');
             closeLegalModal('contacts');
             closeLoginModal();
+            closeCookieBanner();
         }
     });
 </script>

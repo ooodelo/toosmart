@@ -1,3 +1,23 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@400;600&display=swap');
+
+/* Typography Variables from Journal Template */
+:root {
+  --serif: "Hoefler Text", Palatino, "Palatino Linotype", "Book Antiqua", Georgia, "Times New Roman", Times, serif;
+  --sans: system-ui, -apple-system, "Avenir Next", Avenir, "Helvetica Neue", "Segoe UI", Roboto, Arial, sans-serif;
+
+  --text-size: 19px;
+  --text-lh: 1.76;
+  --col-max: 660px;
+  --col-pad: clamp(18px, 4vw, 32px);
+
+  --gray-900: #0f0f10;
+  --gray-700: #3a3a3f;
+  --gray-500: #6a6a73;
+  --gray-200: #e7e7ea;
+  --accent: #111;
+  --mark: #fff3b0;
+}
+
 :root {
   color-scheme: light;
 
@@ -16,6 +36,12 @@
   --stack-min-width-tablet: 280px;
   --stack-width: var(--stack-width-desktop);
   --stack-min-width: var(--stack-min-width-desktop);
+  --stack-height-collapsed: 320px;
+  --stack-height-expanded: calc(100vh - 180px);
+  --stack-card-radius: 32px;
+  --stack-card-shadow: 0 35px 60px -15px rgba(0, 0, 0, 0.05);
+  --stack-accent: #D5D8E8;
+  --stack-accent-strong: #B8BCCF;
 
   /* Для dots-rail позиционирования */
   --text-box-left-desktop: calc(50% - var(--text-box-width-desktop) / 2);
@@ -30,9 +56,9 @@
   /* Боковая полоска (menu-handle) - явные настройки */
   --handle-content-width: 36px;
   /* ширина контента (буквы + gap + точки) */
-  --handle-padding-left: 15px;
+  --handle-padding-left: 7.5px;
   /* отступ слева от контента */
-  --handle-padding-right: 15px;
+  --handle-padding-right: 7.5px;
   /* отступ справа от контента */
   --handle-gap: 8px;
   /* расстояние между буквами и точками */
@@ -82,12 +108,107 @@ html,
 body {
   margin: 0;
   padding: 0;
-  color: var(--text-color);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: var(--gray-900);
+  font-family: var(--serif);
+  font-size: var(--text-size);
+  line-height: var(--text-lh);
   background: #F5F5F5;
   min-height: 100%;
+  text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--sans);
+  margin: 0;
+}
+
+h1 {
+  font-size: clamp(32px, 4.3vw, 48px);
+  line-height: 1.12;
+  letter-spacing: -.015em;
+  margin-bottom: .75em;
+  font-weight: 800;
+}
+
+h2 {
+  font-size: 1.55em;
+  line-height: 1.25;
+  letter-spacing: -.01em;
+  margin-top: 2.45em;
+  margin-bottom: .75em;
+  font-weight: 800;
+}
+
+h3 {
+  font-size: 1.22em;
+  line-height: 1.35;
+  margin-top: 1.9em;
+  margin-bottom: .6em;
+  font-weight: 750;
+}
+
+h4 {
+  font-size: 1.03em;
+  line-height: 1.4;
+  margin-top: 1.3em;
+  margin-bottom: .55em;
+  font-weight: 720;
+  letter-spacing: .01em;
+}
+
+p {
+  margin: 0 0 1.35em;
+}
+
+ul,
+ol {
+  margin: 0 0 1.45em;
+  padding-left: 1.15em;
+}
+
+li {
+  margin: .35em 0;
+}
+
+blockquote {
+  margin: 1.8em 0;
+  border-left: 3px solid var(--gray-900);
+  padding: 0 0 0 1.1em;
+  font-size: 1.05em;
+  line-height: 1.7;
+}
+
+blockquote p {
+  margin-bottom: .6em;
+}
+
+blockquote cite {
+  font-family: var(--sans);
+  font-size: 13px;
+  color: var(--gray-500);
+  font-style: normal;
+}
+
+strong,
+b {
+  font-family: var(--sans);
+  font-weight: 700;
+  letter-spacing: .005em;
+}
+
+a {
+  color: inherit;
+  text-decoration-thickness: .08em;
+  text-underline-offset: .15em;
+}
+
+a:hover {
+  text-decoration-thickness: .12em;
 }
 
 body {
@@ -141,7 +262,7 @@ body[data-mode="tablet"] .main::before {
   content: "";
   position: fixed;
   /* Fixed so it doesn't scroll */
-  top: 85px;
+  top: 80px;
   /* Header height */
   bottom: 0;
   left: var(--rail-closed);
@@ -155,7 +276,7 @@ body[data-mode="tablet"] .main::before {
   /* Clicks pass through */
   border-radius: 28px 0 0 0;
   /* Matches .panel top-left radius */
-  box-shadow: -3px -3px 27px rgba(0, 0, 0, 0.22);
+  box-shadow: -3px -3px 30px rgba(0, 0, 0, 0.26);
   /* Soft shadow upwards and leftwards */
   transition: transform var(--t-rail) var(--rail-ease);
   /* Animate with menu */
@@ -181,7 +302,7 @@ body[data-mode="tablet"].menu-open .main::before {
   justify-content: center;
   /* Центрируем logo по горизонтали */
   padding: 0 var(--gap-page);
-  height: 85px;
+  height: 80px;
   background: #D9D9D9;
   border: none;
   transition: transform 600ms cubic-bezier(0.4, 0.02, 0.2, 1);
@@ -265,27 +386,36 @@ body[data-mode="tablet"].menu-open .header {
 
 /* Стили для PNG картинки логотипа (поверх всего) */
 .header__logo {
-  position: absolute;
+  position: fixed;
   left: 0;
-  top: 0;
-  z-index: 1700;
+  top: -20px;
+  z-index: 2100;
   /* Поверх header (1600) и меню (1500) */
   display: block;
-  height: 150px;
+  height: 160px;
   width: auto;
-  max-width: 150px;
+  /* max-width removed */
   object-fit: contain;
   flex-shrink: 0;
-  margin-top: -5px;
-  /* Было -15px, сдвинуто на 10px вниз */
-  margin-bottom: -60px;
-  margin-left: 12px;
-  /* Было 2px, сдвинуто на 10px вправо */
+  /* margin-top removed as top is adjusted */
+  /* margin-bottom removed */
+  margin-left: 20px;
   padding: 0;
   border: none;
   background: transparent;
   pointer-events: none;
   /* Не блокирует клики */
+  transition: transform var(--t-rail) var(--rail-ease);
+}
+
+/* Move logo when menu opens, matching header behavior */
+body[data-mode="desktop"][data-input="pointer"].is-slid .header__logo,
+body[data-mode="desktop-wide"][data-input="pointer"].is-slid .header__logo,
+body[data-mode="tablet"][data-input="pointer"].is-slid .header__logo,
+body[data-mode="desktop"].menu-open .header__logo,
+body[data-mode="desktop-wide"].menu-open .header__logo,
+body[data-mode="tablet"].menu-open .header__logo {
+  transform: translateX(calc(var(--rail-open) - var(--rail-closed)));
 }
 
 /* Скрыть PNG картинку на mobile */
@@ -322,7 +452,7 @@ body[data-mode="mobile"] .header__logo {
   transition: transform var(--t-rail) var(--rail-ease);
   pointer-events: auto;
   box-sizing: border-box;
-  overflow: hidden;
+  overflow: visible;
   overscroll-behavior: contain;
 }
 
@@ -342,7 +472,7 @@ body[data-input="pointer"].is-slid .menu-rail {
   justify-content: center;
 
   /* Явные отступы через CSS переменные */
-  padding: 16px var(--handle-padding-right) 16px var(--handle-padding-left);
+  padding: 16px calc(var(--handle-padding-right) - 8px) 16px calc(var(--handle-padding-left) + 8px);
 
   cursor: pointer;
   background: #D9D9D9;
@@ -352,6 +482,7 @@ body[data-input="pointer"].is-slid .menu-rail {
   box-sizing: border-box;
   height: 100%;
   position: relative;
+  overflow: visible;
 }
 
 /* Контейнер для контента (буквы + точки) с фиксированной шириной */
@@ -365,15 +496,24 @@ body[data-input="pointer"].is-slid .menu-rail {
   flex-direction: column-reverse;
   align-items: center;
   gap: var(--handle-gap);
+  position: relative;
+  overflow: visible;
 }
 
 /* Контейнер для 4 точек drag hint */
 .menu-handle__dots {
   display: none;
-  flex-direction: row;
+  flex-direction: column;
   gap: 6px;
   pointer-events: none;
   flex-shrink: 0;
+  position: absolute;
+  right: -12px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  writing-mode: horizontal-tb;
+  /* Сброс вертикального режима родителя */
 }
 
 body[data-mode="desktop"] .menu-handle__dots,
@@ -387,8 +527,8 @@ body[data-mode="tablet"] .menu-handle__dots {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #D9D9D9;
-  box-shadow: inset 0 4px 2px rgba(0, 0, 0, 0.1);
+  background: transparent;
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.2);
 }
 
 .menu-handle__label {
@@ -409,12 +549,16 @@ body[data-mode="tablet"] .menu-handle__dots {
 .site-menu {
   grid-column: 1;
   grid-row: 1;
-  margin: 16px;
+  /* Menu Fixes: Top margin 80px, Padding bottom to avoid footer overlap */
+  margin: 80px 16px 16px 16px;
+  padding: 16px 16px 120px 16px;
   min-width: 0;
   overflow: auto;
-  padding: 16px;
   pointer-events: auto;
   background: transparent;
+  /* Force Sans-Serif for Menu */
+  font-family: var(--sans);
+
 
   /* Проблема 1: Остановка scroll chaining */
   -ms-scroll-chaining: none;
@@ -423,16 +567,37 @@ body[data-mode="tablet"] .menu-handle__dots {
   /* Chrome 65+, Firefox 59+, Safari 16+ */
 }
 
+.site-menu__actions {
+  margin-bottom: 20px;
+  /* Reduced from 32px */
+}
+
+.site-menu__actions .login-btn {
+  display: inline-block;
+  padding: 8px 16px;
+  border: 1px solid #e7e7ea;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f0f10;
+  text-decoration: none;
+  background: #fff;
+  transition: all 0.2s ease;
+}
+
 .site-menu__intro {
   margin-bottom: 16px;
   line-height: 1.6;
 }
 
 .site-menu__title {
-  margin: 0 0 20px 0;
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--text-primary);
+  margin: 0 0 16px 0;
+  /* Reduced from 24px */
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--gray-500);
 }
 
 .site-menu__list {
@@ -441,22 +606,34 @@ body[data-mode="tablet"] .menu-handle__dots {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 2px;
+  /* Reduced from 4px */
 }
 
 .site-menu__list a {
   text-decoration: none;
-  color: inherit;
+  color: var(--gray-900);
   padding: 8px 12px;
-  border-radius: 10px;
+  border-radius: 6px;
   display: block;
-  border: 1px solid transparent;
+  border: none;
+  font-size: 15px;
+  font-weight: 500;
+  background: transparent;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .site-menu__list a:focus,
 .site-menu__list a:hover {
-  border-color: var(--border-color);
-  background: var(--surface);
+  background: #f5f5f5;
+  color: #000;
+  text-decoration: none;
+}
+
+.site-menu__list a.active {
+  font-weight: 700;
+  color: #000;
+  background: #f5f5f5;
 }
 
 /* Вложенные списки (подразделы) */
@@ -476,7 +653,9 @@ body[data-mode="tablet"] .menu-handle__dots {
 }
 
 .site-menu__list ul a:hover {
-  color: var(--text-primary);
+  color: var(--gray-900);
+  background: transparent;
+  /* No bg for sub-items, just color change? Or subtle bg */
 }
 
 .panel {
@@ -565,7 +744,6 @@ body[data-mode="mobile"] .text-section table {
   display: block;
   margin: 24px auto;
   border-radius: 8px;
-  border: 1px solid var(--border-color);
 }
 
 /* Подписи к изображениям */
@@ -749,8 +927,8 @@ body[data-mode="mobile"] .text-section table {
   /* верх/низ: 35px, право/лево: 25px */
 
   /* Визуальный стиль - базовый непрозрачный фон (работает везде) */
-  background: rgba(255, 255, 255, 0.98);
-  border: 1px solid #AAA;
+  background: rgba(255, 255, 255, 0.4);
+  border: none;
   -webkit-border-radius: 28px;
   border-radius: 28px;
 
@@ -782,7 +960,7 @@ body[data-mode="mobile"] .text-section table {
 /* Progressive enhancement: blur эффект для поддерживающих браузеров */
 @supports (backdrop-filter: blur(40px)) or (-webkit-backdrop-filter: blur(40px)) {
   .dot-flyout {
-    background: rgba(255, 255, 255, 0.6);
+    background: rgba(255, 255, 255, 0.4);
     backdrop-filter: saturate(1.1) blur(40px);
     -webkit-backdrop-filter: blur(10px) saturate(1.1);
   }
@@ -879,27 +1057,28 @@ body[data-mode="mobile"] .dot-flyout {
   grid-column: 3;
   align-self: start;
   position: relative;
-  padding: 20px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   background: transparent;
   overflow: visible;
-  /* позволяет ::before размытию выходить за пределы */
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --stack-animation-duration: 4000ms;
 }
 
-/* Размытый овальный фон позади рекомендаций */
+/* Размытый акцент позади рекомендаций */
 .stack::before {
   content: "";
   position: absolute;
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  width: min(280px, 100%);
-  height: clamp(600px, 80vh, 860px);
-  background: rgba(213, 216, 232, 0.85);
+  width: min(360px, 100%);
+  height: clamp(540px, 82vh, 880px);
+  background: rgba(213, 216, 232, 0.82);
   border-radius: 9999px;
-  filter: blur(80px);
+  filter: blur(90px);
   z-index: 0;
   pointer-events: none;
 }
@@ -909,124 +1088,256 @@ body[data-mode="mobile"] .dot-flyout {
   z-index: 1;
 }
 
-.stack__intro {
-  padding: 16px;
-  line-height: 1.6;
-  background: var(--surface);
-}
-
-.stack__title {
-  margin: 0 0 16px 0;
-  font-size: 22px;
+.stack__label {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  letter-spacing: 0.22em;
   font-weight: 800;
-  color: var(--text-primary);
+  text-transform: uppercase;
+  color: var(--stack-accent-strong);
 }
 
-/* Карусель рекомендаций */
-.stack-carousel {
-  flex: 0 1 auto;
+.stack__widget {
   position: relative;
-  overflow: hidden;
-  min-height: 0;
-}
-
-.stack-slide {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 50px;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.5s ease, visibility 0.5s ease;
-  position: absolute;
-  top: 0;
-  left: 0;
   width: 100%;
 }
 
-.stack-slide[data-active="true"] {
-  opacity: 1;
-  visibility: visible;
+.stack-deck {
   position: relative;
+  width: 100%;
+  height: var(--stack-height-collapsed);
+  min-height: 280px;
+  transition: height 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  perspective: 1000px;
+}
+
+.stack--expanded .stack-deck {
+  height: var(--stack-height-expanded);
+}
+
+.stack--mobile .stack-deck {
+  height: var(--stack-height-collapsed);
 }
 
 .stack-card {
-  height: 200px;
-  margin: 0 25px;
-  padding: 0;
-  background: var(--surface);
-  display: flex;
-  flex-direction: column;
+  position: absolute;
+  inset: 0;
+  display: block;
+  padding: 32px;
+  height: 280px;
+  background: #fff;
+  border-radius: var(--stack-card-radius);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: var(--stack-card-shadow);
+  color: inherit;
+  text-decoration: none;
   overflow: hidden;
+  transform-origin: 50% 50%;
+  will-change: transform, opacity;
 }
 
-.stack-card__image {
-  height: 40%;
-  background: transparent;
+.stack-card__inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.stack-card__cover {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+
+
+  margin-bottom: 18px;
+  box-shadow: none;
+}
+
+.stack-card__cover--image {
+  padding: 0;
+}
+
+.stack-card__cover--image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  display: block;
+}
+
+.stack-card__emoji {
+  font-size: 42px;
+  line-height: 1;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.08));
+}
+
+.stack-card__title {
+  margin: 0 0 16px 0;
+  font-family: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  font-size: 30px;
+  line-height: 0.95;
+  color: #1f2937;
+  font-weight: 600;
+}
+
+.stack-card__meta {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.stack-card__bar {
+  display: block;
+  width: 16px;
+  height: 1px;
+  background: var(--stack-accent);
+  margin-top: 10px;
   flex-shrink: 0;
 }
 
-.stack-card__content {
-  flex: 1;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.stack-card h3 {
+.stack-card__description {
   margin: 0;
-  font-size: 16px;
-  font-weight: 800;
-  line-height: 1.4;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #94a3af;
+  line-height: 1.5;
 }
 
-.stack-card p {
-  margin: 0;
-  font-size: 14px;
-  color: var(--text-secondary);
-  line-height: 1.4;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-
-/* Индикатор прогресса (точки) */
-.stack-indicator {
+.stack__controls {
   display: flex;
+  gap: 14px;
   justify-content: center;
-  gap: 8px;
-  margin-top: 50px;
-  padding: 8px 0;
+  align-items: center;
 }
 
-.stack-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--border-color);
-  border: none;
+.stack__controls--floating {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -28px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  z-index: 3;
+}
+
+.stack--hover:not(.stack--mobile) .stack__controls--floating {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.stack__controls--mobile {
+  display: none;
+  margin-top: 18px;
+  position: relative;
+  z-index: 2;
+}
+
+.stack--mobile .stack__controls--mobile {
+  display: flex;
+}
+
+.stack__control {
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 20px 40px -18px rgba(0, 0, 0, 0.25);
+  color: #1f2937;
   cursor: pointer;
-  padding: 0;
-  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
-.stack-dot:hover {
-  background: var(--text-secondary);
-  transform: scale(1.2);
+.stack__control:hover {
+  transform: scale(1.05);
+  box-shadow: 0 24px 48px -18px rgba(0, 0, 0, 0.3);
 }
 
-.stack-dot[data-active="true"] {
-  background: var(--text-primary);
-  width: 24px;
-  border-radius: 4px;
+.stack__control:active {
+  transform: scale(0.96);
+}
+
+.stack__hint {
+  display: none;
+  text-align: center;
+  margin-top: 10px;
+  font-size: 9px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: #a0a5b4;
+}
+
+.stack--mobile .stack__hint {
+  display: block;
+}
+
+.stack--mobile .stack-card {
+  transform-origin: 50% 100%;
+}
+
+.stack.stack--empty {
+  display: none;
+}
+
+@keyframes stackRiseEven {
+  from {
+    transform: translate3d(var(--x-from), var(--y-from), var(--z-start)) scale(var(--s-from));
+  }
+
+  to {
+    transform: translate3d(var(--x-to), var(--y-to), var(--z-end)) scale(var(--s-to));
+  }
+}
+
+@keyframes stackRiseOdd {
+  from {
+    transform: translate3d(var(--x-from), var(--y-from), var(--z-start)) scale(var(--s-from));
+  }
+
+  to {
+    transform: translate3d(var(--x-to), var(--y-to), var(--z-end)) scale(var(--s-to));
+  }
+}
+
+@keyframes stackApproachEven {
+  from {
+    transform: translate3d(var(--x-from), var(--y-from), var(--z-start)) scale(var(--s-from));
+  }
+
+  to {
+    transform: translate3d(var(--x-to), var(--y-to), var(--z-end)) scale(var(--s-to));
+  }
+}
+
+@keyframes stackApproachOdd {
+  from {
+    transform: translate3d(var(--x-from), var(--y-from), var(--z-start)) scale(var(--s-from));
+  }
+
+  to {
+    transform: translate3d(var(--x-to), var(--y-to), var(--z-end)) scale(var(--s-to));
+  }
+}
+
+@keyframes flyOutMobile {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translate3d(-120vw, 0, 0) rotate(-15deg) scale(0.9);
+    opacity: 0;
+  }
 }
 
 .backdrop {
@@ -1184,14 +1495,29 @@ body[data-mode="desktop-wide"] .dots-rail {
   left: calc(var(--text-box-left) - 48px);
 }
 
+body[data-mode="desktop"] .stack.stack--inline,
+body[data-mode="desktop-wide"] .stack.stack--inline {
+  position: relative;
+  grid-column: 2;
+  top: auto;
+  left: auto;
+  right: auto;
+  width: 100%;
+  max-width: var(--text-box-width);
+  min-width: 0;
+  margin: 32px 0 0;
+  padding: 16px;
+}
+
 /* Компактный стиль carousel для узкого sidebar на desktop (900-1000px) */
 @media (min-width: 900px) and (max-width: 1000px) {
-  body[data-mode="desktop"] .stack-card h3 {
-    font-size: 16px;
+  body[data-mode="desktop"] .stack-card__title {
+    font-size: 26px;
   }
 
-  body[data-mode="desktop"] .stack-card p {
-    font-size: 13px;
+  body[data-mode="desktop"] .stack-card__description {
+    font-size: 10px;
+    letter-spacing: 0.1em;
   }
 }
 
@@ -1288,8 +1614,8 @@ body[data-mode="mobile"] .menu-rail {
   width: auto;
   left: 0;
   right: 0;
-  top: 85px;
-  /* Начинается ПОСЛЕ header (header height = 85px) */
+  top: 80px;
+  /* Начинается сразу под header (header height = 80px) */
   bottom: 0;
   margin: 0;
   border-radius: 0;
@@ -1769,23 +2095,28 @@ body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
 }
 
 .modal-close {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  width: 32px;
-  height: 32px;
-  background: transparent;
+  position: fixed;
+  top: calc(5vh + 16px);
+  right: calc(5% + 16px);
+  width: 40px;
+  height: 40px;
+  background: white;
   border: none;
+  border-radius: 50%;
   font-size: 28px;
   line-height: 1;
   color: #999;
   cursor: pointer;
-  transition: color 0.2s ease;
+  transition: all 0.2s ease;
   padding: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 10000;
 }
 
 .modal-close:hover {
   color: #333;
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .modal-title {
@@ -1948,107 +2279,6 @@ body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
   margin-left: 6px;
 }
 
-/* ============================================
-   МИНИМАЛИСТИЧНЫЙ ФУТЕР
-   ============================================ */
-
-.site-footer {
-  background: #D9D9D9;
-  color: #202124;
-  padding: 16px 24px;
-  margin-top: 80px;
-  border-top: 1px solid #ccc;
-  font-size: 13px;
-}
-
-.footer-content {
-  max-width: 1400px;
-  margin: 0 auto;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.footer-info {
-  color: #333;
-  white-space: nowrap;
-}
-
-.footer-links {
-  display: flex;
-  gap: 8px 16px;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.footer-links a {
-  color: #202124;
-  text-decoration: none;
-  transition: opacity 0.2s ease;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.footer-links a:not(:last-child)::after {
-  content: '·';
-  margin-left: 16px;
-  color: #999;
-  pointer-events: none;
-}
-
-.footer-links a:hover {
-  opacity: 0.7;
-}
-
-/* Responsive adaptations for footer */
-body[data-mode="mobile"] .site-footer {
-  padding: 16px 12px;
-  padding-bottom: calc(var(--mobile-dock-footprint) + 16px);
-  /* Dock кнопка 64px + safe area + отступ */
-  margin-top: 60px;
-  font-size: 12px;
-}
-
-body[data-mode="mobile"] .footer-content {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-body[data-mode="mobile"] .footer-links {
-  flex-direction: column;
-  gap: 8px;
-  align-items: flex-start;
-}
-
-body[data-mode="mobile"] .footer-links a:not(:last-child)::after {
-  display: none;
-}
-
-body[data-mode="tablet"] .site-footer {
-  padding: 16px 20px;
-  font-size: 13px;
-}
-
-body[data-mode="tablet"] .footer-content {
-  justify-content: center;
-}
-
-body[data-mode="desktop"] .site-footer,
-body[data-mode="desktop-wide"] .site-footer {
-  padding: 18px 32px;
-  font-size: 14px;
-}
-
-/* Отступ слева на desktop чтобы menu-rail не закрывала footer */
-body[data-mode="desktop"] .footer-content,
-body[data-mode="desktop-wide"] .footer-content {
-  padding-left: 80px;
-  /* 66px rail-closed + 14px gap */
-}
-
 /* Responsive adaptations for paywall */
 body[data-mode="mobile"] .premium-teaser {
   margin-top: 24px;
@@ -2084,6 +2314,14 @@ body[data-mode="mobile"] .modal-title {
 
 body[data-mode="mobile"] .price-current {
   font-size: 28px;
+}
+
+body[data-mode="mobile"] .modal-close {
+  top: calc(5vh + 8px);
+  right: calc(5% + 8px);
+  width: 36px;
+  height: 36px;
+  font-size: 24px;
 }
 
 /* ============================================
@@ -2152,7 +2390,7 @@ body[data-mode="mobile"] .legal-text h3 {
 }
 
 /* ============================================
-   COOKIE CONSENT BANNER
+   COOKIE CONSENT (modal-style bottom sheet)
    ============================================ */
 
 .cookie-banner {
@@ -2160,42 +2398,59 @@ body[data-mode="mobile"] .legal-text h3 {
   bottom: 0;
   left: 0;
   right: 0;
-  background: #fff;
-  border-top: 2px solid #D9D9D9;
-  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
-  z-index: 10000;
-  animation: cookieSlideIn 0.3s ease;
-}
-
-@keyframes cookieSlideIn {
-  from {
-    transform: translateY(100%);
-  }
-
-  to {
-    transform: translateY(0);
-  }
+  z-index: 2000;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  padding: 12px 24px;
+  display: flex;
+  justify-content: center;
+  box-shadow: none;
 }
 
 .cookie-banner[hidden] {
-  display: none;
+  display: none !important;
 }
 
-.cookie-content {
+.cookie-content-wrapper {
+  width: 100%;
   max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 24px;
+  position: relative;
+}
+
+.cookie-close {
+  position: absolute;
+  top: -12px;
+  right: -12px;
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #999;
+  padding: 4px;
+  line-height: 1;
+}
+
+.cookie-close:hover {
+  color: #333;
+}
+
+.cookie-content {
+  display: flex;
+  align-items: center;
+  gap: 20px;
 }
 
 .cookie-text {
   flex: 1;
-  font-size: 14px;
-  line-height: 1.6;
-  color: #333;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #444;
   margin: 0;
 }
 
@@ -2211,15 +2466,14 @@ body[data-mode="mobile"] .legal-text h3 {
 
 .cookie-buttons {
   display: flex;
-  gap: 12px;
-  flex-shrink: 0;
+  gap: 10px;
 }
 
 .cookie-btn {
-  padding: 10px 20px;
-  font-size: 14px;
-  font-weight: 600;
-  border: none;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid transparent;
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -2227,46 +2481,370 @@ body[data-mode="mobile"] .legal-text h3 {
 }
 
 .cookie-btn-accept {
-  background: #202124;
+  background: #111827;
   color: #fff;
 }
 
 .cookie-btn-accept:hover {
-  background: #333;
+  background: #1f2937;
   transform: translateY(-1px);
 }
 
 .cookie-btn-decline {
-  background: #f0f0f0;
-  color: #333;
+  background: transparent;
+  color: #666;
+  border: 1px solid #e5e7eb;
 }
 
 .cookie-btn-decline:hover {
-  background: #e0e0e0;
+  background: #e5e7eb;
 }
 
-/* Responsive для cookie banner */
+/* Responsive */
+body[data-mode="mobile"] .cookie-banner {
+  padding: 12px 16px;
+}
+
+body[data-mode="mobile"] .cookie-content-wrapper {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+
 body[data-mode="mobile"] .cookie-content {
   flex-direction: column;
   align-items: stretch;
-  padding: 16px;
-  gap: 16px;
-}
-
-body[data-mode="mobile"] .cookie-text {
-  font-size: 13px;
-  text-align: center;
+  gap: 12px;
 }
 
 body[data-mode="mobile"] .cookie-buttons {
-  flex-direction: column;
+  flex-direction: row;
   gap: 8px;
 }
 
 body[data-mode="mobile"] .cookie-btn {
+  flex: 1;
+  width: auto;
+}
+
+body[data-mode="mobile"] .cookie-close {
+  top: -8px;
+  right: -8px;
+}
+
+/* Progress Widget (Next Button) - Ensure it's above stack */
+#pw-root {
+  z-index: 1300;
+  position: relative;
+  /* Ensure z-index applies */
+}
+
+/* === FOOTER - 3 MODE RESPONSIVE SYSTEM === */
+
+/* Base Footer Container */
+.site-footer {
+  border-top: none;
+  padding: 12px 0;
+  font-family: var(--sans);
+  background: #d9d9d9;
+  margin-top: auto;
+  position: relative;
+  z-index: 2001;
   width: 100%;
 }
 
-body[data-mode="tablet"] .cookie-content {
-  padding: 18px 20px;
+/* Footer Content - Base Styles with Transitions */
+.footer-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 var(--col-pad);
+  display: flex;
+  transition: flex-direction 0.3s ease,
+    justify-content 0.3s ease,
+    gap 0.3s ease;
+}
+
+.footer-info {
+  font-size: 12px;
+  /* Fixed size, no clamp */
+  line-height: 1.4;
+  color: var(--gray-900);
+  transition: text-align 0.3s ease, font-size 0.3s ease;
+  white-space: nowrap;
+}
+
+.footer-nav {
+  display: flex;
+  transition: justify-content 0.3s ease, width 0.3s ease;
+}
+
+.footer-links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  transition: flex-direction 0.3s ease,
+    justify-content 0.3s ease,
+    gap 0.3s ease;
+}
+
+.footer-links li {
+  display: inline-flex;
+}
+
+.footer-links a {
+  font-size: 13px;
+  /* Fixed size, no clamp */
+  color: var(--gray-900);
+  text-decoration: none;
+  transition: opacity 0.2s ease, font-size 0.3s ease;
+  white-space: nowrap;
+}
+
+.footer-links a:hover {
+  opacity: 0.7;
+  text-decoration: none;
+}
+
+/* ====================================================================
+   MODE 1: DESKTOP WIDE (>1100px)
+   Layout: Copyright LEFT ←→ Links RIGHT (single row)
+   ==================================================================== */
+
+body[data-mode="desktop-wide"] .footer-content,
+body[data-mode="desktop"] .footer-content {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  gap: 32px;
+}
+
+body[data-mode="desktop-wide"] .footer-info,
+body[data-mode="desktop"] .footer-info {
+  text-align: left;
+  flex-shrink: 0;
+  order: 1;
+  /* Visually first (left side) */
+}
+
+body[data-mode="desktop-wide"] .footer-nav,
+body[data-mode="desktop"] .footer-nav {
+  flex: 1;
+  justify-content: flex-end;
+  order: 2;
+  /* Visually second (right side) */
+}
+
+body[data-mode="desktop-wide"] .footer-links,
+body[data-mode="desktop"] .footer-links {
+  flex-direction: row;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  gap: 20px;
+  /* Fixed gap, no clamp */
+}
+
+/* Desktop at 900-1100px: Force Mode 2 (centered column) */
+@media (max-width: 1100px) {
+  body[data-mode="desktop"] .footer-content {
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+  }
+
+  body[data-mode="desktop"] .footer-info {
+    text-align: center;
+    order: 0;
+    /* Reset order - use natural HTML order */
+  }
+
+  body[data-mode="desktop"] .footer-nav {
+    width: 100%;
+    justify-content: center;
+    order: 0;
+    /* Reset order - use natural HTML order */
+  }
+
+  body[data-mode="desktop"] .footer-links {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 14px 18px;
+  }
+}
+
+/* ====================================================================
+   MODE 2: TABLET (700-1100px)
+   Layout: Links TOP (centered) → Copyright BOTTOM (centered)
+   ==================================================================== */
+
+body[data-mode="tablet"] .footer-content {
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+}
+
+body[data-mode="tablet"] .footer-info {
+  text-align: center;
+  font-size: 12px;
+}
+
+body[data-mode="tablet"] .footer-nav {
+  width: 100%;
+  justify-content: center;
+}
+
+body[data-mode="tablet"] .footer-links {
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 14px 18px;
+}
+
+body[data-mode="tablet"] .footer-links a {
+  font-size: 12px;
+}
+
+/* ====================================================================
+   MODE 3: MOBILE (<700px)
+   Layout: Links in 2-COL GRID → Copyright BOTTOM (centered)
+   ==================================================================== */
+
+body[data-mode="mobile"] .footer-content {
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  padding-left: max(var(--col-pad), env(safe-area-inset-left, 0px));
+  padding-right: max(var(--col-pad), env(safe-area-inset-right, 0px));
+}
+
+body[data-mode="mobile"] .footer-info {
+  text-align: center;
+  font-size: 11px;
+  white-space: normal;
+}
+
+body[data-mode="mobile"] .footer-nav {
+  width: 100%;
+  justify-content: center;
+}
+
+body[data-mode="mobile"] .footer-links {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-auto-flow: dense;
+  gap: 12px 16px;
+  justify-items: center;
+}
+
+body[data-mode="mobile"] .footer-links li {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+/* Last odd link spans 2 columns and centers */
+body[data-mode="mobile"] .footer-links li:last-child:nth-child(odd) {
+  grid-column: span 2;
+}
+
+body[data-mode="mobile"] .footer-links a {
+  font-size: 12px;
+}
+
+/* ====================================================================
+   FALLBACK: No data-mode attribute
+   ==================================================================== */
+
+@media (max-width: 700px) {
+  body:not([data-mode]) .footer-content {
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  body:not([data-mode]) .footer-info {
+    text-align: center;
+  }
+
+  body:not([data-mode]) .footer-nav {
+    width: 100%;
+    justify-content: center;
+  }
+
+  body:not([data-mode]) .footer-links {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    justify-items: center;
+  }
+}
+
+@media (min-width: 701px) and (max-width: 1100px) {
+  body:not([data-mode]) .footer-content {
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+
+  body:not([data-mode]) .footer-info {
+    text-align: center;
+  }
+
+  body:not([data-mode]) .footer-nav {
+    justify-content: center;
+  }
+
+  body:not([data-mode]) .footer-links {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
+@media (min-width: 1101px) {
+  body:not([data-mode]) .footer-content {
+    flex-direction: row;
+    justify-content: space-between;
+  }
+
+  body:not([data-mode]) .footer-info {
+    text-align: left;
+    order: 1;
+  }
+
+  body:not([data-mode]) .footer-nav {
+    justify-content: flex-end;
+    order: 2;
+  }
+}
+
+
+/* === RECOMMENDATIONS (STACK) === */
+.stack-card__title {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 1.1em;
+  /* Slightly smaller to balance caps */
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5em;
+  line-height: 1.2;
+}
+
+.stack-card__description {
+  font-family: var(--sans);
+  font-size: 13px;
+  /* Smaller for meta feel */
+  line-height: 1.5;
+  color: var(--gray-500);
+}
+
+/* Исправление перекрытия кнопок футером на мобильных */
+body[data-mode="mobile"] .site-footer {
+  z-index: 10;
+  /* Делаем футер ниже кнопок (у них 1600+) */
+  padding-bottom: calc(var(--mobile-dock-footprint) + 32px);
+  /* Добавляем отступ снизу, чтобы контент футера не прятался под кнопками */
 }

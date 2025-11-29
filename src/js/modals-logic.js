@@ -245,6 +245,22 @@ function setupSettingsModal() {
     const form = document.getElementById('settings-password-form');
     if (!form) return;
 
+    // Локализация валидационных сообщений
+    const inputs = form.querySelectorAll('input[required]');
+    inputs.forEach(input => {
+        input.addEventListener('invalid', function (e) {
+            e.preventDefault();
+            if (this.validity.valueMissing) {
+                this.setCustomValidity('Пожалуйста, заполните это поле');
+            } else {
+                this.setCustomValidity('');
+            }
+        });
+        input.addEventListener('input', function () {
+            this.setCustomValidity('');
+        });
+    });
+
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const formData = new FormData(form);

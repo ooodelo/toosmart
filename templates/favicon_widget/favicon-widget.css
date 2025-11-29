@@ -1,0 +1,6 @@
+#favicon-widget{font-family:sans-serif;max-width:600px;padding:20px;border:1px solid #ccc}
+.fw-section{margin-bottom:20px}
+.fw-list{list-style:none;padding:0}
+.fw-list li{padding:5px 0;border-bottom:1px solid #eee}
+.fw-upload{border:2px dashed #aaa;padding:20px;text-align:center;cursor:pointer}
+.fw-code{background:#f5f5f5;padding:10px;white-space:pre;font-size:12px}

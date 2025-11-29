@@ -11,8 +11,11 @@ if (process.env.SKIP_BUILD_PREVIEW === '1') {
   process.exit(0);
 }
 
-const DIST_ASSETS_DIR = path.resolve(__dirname, '../dist/assets');
-const PORT = process.env.BUILD_PREVIEW_PORT || 3004;
+// Поднимаем превью на корень prod-сборки (dist), чтобы видеть итог как на хостинге.
+const DIST_DIR = path.resolve(__dirname, '../dist');
+const PORT = process.env.BUILD_PREVIEW_PORT || 4040;
+// Bind to all interfaces so the preview is reachable by LAN IP.
+const LISTEN_HOST = process.env.BUILD_PREVIEW_HOST || '0.0.0.0';
 
 function getLanIp() {
   const nets = networkInterfaces();
@@ -27,10 +30,20 @@ function getLanIp() {
 }
 
 function startServer() {
-  const args = ['live-server', DIST_ASSETS_DIR, '--port', String(PORT), '--no-browser', '--quiet'];
+  const args = [
+    'live-server',
+    DIST_DIR,
+    `--host=${LISTEN_HOST}`,
+    `--port=${PORT}`,
+    '--no-browser',
+    '--quiet',
+  ];
   const child = spawn('npx', args, {
     stdio: 'ignore',
     detached: true,
+  });
+  child.on('error', (err) => {
+    console.error('⚠️  Build preview server failed to start:', err.message);
   });
   child.unref();
 }
@@ -49,7 +62,8 @@ const host = getLanIp();
 startServer();
 
 const baseUrl = `http://${host}:${PORT}`;
-const urls = [`${baseUrl}/template.html`, `${baseUrl}/template-paywall.html`];
+// Открываем основные страницы прод-сборки
+const urls = [`${baseUrl}/index.html`, `${baseUrl}/premium/index.html`];
 
 setTimeout(() => {
   openSafari(urls);

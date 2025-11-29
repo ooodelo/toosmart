@@ -16,11 +16,40 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { execSync, spawn } = require('child_process');
+const { networkInterfaces } = require('os');
+const { buildPaywallSegments, extractBlocks } = require('../scripts/lib/paywall');
 
 const PORT = process.env.PORT || 3001;
 const CONFIG_PATH = path.join(__dirname, '..', 'config', 'site.json');
+const PAYWALL_CONFIG_PATH = path.join(__dirname, '..', 'config', 'paywall.json');
 const ADMIN_DIR = __dirname;
 const PROJECT_ROOT = path.join(__dirname, '..');
+const PREVIEW_DEFAULT_PORT = process.env.BUILD_PREVIEW_PORT || process.env.PREVIEW_PORT || 4040;
+let previewProcess = null;
+
+// Разрешенные HTML-блоки для редактирования
+const HTML_BLOCKS = {
+  paymentModal: {
+    label: 'Модальное окно оплаты',
+    path: path.join(PROJECT_ROOT, 'src', 'partials', 'payment-modal.html')
+  },
+  modals: {
+    label: 'Все модалки и cookie',
+    path: path.join(PROJECT_ROOT, 'src', 'partials', 'modals.html')
+  },
+  cookieBanner: {
+    label: 'Баннер cookies',
+    path: path.join(PROJECT_ROOT, 'src', 'partials', 'modals.html')
+  },
+  loginModal: {
+    label: 'Модалка логина / личный кабинет',
+    path: path.join(PROJECT_ROOT, 'src', 'partials', 'modals.html')
+  },
+  templateFull: {
+    label: 'Базовый шаблон (free)',
+    path: path.join(PROJECT_ROOT, 'src', 'template-full.html')
+  }
+};
 
 // MIME types для статических файлов
 const MIME_TYPES = {
@@ -71,6 +100,11 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if (pathname === '/api/preview' && req.method === 'POST') {
+      await handlePreview(req, res);
+      return;
+    }
+
     if (pathname === '/api/files' && req.method === 'POST') {
       await handleFileUpload(req, res);
       return;
@@ -81,12 +115,40 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if (pathname === '/api/section-content' && req.method === 'GET') {
+      await handleGetSectionContent(req, res, url.searchParams.get('branch'), url.searchParams.get('file'));
+      return;
+    }
+
+    if (pathname === '/api/paywall') {
+      if (req.method === 'GET') {
+        await handleGetPaywallConfig(req, res);
+      } else if (req.method === 'POST') {
+        await handleSavePaywall(req, res);
+      }
+      return;
+    }
+
     if (pathname === '/api/payment-modal') {
       if (req.method === 'GET') {
         await handleGetPaymentModal(req, res);
       } else if (req.method === 'POST') {
         await handleSavePaymentModal(req, res);
       }
+      return;
+    }
+
+    if (pathname === '/api/html-block') {
+      if (req.method === 'GET') {
+        await handleGetHtmlBlock(req, res, url.searchParams.get('name'));
+      } else if (req.method === 'POST') {
+        await handleSaveHtmlBlock(req, res, url.searchParams.get('name'));
+      }
+      return;
+    }
+
+    if (pathname === '/api/html-blocks' && req.method === 'GET') {
+      await handleListHtmlBlocks(req, res);
       return;
     }
 
@@ -113,6 +175,11 @@ const server = http.createServer(async (req, res) => {
       } else if (req.method === 'POST') {
         await handleUploadFavicon(req, res);
       }
+      return;
+    }
+
+    if (pathname === '/api/favicon/manifest' && req.method === 'POST') {
+      await handleSaveFaviconManifest(req, res);
       return;
     }
 
@@ -203,6 +270,17 @@ function validateConfig(config) {
     return { valid: false, error: 'ИНН должен содержать 10-12 цифр' };
   }
 
+  if (config.recommendationCards && !Array.isArray(config.recommendationCards)) {
+    return { valid: false, error: 'recommendationCards должен быть массивом' };
+  }
+
+  if (Array.isArray(config.recommendationCards)) {
+    const invalid = config.recommendationCards.find(card => !card || typeof card.slug !== 'string');
+    if (invalid) {
+      return { valid: false, error: 'У каждой карточки рекомендаций должен быть slug' };
+    }
+  }
+
   return { valid: true };
 }
 
@@ -221,22 +299,9 @@ async function handleBuild(req, res) {
       // Определение команды
       // Используем process.execPath для гарантии той же версии Node.js
       const nodeExec = process.execPath;
-      let command;
-      switch (target) {
-        case 'free':
-          command = `"${nodeExec}" scripts/build.js --target=free`;
-          break;
-        case 'premium':
-          command = `"${nodeExec}" scripts/build.js --target=premium`;
-          break;
-        case 'recommendations':
-          command = `"${nodeExec}" scripts/build.js --target=recommendations`;
-          break;
-        case 'all':
-        default:
-          command = `"${nodeExec}" scripts/build.js`;
-          break;
-      }
+      const buildArg = target && target !== 'all' ? ` --target=${target}` : '';
+      // Прогоняем Vite, чтобы шаблоны были актуальными, затем основной сборщик
+      const command = `npm run build:assets && "${nodeExec}" scripts/build.js${buildArg}`;
 
       console.log(`[${new Date().toISOString()}] Запуск сборки: ${command}`);
 
@@ -244,7 +309,7 @@ async function handleBuild(req, res) {
       const output = execSync(command, {
         cwd: PROJECT_ROOT,
         encoding: 'utf8',
-        timeout: 60000, // 60 секунд таймаут
+        timeout: 120000, // Vite + билдер могут занимать больше времени
         stdio: ['pipe', 'pipe', 'pipe']
       });
 
@@ -267,6 +332,77 @@ async function handleBuild(req, res) {
       }));
     }
   });
+}
+
+function getLanIp() {
+  const nets = networkInterfaces();
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name] || []) {
+      if (net.family === 'IPv4' && !net.internal) {
+        return net.address;
+      }
+    }
+  }
+  return '127.0.0.1';
+}
+
+// Поднимает локальный preview-сервер на dist
+async function handlePreview(req, res) {
+  try {
+    // Останавливаем предыдущий, если есть
+    if (previewProcess && !previewProcess.killed) {
+      previewProcess.kill('SIGTERM');
+      previewProcess = null;
+    }
+
+    const host = '0.0.0.0';
+    const port = PREVIEW_DEFAULT_PORT;
+    const distPath = path.join(PROJECT_ROOT, 'dist');
+    const liveServerScript = path.join(PROJECT_ROOT, 'node_modules', 'live-server', 'live-server.js');
+    const args = [
+      liveServerScript,
+      distPath,
+      `--host=${host}`,
+      `--port=${port}`,
+      '--no-browser',
+      '--quiet'
+    ];
+
+    const child = spawn(process.execPath, args, {
+      cwd: PROJECT_ROOT,
+      env: {
+        ...process.env,
+        BUILD_PREVIEW_HOST: host,
+        BUILD_PREVIEW_PORT: port
+      },
+      stdio: 'ignore'
+    });
+
+    child.on('error', (error) => {
+      console.error('Preview start error:', error);
+    });
+    child.on('exit', () => {
+      previewProcess = null;
+    });
+
+    previewProcess = child;
+
+    const url = `http://${getLanIp()}:${port}/`;
+
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      success: true,
+      url,
+      message: `Превью поднято на ${url} (корень dist)`
+    }));
+  } catch (error) {
+    console.error('Preview start error:', error.message);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      success: false,
+      error: error.message
+    }));
+  }
 }
 
 // Загрузка файлов
@@ -366,29 +502,262 @@ function parseMultipart(buffer, boundary) {
   return parts;
 }
 
+function buildRecommendationMeta(filePath) {
+  const file = path.basename(filePath);
+  try {
+    const raw = fs.readFileSync(filePath, 'utf8');
+    const { data, body } = parseFrontMatter(raw);
+    const cleanedFrontMatter = normalizeFrontMatter(data);
+    const slug = cleanedFrontMatter.slug || slugify(file.replace(/^(\d+[-_]?)/, '').replace(/\.md$/, ''));
+    const titleFromFile = cleanedFrontMatter.title || extractH1(body) || slug;
+    const descriptionFromFile = cleanedFrontMatter.excerpt || cleanedFrontMatter.teaser || buildTeaserFromMarkdown(body);
+    const coverFromFile = cleanedFrontMatter.image || cleanedFrontMatter.cover || '';
+
+    return {
+      file,
+      slug,
+      titleFromFile,
+      descriptionFromFile,
+      coverFromFile
+    };
+  } catch (error) {
+    return {
+      file,
+      slug: slugify(file.replace(/\.md$/, '')),
+      titleFromFile: '',
+      descriptionFromFile: '',
+      coverFromFile: '',
+      error: error.message
+    };
+  }
+}
+
+function parseFrontMatter(markdown) {
+  const match = markdown.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+  if (!match) {
+    return { data: {}, body: markdown };
+  }
+
+  const frontMatter = match[1];
+  const body = match[2];
+  const data = {};
+
+  frontMatter.split('\n').forEach(line => {
+    const [key, ...valueParts] = line.split(':');
+    if (!key || valueParts.length === 0) return;
+    data[key.trim()] = stripQuotes(valueParts.join(':').trim());
+  });
+
+  return { data, body };
+}
+
+function normalizeFrontMatter(data) {
+  const normalized = {};
+  Object.entries(data || {}).forEach(([key, value]) => {
+    normalized[key] = typeof value === 'string' ? stripQuotes(value) : value;
+  });
+  return normalized;
+}
+
+function stripQuotes(value) {
+  if (typeof value !== 'string') return value;
+  const trimmed = value.trim();
+  const single = trimmed.match(/^'(.*)'$/);
+  const doubleQ = trimmed.match(/^"(.*)"$/);
+  if (single) return single[1];
+  if (doubleQ) return doubleQ[1];
+  return trimmed;
+}
+
+function slugify(text) {
+  return text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/[^\w\-]+/g, '')
+    .replace(/\-\-+/g, '-');
+}
+
+function extractH1(markdown) {
+  const match = markdown.match(/^#\s+(.*)$/m);
+  return match ? match[1] : null;
+}
+
+function buildTeaserFromMarkdown(markdown) {
+  const withoutHeadings = markdown.replace(/^#\s+.*$/m, '').trim();
+  const paragraphs = withoutHeadings.split(/\n{2,}/).map(p => p.replace(/^##?\s+/g, '').trim()).filter(Boolean);
+  const teaser = paragraphs.slice(0, 2).join(' ');
+  return teaser;
+}
+
 // Получение списка разделов
 async function handleGetSections(req, res) {
   try {
     const courseDir = path.join(PROJECT_ROOT, 'content', 'course');
     const recsDir = path.join(PROJECT_ROOT, 'content', 'recommendations');
+    const introDir = path.join(PROJECT_ROOT, 'content', 'intro');
+    const appendixDir = path.join(PROJECT_ROOT, 'content', 'appendix');
 
     const courseSections = fs.readdirSync(courseDir)
       .filter(f => f.endsWith('.md'))
       .sort();
 
-    const recommendations = fs.readdirSync(recsDir)
-      .filter(f => f.endsWith('.md'))
-      .sort();
+    const introSections = fs.existsSync(introDir)
+      ? fs.readdirSync(introDir).filter(f => f.endsWith('.md')).sort()
+      : [];
+
+    const appendixSections = fs.existsSync(appendixDir)
+      ? fs.readdirSync(appendixDir).filter(f => f.endsWith('.md')).sort()
+      : [];
+
+    const recommendations = fs.existsSync(recsDir)
+      ? fs.readdirSync(recsDir)
+        .filter(f => f.endsWith('.md'))
+        .sort()
+        .map(file => buildRecommendationMeta(path.join(recsDir, file)))
+      : [];
 
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
+      intro: introSections,
       course: courseSections,
+      appendix: appendixSections,
       recommendations: recommendations
     }));
   } catch (error) {
     res.writeHead(500, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'Ошибка чтения разделов: ' + error.message }));
   }
+}
+
+function loadPaywallConfig() {
+  try {
+    if (fs.existsSync(PAYWALL_CONFIG_PATH)) {
+      return JSON.parse(fs.readFileSync(PAYWALL_CONFIG_PATH, 'utf8')) || {};
+    }
+  } catch (error) {
+    console.warn('⚠️  Ошибка чтения paywall.json:', error.message);
+  }
+  return {};
+}
+
+function savePaywallConfig(config) {
+  fs.writeFileSync(PAYWALL_CONFIG_PATH, JSON.stringify(config, null, 2), 'utf8');
+}
+
+function getPaywallEntry(config, branch, slug) {
+  if (!config) return null;
+  const key = `${branch}/${slug}`;
+  const entry = config[key] || (config.entries && config.entries[key]);
+  if (!entry || typeof entry !== 'object') return null;
+
+  const normalized = {};
+  if (Number.isFinite(entry.openBlocks)) normalized.openBlocks = Number(entry.openBlocks);
+  if (Number.isFinite(entry.teaserBlocks)) normalized.teaserBlocks = Number(entry.teaserBlocks);
+  return Object.keys(normalized).length ? normalized : null;
+}
+
+async function handleGetPaywallConfig(req, res) {
+  try {
+    const config = loadPaywallConfig();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(config));
+  } catch (error) {
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Ошибка чтения paywall: ' + error.message }));
+  }
+}
+
+async function handleGetSectionContent(req, res, branch, file) {
+  try {
+    if (!branch || !file) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Не указан branch или file' }));
+      return;
+    }
+
+    const dir = path.resolve(PROJECT_ROOT, 'content', branch);
+    const fullPath = path.resolve(dir, file);
+    if (!fullPath.startsWith(dir)) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Некорректный путь файла' }));
+      return;
+    }
+    if (!fs.existsSync(fullPath)) {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Файл не найден' }));
+      return;
+    }
+
+    const raw = fs.readFileSync(fullPath, 'utf8');
+    const { data, body } = parseFrontMatter(raw);
+    const slug = data.slug || slugify(file.replace(/^(\d+[-_]?)/, '').replace(/\.md$/, ''));
+    const title = data.title || extractH1(body) || slug;
+
+    const paywallConfig = loadPaywallConfig();
+    const paywallEntry = getPaywallEntry(paywallConfig, branch, slug);
+    const paywallSegments = buildPaywallSegments(body, paywallEntry);
+    const blocksInfo = extractBlocks(body);
+
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      branch,
+      file,
+      slug,
+      title,
+      paywall: {
+        openBlocks: paywallSegments.openBlocks,
+        teaserBlocks: paywallSegments.teaserBlocks,
+        totalBlocks: paywallSegments.totalBlocks
+      },
+      blocks: blocksInfo.blocks,
+      totalBlocks: blocksInfo.totalBlocks,
+      openHtml: paywallSegments.openHtml,
+      teaserHtml: paywallSegments.teaserHtml
+    }));
+  } catch (error) {
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Ошибка чтения раздела: ' + error.message }));
+  }
+}
+
+async function handleSavePaywall(req, res) {
+  let body = '';
+  req.on('data', chunk => body += chunk.toString());
+  req.on('end', () => {
+    try {
+      const payload = JSON.parse(body || '{}');
+      const branch = payload.branch;
+      const file = payload.file;
+      const slugFromPayload = payload.slug;
+      const openBlocks = Number(payload.openBlocks);
+      const teaserBlocks = Number(payload.teaserBlocks ?? 3);
+
+      if (!branch || (!file && !slugFromPayload) || !Number.isFinite(openBlocks)) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Неверные данные paywall' }));
+        return;
+      }
+
+      const slug = slugFromPayload || slugify(String(file).replace(/^(\d+[-_]?)/, '').replace(/\.md$/, ''));
+      const config = loadPaywallConfig();
+      const key = `${branch}/${slug}`;
+      config[key] = {
+        openBlocks,
+        teaserBlocks: Number.isFinite(teaserBlocks) ? teaserBlocks : 3,
+        updatedAt: new Date().toISOString()
+      };
+
+      savePaywallConfig(config);
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, key }));
+    } catch (error) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Ошибка сохранения paywall: ' + error.message }));
+    }
+  });
 }
 
 // Получение HTML модального окна оплаты
@@ -435,6 +804,75 @@ async function handleSavePaymentModal(req, res) {
       res.end(JSON.stringify({ error: 'Ошибка сохранения: ' + error.message }));
     }
   });
+}
+
+// Получение произвольного HTML-блока (из разрешенного списка)
+async function handleGetHtmlBlock(req, res, name) {
+  try {
+    const block = HTML_BLOCKS[name];
+    if (!block) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Неизвестный блок' }));
+      return;
+    }
+    const content = fs.readFileSync(block.path, 'utf8');
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end(content);
+  } catch (error) {
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Ошибка чтения блока: ' + error.message }));
+  }
+}
+
+// Сохранение произвольного HTML-блока (из разрешенного списка)
+async function handleSaveHtmlBlock(req, res, name) {
+  let body = '';
+
+  req.on('data', chunk => {
+    body += chunk.toString();
+  });
+
+  req.on('end', () => {
+    try {
+      const block = HTML_BLOCKS[name];
+      if (!block) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Неизвестный блок' }));
+        return;
+      }
+
+      // Создание бэкапа
+      const backupPath = block.path + '.' + new Date().toISOString().replace(/[:.]/g, '-') + '.backup';
+      if (fs.existsSync(block.path)) {
+        fs.copyFileSync(block.path, backupPath);
+      }
+
+      fs.writeFileSync(block.path, body, 'utf8');
+
+      console.log(`[${new Date().toISOString()}] HTML блок "${name}" сохранен`);
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, backup: path.basename(backupPath) }));
+    } catch (error) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Ошибка сохранения блока: ' + error.message }));
+    }
+  });
+}
+
+async function handleListHtmlBlocks(req, res) {
+  try {
+    const blocks = Object.entries(HTML_BLOCKS).map(([key, value]) => ({
+      name: key,
+      label: value.label,
+      path: value.path.replace(PROJECT_ROOT, '').replace(/^\/+/, '')
+    }));
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(blocks));
+  } catch (error) {
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Ошибка получения списка блоков: ' + error.message }));
+  }
 }
 
 // SEO данные - путь к файлу хранения
@@ -670,32 +1108,196 @@ async function handleLoadSeoData(req, res) {
 const FAVICON_CONFIG_PATH = path.join(PROJECT_ROOT, 'config', 'favicon.json');
 const FAVICON_DIR = path.join(ADMIN_DIR, 'assets');
 const DEFAULT_FAVICON = 'favicon.svg';
+const REQUIRED_FAVICON_FILES = [
+  'favicon.svg',
+  'favicon.ico',
+  'favicon-16x16.png',
+  'favicon-32x32.png',
+  'apple-touch-icon.png',
+  'android-chrome-192x192.png',
+  'android-chrome-512x512.png'
+];
+
+const DEFAULT_MANIFEST = {
+  name: 'Site',
+  short_name: 'Site',
+  start_url: '/',
+  display: 'standalone',
+  background_color: '#ffffff',
+  theme_color: '#ffffff',
+  icons: [
+    { src: '/assets/android-chrome-192x192.png', sizes: '192x192', type: 'image/png' },
+    { src: '/assets/android-chrome-512x512.png', sizes: '512x512', type: 'image/png' }
+  ]
+};
+
+function loadFaviconConfig() {
+  try {
+    if (fs.existsSync(FAVICON_CONFIG_PATH)) {
+      const parsed = JSON.parse(fs.readFileSync(FAVICON_CONFIG_PATH, 'utf8'));
+      const manifest = Object.assign({}, DEFAULT_MANIFEST, parsed.manifest || {});
+      return {
+        filename: parsed.filename || parsed.primary || DEFAULT_FAVICON,
+        files: parsed.files || {},
+        originalNames: parsed.originalNames || {},
+        manifest
+      };
+    }
+  } catch (error) {
+    console.warn('⚠️  Ошибка чтения favicon.json:', error.message);
+  }
+  return {
+    filename: DEFAULT_FAVICON,
+    files: {},
+    originalNames: {},
+    manifest: { ...DEFAULT_MANIFEST }
+  };
+}
+
+function saveFaviconConfig(config) {
+  const normalized = {
+    filename: config.filename || DEFAULT_FAVICON,
+    files: config.files || {},
+    originalNames: config.originalNames || {},
+    manifest: Object.assign({}, DEFAULT_MANIFEST, config.manifest || {}),
+    updatedAt: new Date().toISOString()
+  };
+  fs.writeFileSync(FAVICON_CONFIG_PATH, JSON.stringify(normalized, null, 2), 'utf8');
+}
+
+function normalizeFaviconTarget(originalName) {
+  const lower = (originalName || '').toLowerCase();
+  if (lower.includes('apple-touch')) return 'apple-touch-icon.png';
+  if (lower.includes('512')) return 'android-chrome-512x512.png';
+  if (lower.includes('192')) return 'android-chrome-192x192.png';
+  if (lower.includes('32')) return 'favicon-32x32.png';
+  if (lower.includes('16')) return 'favicon-16x16.png';
+  if (lower.endsWith('.ico')) return 'favicon.ico';
+  if (lower.endsWith('.svg')) return 'favicon.svg';
+  if (lower.includes('favicon')) return 'favicon-32x32.png';
+  return null;
+}
+
+function ensureDirSync(dirPath) {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+}
+
+function copyFaviconFile(targetName, buffer) {
+  ensureDirSync(FAVICON_DIR);
+  ensureDirSync(path.join(PROJECT_ROOT, 'src', 'assets'));
+  fs.writeFileSync(path.join(FAVICON_DIR, targetName), buffer);
+  fs.writeFileSync(path.join(PROJECT_ROOT, 'src', 'assets', targetName), buffer);
+}
+
+function collectFaviconStatus() {
+  const config = loadFaviconConfig();
+  const files = {};
+  const existingSet = new Set();
+
+  for (const name of REQUIRED_FAVICON_FILES) {
+    const exists = fs.existsSync(path.join(PROJECT_ROOT, 'src', 'assets', name)) ||
+      fs.existsSync(path.join(FAVICON_DIR, name));
+    if (exists) existingSet.add(name);
+    files[name] = {
+      exists,
+      path: `/assets/${name}`,
+      originalName: config.originalNames?.[name] || name
+    };
+  }
+
+  if (config.filename && !files[config.filename]) {
+    const exists = fs.existsSync(path.join(PROJECT_ROOT, 'src', 'assets', config.filename)) ||
+      fs.existsSync(path.join(FAVICON_DIR, config.filename));
+    if (exists) existingSet.add(config.filename);
+    files[config.filename] = {
+      exists,
+      path: `/assets/${config.filename}`,
+      originalName: config.originalNames?.[config.filename] || config.filename
+    };
+  }
+
+  const manifestIcons = (config.manifest?.icons && Array.isArray(config.manifest.icons))
+    ? config.manifest.icons
+    : DEFAULT_MANIFEST.icons;
+
+  const filteredIcons = manifestIcons
+    .filter(icon => icon && icon.src)
+    .map(icon => {
+      const cleanSrc = icon.src.replace(/^\/+/, '');
+      const filename = cleanSrc.replace(/^assets\//, '');
+      const exists = existingSet.has(filename);
+      return {
+        src: icon.src.startsWith('/') ? icon.src : `/${icon.src}`,
+        sizes: icon.sizes,
+        type: icon.type,
+        exists
+      };
+    })
+    .filter(icon => icon.exists);
+
+  const manifest = Object.assign({}, DEFAULT_MANIFEST, config.manifest || {});
+  manifest.icons = filteredIcons.length > 0 ? filteredIcons : DEFAULT_MANIFEST.icons;
+
+  const primary = config.filename || DEFAULT_FAVICON;
+  const primaryPath = `/assets/${primary}`;
+  const htmlSnippet = buildFaviconHtmlSnippet({
+    primary,
+    manifest,
+    files
+  });
+
+  return {
+    filename: primary,
+    path: primaryPath,
+    isDefault: primary === DEFAULT_FAVICON,
+    files,
+    manifest,
+    htmlSnippet
+  };
+}
+
+function buildFaviconHtmlSnippet({ primary, manifest, files }) {
+  const lines = [];
+  const ext = path.extname(primary).toLowerCase();
+  const type = ext === '.svg' ? 'image/svg+xml' : ext === '.ico' ? 'image/x-icon' : 'image/png';
+
+  lines.push(`<link rel="icon" type="${type}" href="/assets/${primary}">`);
+
+  if (files?.['favicon-32x32.png']?.exists) {
+    lines.push('<link rel="alternate icon" href="/assets/favicon-32x32.png" sizes="32x32">');
+  }
+  if (files?.['favicon-16x16.png']?.exists) {
+    lines.push('<link rel="alternate icon" href="/assets/favicon-16x16.png" sizes="16x16">');
+  }
+  if (files?.['apple-touch-icon.png']?.exists) {
+    lines.push('<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">');
+  }
+
+  if (manifest) {
+    lines.push('<link rel="manifest" href="/assets/site.webmanifest">');
+    if (manifest.theme_color) {
+      lines.push(`<meta name="theme-color" content="${manifest.theme_color}">`);
+    }
+  }
+
+  return lines.join('\n');
+}
 
 // Получение информации о текущем favicon
 async function handleGetFavicon(req, res) {
   try {
-    let faviconInfo = { path: '/assets/favicon.svg', filename: 'favicon.svg (по умолчанию)', isDefault: true };
-
-    if (fs.existsSync(FAVICON_CONFIG_PATH)) {
-      const config = JSON.parse(fs.readFileSync(FAVICON_CONFIG_PATH, 'utf8'));
-      if (config.filename && config.filename !== DEFAULT_FAVICON) {
-        faviconInfo = {
-          path: `/assets/${config.filename}`,
-          filename: config.filename,
-          isDefault: false
-        };
-      }
-    }
-
+    const status = collectFaviconStatus();
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(faviconInfo));
+    res.end(JSON.stringify(status));
   } catch (error) {
     res.writeHead(500, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'Ошибка: ' + error.message }));
   }
 }
 
-// Загрузка нового favicon
+// Загрузка нового favicon набора
 async function handleUploadFavicon(req, res) {
   const contentType = req.headers['content-type'] || '';
 
@@ -719,58 +1321,91 @@ async function handleUploadFavicon(req, res) {
     try {
       const buffer = Buffer.concat(chunks);
       const parts = parseMultipart(buffer, boundary);
+      const uploaded = [];
+      const originalNames = {};
+      const config = loadFaviconConfig();
 
       for (const part of parts) {
-        if (part.filename && part.name === 'favicon') {
-          // Проверяем расширение
-          const ext = path.extname(part.filename).toLowerCase();
-          if (!['.svg', '.png', '.ico'].includes(ext)) {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Поддерживаются только .svg, .png, .ico' }));
-            return;
-          }
+        if (!part.filename) continue;
+        const target = normalizeFaviconTarget(part.filename);
+        if (!target) continue;
 
-          // Создаем директорию если нет
-          if (!fs.existsSync(FAVICON_DIR)) {
-            fs.mkdirSync(FAVICON_DIR, { recursive: true });
-          }
-
-          // Сохраняем файл с уникальным именем
-          const filename = 'custom-favicon' + ext;
-          const filePath = path.join(FAVICON_DIR, filename);
-          fs.writeFileSync(filePath, part.data);
-
-          // Также копируем в src/assets для билда
-          const srcAssetsDir = path.join(PROJECT_ROOT, 'src', 'assets');
-          if (!fs.existsSync(srcAssetsDir)) {
-            fs.mkdirSync(srcAssetsDir, { recursive: true });
-          }
-          fs.writeFileSync(path.join(srcAssetsDir, filename), part.data);
-
-          // Сохраняем конфиг
-          fs.writeFileSync(FAVICON_CONFIG_PATH, JSON.stringify({
-            filename: filename,
-            originalName: part.filename,
-            uploadedAt: new Date().toISOString()
-          }, null, 2), 'utf8');
-
-          console.log(`[${new Date().toISOString()}] Favicon загружен: ${filename}`);
-
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({
-            success: true,
-            path: `/assets/${filename}`,
-            filename: part.filename
-          }));
-          return;
+        const ext = path.extname(target).toLowerCase();
+        if (!['.svg', '.png', '.ico'].includes(ext)) {
+          continue;
         }
+
+        copyFaviconFile(target, part.data);
+        uploaded.push(target);
+        originalNames[target] = part.filename;
       }
 
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Файл favicon не найден в запросе' }));
+      if (uploaded.length === 0) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Файлы favicon не распознаны. Используйте стандартные имена (favicon.svg, favicon.ico, favicon-32x32.png, favicon-16x16.png, apple-touch-icon.png, android-chrome-192x192.png, android-chrome-512x512.png)' }));
+        return;
+      }
+
+      // Обновляем конфиг
+      config.files = Object.assign({}, config.files, uploaded.reduce((acc, name) => {
+        acc[name] = name;
+        return acc;
+      }, {}));
+      config.originalNames = Object.assign({}, config.originalNames, originalNames);
+
+      if (uploaded.includes('favicon.svg')) {
+        config.filename = 'favicon.svg';
+      } else if (uploaded.includes('favicon.ico')) {
+        config.filename = 'favicon.ico';
+      }
+
+      // Гарантируем наличие дефолтного манифеста
+      config.manifest = Object.assign({}, DEFAULT_MANIFEST, config.manifest || {});
+      saveFaviconConfig(config);
+
+      console.log(`[${new Date().toISOString()}] Favicon файлы загружены: ${uploaded.join(', ')}`);
+
+      const status = collectFaviconStatus();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        success: true,
+        uploaded,
+        status
+      }));
     } catch (error) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Ошибка загрузки: ' + error.message }));
+    }
+  });
+}
+
+// Сохранение манифеста (name, theme_color и т.п.)
+async function handleSaveFaviconManifest(req, res) {
+  let body = '';
+  req.on('data', chunk => body += chunk.toString());
+  req.on('end', () => {
+    try {
+      const payload = JSON.parse(body || '{}');
+      const manifest = payload.manifest || payload;
+      const config = loadFaviconConfig();
+
+      config.manifest = Object.assign({}, DEFAULT_MANIFEST, config.manifest || {}, {
+        name: manifest.name || config.manifest.name,
+        short_name: manifest.short_name || manifest.shortName || config.manifest.short_name,
+        start_url: manifest.start_url || manifest.startUrl || config.manifest.start_url,
+        display: manifest.display || config.manifest.display,
+        background_color: manifest.background_color || manifest.backgroundColor || config.manifest.background_color,
+        theme_color: manifest.theme_color || manifest.themeColor || config.manifest.theme_color
+      });
+
+      saveFaviconConfig(config);
+      const status = collectFaviconStatus();
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, status }));
+    } catch (error) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Ошибка сохранения манифеста: ' + error.message }));
     }
   });
 }
@@ -784,7 +1419,14 @@ async function handleResetFavicon(req, res) {
     }
 
     // Удаляем кастомные favicon файлы
-    const customFiles = ['custom-favicon.svg', 'custom-favicon.png', 'custom-favicon.ico'];
+    const customFiles = new Set([
+      ...REQUIRED_FAVICON_FILES,
+      'custom-favicon.svg',
+      'custom-favicon.png',
+      'custom-favicon.ico',
+      'site.webmanifest'
+    ]);
+
     for (const file of customFiles) {
       const adminPath = path.join(FAVICON_DIR, file);
       const srcPath = path.join(PROJECT_ROOT, 'src', 'assets', file);

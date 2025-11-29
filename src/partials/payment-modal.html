@@ -2,8 +2,6 @@
 <div class="modal" id="cta-payment-modal" role="dialog" aria-modal="true" aria-labelledby="payment-modal-title">
     <div class="modal-overlay" onclick="closeCTAModal()"></div>
     <div class="modal-content">
-        <button class="modal-close" type="button" onclick="closeCTAModal()" aria-label="Закрыть">×</button>
-
         <h2 id="payment-modal-title" class="modal-title">Получите полный доступ к курсу</h2>
 
         <ul class="modal-benefits">
@@ -14,8 +12,8 @@
         </ul>
 
         <p class="modal-price">
-            <span class="price-old">1990 ₽</span>
-            <span class="price-current">990 ₽</span>
+            <span class="price-old">__PRICE_ORIGINAL__</span>
+            <span class="price-current">__PRICE_CURRENT__</span>
         </p>
 
         <div id="payment-error" style="display: none;" role="alert"></div>
@@ -34,7 +32,7 @@
             </label>
 
             <button type="submit" class="modal-submit">
-                Оплатить 990 ₽
+                Оплатить __PRICE_CURRENT__
             </button>
         </form>
 
@@ -42,4 +40,5 @@
             🔒 Безопасная оплата через Robokassa
         </p>
     </div>
+    <button class="modal-close" type="button" onclick="closeCTAModal()" aria-label="Закрыть">×</button>
 </div>

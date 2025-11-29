@@ -11,6 +11,11 @@ import('../script.js').catch((err) => {
 // Импортируем и инициализируем CTA для free версии
 import { initCta } from '../cta.js';
 import { initModalsLogic } from '../js/modals-logic.js';
+import { initCookieBanner } from '../js/cookie-banner.js';
+import '../legal-modals.js';
+
+// Флаг для dev-бейпаса логина (в проде всегда false)
+window.__DEV_LOGIN_BYPASS__ = import.meta.env.DEV;
 
 // Устанавливаем флаг версии
 window.__APP_VERSION__ = 'free';
@@ -19,5 +24,7 @@ window.__APP_VERSION__ = 'free';
 initCta();
 // Инициализируем логику модальных окон
 initModalsLogic();
+// Инициализируем куки баннер
+initCookieBanner();
 
 console.log('[App] Free version initialized');

@@ -6,6 +6,7 @@ const createDOMPurify = require('dompurify');
 const { JSDOM } = require('jsdom');
 const { minify: minifyJS } = require('terser');
 const csso = require('csso');
+const { buildPaywallSegments } = require('./paywall');
 
 let cachedHeadScriptsPartial = null;
 
@@ -20,6 +21,7 @@ const PATHS = {
     premiumAssets: path.resolve(__dirname, '../../dist/premium/assets'),
     recommendations: path.resolve(__dirname, '../../dist/recommendations'),
     shared: path.resolve(__dirname, '../../dist/shared'),
+    sharedLegal: path.resolve(__dirname, '../../dist/shared/legal'),
     modeUtils: path.resolve(__dirname, '../../src/js/mode-utils.js'),
     assets: path.resolve(__dirname, '../../dist/assets'),
     contentAssets: path.resolve(__dirname, '../../dist/assets/content'),
@@ -30,8 +32,10 @@ const PATHS = {
   config: {
     site: path.resolve(__dirname, '../../config/site.json'),
     seo: path.resolve(__dirname, '../../config/seo-data.json'),
-    favicon: path.resolve(__dirname, '../../config/favicon.json')
+    favicon: path.resolve(__dirname, '../../config/favicon.json'),
+    paywall: path.resolve(__dirname, '../../config/paywall.json')
   },
+  srcAssets: path.resolve(__dirname, '../../src/assets'),
   server: {
     root: path.resolve(__dirname, '../../server'),
     files: [
@@ -71,23 +75,103 @@ let cachedSeoData = null;
 
 // Кэш favicon конфига
 let cachedFaviconConfig = null;
+let cachedPaywallConfig = null;
+const REQUIRED_FAVICON_FILES = [
+  'favicon.svg',
+  'favicon.ico',
+  'favicon-16x16.png',
+  'favicon-32x32.png',
+  'apple-touch-icon.png',
+  'android-chrome-192x192.png',
+  'android-chrome-512x512.png'
+];
+const DEFAULT_MANIFEST = {
+  name: 'Site',
+  short_name: 'Site',
+  start_url: '/',
+  display: 'standalone',
+  background_color: '#ffffff',
+  theme_color: '#ffffff',
+  icons: [
+    { src: '/assets/android-chrome-192x192.png', sizes: '192x192', type: 'image/png' },
+    { src: '/assets/android-chrome-512x512.png', sizes: '512x512', type: 'image/png' }
+  ]
+};
+
+/**
+ * Получает favicon конфиг с дефолтами
+ */
+function loadFaviconConfig() {
+  if (cachedFaviconConfig !== null) {
+    return cachedFaviconConfig;
+  }
+
+  try {
+    if (fs.existsSync(PATHS.config.favicon)) {
+      const parsed = JSON.parse(fs.readFileSync(PATHS.config.favicon, 'utf8'));
+      cachedFaviconConfig = {
+        filename: parsed.filename || parsed.primary || 'favicon.svg',
+        files: parsed.files || {},
+        originalNames: parsed.originalNames || {},
+        manifest: Object.assign({}, DEFAULT_MANIFEST, parsed.manifest || {})
+      };
+      return cachedFaviconConfig;
+    }
+  } catch (e) {
+    console.warn('⚠️  Ошибка чтения favicon.json, используется дефолт:', e.message);
+  }
+
+  cachedFaviconConfig = {
+    filename: 'favicon.svg',
+    files: {},
+    originalNames: {},
+    manifest: { ...DEFAULT_MANIFEST }
+  };
+  return cachedFaviconConfig;
+}
 
 /**
  * Получает текущий файл favicon из конфига
  */
 function getFaviconFilename() {
-  if (cachedFaviconConfig === null) {
-    try {
-      if (fs.existsSync(PATHS.config.favicon)) {
-        cachedFaviconConfig = JSON.parse(fs.readFileSync(PATHS.config.favicon, 'utf8'));
-      } else {
-        cachedFaviconConfig = {};
-      }
-    } catch (e) {
-      cachedFaviconConfig = {};
-    }
+  const config = loadFaviconConfig();
+  return config.filename || 'favicon.svg';
+}
+
+function getFaviconManifest() {
+  const config = loadFaviconConfig();
+  return Object.assign({}, DEFAULT_MANIFEST, config.manifest || {});
+}
+
+function loadPaywallConfig() {
+  if (cachedPaywallConfig !== null) {
+    return cachedPaywallConfig;
   }
-  return cachedFaviconConfig.filename || 'favicon.svg';
+
+  try {
+    if (fs.existsSync(PATHS.config.paywall)) {
+      cachedPaywallConfig = JSON.parse(fs.readFileSync(PATHS.config.paywall, 'utf8')) || {};
+    } else {
+      cachedPaywallConfig = {};
+    }
+  } catch (error) {
+    console.warn('⚠️  Ошибка чтения paywall.json, используется автосплит:', error.message);
+    cachedPaywallConfig = {};
+  }
+
+  return cachedPaywallConfig;
+}
+
+function getPaywallEntry(config, branch, slug) {
+  if (!config) return null;
+  const key = `${branch}/${slug}`;
+  const entry = config[key] || (config.entries && config.entries[key]);
+  if (!entry || typeof entry !== 'object') return null;
+
+  const result = {};
+  if (Number.isFinite(entry.openBlocks)) result.openBlocks = Number(entry.openBlocks);
+  if (Number.isFinite(entry.teaserBlocks)) result.teaserBlocks = Number(entry.teaserBlocks);
+  return Object.keys(result).length ? result : null;
 }
 
 /**
@@ -115,6 +199,7 @@ const DEFAULT_SITE_CONFIG = {
     currentAmount: 990,
     currency: 'RUB'
   },
+  recommendationCards: [],
   ctaTexts: {
     enterFull: 'Войти в полную версию',
     next: 'Далее',
@@ -201,6 +286,7 @@ async function buildFree() {
   } catch (error) {
     throw new Error(`Ошибка загрузки контента: ${error.message}`);
   }
+  const legalMap = buildLegalSlugMap(content, config);
 
   // Загружаем Vite manifest
   const manifest = loadViteManifest();
@@ -215,11 +301,11 @@ async function buildFree() {
 
   try {
     await ensureDir(PATHS.dist.root);
-    // Очищаем только course и legal директории, не весь dist
+    // Очищаем только course и shared/legal директории, не весь dist
     await cleanDir(PATHS.dist.course);
-    await cleanDir(PATHS.dist.legal);
+    await cleanDir(PATHS.dist.sharedLegal);
     await ensureDir(PATHS.dist.course);
-    await ensureDir(PATHS.dist.legal);
+    await ensureDir(PATHS.dist.sharedLegal);
   } catch (error) {
     throw new Error(`Ошибка подготовки директорий: ${error.message}`);
   }
@@ -237,24 +323,30 @@ async function buildFree() {
     // Определяем URL первой страницы курса для навигации с intro
     const firstCourse = content.course[0];
     const nextUrl = firstCourse ? `/course/${firstCourse.slug}.html` : '';
-    const page = buildIntroPage(intro, menuHtml, config, introTemplate, 'free', nextUrl);
+    const page = buildIntroPage(intro, menuHtml, config, introTemplate, 'free', nextUrl, legalMap);
     const targetPath = path.join(PATHS.dist.root, 'index.html');
     await fsp.writeFile(targetPath, page, 'utf8');
     break;
   }
 
   for (const course of content.course) {
-    const page = buildFreeCoursePage(course, menuHtml, config, template);
+    const page = buildFreeCoursePage(course, menuHtml, config, template, legalMap);
     const targetPath = path.join(PATHS.dist.course, `${course.slug}.html`);
     await ensureDir(path.dirname(targetPath));
     await fsp.writeFile(targetPath, page, 'utf8');
   }
 
   for (const legal of content.legal) {
-    const page = buildLegalPage(legal, menuHtml, config, template, 'free');
-    const targetPath = path.join(PATHS.dist.legal, `${legal.slug}.html`);
+    // Генерируем полную страницу (для прямых ссылок)
+    const page = buildLegalPage(legal, menuHtml, config, template, 'free', legalMap);
+    const targetPath = path.join(PATHS.dist.sharedLegal, `${legal.slug}.html`);
     await ensureDir(path.dirname(targetPath));
     await fsp.writeFile(targetPath, page, 'utf8');
+
+    // Генерируем только контент для модалки (без шаблона)
+    const contentOnly = buildLegalContentFragment(legal);
+    const fragmentPath = path.join(PATHS.dist.sharedLegal, `${legal.slug}-content.html`);
+    await fsp.writeFile(fragmentPath, contentOnly, 'utf8');
   }
 
   // Генерация SEO файлов
@@ -266,6 +358,7 @@ async function buildPremium() {
   const config = await loadSiteConfig();
   const contentAssets = new Map();
   const content = await loadContent(config.build.wordsPerMinute, contentAssets);
+  const legalMap = buildLegalSlugMap(content, config);
 
   const manifest = loadViteManifest();
   const template = await readTemplate('premium', manifest);
@@ -290,7 +383,7 @@ async function buildPremium() {
     const prevUrl = prevItem ? getPremiumUrlForItem(prevItem) : null;
     const nextUrl = nextItem ? getPremiumUrlForItem(nextItem) : null;
 
-    const page = buildPremiumContentPage(item, menuHtml, config, template, { prevUrl, nextUrl });
+    const page = buildPremiumContentPage(item, menuHtml, config, template, { prevUrl, nextUrl }, legalMap);
     const targetPath = getPremiumPathForItem(item, PATHS.dist.premium);
 
     await ensureDir(path.dirname(targetPath));
@@ -318,14 +411,16 @@ function getPremiumPathForItem(item, root) {
   }
 }
 
-function buildPremiumContentPage(item, menuHtml, config, template, { prevUrl, nextUrl }) {
-  return buildPremiumPage(item, menuHtml, config, template, { prevUrl, nextUrl });
+function buildPremiumContentPage(item, menuHtml, config, template, { prevUrl, nextUrl }, legalMap = {}) {
+  return buildPremiumPage(item, menuHtml, config, template, { prevUrl, nextUrl }, legalMap);
 }
 
 async function buildRecommendations() {
   const config = await loadSiteConfig();
   const contentAssets = new Map();
   const content = await loadContent(config.build.wordsPerMinute, contentAssets);
+  const legalMap = buildLegalSlugMap(content, config);
+  const recommendationCards = Array.isArray(config.recommendationCards) ? config.recommendationCards : [];
 
   const manifest = loadViteManifest();
   const template = await readTemplate('recommendations', manifest);
@@ -339,13 +434,21 @@ async function buildRecommendations() {
   await cleanDir(PATHS.dist.recommendations);
   await ensureDir(PATHS.dist.recommendations);
 
-  const recommendations = content.recommendations.map(rec => ({
-    slug: rec.slug,
-    title: rec.title,
-    excerpt: rec.excerpt,
-    readingTimeMinutes: rec.readingTimeMinutes,
-    url: `/recommendations/${rec.slug}.html`
-  }));
+  const recommendations = content.recommendations.map(rec => {
+    const override = recommendationCards.find(card => card.slug === rec.slug);
+    const title = (override?.title || rec.title || '').trim();
+    const description = (override?.description || rec.excerpt || '').trim();
+    const cover = normalizeCoverValue(override?.cover) || normalizeCoverValue(rec.frontMatter?.image);
+
+    return {
+      slug: rec.slug,
+      title: title || rec.slug,
+      excerpt: description || rec.excerpt || '',
+      cover: cover || undefined,
+      readingTimeMinutes: rec.readingTimeMinutes,
+      url: `/recommendations/${rec.slug}.html`
+    };
+  });
 
   await fsp.writeFile(
     path.join(PATHS.dist.shared, 'recommendations.json'),
@@ -354,7 +457,7 @@ async function buildRecommendations() {
   );
 
   for (const rec of content.recommendations) {
-    const page = buildRecommendationPage(rec, menuHtml, config, template, 'free');
+    const page = buildRecommendationPage(rec, menuHtml, config, template, 'free', legalMap);
     const targetPath = path.join(PATHS.dist.recommendations, `${rec.slug}.html`);
     await fsp.writeFile(targetPath, page, 'utf8');
   }
@@ -571,7 +674,66 @@ function ensureInlineModeUtils(document) {
   }
 }
 
-function applyTemplate(template, { title, body, menu, meta = '', schema = '', seoTitle = '' }) {
+function currencySymbol(code) {
+  const upper = (code || '').toUpperCase();
+  switch (upper) {
+    case 'RUB':
+    case 'RUR':
+      return '₽';
+    case 'USD':
+      return '$';
+    case 'EUR':
+      return '€';
+    default:
+      return upper || '';
+  }
+}
+
+function formatPrice(amount, currencyCode = 'RUB') {
+  const num = Number(amount);
+  if (!Number.isFinite(num)) return '';
+
+  try {
+    return new Intl.NumberFormat('ru-RU', {
+      style: 'currency',
+      currency: currencyCode,
+      maximumFractionDigits: 0
+    }).format(num);
+  } catch (error) {
+    const symbol = currencySymbol(currencyCode);
+    return `${num.toLocaleString('ru-RU')} ${symbol}`.trim();
+  }
+}
+
+function replacePlaceholder(html, token, value) {
+  if (!html || !token) return html;
+  const replacement = value == null ? '' : String(value);
+  return html.split(token).join(replacement);
+}
+
+function injectTextBoxAttributes(html, { buttonText, nextPage }) {
+  const marker = 'class="text-box"';
+  if (!html.includes(marker)) return html;
+
+  const hasButton = /data-button-text=/.test(html);
+  const hasNext = /data-next-page=/.test(html);
+  const attrs = [];
+
+  if (buttonText && !hasButton) {
+    attrs.push(`data-button-text="${escapeAttr(buttonText)}"`);
+  }
+  if (nextPage && !hasNext) {
+    attrs.push(`data-next-page="${escapeAttr(nextPage)}"`);
+  }
+
+  if (attrs.length === 0) {
+    return html;
+  }
+
+  return html.replace(marker, `${marker} ${attrs.join(' ')}`);
+}
+
+function applyTemplate(template, { title, body, menu, meta = '', schema = '', seoTitle = '', features = {}, config = {}, legalMap = {}, buttonText = '', nextPage = '' }) {
   // Используем SEO title если задан, иначе обычный title
   const finalTitle = seoTitle || title;
 
@@ -580,21 +742,16 @@ function applyTemplate(template, { title, body, menu, meta = '', schema = '', se
     .replace('{{body}}', body)
     .replace('{{menu}}', menu || '');
 
-  // Добавляем favicon если его нет
-  if (!result.includes('rel="icon"')) {
-    const faviconFile = getFaviconFilename();
-    const faviconExt = path.extname(faviconFile).toLowerCase();
-    const faviconType = faviconExt === '.svg' ? 'image/svg+xml' :
-      faviconExt === '.png' ? 'image/png' : 'image/x-icon';
-    const faviconLinks = `
-  <link rel="icon" type="${faviconType}" href="/assets/${faviconFile}">
-  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">`;
-    result = result.replace('</head>', `${faviconLinks}\n  </head>`);
-  }
+  result = injectFaviconMeta(result);
 
   // Вставляем мета-теги перед закрывающим </head>
   if (meta) {
     result = result.replace('</head>', `${meta}\n  </head>`);
+  }
+
+  // Отключение баннера cookies по флагу
+  if (features && features.cookiesBannerEnabled === false) {
+    result = result.replace('</head>', `  <style>#cookie-banner{display:none !important;}</style>\n  <script>window.COOKIE_BANNER_DISABLED=true;</script>\n  </head>`);
   }
 
   // Вставляем Schema.org перед закрывающим </body>
@@ -602,22 +759,164 @@ function applyTemplate(template, { title, body, menu, meta = '', schema = '', se
     result = result.replace('</body>', `  ${schema}\n  </body>`);
   }
 
+  // Текст кнопки/nextPage для прогресс-виджета
+  result = injectTextBoxAttributes(result, { buttonText, nextPage });
+  if (nextPage && !/data-next-page=/.test(result)) {
+    result = result.replace('<body', `<body data-next-page="${escapeAttr(nextPage)}"`);
+  }
+
+  // Подстановка цен и футера из конфига
+  const pricing = config.pricing || {};
+  const footer = config.footer || {};
+
+  const priceOriginal = formatPrice(pricing.originalAmount, pricing.currency);
+  const priceCurrent = formatPrice(pricing.currentAmount, pricing.currency);
+  const footerCompany = footer.companyName || DEFAULT_SITE_CONFIG.footer.companyName;
+  const footerInn = footer.inn || DEFAULT_SITE_CONFIG.footer.inn;
+  const footerYear = footer.year || new Date().getFullYear();
+
+  result = replacePlaceholder(result, '__PRICE_ORIGINAL__', escapeAttr(priceOriginal));
+  result = replacePlaceholder(result, '__PRICE_CURRENT__', escapeAttr(priceCurrent));
+  result = replacePlaceholder(result, '__FOOTER_COMPANY__', escapeAttr(footerCompany));
+  result = replacePlaceholder(result, '__FOOTER_INN__', escapeAttr(footerInn));
+  result = replacePlaceholder(result, '__FOOTER_YEAR__', escapeAttr(footerYear));
+
+  // Прокидываем карту slug'ов для legal модалок
+  if (legalMap && Object.keys(legalMap).length > 0) {
+    const legalMapJson = JSON.stringify(legalMap);
+    result = result.replace('</head>', `  <script>window.LEGAL_SLUG_MAP = ${legalMapJson};</script>\n  </head>`);
+  }
+
   // Vite assets уже там, так как мы берем шаблон из dist
 
   return result;
 }
 
+function collectFaviconFilesStatus() {
+  const config = loadFaviconConfig();
+  const files = {};
+
+  for (const name of REQUIRED_FAVICON_FILES) {
+    const exists = fs.existsSync(path.join(PATHS.srcAssets, name));
+    files[name] = { exists, path: `/assets/${name}` };
+  }
+
+  return {
+    primary: config.filename || 'favicon.svg',
+    manifest: getFaviconManifest(),
+    files
+  };
+}
+
+function buildFaviconHtmlSnippetForTemplate(status) {
+  const { primary, manifest, files } = status;
+  const lines = [];
+  const ext = path.extname(primary).toLowerCase();
+  const type = ext === '.svg' ? 'image/svg+xml' : ext === '.ico' ? 'image/x-icon' : 'image/png';
+
+  lines.push(`<link rel="icon" type="${type}" href="/assets/${primary}">`);
+
+  if (files['favicon-32x32.png']?.exists) {
+    lines.push('<link rel="alternate icon" href="/assets/favicon-32x32.png" sizes="32x32">');
+  }
+  if (files['favicon-16x16.png']?.exists) {
+    lines.push('<link rel="alternate icon" href="/assets/favicon-16x16.png" sizes="16x16">');
+  }
+  if (files['apple-touch-icon.png']?.exists) {
+    lines.push('<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">');
+  }
+
+  if (manifest) {
+    lines.push('<link rel="manifest" href="/assets/site.webmanifest">');
+    if (manifest.theme_color) {
+      lines.push(`<meta name="theme-color" content="${manifest.theme_color}">`);
+    }
+  }
+
+  return lines;
+}
+
+function injectFaviconMeta(html) {
+  const status = collectFaviconFilesStatus();
+  const snippetLines = [];
+
+  const hasIcon = /rel=["']icon["']/i.test(html);
+  const hasApple = /apple-touch-icon/i.test(html);
+  const hasManifest = /rel=["']manifest["']/i.test(html);
+  const hasTheme = /name=["']theme-color["']/i.test(html);
+  const hasAlt32 = /favicon-32x32\.png/i.test(html);
+  const hasAlt16 = /favicon-16x16\.png/i.test(html);
+
+  for (const line of buildFaviconHtmlSnippetForTemplate(status)) {
+    if (line.includes('rel="icon"') && hasIcon) continue;
+    if (line.includes('alternate icon') && line.includes('32x32') && hasAlt32) continue;
+    if (line.includes('alternate icon') && line.includes('16x16') && hasAlt16) continue;
+    if (line.includes('apple-touch-icon') && hasApple) continue;
+    if (line.includes('rel="manifest"') && hasManifest) continue;
+    if (line.includes('theme-color') && hasTheme) continue;
+    snippetLines.push(line);
+  }
+
+  if (snippetLines.length === 0) {
+    return html;
+  }
+
+  return html.replace('</head>', `${snippetLines.join('\n')}\n  </head>`);
+}
+
 async function loadContent(wordsPerMinute, assetRegistry = new Map()) {
-  const intro = await loadMarkdownBranch(path.join(PATHS.content, 'intro'), 'intro', wordsPerMinute, assetRegistry);
-  const course = await loadMarkdownBranch(path.join(PATHS.content, 'course'), 'course', wordsPerMinute, assetRegistry);
-  const appendix = await loadMarkdownBranch(path.join(PATHS.content, 'appendix'), 'appendix', wordsPerMinute, assetRegistry);
-  const recommendations = await loadMarkdownBranch(path.join(PATHS.content, 'recommendations'), 'recommendations', wordsPerMinute, assetRegistry);
-  const legal = await loadMarkdownBranch(path.join(PATHS.content, 'legal'), 'legal', wordsPerMinute, assetRegistry);
+  const paywallConfig = loadPaywallConfig();
+  const intro = await loadMarkdownBranch(path.join(PATHS.content, 'intro'), 'intro', wordsPerMinute, assetRegistry, paywallConfig);
+  const course = await loadMarkdownBranch(path.join(PATHS.content, 'course'), 'course', wordsPerMinute, assetRegistry, paywallConfig);
+  const appendix = await loadMarkdownBranch(path.join(PATHS.content, 'appendix'), 'appendix', wordsPerMinute, assetRegistry, paywallConfig);
+  const recommendations = await loadMarkdownBranch(path.join(PATHS.content, 'recommendations'), 'recommendations', wordsPerMinute, assetRegistry, paywallConfig);
+  const legal = await loadMarkdownBranch(path.join(PATHS.content, 'legal'), 'legal', wordsPerMinute, assetRegistry, paywallConfig);
 
   return { intro, course, appendix, recommendations, legal };
 }
 
-async function loadMarkdownBranch(dirPath, branch, wordsPerMinute = DEFAULT_SITE_CONFIG.build.wordsPerMinute, assetRegistry = new Map()) {
+function buildLegalSlugMap(content, config) {
+  const legalItems = Array.isArray(content?.legal) ? content.legal : [];
+  const configLegal = config?.legal || {};
+  const defaults = {
+    terms: 'legal-terms',
+    privacy: 'privacy-policy',
+    offer: 'public-offer',
+    contacts: 'contacts',
+    refund: 'refund-policy',
+    requisites: 'contacts',
+    cookies: 'privacy-policy'
+  };
+
+  const findByFile = (filename) => legalItems.find(item => item.file === filename);
+  const findBySlug = (slug) => legalItems.find(item => item.slug === slug);
+
+  const map = {};
+  const firstSlug = legalItems[0]?.slug;
+
+  function assign(key, filename, fallbackSlug) {
+    const matched = filename ? findByFile(filename) : null;
+    const bySlug = fallbackSlug ? findBySlug(fallbackSlug) : null;
+    const byDefaultSlug = defaults[key] ? findBySlug(defaults[key]) : null;
+    map[key] = (matched || bySlug || byDefaultSlug || { slug: fallbackSlug || defaults[key] || firstSlug })?.slug || firstSlug;
+  }
+
+  assign('terms', configLegal.terms, defaults.terms);
+  assign('privacy', configLegal.privacy, defaults.privacy);
+  assign('offer', configLegal.offer, defaults.offer);
+  assign('contacts', configLegal.contacts, defaults.contacts);
+  assign('refund', configLegal.refund, defaults.refund);
+  assign('requisites', configLegal.requisites, defaults.requisites);
+  assign('cookies', configLegal.cookies, defaults.cookies || defaults.privacy);
+
+  if (firstSlug) {
+    map.default = firstSlug;
+  }
+
+  return map;
+}
+
+async function loadMarkdownBranch(dirPath, branch, wordsPerMinute = DEFAULT_SITE_CONFIG.build.wordsPerMinute, assetRegistry = new Map(), paywallConfig = {}) {
   if (!fs.existsSync(dirPath)) return [];
   const entries = await fsp.readdir(dirPath);
   const files = entries.filter(name => name.endsWith('.md')).sort();
@@ -643,6 +942,7 @@ async function loadMarkdownBranch(dirPath, branch, wordsPerMinute = DEFAULT_SITE
     const fullHtml = rewriteContentMedia(renderMarkdown(processedBody), dirPath, assetRegistry);
     const teaserHtml = buildTeaser(restHtml);
     const excerpt = normalizedFrontMatter.excerpt || teaserHtml.replace(/<[^>]+>/g, '').trim();
+    const paywall = buildPaywallSegments(processedBody, getPaywallEntry(paywallConfig, branch, slug));
     items.push({
       file,
       slug,
@@ -659,8 +959,8 @@ async function loadMarkdownBranch(dirPath, branch, wordsPerMinute = DEFAULT_SITE
       readingTimeMinutes,
       frontMatter: normalizedFrontMatter,
       branch,
-      paywallOpenHtml: analyzePaywallStructure(processedBody).openHtml,
-      paywallTeaserHtml: analyzePaywallStructure(processedBody).teaserHtml
+      paywallOpenHtml: paywall.openHtml,
+      paywallTeaserHtml: paywall.teaserHtml
     });
   }
 
@@ -729,7 +1029,7 @@ function generateMenuItemsHtml(items) {
     .join('\n');
 }
 
-function buildIntroPage(item, menuHtml, config, template, mode, nextUrl = '') {
+function buildIntroPage(item, menuHtml, config, template, mode, nextUrl = '', legalMap = {}) {
   const buttonText = mode === 'premium' ? config.ctaTexts.next : config.ctaTexts.enterFull;
   const pageType = mode === 'premium' ? 'intro-premium' : 'intro-free';
   const seo = getSeoForItem(item);
@@ -746,11 +1046,14 @@ function buildIntroPage(item, menuHtml, config, template, mode, nextUrl = '') {
     // Доп параметры для атрибутов
     pageType,
     buttonText,
-    nextPage: nextUrl
+    nextPage: nextUrl,
+    features: config.features,
+    config,
+    legalMap
   });
 }
 
-function buildFreeCoursePage(item, menuHtml, config, template) {
+function buildFreeCoursePage(item, menuHtml, config, template, legalMap = {}) {
   const seo = getSeoForItem(item);
   const body = `
         <div class="text-box__intro">
@@ -780,15 +1083,21 @@ function buildFreeCoursePage(item, menuHtml, config, template) {
     schema: generateSchemaOrg(item, config, 'course'),
     pageType: 'free',
     buttonText: config.ctaTexts.enterFull,
-    nextPage: ''
+    nextPage: '',
+    features: config.features,
+    config,
+    legalMap
   });
 }
 
-function buildPremiumPage(item, menuHtml, config, template, { prevUrl, nextUrl }) {
+function buildPremiumPage(item, menuHtml, config, template, { prevUrl, nextUrl }, legalMap = {}) {
   const seo = getSeoForItem(item);
   const body = wrapAsSection(item.fullHtml);
 
   const pageType = item.branch === 'intro' ? 'intro' : (item.branch === 'appendix' ? 'appendix' : 'course');
+  const progressButtonText = item.branch === 'appendix'
+    ? (config.ctaTexts.goToCourse || config.ctaTexts.next)
+    : config.ctaTexts.next;
 
   return applyTemplate(template, {
     title: `${item.title} — ${config.domain || 'TooSmart'}`,
@@ -798,12 +1107,15 @@ function buildPremiumPage(item, menuHtml, config, template, { prevUrl, nextUrl }
     meta: generateMetaTags(item, config, 'premium', pageType),
     schema: generateSchemaOrg(item, config, pageType),
     pageType: 'premium',
-    buttonText: config.ctaTexts.next,
-    nextPage: nextUrl || ''
+    buttonText: progressButtonText,
+    nextPage: nextUrl || '',
+    features: config.features,
+    config,
+    legalMap
   });
 }
 
-function buildRecommendationPage(item, menuHtml, config, template, mode) {
+function buildRecommendationPage(item, menuHtml, config, template, mode, legalMap = {}) {
   const seo = getSeoForItem(item);
   const introUrl = mode === 'premium' ? '/premium/' : '/';
 
@@ -818,11 +1130,14 @@ function buildRecommendationPage(item, menuHtml, config, template, mode) {
     schema: generateSchemaOrg(item, config, 'recommendation'),
     pageType: 'recommendation',
     buttonText: config.ctaTexts.openCourse,
-    nextPage: introUrl
+    nextPage: introUrl,
+    features: config.features,
+    config,
+    legalMap
   });
 }
 
-function buildLegalPage(item, menuHtml, config, template, mode) {
+function buildLegalPage(item, menuHtml, config, template, mode, legalMap = {}) {
   const seo = getSeoForItem(item);
   const body = wrapAsSection(item.fullHtml);
 
@@ -835,8 +1150,17 @@ function buildLegalPage(item, menuHtml, config, template, mode) {
     schema: '',
     pageType: 'legal',
     buttonText: '',
-    nextPage: ''
+    nextPage: '',
+    features: config.features,
+    config,
+    legalMap
   });
+}
+
+function buildLegalContentFragment(item) {
+  // Возвращает только HTML контент без обертки шаблона
+  // Это для загрузки в модальные окна через JavaScript
+  return item.fullHtml;
 }
 
 // --- Helper Functions (unchanged mostly) ---
@@ -852,15 +1176,57 @@ function parseFrontMatter(markdown) {
   frontMatter.split('\n').forEach(line => {
     const [key, ...value] = line.split(':');
     if (key && value) {
-      data[key.trim()] = value.join(':').trim();
+      data[key.trim()] = stripQuotes(value.join(':').trim());
     }
   });
   return { data, body };
 }
 
 function normalizeFrontMatterMedia(data, dirPath, assetRegistry) {
-  // Logic to handle media paths in front matter if needed
-  return data;
+  const normalized = { ...data };
+
+  if (typeof normalized.image === 'string' && normalized.image.trim()) {
+    const cleaned = stripQuotes(normalized.image.trim());
+    const resolvedPath = resolveFrontMatterMediaPath(cleaned, dirPath);
+    if (resolvedPath && assetRegistry) {
+      const filename = sanitizeFilename(path.basename(resolvedPath));
+      const webPath = `/assets/content/${filename}`;
+
+      if (!assetRegistry.has(resolvedPath)) {
+        assetRegistry.set(resolvedPath, {
+          source: resolvedPath,
+          destination: filename,
+          url: webPath
+        });
+      }
+      normalized.image = webPath;
+    } else {
+      normalized.image = cleaned;
+    }
+  }
+
+  return normalized;
+}
+
+function resolveFrontMatterMediaPath(mediaPath, dirPath) {
+  if (!mediaPath || /^https?:\/\//i.test(mediaPath) || mediaPath.startsWith('data:')) {
+    return null;
+  }
+
+  // Absolute filesystem path
+  if (isAbsoluteFilesystemPath(mediaPath)) {
+    return fs.existsSync(mediaPath) ? mediaPath : null;
+  }
+
+  // Root-relative to /content
+  if (mediaPath.startsWith('/')) {
+    const candidate = path.join(PATHS.content, mediaPath.replace(/^\/+/, ''));
+    return fs.existsSync(candidate) ? candidate : null;
+  }
+
+  // Relative to current markdown directory
+  const candidate = path.resolve(dirPath || PATHS.content, mediaPath);
+  return fs.existsSync(candidate) ? candidate : null;
 }
 
 function extractH1(markdown) {
@@ -892,169 +1258,6 @@ function extractLogicalIntro(markdown) {
   return { introMd: '', restMd: markdown };
 }
 
-function analyzePaywallStructure(markdown) {
-  const tokens = marked.lexer(markdown);
-  let openTokens = [];
-  let teaserTokens = [];
-  let boundaryIndex = -1;
-
-  // Find H1 index (usually 0, but just in case)
-  const h1Index = tokens.findIndex(t => t.type === 'heading' && t.depth === 1);
-  const startIndex = h1Index !== -1 ? h1Index + 1 : 0;
-
-  // Open block must always start with the H1
-  if (h1Index !== -1) {
-    openTokens.push(tokens[h1Index]);
-  }
-
-  // Scenario A: Look for "Introduction" subheader
-  const introSubheaderIndex = tokens.findIndex((t, i) =>
-    i >= startIndex &&
-    t.type === 'heading' &&
-    t.depth > 1 &&
-    /введение|introduction/i.test(t.text)
-  );
-
-  if (introSubheaderIndex !== -1) {
-    // Scenario A found
-    // Include the subheader and 2-3 paragraphs after it
-
-    // Let's collect tokens for Open Block
-    let currentIdx = introSubheaderIndex;
-    let paragraphCount = 0;
-
-    // Add tokens from introSubheaderIndex
-    // But what about text BETWEEN H1 and Intro Subheader?
-    // Requirement says: "In the introduction includes this subheader and text immediately after it..."
-    // It implies we skip text between H1 and Intro Subheader? Or maybe there is no text?
-    // "Start of introduction is considered this subheader".
-    // So we start collecting from introSubheaderIndex.
-
-    openTokens.push(tokens[introSubheaderIndex]); // The subheader itself
-
-    currentIdx++;
-    while (currentIdx < tokens.length) {
-      const t = tokens[currentIdx];
-      if (t.type === 'heading' && t.depth <= tokens[introSubheaderIndex].depth) {
-        break; // Stop at next header of same or higher level
-      }
-      if (t.type === 'hr') {
-        break; // Stop at separator
-      }
-
-      openTokens.push(t);
-      if (t.type === 'paragraph') {
-        paragraphCount++;
-        if (paragraphCount >= 3) break; // Limit to 3 paragraphs
-      }
-      currentIdx++;
-    }
-    boundaryIndex = currentIdx;
-
-  } else {
-    // Scenario B: Text immediately after H1
-    // Check if there is text between H1 and first subheader
-    const firstSubheaderIndex = tokens.findIndex((t, i) => i >= startIndex && t.type === 'heading');
-    const limitIndex = firstSubheaderIndex !== -1 ? firstSubheaderIndex : tokens.length;
-
-    let hasTextAfterH1 = false;
-    for (let i = startIndex; i < limitIndex; i++) {
-      if (tokens[i].type === 'paragraph') {
-        hasTextAfterH1 = true;
-        break;
-      }
-    }
-
-    if (hasTextAfterH1) {
-      // Scenario B
-      let currentIdx = startIndex;
-      let paragraphCount = 0;
-
-      while (currentIdx < limitIndex) {
-        const t = tokens[currentIdx];
-        if (t.type === 'hr') break;
-
-        openTokens.push(t);
-        if (t.type === 'paragraph') {
-          paragraphCount++;
-          if (paragraphCount >= 3) break;
-        }
-        currentIdx++;
-      }
-      boundaryIndex = currentIdx;
-
-    } else {
-      // Scenario C: No text after H1, look for first subheader
-      if (firstSubheaderIndex !== -1) {
-        // Include first subheader
-        openTokens.push(tokens[firstSubheaderIndex]);
-
-        let currentIdx = firstSubheaderIndex + 1;
-        let paragraphCount = 0;
-
-        while (currentIdx < tokens.length) {
-          const t = tokens[currentIdx];
-          if (t.type === 'heading' && t.depth <= tokens[firstSubheaderIndex].depth) break;
-          if (t.type === 'hr') break;
-
-          openTokens.push(t);
-          if (t.type === 'paragraph') {
-            paragraphCount++;
-            if (paragraphCount >= 3) break;
-          }
-          currentIdx++;
-        }
-        boundaryIndex = currentIdx;
-      } else {
-        // Fallback: just take first few paragraphs if no headers at all
-        let currentIdx = startIndex;
-        let paragraphCount = 0;
-        while (currentIdx < tokens.length) {
-          const t = tokens[currentIdx];
-          openTokens.push(t);
-          if (t.type === 'paragraph') {
-            paragraphCount++;
-            if (paragraphCount >= 3) break;
-          }
-          currentIdx++;
-        }
-        boundaryIndex = currentIdx;
-      }
-    }
-  }
-
-  // Extract Teaser (next 2-3 paragraphs after boundary)
-  if (boundaryIndex !== -1 && boundaryIndex < tokens.length) {
-    let currentIdx = boundaryIndex;
-    let paragraphCount = 0;
-
-    while (currentIdx < tokens.length) {
-      const t = tokens[currentIdx];
-      // We just want text for teaser, maybe skip headers?
-      // "Teaser under blur: take several first paragraphs immediately after boundary"
-      if (t.type === 'paragraph') {
-        teaserTokens.push(t);
-        paragraphCount++;
-        if (paragraphCount >= 3) break;
-      } else if (t.type === 'heading') {
-        // If we hit a heading, do we stop? Or include it?
-        // Usually teaser is just text. Let's include it but count it?
-        // Let's just take paragraphs for teaser to be safe and look good.
-      }
-      currentIdx++;
-    }
-  }
-
-  // Render to HTML
-  // We need to use marked.parser, but marked.parser takes tokens.
-  // However, marked.parser expects a specific structure.
-  // marked.parser(tokens) should work if tokens is an array of tokens.
-  // But we need to make sure `links` are preserved if they exist on the original tokens object.
-  const openHtml = marked.parser(Object.assign([], openTokens, { links: tokens.links }));
-  const teaserHtml = marked.parser(Object.assign([], teaserTokens, { links: tokens.links }));
-
-  return { openHtml, teaserHtml };
-}
 
 function preprocessMarkdownMedia(markdown, dirPath, assetRegistry) {
   if (!markdown || !markdown.trim()) {
@@ -1106,10 +1309,34 @@ function preprocessMarkdownMedia(markdown, dirPath, assetRegistry) {
     // Case 3: Relative path (e.g., ../images/..., ./images/..., images/...)
     else if (!imagePath.startsWith('/')) {
       resolvedPath = path.resolve(dirPath, imagePath);
-      if (!fs.existsSync(resolvedPath)) {
-        console.warn(`⚠️  Image not found in markdown: ${resolvedPath}`);
-        continue;
+    }
+
+    // Smart Lookup: If not found, try to find in content/images/
+    if (!resolvedPath) {
+      // Check if it's a path starting with /images/ (explicit alias)
+      if (imagePath.startsWith('/images/')) {
+        const candidate = path.join(path.resolve(__dirname, '../..'), 'content', imagePath.substring(1));
+        if (fs.existsSync(candidate)) {
+          resolvedPath = candidate;
+        }
       }
+
+      // Fallback: Check by filename in content/images/
+      if (!resolvedPath) {
+        const filename = path.basename(imagePath);
+        const candidate = path.join(path.resolve(__dirname, '../..'), 'content/images', filename);
+        if (fs.existsSync(candidate)) {
+          resolvedPath = candidate;
+        }
+      }
+    }
+
+    if (!resolvedPath) {
+      // If still not found, warn
+      if (isAbsoluteFilesystemPath(imagePath) || imagePath.startsWith('/content/') || !imagePath.startsWith('/')) {
+        console.warn(`⚠️  Image not found in markdown: ${imagePath}`);
+      }
+      continue;
     }
 
     // If we resolved a path, prepare the replacement
@@ -1192,15 +1419,36 @@ function rewriteContentMedia(html, dirPath, assetRegistry) {
       }
     }
     // Case 3: Relative path (e.g., ../images/..., ./images/..., images/...)
+    // Case 3: Relative path (e.g., ../images/..., ./images/..., images/...)
     else if (!src.startsWith('/')) {
       resolvedPath = path.resolve(dirPath, src);
-      if (!fs.existsSync(resolvedPath)) {
-        console.warn(`⚠️  Image not found: ${resolvedPath}`);
-        return;
+    }
+
+    // Smart Lookup: If not found, try to find in content/images/
+    if (!resolvedPath) {
+      // Check if it's a path starting with /images/ (explicit alias)
+      if (src.startsWith('/images/')) {
+        const candidate = path.join(path.resolve(__dirname, '../..'), 'content', src.substring(1));
+        if (fs.existsSync(candidate)) {
+          resolvedPath = candidate;
+        }
+      }
+
+      // Fallback: Check by filename in content/images/
+      if (!resolvedPath) {
+        const filename = path.basename(src);
+        const candidate = path.join(path.resolve(__dirname, '../..'), 'content/images', filename);
+        if (fs.existsSync(candidate)) {
+          resolvedPath = candidate;
+        }
       }
     }
-    // Case 4: Web path starting with / but not /content/ (leave as is)
-    else {
+
+    if (!resolvedPath) {
+      // If still not found, warn
+      if (isAbsoluteFilesystemPath(src) || src.startsWith('/content/') || !src.startsWith('/')) {
+        console.warn(`⚠️  Image not found: ${src}`);
+      }
       return;
     }
 
@@ -1311,8 +1559,9 @@ function getSeoForItem(item) {
  * Экранирует HTML атрибуты
  */
 function escapeAttr(str) {
-  if (!str) return '';
-  return str
+  if (str === null || str === undefined) return '';
+  const safe = String(str);
+  return safe
     .replace(/&/g, '&amp;')
     .replace(/"/g, '&quot;')
     .replace(/</g, '&lt;')
@@ -1418,26 +1667,75 @@ async function copyStaticAssets(mode) {
   // For now, assume Vite handles it.
 }
 
-async function copyFavicon() {
-  const faviconFile = getFaviconFilename();
-  const faviconSrc = path.resolve(__dirname, '../../src/assets', faviconFile);
-  const faviconDest = path.join(PATHS.dist.assets, faviconFile);
+async function copyFaviconAssets() {
+  const config = loadFaviconConfig();
+  const manifest = getFaviconManifest();
 
   try {
     await ensureDir(PATHS.dist.assets);
+    const copied = [];
+    let primaryCopied = false;
 
-    // Пробуем скопировать кастомный или дефолтный favicon
-    if (fs.existsSync(faviconSrc)) {
-      await fsp.copyFile(faviconSrc, faviconDest);
-      console.log(`✅ Favicon скопирован: ${faviconFile}`);
-    } else {
-      // Fallback на дефолтный favicon.svg
-      const defaultFavicon = path.resolve(__dirname, '../../src/assets/favicon.svg');
-      if (fs.existsSync(defaultFavicon)) {
-        await fsp.copyFile(defaultFavicon, path.join(PATHS.dist.assets, 'favicon.svg'));
-        console.log('✅ Favicon скопирован (по умолчанию)');
+    const filesToCopy = new Set([
+      ...REQUIRED_FAVICON_FILES,
+      config.filename || 'favicon.svg',
+      ...Object.keys(config.files || {})
+    ]);
+
+    for (const name of filesToCopy) {
+      const src = path.join(PATHS.srcAssets, name);
+      if (fs.existsSync(src)) {
+        await fsp.copyFile(src, path.join(PATHS.dist.assets, name));
+        copied.push(name);
+        if (name === config.filename) {
+          primaryCopied = true;
+        }
       }
     }
+
+    if (!primaryCopied) {
+      const defaultFavicon = path.join(PATHS.srcAssets, 'favicon.svg');
+      if (fs.existsSync(defaultFavicon)) {
+        await fsp.copyFile(defaultFavicon, path.join(PATHS.dist.assets, 'favicon.svg'));
+        copied.push('favicon.svg');
+      }
+    }
+
+    if (copied.length > 0) {
+      console.log(`✅ Favicon ассеты скопированы: ${copied.join(', ')}`);
+    } else {
+      console.warn('⚠️  Не найдено favicon файлов для копирования');
+    }
+
+    // Генерируем webmanifest только из существующих иконок
+    const available = copied.reduce((set, name) => {
+      set.add(name);
+      return set;
+    }, new Set());
+
+    const manifestIcons = (manifest.icons || DEFAULT_MANIFEST.icons)
+      .map(icon => {
+        if (!icon || !icon.src) return null;
+        const filename = icon.src.replace(/^\/assets\//, '').replace(/^\//, '');
+        if (!available.has(filename)) return null;
+        return {
+          src: icon.src.startsWith('/') ? icon.src : `/${icon.src}`,
+          sizes: icon.sizes,
+          type: icon.type
+        };
+      })
+      .filter(Boolean);
+
+    const manifestToWrite = Object.assign({}, manifest, {
+      icons: manifestIcons.length > 0 ? manifestIcons : DEFAULT_MANIFEST.icons
+    });
+
+    await fsp.writeFile(
+      path.join(PATHS.dist.assets, 'site.webmanifest'),
+      JSON.stringify(manifestToWrite, null, 2),
+      'utf8'
+    );
+    console.log('✅ site.webmanifest сгенерирован');
   } catch (error) {
     console.warn('⚠️  Ошибка копирования favicon:', error.message);
   }
@@ -1445,14 +1743,22 @@ async function copyFavicon() {
 
 async function copyContentAssets(assets) {
   // Копируем favicon
-  await copyFavicon();
+  await copyFaviconAssets();
 
   if (!assets || assets.size === 0) {
     return;
   }
 
-  // Ensure destination directory exists
+  // Ensure destination directory exists and is clean
   await ensureDir(PATHS.dist.contentAssets);
+  // Clean directory to remove stale assets
+  // We only clean files, not the directory itself to avoid race conditions if parallel
+  const existingFiles = await fsp.readdir(PATHS.dist.contentAssets);
+  for (const file of existingFiles) {
+    if (file !== '.gitkeep') { // preserve .gitkeep if exists
+      await fsp.unlink(path.join(PATHS.dist.contentAssets, file));
+    }
+  }
 
   let copiedCount = 0;
   let errorCount = 0;
@@ -1586,7 +1892,7 @@ async function generateSitemap(content, dest, config) {
   if (content.legal) {
     content.legal.forEach(item => {
       urls.push({
-        loc: `${baseUrl}/legal/${item.slug}.html`,
+        loc: `${baseUrl}/shared/legal/${item.slug}.html`,
         lastmod: today,
         changefreq: 'monthly',
         priority: '0.3'
@@ -1626,6 +1932,22 @@ function slugify(text) {
     .replace(/\s+/g, '-')     // Replace spaces with -
     .replace(/[^\w\-]+/g, '') // Remove all non-word chars
     .replace(/\-\-+/g, '-');  // Replace multiple - with single -
+}
+
+function stripQuotes(value) {
+  if (typeof value !== 'string') return value;
+  const trimmed = value.trim();
+  const singleMatch = trimmed.match(/^'(.*)'$/);
+  const doubleMatch = trimmed.match(/^"(.*)"$/);
+  if (singleMatch) return singleMatch[1];
+  if (doubleMatch) return doubleMatch[1];
+  return trimmed;
+}
+
+function normalizeCoverValue(raw) {
+  if (typeof raw !== 'string') return '';
+  const trimmed = stripQuotes(raw);
+  return trimmed ? trimmed.trim() : '';
 }
 
 module.exports = { build };

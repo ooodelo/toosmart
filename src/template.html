@@ -51,7 +51,8 @@
         <section class="text-section">
           <h1>Наука чистоты: Почему мы убираем неправильно?</h1>
           <p class="meta">~5 минут чтения</p>
-          <p>Уборка — это не просто рутина, а сложный химический процесс. Большинство из нас использует средства, которые
+          <p>Уборка — это не просто рутина, а сложный химический процесс. Большинство из нас использует средства,
+            которые
             нейтрализуют друг друга, или применяет техники, размазывающие грязь вместо её удаления.</p>
         </section>
 
@@ -79,61 +80,11 @@
             средства не требуют ароматизаторов, чтобы замаскировать результат.</p>
         </section>
       </article>
-      <nav class="dots-rail" aria-label="Навигация по разделам"></nav>
+      <nav class="dots-rail" aria-label="Навигация по разделам" data-lazy="dots-nav"></nav>
       <div class="dot-flyout is-hidden" hidden role="navigation" aria-label="Оглавление разделов"></div>
     </section>
 
-    <aside class="stack" aria-label="Рекомендации" data-lazy="stack-carousel">
-      <h2 class="stack__title">🔥 Рекомендуем</h2>
-      <div class="stack-carousel">
-        <!-- Slide 0 -->
-        <div class="stack-slide" data-slide="0" data-active="true">
-          <div class="stack-card" onclick="window.location.href='./template-recommendations.html'"
-            style="cursor: pointer;">
-            <div class="stack-card__image" style="background: #eee; height: 120px;"></div>
-            <div class="stack-card__content">
-              <h3><a href="./template-recommendations.html" style="text-decoration: none; color: inherit;">1. Lorem
-                  Ipsum (Recs)</a></h3>
-              <p>Dolor sit amet consectetur adipiscing elit.</p>
-            </div>
-          </div>
-          <div class="stack-card" onclick="window.location.href='./template-recommendations.html'"
-            style="cursor: pointer;">
-            <div class="stack-card__image" style="background: #e0e0e0; height: 120px;"></div>
-            <div class="stack-card__content">
-              <h3><a href="./template-recommendations.html" style="text-decoration: none; color: inherit;">2. Sed Do
-                  Eiusmod (Recs)</a></h3>
-              <p>Tempor incididunt ut labore et dolore magna aliqua.</p>
-            </div>
-          </div>
-        </div>
-        <!-- Slide 1 -->
-        <div class="stack-slide" data-slide="1" data-active="false">
-          <div class="stack-card" onclick="window.location.href='./template-recommendations.html'"
-            style="cursor: pointer;">
-            <div class="stack-card__image" style="background: #d0d0d0; height: 120px;"></div>
-            <div class="stack-card__content">
-              <h3><a href="./template-recommendations.html" style="text-decoration: none; color: inherit;">3. Ut Enim Ad
-                  (Recs)</a></h3>
-              <p>Minim veniam quis nostrud exercitation ullamco.</p>
-            </div>
-          </div>
-          <div class="stack-card" onclick="window.location.href='./template-recommendations.html'"
-            style="cursor: pointer;">
-            <div class="stack-card__image" style="background: #c0c0c0; height: 120px;"></div>
-            <div class="stack-card__content">
-              <h3><a href="./template-recommendations.html" style="text-decoration: none; color: inherit;">4. Laboris
-                  Nisi (Recs)</a></h3>
-              <p>Ut aliquip ex ea commodo consequat.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="stack-indicator">
-        <button class="stack-dot" data-dot="0" data-active="true" aria-label="Слайд 1"></button>
-        <button class="stack-dot" data-dot="1" data-active="false" aria-label="Слайд 2"></button>
-      </div>
-    </aside>
+    {{> stack-widget }}
   </main>
 
   <div class="dock" role="presentation">

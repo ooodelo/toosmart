@@ -1,5 +1,6 @@
 import { ModeUtils as ModeUtilsModule } from './js/mode-utils.js';
 import './js/auth-check.js';
+import { initCta } from './cta.js';
 
 // Head inline partial should expose window.ModeUtils; fall back to module import when it doesn't.
 const ModeUtils = window.ModeUtils || ModeUtilsModule;
@@ -59,11 +60,13 @@ let siteMenu = null;
 let backdrop = null;
 let dockHandle = null;
 let panel = null;
+let main = null;
 let dotsRail = null;
 let dotFlyout = null;
 let sections = [];
 let menuCap = null;
 let progressWidgetRoot = null;
+let lastStackInline = false;
 
 let currentMode = body.dataset.mode || initialMode || 'desktop';
 let currentInput = body.dataset.input || initialInput || 'pointer';
@@ -1357,6 +1360,82 @@ function updateLayoutMetrics(pwRoot = progressWidgetRoot) {
 
   footprint = Math.max(0, Math.round(footprint));
   root.style.setProperty('--pw-footprint', `${footprint}px`);
+
+  updateStackInlineState();
+}
+
+let stackTransitionLock = false;
+let stackDebounceTimer = null;
+
+function updateStackInlineState() {
+  // Debounce: delay execution until resize/scroll events stop
+  clearTimeout(stackDebounceTimer);
+  stackDebounceTimer = setTimeout(() => {
+    updateStackInlineStateImpl();
+  }, 100);
+}
+
+function updateStackInlineStateImpl() {
+  const stack = document.querySelector('.stack');
+  if (!stack) return;
+
+  // Ignore calls during transition to prevent layout feedback loop
+  if (stackTransitionLock) return;
+
+  const isDesktop = currentMode === 'desktop' || currentMode === 'desktop-wide';
+  if (!isDesktop) {
+    if (lastStackInline) {
+      stack.classList.remove('stack--inline');
+      lastStackInline = false;
+    }
+    return;
+  }
+
+  const textBox = document.querySelector('.text-box');
+  if (!textBox) return;
+
+  // Используем реальные размеры из DOM вместо парсинга CSS переменных
+  const viewportWidth = document.documentElement.clientWidth;
+  const textBoxRect = textBox.getBoundingClientRect();
+
+  // Вычисляем доступное пространство справа от текстового блока
+  const availableRight = viewportWidth - textBoxRect.right;
+
+  // Получаем минимальную ширину стека (или 220px по умолчанию)
+  const styles = window.getComputedStyle(stack);
+  const minStackWidth = parseCssNumber(styles.minWidth) || 220;
+
+  const separation = 20; // отступ от текста
+  const rightPadding = 10; // минимальный отступ от правого края
+  const hysteresis = 80; // буфер для предотвращения дребезга
+
+  const requiredSpace = minStackWidth + separation + rightPadding;
+  const threshold = lastStackInline ? requiredSpace + hysteresis : requiredSpace;
+
+  const shouldInline = availableRight < threshold;
+
+  console.log('[StackDebug]', {
+    viewportWidth,
+    textBoxRight: textBoxRect.right,
+    availableRight,
+    minStackWidth,
+    requiredSpace,
+    threshold,
+    shouldInline,
+    lastStackInline
+  });
+
+  if (shouldInline !== lastStackInline) {
+    stack.classList.toggle('stack--inline', shouldInline);
+    // Don't manually toggle stack--mobile - let carousel handle it via isMobileMode()
+    lastStackInline = shouldInline;
+
+    // Lock transitions for 250ms to allow layout to stabilize
+    stackTransitionLock = true;
+    setTimeout(() => {
+      stackTransitionLock = false;
+    }, 250);
+  }
 }
 
 let lastProgressWidgetAnchors = null;
@@ -2614,122 +2693,33 @@ function initMenuLinks() {
   }, { module: 'menu.links', kind: 'cleanup' });
 }
 
-/**
- * Карусель рекомендаций
- *
- * Механика:
- * 1. Показываем по 2 карточки (1 слайд)
- * 2. Всего 2 слайда (4 карточки)
- * 3. Автоматическая смена каждые 6 секунд
- * 4. Плавная смена через opacity
- * 5. Индикатор прогресса из точек
- * 6. Пауза при наведении мыши
- *
- * Работает на всех режимах (mobile, tablet, desktop, desktop-wide)
- */
 function initStackCarousel() {
   const stack = document.querySelector('.stack');
   if (!stack) return;
 
-  const carousel = stack.querySelector('.stack-carousel');
-  const indicator = stack.querySelector('.stack-indicator');
+  const deck = stack.querySelector('[data-stack-deck]');
+  if (!deck) return;
 
-  if (!carousel || !indicator) return;
+  const mobileHint = stack.querySelector('[data-stack-mobile-hint]');
+  const navButtons = Array.from(stack.querySelectorAll('[data-stack-prev], [data-stack-next]'));
 
-  // Задача 4: Динамическая карусель рекомендаций
-  // Загружаем данные из JSON и генерируем слайды программно
   const RECOMMENDATIONS_URL = '/shared/recommendations.json';
-  const CARDS_PER_SLIDE = 2;
+  const AUTOPLAY_INTERVAL = 4000;
 
-  // Функция создания карточки рекомендации
-  function createCard(rec) {
-    const card = document.createElement('a');
-    card.className = 'stack-card';
-    card.href = `/recommendations/${rec.slug}.html`;
-    card.setAttribute('data-analytics', 'recommendation-card');
+  let cardsData = [];
+  let cardElements = [];
+  let activeIndex = 0;
+  let isHovered = false;
+  let hoveredId = null;
+  let autoplayDisposer = null;
+  const pauseReasons = new Set();
+  const disposers = [];
+  const cardDisposers = [];
+  let cleaned = false;
 
-    const imageDiv = document.createElement('div');
-    imageDiv.className = 'stack-card__image';
+  const fallbackData = readCardsFromDom(deck);
+  renderCards(fallbackData);
 
-    const contentDiv = document.createElement('div');
-    contentDiv.className = 'stack-card__content';
-
-    const title = document.createElement('h3');
-    title.textContent = rec.title;
-
-    const excerpt = document.createElement('p');
-    excerpt.textContent = rec.excerpt || '';
-
-    contentDiv.appendChild(title);
-    contentDiv.appendChild(excerpt);
-    card.appendChild(imageDiv);
-    card.appendChild(contentDiv);
-
-    return card;
-  }
-
-  // Функция создания слайда с карточками
-  function createSlide(cards, index, isActive) {
-    const slide = document.createElement('div');
-    slide.className = 'stack-slide';
-    slide.setAttribute('data-slide', index.toString());
-    slide.setAttribute('data-active', isActive ? 'true' : 'false');
-
-    cards.forEach(card => slide.appendChild(card));
-    return slide;
-  }
-
-  // Функция создания точки индикатора
-  function createDot(index, isActive) {
-    const dot = document.createElement('button');
-    dot.className = 'stack-dot';
-    dot.setAttribute('data-dot', index.toString());
-    dot.setAttribute('data-active', isActive ? 'true' : 'false');
-    dot.setAttribute('aria-label', `Слайд ${index + 1}`);
-    return dot;
-  }
-
-  // Функция генерации карусели из данных
-  function buildCarousel(recommendations) {
-    // Очищаем существующий контент
-    clearElement(carousel);
-    clearElement(indicator);
-
-    if (recommendations.length === 0) {
-      stack.style.display = 'none';
-      return { slides: [], dots: [] };
-    }
-
-    const slidesArray = [];
-    const dotsArray = [];
-
-    // Разбиваем рекомендации на слайды по CARDS_PER_SLIDE карточек
-    const slideCount = Math.ceil(recommendations.length / CARDS_PER_SLIDE);
-
-    for (let i = 0; i < slideCount; i++) {
-      const startIdx = i * CARDS_PER_SLIDE;
-      const endIdx = Math.min(startIdx + CARDS_PER_SLIDE, recommendations.length);
-      const slideRecs = recommendations.slice(startIdx, endIdx);
-
-      const cards = slideRecs.map(rec => createCard(rec));
-      const slide = createSlide(cards, i, i === 0);
-      carousel.appendChild(slide);
-      slidesArray.push(slide);
-
-      const dot = createDot(i, i === 0);
-      indicator.appendChild(dot);
-      dotsArray.push(dot);
-    }
-
-    return { slides: slidesArray, dots: dotsArray };
-  }
-
-  // Загружаем данные и инициализируем карусель
-  let slides = [];
-  let dots = [];
-  let carouselInitialized = false;
-
-  // Пробуем загрузить JSON с рекомендациями
   fetch(RECOMMENDATIONS_URL)
     .then(response => {
       if (!response.ok) {
@@ -2738,255 +2728,535 @@ function initStackCarousel() {
       return response.json();
     })
     .then(recommendations => {
-      const result = buildCarousel(recommendations);
-      slides = result.slides;
-      dots = result.dots;
-
-      if (slides.length > 0) {
-        initCarouselInteractivity();
+      const normalized = Array.isArray(recommendations)
+        ? recommendations.map((rec, idx) => normalizeCard(rec, idx))
+        : [];
+      if (normalized.length > 0) {
+        renderCards(normalized);
+      } else {
+        requestLayoutMetricsUpdate({ elementChanged: true });
       }
-      requestLayoutMetricsUpdate({ elementChanged: true });
     })
     .catch(error => {
       console.warn('[StackCarousel] Не удалось загрузить рекомендации:', error);
-      // Используем существующие статичные слайды как fallback
-      slides = Array.from(document.querySelectorAll('.stack-slide'));
-      dots = Array.from(document.querySelectorAll('.stack-dot'));
-
-      if (slides.length > 0) {
-        initCarouselInteractivity();
-      }
+      restartAutoplay();
       requestLayoutMetricsUpdate({ elementChanged: true });
     });
 
-  // Инициализация интерактивности карусели
-  function initCarouselInteractivity() {
-    if (carouselInitialized) return;
-    carouselInitialized = true;
+  function normalizeCover(value) {
+    if (typeof value !== 'string') return '';
+    return value.trim();
+  }
 
-    if (slides.length === 0) return;
-
-    let currentSlide = 0;
-    let intervalDisposer = null;
-    const pauseReasons = new Set();
-
-    // Интервал между сменами слайдов (миллисекунды)
-    const SLIDE_INTERVAL = 6000; // 6 секунд
-
-    const disposers = [];
-
-    function setActiveSlide(index) {
-      // Циклическое переключение
-      const safeIndex = index % slides.length;
-
-      if (safeIndex === currentSlide) return;
-
-      currentSlide = safeIndex;
-
-      // Обновляем слайды
-      slides.forEach((slide, i) => {
-        slide.setAttribute('data-active', i === currentSlide ? 'true' : 'false');
-      });
-
-      // Обновляем точки
-      dots.forEach((dot, i) => {
-        dot.setAttribute('data-active', i === currentSlide ? 'true' : 'false');
-      });
+  function normalizeCard(rec, idx) {
+    if (!rec) {
+      return null;
     }
+    const title = (rec.title || rec.name || '').trim();
+    const description = (rec.description || rec.excerpt || '').trim();
+    const slug = typeof rec.slug === 'string' ? rec.slug : '';
+    const url = typeof rec.url === 'string' && rec.url
+      ? rec.url
+      : slug
+        ? `/recommendations/${slug}.html`
+        : '';
 
-    function isAutoplayPaused() {
-      return pauseReasons.size > 0;
-    }
+    return {
+      id: slug || rec.id || `card-${idx}`,
+      slug,
+      title: title || slug || 'Рекомендация',
+      description: description || '',
+      cover: normalizeCover(rec.cover || rec.image || ''),
+      url,
+    };
+  }
 
-    function scheduleAutoplay() {
-      if (intervalDisposer) {
-        intervalDisposer();
-      }
-      intervalDisposer = trackInterval(nextSlide, SLIDE_INTERVAL, {
-        module: 'stackCarousel',
-        detail: 'autoplay',
-      });
-    }
+  function readCardsFromDom(container) {
+    if (!container) return [];
+    const nodes = Array.from(container.querySelectorAll('[data-stack-card]'));
+    if (!nodes.length) return [];
 
-    function restartAutoplay() {
-      if (isAutoplayPaused()) {
-        return;
-      }
-      scheduleAutoplay();
-    }
+    return nodes.map((node, idx) => normalizeCard({
+      id: node.dataset.cardId || node.dataset.slug,
+      slug: node.dataset.slug,
+      title: node.dataset.title || node.querySelector('.stack-card__title')?.textContent,
+      description: node.dataset.description || node.querySelector('.stack-card__description')?.textContent,
+      cover: node.dataset.cover || node.querySelector('.stack-card__emoji')?.textContent,
+      url: node.dataset.url || (node instanceof HTMLAnchorElement ? node.getAttribute('href') : ''),
+    }, idx)).filter(Boolean);
+  }
 
-    function nextSlide() {
-      if (isAutoplayPaused()) {
-        return;
-      }
-      setActiveSlide(currentSlide + 1);
-    }
-
-    function stopAutoplay() {
-      if (intervalDisposer) {
-        intervalDisposer();
-        intervalDisposer = null;
+  function cleanupCardListeners() {
+    while (cardDisposers.length) {
+      const dispose = cardDisposers.pop();
+      try {
+        dispose?.();
+      } catch (error) {
+        console.error('[StackCarousel] Failed to dispose card listener', error);
       }
     }
+  }
 
-    function pauseAutoplay(reason) {
-      if (!reason || pauseReasons.has(reason)) {
-        return;
-      }
-      pauseReasons.add(reason);
+  function renderCards(data) {
+    cleanupCardListeners();
+    clearElement(deck);
+
+    const normalized = Array.isArray(data) ? data.map((item, idx) => normalizeCard(item, idx)).filter(Boolean) : [];
+    cardsData = normalized;
+    cardElements = [];
+
+    if (!cardsData.length) {
+      stack.classList.add('stack--empty');
+      stack.style.display = 'none';
       stopAutoplay();
+      return;
     }
 
-    function resumeAutoplay(reason) {
-      if (!reason || !pauseReasons.has(reason)) {
-        return;
-      }
-      pauseReasons.delete(reason);
-      if (!isAutoplayPaused()) {
-        scheduleAutoplay();
-      }
-    }
+    stack.classList.remove('stack--empty');
+    stack.style.display = '';
 
-    // Клики на точки для ручного переключения
-    dots.forEach((dot, index) => {
-      disposers.push(trackEvent(dot, 'click', () => {
-        setActiveSlide(index);
-        // Перезапускаем таймер после ручного переключения
-        restartAutoplay();
-      }, undefined, { module: 'stackCarousel', target: describeTarget(dot) }));
+    cardsData.forEach((card, index) => {
+      const element = createCardElement(card, index);
+      cardElements.push(element);
+      deck.appendChild(element);
     });
 
-    // Пауза при наведении мыши
-    if (stack) {
-      disposers.push(trackEvent(stack, 'mouseenter', () => {
-        pauseAutoplay('hover');
-      }, undefined, { module: 'stackCarousel', target: describeTarget(stack) }));
+    activeIndex = 0;
+    hoveredId = null;
+    isHovered = false;
+    applyLayout();
+    restartAutoplay();
+    requestLayoutMetricsUpdate({ elementChanged: true });
+  }
 
-      disposers.push(trackEvent(stack, 'mouseleave', () => {
-        resumeAutoplay('hover');
-      }, undefined, { module: 'stackCarousel', target: describeTarget(stack) }));
+  function buildCover(card) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'stack-card__cover';
 
-      // Поддержка свайпов на тач-устройствах с предотвращением вертикального скролла
-      let touchStartX = 0;
-      let touchStartY = 0;
-      let touchEndX = 0;
-      let touchEndY = 0;
-      let isSwiping = false;
-      let swipeDirection = null; // 'horizontal' или 'vertical'
-      const minSwipeDistance = 50; // минимальная дистанция для переключения слайда
-      const directionThreshold = 10; // порог для определения направления
+    const coverValue = normalizeCover(card.cover);
+    if (!coverValue) {
+      const emoji = document.createElement('span');
+      emoji.className = 'stack-card__emoji';
+      emoji.textContent = '✨';
+      wrapper.appendChild(emoji);
+      return wrapper;
+    }
 
-      disposers.push(trackEvent(stack, 'touchstart', (e) => {
-        touchStartX = e.changedTouches[0].clientX;
-        touchStartY = e.changedTouches[0].clientY;
-        isSwiping = false;
-        swipeDirection = null;
-        pauseAutoplay('touch');
-      }, { passive: true }, { module: 'stackCarousel', target: describeTarget(stack) }));
+    const isImage = /^https?:\/\//i.test(coverValue) || coverValue.startsWith('/');
+    if (isImage) {
+      const img = document.createElement('img');
+      img.src = coverValue;
+      img.alt = card.title || 'Иллюстрация';
+      img.loading = 'lazy';
+      wrapper.classList.add('stack-card__cover--image');
+      wrapper.appendChild(img);
+      return wrapper;
+    }
 
-      disposers.push(trackEvent(stack, 'touchmove', (e) => {
-        if (!isSwiping) {
-          const deltaX = Math.abs(e.changedTouches[0].clientX - touchStartX);
-          const deltaY = Math.abs(e.changedTouches[0].clientY - touchStartY);
+    const emoji = document.createElement('span');
+    emoji.className = 'stack-card__emoji';
+    emoji.textContent = coverValue;
+    wrapper.appendChild(emoji);
+    return wrapper;
+  }
 
-          // Определяем направление при первом значительном движении
-          if (deltaX > directionThreshold || deltaY > directionThreshold) {
-            isSwiping = true;
-            swipeDirection = deltaX > deltaY ? 'horizontal' : 'vertical';
-          }
-        }
+  function createCardElement(card, index) {
+    const isLink = Boolean(card.url);
+    const node = document.createElement(isLink ? 'a' : 'div');
+    node.className = 'stack-card';
+    if (isLink) {
+      node.href = card.url;
+    }
+    node.dataset.cardId = card.id || `card-${index}`;
+    node.setAttribute('data-analytics', 'recommendation-card');
 
-        // Если свайп горизонтальный - предотвращаем вертикальный скролл
-        if (swipeDirection === 'horizontal') {
-          e.preventDefault();
-        }
-      }, { passive: false }, { module: 'stackCarousel', target: describeTarget(stack) })); // passive: false чтобы preventDefault работал
+    const inner = document.createElement('div');
+    inner.className = 'stack-card__inner';
 
-      disposers.push(trackEvent(stack, 'touchend', (e) => {
-        touchEndX = e.changedTouches[0].clientX;
-        touchEndY = e.changedTouches[0].clientY;
+    inner.appendChild(buildCover(card));
 
-        // Обрабатываем свайп только если это был горизонтальный жест
-        if (swipeDirection === 'horizontal') {
-          handleSwipe();
-        }
+    const title = document.createElement('h3');
+    title.className = 'stack-card__title';
+    title.textContent = card.title || 'Рекомендация';
+    inner.appendChild(title);
 
-        isSwiping = false;
-        swipeDirection = null;
-        resumeAutoplay('touch');
-      }, { passive: true }, { module: 'stackCarousel', target: describeTarget(stack) }));
+    const meta = document.createElement('div');
+    meta.className = 'stack-card__meta';
 
-      disposers.push(trackEvent(stack, 'touchcancel', () => {
-        isSwiping = false;
-        swipeDirection = null;
-        resumeAutoplay('touch');
-      }, { passive: true }, { module: 'stackCarousel', target: describeTarget(stack) }));
+    const bar = document.createElement('span');
+    bar.className = 'stack-card__bar';
 
-      function handleSwipe() {
-        const swipeDistance = touchStartX - touchEndX;
+    const description = document.createElement('p');
+    description.className = 'stack-card__description';
+    description.textContent = card.description || '';
 
-        if (Math.abs(swipeDistance) < minSwipeDistance) {
-          return; // Свайп слишком короткий, игнорируем
-        }
+    meta.appendChild(bar);
+    meta.appendChild(description);
+    inner.appendChild(meta);
+    node.appendChild(inner);
 
-        if (swipeDistance > 0) {
-          // Свайп влево - следующий слайд
-          setActiveSlide(currentSlide + 1);
-        } else {
-          // Свайп вправо - предыдущий слайд
-          setActiveSlide(currentSlide - 1 + slides.length);
-        }
+    bindCardInteractions(node, index);
 
-        // Перезапускаем таймер после свайпа
-        restartAutoplay();
+    return node;
+  }
+
+  function bindCardInteractions(node, index) {
+    cardDisposers.push(trackEvent(node, 'mouseenter', () => {
+      if (!isPointerInteractive() || isMobileMode()) return;
+      hoveredId = cardsData[index]?.id || node.dataset.cardId || '';
+      applyLayout();
+    }, undefined, { module: 'stackCarousel', target: describeTarget(node) }));
+
+    cardDisposers.push(trackEvent(node, 'mouseleave', () => {
+      if (!isPointerInteractive() || isMobileMode()) return;
+      hoveredId = null;
+      applyLayout();
+    }, undefined, { module: 'stackCarousel', target: describeTarget(node) }));
+
+    cardDisposers.push(trackEvent(node, 'click', (event) => {
+      handleCardClick(event, index, node);
+    }, undefined, { module: 'stackCarousel', target: describeTarget(node) }));
+  }
+
+  function handleCardClick(event, index, node) {
+    const total = cardElements.length;
+    if (!total) return;
+
+    const offset = calculateOffset(index);
+    const isActive = offset === 0;
+
+    if (!isActive) {
+      event.preventDefault();
+      setActiveIndex(index);
+      return;
+    }
+
+    const hasHref = node instanceof HTMLAnchorElement && typeof node.href === 'string' && node.href.length > 0;
+    if (!hasHref) {
+      event.preventDefault();
+      setActiveIndex(activeIndex + 1);
+    }
+  }
+
+  function setActiveIndex(nextIndex, options = {}) {
+    const { fromAutoplay = false } = options;
+    if (!cardElements.length) return;
+
+    const total = cardElements.length;
+    const safeIndex = ((nextIndex % total) + total) % total;
+    if (safeIndex === activeIndex && fromAutoplay) {
+      return;
+    }
+
+    activeIndex = safeIndex;
+    applyLayout();
+    if (!fromAutoplay) {
+      restartAutoplay();
+    }
+  }
+
+  function calculateOffset(index) {
+    const total = cardElements.length;
+    if (!total) return 0;
+    return (index - activeIndex + total) % total;
+  }
+
+  function applyLayout() {
+    const isMobile = isMobileMode();
+    const pointerAllowed = isPointerInteractive();
+
+    if (!pointerAllowed || isMobile) {
+      isHovered = false;
+      hoveredId = null;
+    }
+
+    stack.classList.toggle('stack--mobile', isMobile);
+    stack.classList.toggle('stack--hover', isHovered && pointerAllowed && !isMobile);
+    stack.classList.toggle('stack--expanded', isHovered && pointerAllowed && !isMobile);
+
+    if (mobileHint) {
+      mobileHint.hidden = !isMobile;
+    }
+
+    const total = cardElements.length;
+    setControlsState(total <= 1);
+
+    cardElements.forEach((node, index) => {
+      const style = calculateCardStyle(index, isMobile);
+      applyCardStyle(node, style);
+      node.dataset.active = style.offset === 0 ? 'true' : 'false';
+    });
+  }
+
+  function calculateCardStyle(index, isMobile) {
+    const total = cardElements.length;
+    if (!total) {
+      return { pointerEvents: 'none', offset: 0 };
+    }
+
+    const offset = calculateOffset(index);
+    const STEP_Y = isMobile ? 0 : 14;
+    const STEP_X = isMobile ? 24 : 0;
+    const SCALE_STEP = 0.05;
+
+    const yStart = offset * STEP_Y;
+    const xStart = offset * STEP_X;
+    const scaleStart = 1 - (offset * SCALE_STEP);
+
+    const yEnd = isMobile ? 0 : Math.max(0, (offset - 1) * STEP_Y);
+    const xEnd = isMobile ? Math.max(0, (offset - 1) * STEP_X) : 0;
+    const scaleEnd = Math.min(1, 1 - ((offset - 1) * SCALE_STEP));
+
+    const isCardHovered = isHovered && cardsData[index]?.id === hoveredId;
+
+    const cssVars = {
+      '--x-from': `${xStart}px`,
+      '--y-from': `${yStart}px`,
+      '--x-to': `${xEnd}px`,
+      '--y-to': `${yEnd}px`,
+      '--s-from': `${scaleStart}`,
+      '--s-to': `${scaleEnd}`,
+      '--z-start': `-${offset}px`,
+      '--z-end': `-${Math.max(0, offset - 1)}px`,
+    };
+
+    let style = {
+      offset,
+      vars: cssVars,
+      zIndex: isCardHovered ? 100 : 50 - offset,
+      pointerEvents: (offset === 0 || (isHovered && !isMobile)) ? 'auto' : 'none',
+      opacity: '',
+      transform: '',
+      transition: '',
+      animation: '',
+      boxShadow: '',
+    };
+
+    if (isMobile) {
+      if (offset === 0) {
+        style.transform = 'translate3d(0, 0, 0) scale(1)';
+        style.opacity = 1;
+        style.animation = 'none';
+      } else if (offset === total - 1) {
+        style.zIndex = 60;
+        style.animation = 'flyOutMobile 800ms cubic-bezier(0.32, 0.72, 0, 1) forwards';
+      } else {
+        const animName = activeIndex % 2 === 0 ? 'stackApproachEven' : 'stackApproachOdd';
+        style.zIndex = 40 - offset;
+        style.animation = `${animName} var(--stack-animation-duration) linear forwards`;
+      }
+    } else if (isHovered) {
+      const expandedYOffset = `calc(${offset} * ((100vh - 460px) / 3))`;
+      style.transform = `translate3d(0, ${expandedYOffset}, 0) scale(1)`;
+      style.opacity = 1;
+      style.transition = 'transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow 0.3s ease';
+      style.boxShadow = isCardHovered
+        ? '0 30px 60px -12px rgba(0,0,0,0.25)'
+        : '0 10px 40px -10px rgba(0,0,0,0.05)';
+    } else {
+      if (offset === 0) {
+        style.transform = 'translate3d(0, 0, 0) scale(1)';
+        style.opacity = 1;
+        style.transition = 'none';
+      } else {
+        const animName = activeIndex % 2 === 0 ? 'stackRiseEven' : 'stackRiseOdd';
+        style.animation = `${animName} var(--stack-animation-duration) linear forwards`;
       }
     }
 
-    // Первоначальное обновление
-    setActiveSlide(0);
+    return style;
+  }
 
-    // Запускаем автопроигрывание
-    restartAutoplay();
+  function applyCardStyle(node, style) {
+    if (style.vars) {
+      Object.entries(style.vars).forEach(([key, value]) => {
+        node.style.setProperty(key, value);
+      });
+    }
 
-    let cleaned = false;
+    node.style.zIndex = style.zIndex != null ? String(style.zIndex) : '';
+    node.style.pointerEvents = style.pointerEvents || 'auto';
+    node.style.opacity = style.opacity !== '' ? String(style.opacity) : '';
+    node.style.transform = style.transform || '';
+    node.style.transition = style.transition || '';
+    node.style.boxShadow = style.boxShadow || '';
 
-    const cleanup = () => {
-      if (cleaned) {
-        return;
-      }
-      cleaned = true;
-      stopAutoplay();
-      pauseReasons.clear();
-      while (disposers.length) {
-        const dispose = disposers.pop();
-        try {
-          dispose();
-        } catch (error) {
-          console.error('[StackCarousel] Failed to dispose listener', error);
-        }
-      }
-    };
+    const hasAnimation = style.animation && style.animation !== 'none';
+    node.style.animation = 'none';
+    if (hasAnimation) {
+      // Форсируем перезапуск анимации
+      void node.offsetWidth;
+      node.style.animation = style.animation;
+    }
+  }
 
-    const deregisterLifecycleCleanup = registerLifecycleDisposer(() => {
-      cleanup();
-    }, { module: 'stackCarousel', kind: 'cleanup' });
+  function scheduleAutoplay() {
+    stopAutoplay();
+    if (pauseReasons.size > 0 || cardElements.length <= 1) {
+      return;
+    }
+    autoplayDisposer = trackInterval(() => {
+      setActiveIndex(activeIndex + 1, { fromAutoplay: true });
+    }, AUTOPLAY_INTERVAL, { module: 'stackCarousel', detail: 'autoplay' });
+  }
 
-    return () => {
-      cleanup();
-      try {
-        deregisterLifecycleCleanup?.();
-      } catch (error) {
-        console.error('[StackCarousel] Failed to deregister lifecycle cleanup', error);
-      }
-    };
-  } // Конец initCarouselInteractivity
+  function restartAutoplay() {
+    scheduleAutoplay();
+  }
 
-  // Возвращаем cleanup для внешнего использования
-  const mainCleanup = () => {
-    carouselInitialized = false;
+  function stopAutoplay() {
+    if (autoplayDisposer) {
+      autoplayDisposer();
+      autoplayDisposer = null;
+    }
+  }
+
+  function pauseAutoplay(reason) {
+    if (!reason || pauseReasons.has(reason)) {
+      return;
+    }
+    pauseReasons.add(reason);
+    stopAutoplay();
+  }
+
+  function resumeAutoplay(reason) {
+    if (!reason || !pauseReasons.has(reason)) {
+      return;
+    }
+    pauseReasons.delete(reason);
+    scheduleAutoplay();
+  }
+
+  function isMobileMode() {
+    // Treat inline stack on desktop as mobile mode for layout purposes
+    return currentMode === 'mobile' || currentMode === 'tablet' || stack?.classList.contains('stack--inline');
+  }
+
+  function isPointerInteractive() {
+    return currentInput === 'pointer';
+  }
+
+  function setControlsState(disabled) {
+    navButtons.forEach((btn) => {
+      if (!(btn instanceof HTMLButtonElement)) return;
+      btn.disabled = disabled;
+      btn.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+    });
+  }
+
+  const handleResize = () => {
+    requestAnimationFrame(() => applyLayout());
   };
 
-  return mainCleanup;
+  disposers.push(trackEvent(deck, 'mouseenter', () => {
+    if (!isPointerInteractive() || isMobileMode()) return;
+    isHovered = true;
+    pauseAutoplay('hover');
+    applyLayout();
+  }, undefined, { module: 'stackCarousel', target: describeTarget(deck) }));
+
+  disposers.push(trackEvent(deck, 'mouseleave', () => {
+    if (!isPointerInteractive() || isMobileMode()) return;
+    isHovered = false;
+    hoveredId = null;
+    resumeAutoplay('hover');
+    applyLayout();
+  }, undefined, { module: 'stackCarousel', target: describeTarget(deck) }));
+
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let swipeDirection = null;
+  const MIN_SWIPE = 50;
+  const DIRECTION_THRESHOLD = 10;
+
+  disposers.push(trackEvent(deck, 'touchstart', (e) => {
+    if (!e.changedTouches || !e.changedTouches.length) return;
+    touchStartX = e.changedTouches[0].clientX;
+    touchStartY = e.changedTouches[0].clientY;
+    swipeDirection = null;
+    pauseAutoplay('touch');
+  }, { passive: true }, { module: 'stackCarousel', target: describeTarget(deck) }));
+
+  disposers.push(trackEvent(deck, 'touchmove', (e) => {
+    if (!isMobileMode()) return;
+    if (!swipeDirection) {
+      const deltaX = Math.abs(e.changedTouches[0].clientX - touchStartX);
+      const deltaY = Math.abs(e.changedTouches[0].clientY - touchStartY);
+      if (deltaX > DIRECTION_THRESHOLD || deltaY > DIRECTION_THRESHOLD) {
+        swipeDirection = deltaX > deltaY ? 'horizontal' : 'vertical';
+      }
+    }
+    if (swipeDirection === 'horizontal') {
+      e.preventDefault();
+    }
+  }, { passive: false }, { module: 'stackCarousel', target: describeTarget(deck) }));
+
+  disposers.push(trackEvent(deck, 'touchend', (e) => {
+    if (!e.changedTouches || !e.changedTouches.length) {
+      resumeAutoplay('touch');
+      return;
+    }
+    if (isMobileMode() && swipeDirection === 'horizontal') {
+      const touchEndX = e.changedTouches[0].clientX;
+      const deltaX = touchStartX - touchEndX;
+      if (Math.abs(deltaX) >= MIN_SWIPE) {
+        setActiveIndex(deltaX > 0 ? activeIndex + 1 : activeIndex - 1);
+      }
+    }
+    swipeDirection = null;
+    resumeAutoplay('touch');
+  }, { passive: true }, { module: 'stackCarousel', target: describeTarget(deck) }));
+
+  disposers.push(trackEvent(deck, 'touchcancel', () => {
+    swipeDirection = null;
+    resumeAutoplay('touch');
+  }, { passive: true }, { module: 'stackCarousel', target: describeTarget(deck) }));
+
+  navButtons.forEach((btn) => {
+    const isNext = btn.hasAttribute('data-stack-next');
+    disposers.push(trackEvent(btn, 'click', (event) => {
+      event.preventDefault();
+      if (btn.disabled) return;
+      setActiveIndex(isNext ? activeIndex + 1 : activeIndex - 1);
+    }, undefined, { module: 'stackCarousel', target: describeTarget(btn) }));
+  });
+
+  disposers.push(trackEvent(window, 'resize', handleResize, undefined, { module: 'stackCarousel', target: 'window' }));
+  disposers.push(trackEvent(window, 'orientationchange', handleResize, undefined, { module: 'stackCarousel', target: 'window' }));
+
+  applyLayout();
+  restartAutoplay();
+
+  const cleanup = () => {
+    if (cleaned) {
+      return;
+    }
+    cleaned = true;
+    stopAutoplay();
+    pauseReasons.clear();
+    cleanupCardListeners();
+    while (disposers.length) {
+      const dispose = disposers.pop();
+      try {
+        dispose();
+      } catch (error) {
+        console.error('[StackCarousel] Failed to dispose listener', error);
+      }
+    }
+  };
+
+  const deregisterLifecycleCleanup = registerLifecycleDisposer(() => {
+    cleanup();
+  }, { module: 'stackCarousel', kind: 'cleanup' });
+
+  return () => {
+    cleanup();
+    try {
+      deregisterLifecycleCleanup?.();
+    } catch (error) {
+      console.error('[StackCarousel] Failed to deregister lifecycle cleanup', error);
+    }
+  };
 }
 
 /**
@@ -3878,6 +4148,7 @@ lazyFeatures.register('dots-nav', {
 });
 
 lazyFeatures.register('stack-carousel', {
+  sticky: true,
   onEnter: () => activateStackCarouselFeature(),
 });
 
@@ -3898,6 +4169,7 @@ function ensureElements() {
   if (!backdrop) backdrop = document.querySelector('.backdrop');
   if (!dockHandle) dockHandle = document.querySelector('.dock-handle');
   if (!panel) panel = document.querySelector('.panel');
+  if (!main) main = document.querySelector('.main');
   if (!dotsRail) dotsRail = document.querySelector('.dots-rail');
   if (!dotFlyout) dotFlyout = document.querySelector('.dot-flyout');
   if (!menuCap) menuCap = document.querySelector('.menu-rail__cap');

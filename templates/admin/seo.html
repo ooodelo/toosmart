@@ -1,0 +1,1154 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>SEO и метаданные — Админ-панель</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg: #0f1115;
+      --bg-elevated: #181b22;
+      --bg-alt: #13151b;
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --accent: #4b8fff;
+      --accent-soft: rgba(75, 143, 255, 0.15);
+      --accent-strong: #2a6cd6;
+      --danger: #ff5c7a;
+      --success: #58c98a;
+      --text-main: #f5f5f7;
+      --text-muted: #9da3b2;
+      --text-soft: #6f7482;
+      --radius-lg: 18px;
+      --radius-md: 12px;
+      --radius-sm: 999px;
+      --shadow-soft: 0 18px 45px rgba(0, 0, 0, 0.55);
+      --shadow-chip: 0 4px 12px rgba(0, 0, 0, 0.4);
+      --transition-fast: 0.16s ease-out;
+      --border-focus: 1px solid rgba(75, 143, 255, 0.9);
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+      color: var(--text-main);
+      background: radial-gradient(circle at top left, #212537, #090b10 52%);
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .app-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border-subtle);
+      background: linear-gradient(120deg, rgba(30, 34, 48, 0.96), rgba(14, 16, 24, 0.96));
+      backdrop-filter: blur(28px) saturate(1.2);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      width: 32px;
+      height: 32px;
+      border-radius: 40%;
+      background: radial-gradient(circle at 30% 20%, #ffe66d, #ffb347 45%, #f77f93);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 15px;
+      color: #1a1b23;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.55);
+    }
+
+    .brand-text {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .brand-title {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .brand-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn {
+      border-radius: var(--radius-sm);
+      padding: 7px 14px;
+      font-size: 13px;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      white-space: nowrap;
+      transition: background var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+      color: #ffffff;
+      box-shadow: 0 12px 30px rgba(75, 143, 255, 0.45);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 16px 40px rgba(75, 143, 255, 0.65);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text-main);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-muted);
+      border: 1px dashed rgba(255, 255, 255, 0.12);
+    }
+
+    .btn-ghost:hover {
+      color: var(--text-main);
+      border-style: solid;
+    }
+
+    .btn-small {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+
+    .btn-back {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-muted);
+      text-decoration: none;
+    }
+
+    .btn-back:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-main);
+    }
+
+    .app-main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      gap: 16px;
+      padding: 16px 18px 20px;
+    }
+
+    .sidebar {
+      background: linear-gradient(160deg, var(--bg-elevated), var(--bg-alt));
+      border-radius: 20px;
+      padding: 14px 14px 16px;
+      box-shadow: var(--shadow-soft);
+      border: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      position: sticky;
+      top: 72px;
+      max-height: calc(100vh - 88px);
+      overflow: auto;
+    }
+
+    .sidebar-section h2 {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-soft);
+      margin: 0 0 8px;
+    }
+
+    .field-label {
+      font-size: 12px;
+      color: var(--text-soft);
+      margin-bottom: 4px;
+      display: block;
+    }
+
+    .input, .textarea, .select {
+      width: 100%;
+      padding: 7px 9px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(9, 11, 17, 0.9);
+      color: var(--text-main);
+      font-size: 13px;
+      outline: none;
+      transition: border var(--transition-fast), box-shadow var(--transition-fast);
+    }
+
+    .input:focus, .textarea:focus, .select:focus {
+      border: var(--border-focus);
+      box-shadow: 0 0 0 1px rgba(75, 143, 255, 0.2);
+    }
+
+    .textarea {
+      resize: vertical;
+      min-height: 60px;
+    }
+
+    .chips-group {
+      margin-top: 12px;
+    }
+
+    .chips-label {
+      font-size: 11px;
+      color: var(--text-soft);
+      margin-bottom: 6px;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .chip {
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 11px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(19, 21, 28, 0.9);
+      color: var(--text-muted);
+      cursor: pointer;
+      box-shadow: var(--shadow-chip);
+      transition: background var(--transition-fast), color var(--transition-fast), border var(--transition-fast);
+    }
+
+    .chip-active {
+      background: var(--accent-soft);
+      border-color: rgba(75, 143, 255, 0.9);
+      color: #e3eeff;
+    }
+
+    .chip:hover {
+      transform: translateY(-0.5px);
+    }
+
+    .summary {
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      padding-top: 10px;
+    }
+
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+
+    .summary-hint {
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--text-soft);
+    }
+
+    .content {
+      min-width: 0;
+    }
+
+    .cards-container {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .loading-message {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-muted);
+    }
+
+    .card {
+      background: linear-gradient(160deg, rgba(20, 23, 34, 0.98), rgba(10, 12, 18, 0.98));
+      border-radius: 18px;
+      border: 1px solid rgba(222, 232, 255, 0.06);
+      box-shadow: var(--shadow-soft);
+      overflow: hidden;
+      transition: border var(--transition-fast), transform var(--transition-fast);
+    }
+
+    .card:hover {
+      border-color: rgba(75, 143, 255, 0.5);
+      transform: translateY(-1px);
+    }
+
+    .card--dirty {
+      border-color: rgba(255, 200, 100, 0.5);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px 9px;
+      background: radial-gradient(circle at top left, rgba(75, 143, 255, 0.12), transparent 55%);
+      cursor: pointer;
+    }
+
+    .card-main {
+      min-width: 0;
+    }
+
+    .card-path {
+      font-size: 11px;
+      color: var(--text-soft);
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .card-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .badge {
+      font-size: 11px;
+      border-radius: 999px;
+      padding: 3px 8px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(11, 15, 26, 0.95);
+      color: var(--text-muted);
+    }
+
+    .badge-type {
+      text-transform: lowercase;
+    }
+
+    .badge-status--warning {
+      border-color: var(--danger);
+      color: #ffd5df;
+      background: linear-gradient(135deg, rgba(255, 92, 122, 0.18), rgba(40, 8, 24, 0.9));
+    }
+
+    .badge-status--ok {
+      border-color: var(--success);
+      color: #d2ffe6;
+      background: linear-gradient(135deg, rgba(88, 201, 138, 0.35), rgba(12, 28, 22, 0.9));
+    }
+
+    .card-toggle {
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(10, 12, 18, 0.92);
+      color: var(--text-muted);
+      width: 22px;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      cursor: pointer;
+      transition: transform var(--transition-fast), background var(--transition-fast);
+    }
+
+    .card-toggle.open {
+      transform: rotate(180deg);
+      background: rgba(75, 143, 255, 0.16);
+      border-color: rgba(75, 143, 255, 0.7);
+    }
+
+    .card-body {
+      padding: 10px 12px 11px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      display: none;
+    }
+
+    .card-body.open {
+      display: block;
+    }
+
+    .card-section {
+      padding: 8px 0;
+      border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+    }
+
+    .card-section:last-of-type {
+      border-bottom: none;
+    }
+
+    .card-section h3 {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-soft);
+      margin: 0 0 6px;
+    }
+
+    .field-row {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 8px;
+    }
+
+    .field-with-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .field-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+
+    .counter {
+      font-size: 11px;
+      color: var(--text-soft);
+    }
+
+    .hint {
+      font-size: 11px;
+      color: var(--text-soft);
+    }
+
+    .three-cols {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .two-cols {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .image-row {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(0, 1.3fr);
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .image-preview-box {
+      border-radius: 14px;
+      border: 1px dashed rgba(255, 255, 255, 0.15);
+      background: radial-gradient(circle at top, rgba(75, 143, 255, 0.14), rgba(15, 17, 24, 0.96));
+      min-height: 84px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .image-preview-placeholder {
+      font-size: 11px;
+      color: var(--text-soft);
+    }
+
+    .image-preview-img {
+      max-width: 100%;
+      max-height: 140px;
+      object-fit: cover;
+    }
+
+    .checkbox {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .checkbox input[type="checkbox"] {
+      width: 14px;
+      height: 14px;
+    }
+
+    .card-section--footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 10px;
+    }
+
+    .section-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 18px;
+      right: 18px;
+      padding: 9px 14px;
+      border-radius: 999px;
+      font-size: 12px;
+      background: rgba(9, 12, 19, 0.96);
+      color: var(--text-main);
+      border: 1px solid var(--success);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.9);
+      opacity: 0;
+      transform: translateY(12px);
+      pointer-events: none;
+      transition: opacity 0.18s ease-out, transform 0.18s ease-out;
+      z-index: 100;
+    }
+
+    .toast--visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .toast--error {
+      border-color: var(--danger);
+    }
+
+    @media (max-width: 960px) {
+      .app-main {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      .sidebar {
+        position: static;
+        max-height: none;
+        order: -1;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .app-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+      }
+      .header-controls {
+        align-self: stretch;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+      }
+      .three-cols, .two-cols, .image-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">
+      <a href="/index.html" class="btn btn-back" style="margin-right: 10px;">← Назад</a>
+      <span class="brand-logo">СУ</span>
+      <div class="brand-text">
+        <div class="brand-title">Слишком Умная Уборка</div>
+        <div class="brand-subtitle">SEO и метаданные контента</div>
+      </div>
+    </div>
+    <div class="header-controls">
+      <button class="btn btn-secondary" id="btnCollapseAll">Свернуть все</button>
+      <button class="btn btn-secondary" id="btnExpandAll">Развернуть все</button>
+      <button class="btn btn-primary" id="btnSaveAll">Сохранить все изменения</button>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <aside class="sidebar">
+      <section class="sidebar-section">
+        <h2>Фильтры</h2>
+        <label class="field-label">Поиск по названию или пути</label>
+        <input type="search" id="searchInput" class="input" placeholder="Поиск...">
+
+        <div class="chips-group">
+          <div class="chips-label">Тип контента</div>
+          <div class="chips" id="typeFilters">
+            <button class="chip chip-active" data-type="all">Все</button>
+            <button class="chip" data-type="course">Курс</button>
+            <button class="chip" data-type="recommendation">Рекомендации</button>
+            <button class="chip" data-type="image">Изображения</button>
+            <button class="chip" data-type="other">Другое</button>
+          </div>
+        </div>
+
+        <div class="chips-group">
+          <div class="chips-label">Состояние</div>
+          <div class="chips" id="statusFilters">
+            <button class="chip chip-active" data-status="all">Все</button>
+            <button class="chip" data-status="missing-required">Нет обязательных</button>
+            <button class="chip" data-status="missing-og">Нет Open Graph</button>
+            <button class="chip" data-status="complete">Заполнено</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="sidebar-section summary">
+        <h2>Итого</h2>
+        <div class="summary-row">
+          <span>Всего карточек</span>
+          <span id="statTotal">0</span>
+        </div>
+        <div class="summary-row">
+          <span>Требуют внимания</span>
+          <span id="statMissing">0</span>
+        </div>
+        <div class="summary-row">
+          <span>Заполнено</span>
+          <span id="statComplete">0</span>
+        </div>
+        <p class="summary-hint">
+          Данные сохраняются на сервере в config/seo-data.json
+        </p>
+      </section>
+    </aside>
+
+    <section class="content">
+      <div id="cardsContainer" class="cards-container">
+        <div class="loading-message">Загрузка контента...</div>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite">
+    <span id="toastMessage">Сохранено</span>
+  </div>
+
+  <script>
+    const API_URL = window.location.origin;
+    let contentItems = [];
+    let activeType = "all";
+    let activeStatus = "all";
+    const cardsRegistry = new Map();
+
+    const elCardsContainer = document.getElementById("cardsContainer");
+    const elSearch = document.getElementById("searchInput");
+    const elTypeFilters = document.getElementById("typeFilters");
+    const elStatusFilters = document.getElementById("statusFilters");
+    const elStatTotal = document.getElementById("statTotal");
+    const elStatMissing = document.getElementById("statMissing");
+    const elStatComplete = document.getElementById("statComplete");
+    const elBtnCollapseAll = document.getElementById("btnCollapseAll");
+    const elBtnExpandAll = document.getElementById("btnExpandAll");
+    const elBtnSaveAll = document.getElementById("btnSaveAll");
+    const elToast = document.getElementById("toast");
+    const elToastMessage = document.getElementById("toastMessage");
+
+    // Инициализация
+    document.addEventListener("DOMContentLoaded", init);
+
+    async function init() {
+      await loadContent();
+      bindFilters();
+      bindBulkControls();
+    }
+
+    async function loadContent() {
+      try {
+        const response = await fetch(`${API_URL}/api/seo/content`);
+        if (!response.ok) throw new Error("Ошибка загрузки");
+        contentItems = await response.json();
+        renderAll();
+      } catch (error) {
+        elCardsContainer.innerHTML = `<div class="loading-message" style="color: var(--danger);">Ошибка: ${error.message}</div>`;
+      }
+    }
+
+    function showToast(message, isError = false) {
+      elToastMessage.textContent = message;
+      elToast.classList.toggle("toast--error", isError);
+      elToast.classList.add("toast--visible");
+      setTimeout(() => elToast.classList.remove("toast--visible"), 2000);
+    }
+
+    function createCard(item) {
+      const node = document.createElement("article");
+      node.className = "card";
+      node.dataset.id = item.id;
+
+      const values = Object.assign({}, item.defaults, item.savedData || {});
+      const isImage = item.type === "image";
+
+      const typeLabelMap = { course: "курс", recommendation: "рекомендация", image: "изображение", other: "другое" };
+      const typeLabel = typeLabelMap[item.type] || item.type;
+
+      const displayTitle = isImage ? (values.imageAlt || values.slug || "Изображение") : (values.title || "Без title");
+
+      node.innerHTML = `
+        <header class="card-header">
+          <div class="card-main">
+            <div class="card-path">${item.path}</div>
+            <div class="card-title">${displayTitle}</div>
+          </div>
+          <div class="card-meta">
+            <span class="badge badge-type">${typeLabel}</span>
+            <span class="badge badge-status ${getStatusClass(item.status, item.complete)}">${getStatusLabel(item.status, item.complete)}</span>
+            <button class="card-toggle" type="button">▾</button>
+          </div>
+        </header>
+        <div class="card-body">
+          ${!isImage ? `
+          <section class="card-section">
+            <h3>Основные метаданные</h3>
+            <div class="field-row">
+              <label class="field-label">Title</label>
+              <div class="field-with-meta">
+                <input type="text" class="input field-title" maxlength="120" value="${escapeHtml(values.title || "")}">
+                <div class="field-meta">
+                  <span class="counter counter-title">${(values.title || "").length} / 60</span>
+                  <span class="hint">Оптимум: 45–60 символов</span>
+                </div>
+              </div>
+            </div>
+            <div class="field-row">
+              <label class="field-label">Meta description</label>
+              <div class="field-with-meta">
+                <textarea class="textarea field-description" rows="2" maxlength="260">${escapeHtml(values.description || "")}</textarea>
+                <div class="field-meta">
+                  <span class="counter counter-description">${(values.description || "").length} / 160</span>
+                  <span class="hint">Оптимум: 120–160 символов</span>
+                </div>
+              </div>
+            </div>
+            <div class="field-row">
+              <label class="field-label">H1</label>
+              <input type="text" class="input field-h1" value="${escapeHtml(values.h1 || "")}">
+            </div>
+            <div class="field-row">
+              <label class="field-label">URL / slug</label>
+              <input type="text" class="input field-slug" value="${escapeHtml(values.slug || "")}">
+            </div>
+            <div class="field-row three-cols">
+              <div>
+                <label class="field-label">Индексирование</label>
+                <select class="select field-robots">
+                  <option value="index,follow" ${values.robots === "index,follow" ? "selected" : ""}>index,follow</option>
+                  <option value="noindex,follow" ${values.robots === "noindex,follow" ? "selected" : ""}>noindex,follow</option>
+                  <option value="noindex,nofollow" ${values.robots === "noindex,nofollow" ? "selected" : ""}>noindex,nofollow</option>
+                </select>
+              </div>
+              <div>
+                <label class="field-label">Canonical</label>
+                <input type="text" class="input field-canonical" placeholder="https://..." value="${escapeHtml(values.canonical || "")}">
+              </div>
+              <div>
+                <label class="field-label">Тип страницы</label>
+                <select class="select field-page-type">
+                  <option value="course" ${values.pageType === "course" ? "selected" : ""}>Курс</option>
+                  <option value="recommendation" ${values.pageType === "recommendation" ? "selected" : ""}>Рекомендация</option>
+                  <option value="other" ${values.pageType === "other" ? "selected" : ""}>Другое</option>
+                </select>
+              </div>
+            </div>
+          </section>
+          <section class="card-section">
+            <h3>Open Graph / соцсети</h3>
+            <div class="field-row">
+              <label class="field-label">OG title</label>
+              <input type="text" class="input field-og-title" value="${escapeHtml(values.ogTitle || "")}">
+            </div>
+            <div class="field-row">
+              <label class="field-label">OG description</label>
+              <textarea class="textarea field-og-description" rows="2">${escapeHtml(values.ogDescription || "")}</textarea>
+            </div>
+            <div class="field-row image-row">
+              <div class="image-meta">
+                <label class="field-label">OG image</label>
+                <input type="text" class="input field-og-image" placeholder="/assets/og/filename.jpg" value="${escapeHtml(values.ogImage || "")}">
+                <p class="hint">Рекомендованный размер: ~1200x630px</p>
+              </div>
+              <div class="image-preview">
+                <div class="image-preview-box">
+                  ${values.ogImage ? `<img src="${escapeHtml(values.ogImage)}" class="image-preview-img">` : `<span class="image-preview-placeholder">Превью</span>`}
+                </div>
+              </div>
+            </div>
+            <div class="field-row two-cols">
+              <div>
+                <label class="field-label">Twitter card</label>
+                <select class="select field-twitter-card">
+                  <option value="summary_large_image" ${values.twitterCard === "summary_large_image" ? "selected" : ""}>summary_large_image</option>
+                  <option value="summary" ${values.twitterCard === "summary" ? "selected" : ""}>summary</option>
+                  <option value="none" ${values.twitterCard === "none" ? "selected" : ""}>не задавать</option>
+                </select>
+              </div>
+              <div>
+                <label class="field-label">OG type</label>
+                <select class="select field-og-type">
+                  <option value="article" ${values.ogType === "article" ? "selected" : ""}>article</option>
+                  <option value="website" ${values.ogType === "website" ? "selected" : ""}>website</option>
+                </select>
+              </div>
+            </div>
+          </section>
+          ` : `
+          <section class="card-section">
+            <h3>Изображение / alt-текст</h3>
+            <div class="field-row">
+              <label class="field-label">URL / slug</label>
+              <input type="text" class="input field-slug" value="${escapeHtml(values.slug || "")}">
+            </div>
+            <div class="field-row">
+              <label class="field-label">Alt-текст</label>
+              <input type="text" class="input field-image-alt" value="${escapeHtml(values.imageAlt || "")}">
+            </div>
+            <div class="field-row">
+              <label class="field-label">Подпись / описание</label>
+              <textarea class="textarea field-image-caption" rows="2">${escapeHtml(values.imageCaption || "")}</textarea>
+            </div>
+          </section>
+          `}
+          <section class="card-section card-section--footer">
+            <div class="section-left">
+              <label class="checkbox">
+                <input type="checkbox" class="field-complete-flag" ${item.complete ? "checked" : ""}>
+                <span>Отметить как заполненное</span>
+              </label>
+            </div>
+            <div class="section-right">
+              <button class="btn btn-ghost btn-small btn-reset" type="button">Сбросить</button>
+              <button class="btn btn-primary btn-small btn-save-one" type="button">Сохранить</button>
+            </div>
+          </section>
+        </div>
+      `;
+
+      // Event listeners
+      const toggle = node.querySelector(".card-toggle");
+      const body = node.querySelector(".card-body");
+      const header = node.querySelector(".card-header");
+
+      header.addEventListener("click", (e) => {
+        if (e.target === toggle) return;
+        toggleBody();
+      });
+      toggle.addEventListener("click", (e) => {
+        e.stopPropagation();
+        toggleBody();
+      });
+
+      function toggleBody() {
+        body.classList.toggle("open");
+        toggle.classList.toggle("open");
+      }
+
+      // Form inputs
+      const inputs = node.querySelectorAll("input, textarea, select");
+      inputs.forEach(input => {
+        input.addEventListener("input", () => {
+          node.classList.add("card--dirty");
+          updateCounters();
+          updatePreview();
+        });
+        input.addEventListener("change", () => node.classList.add("card--dirty"));
+      });
+
+      function updateCounters() {
+        const titleInput = node.querySelector(".field-title");
+        const descInput = node.querySelector(".field-description");
+        const titleCounter = node.querySelector(".counter-title");
+        const descCounter = node.querySelector(".counter-description");
+        if (titleInput && titleCounter) {
+          titleCounter.textContent = `${titleInput.value.length} / 60`;
+        }
+        if (descInput && descCounter) {
+          descCounter.textContent = `${descInput.value.length} / 160`;
+        }
+      }
+
+      function updatePreview() {
+        const ogImageInput = node.querySelector(".field-og-image");
+        const previewBox = node.querySelector(".image-preview-box");
+        if (ogImageInput && previewBox) {
+          const src = ogImageInput.value.trim();
+          if (src) {
+            previewBox.innerHTML = `<img src="${escapeHtml(src)}" class="image-preview-img">`;
+          } else {
+            previewBox.innerHTML = `<span class="image-preview-placeholder">Превью</span>`;
+          }
+        }
+      }
+
+      // Save button
+      node.querySelector(".btn-save-one").addEventListener("click", async () => {
+        await saveCard(node, item);
+      });
+
+      // Reset button
+      node.querySelector(".btn-reset").addEventListener("click", () => {
+        resetCard(node, item);
+      });
+
+      cardsRegistry.set(item.id, { node, item });
+      return node;
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    function getStatusClass(status, complete) {
+      if (complete) return "badge-status--ok";
+      if (status === "complete") return "badge-status--ok";
+      return "badge-status--warning";
+    }
+
+    function getStatusLabel(status, complete) {
+      if (complete) return "отмечено заполненным";
+      if (status === "missing-required") return "нет обязательных полей";
+      if (status === "missing-og") return "нет Open Graph";
+      return "заполнено";
+    }
+
+    function collectCardValues(node, item) {
+      const isImage = item.type === "image";
+      const values = {
+        slug: node.querySelector(".field-slug")?.value || ""
+      };
+
+      if (isImage) {
+        values.imageAlt = node.querySelector(".field-image-alt")?.value || "";
+        values.imageCaption = node.querySelector(".field-image-caption")?.value || "";
+      } else {
+        values.title = node.querySelector(".field-title")?.value || "";
+        values.description = node.querySelector(".field-description")?.value || "";
+        values.h1 = node.querySelector(".field-h1")?.value || "";
+        values.robots = node.querySelector(".field-robots")?.value || "";
+        values.canonical = node.querySelector(".field-canonical")?.value || "";
+        values.pageType = node.querySelector(".field-page-type")?.value || "";
+        values.ogTitle = node.querySelector(".field-og-title")?.value || "";
+        values.ogDescription = node.querySelector(".field-og-description")?.value || "";
+        values.ogImage = node.querySelector(".field-og-image")?.value || "";
+        values.twitterCard = node.querySelector(".field-twitter-card")?.value || "";
+        values.ogType = node.querySelector(".field-og-type")?.value || "";
+      }
+
+      return values;
+    }
+
+    async function saveCard(node, item) {
+      const values = collectCardValues(node, item);
+      const complete = node.querySelector(".field-complete-flag")?.checked || false;
+
+      try {
+        const response = await fetch(`${API_URL}/api/seo/save`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: item.id, values, complete })
+        });
+
+        if (!response.ok) throw new Error("Ошибка сохранения");
+
+        item.savedData = values;
+        item.complete = complete;
+        item.status = inferStatus(values, item.type, complete);
+
+        node.classList.remove("card--dirty");
+        updateStatusBadge(node, item);
+        refreshStats();
+        showToast("Карточка сохранена");
+      } catch (error) {
+        showToast("Ошибка: " + error.message, true);
+      }
+    }
+
+    function resetCard(node, item) {
+      const values = item.defaults;
+      const isImage = item.type === "image";
+
+      if (node.querySelector(".field-slug")) {
+        node.querySelector(".field-slug").value = values.slug || "";
+      }
+
+      if (isImage) {
+        if (node.querySelector(".field-image-alt")) node.querySelector(".field-image-alt").value = values.imageAlt || "";
+        if (node.querySelector(".field-image-caption")) node.querySelector(".field-image-caption").value = values.imageCaption || "";
+      } else {
+        if (node.querySelector(".field-title")) node.querySelector(".field-title").value = values.title || "";
+        if (node.querySelector(".field-description")) node.querySelector(".field-description").value = values.description || "";
+        if (node.querySelector(".field-h1")) node.querySelector(".field-h1").value = values.h1 || "";
+        if (node.querySelector(".field-robots")) node.querySelector(".field-robots").value = values.robots || "index,follow";
+        if (node.querySelector(".field-canonical")) node.querySelector(".field-canonical").value = values.canonical || "";
+        if (node.querySelector(".field-page-type")) node.querySelector(".field-page-type").value = values.pageType || "other";
+        if (node.querySelector(".field-og-title")) node.querySelector(".field-og-title").value = values.ogTitle || "";
+        if (node.querySelector(".field-og-description")) node.querySelector(".field-og-description").value = values.ogDescription || "";
+        if (node.querySelector(".field-og-image")) node.querySelector(".field-og-image").value = values.ogImage || "";
+        if (node.querySelector(".field-twitter-card")) node.querySelector(".field-twitter-card").value = values.twitterCard || "summary_large_image";
+        if (node.querySelector(".field-og-type")) node.querySelector(".field-og-type").value = values.ogType || "article";
+      }
+
+      if (node.querySelector(".field-complete-flag")) node.querySelector(".field-complete-flag").checked = false;
+      node.classList.remove("card--dirty");
+    }
+
+    function inferStatus(values, type, complete) {
+      if (complete) return "complete";
+      if (type === "image") {
+        return values.imageAlt ? "complete" : "missing-required";
+      }
+      if (!values.title || !values.description) return "missing-required";
+      if (!values.ogTitle || !values.ogImage) return "missing-og";
+      return "complete";
+    }
+
+    function updateStatusBadge(node, item) {
+      const badge = node.querySelector(".badge-status");
+      if (!badge) return;
+      badge.className = `badge badge-status ${getStatusClass(item.status, item.complete)}`;
+      badge.textContent = getStatusLabel(item.status, item.complete);
+    }
+
+    function renderAll() {
+      elCardsContainer.innerHTML = "";
+      cardsRegistry.clear();
+
+      const searchValue = (elSearch.value || "").toLowerCase().trim();
+
+      const filtered = contentItems.filter(item => {
+        if (activeType !== "all" && item.type !== activeType) return false;
+        if (activeStatus !== "all" && item.status !== activeStatus) return false;
+
+        if (searchValue) {
+          const haystack = [item.path, item.defaults.title, item.defaults.h1, item.defaults.slug, item.defaults.imageAlt]
+            .filter(Boolean).join(" ").toLowerCase();
+          if (!haystack.includes(searchValue)) return false;
+        }
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        elCardsContainer.innerHTML = `<div class="loading-message">Ничего не найдено</div>`;
+      } else {
+        filtered.forEach(item => {
+          elCardsContainer.appendChild(createCard(item));
+        });
+      }
+
+      refreshStats();
+    }
+
+    function refreshStats() {
+      elStatTotal.textContent = contentItems.length;
+      let missing = 0, complete = 0;
+      contentItems.forEach(item => {
+        if (item.status === "complete" || item.complete) complete++;
+        else missing++;
+      });
+      elStatMissing.textContent = missing;
+      elStatComplete.textContent = complete;
+    }
+
+    function bindFilters() {
+      elTypeFilters.addEventListener("click", e => {
+        const btn = e.target.closest(".chip");
+        if (!btn) return;
+        elTypeFilters.querySelectorAll(".chip").forEach(c => c.classList.remove("chip-active"));
+        btn.classList.add("chip-active");
+        activeType = btn.dataset.type || "all";
+        renderAll();
+      });
+
+      elStatusFilters.addEventListener("click", e => {
+        const btn = e.target.closest(".chip");
+        if (!btn) return;
+        elStatusFilters.querySelectorAll(".chip").forEach(c => c.classList.remove("chip-active"));
+        btn.classList.add("chip-active");
+        activeStatus = btn.dataset.status || "all";
+        renderAll();
+      });
+
+      elSearch.addEventListener("input", renderAll);
+    }
+
+    function bindBulkControls() {
+      elBtnCollapseAll.addEventListener("click", () => {
+        document.querySelectorAll(".card-body.open").forEach(el => el.classList.remove("open"));
+        document.querySelectorAll(".card-toggle.open").forEach(el => el.classList.remove("open"));
+      });
+
+      elBtnExpandAll.addEventListener("click", () => {
+        document.querySelectorAll(".card-body").forEach(el => el.classList.add("open"));
+        document.querySelectorAll(".card-toggle").forEach(el => el.classList.add("open"));
+      });
+
+      elBtnSaveAll.addEventListener("click", async () => {
+        const bulk = {};
+        cardsRegistry.forEach(({ node, item }) => {
+          const values = collectCardValues(node, item);
+          const complete = node.querySelector(".field-complete-flag")?.checked || false;
+          bulk[item.id] = { values, complete };
+        });
+
+        try {
+          const response = await fetch(`${API_URL}/api/seo/save`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ bulk })
+          });
+
+          if (!response.ok) throw new Error("Ошибка сохранения");
+
+          // Update local state
+          cardsRegistry.forEach(({ node, item }) => {
+            const saved = bulk[item.id];
+            item.savedData = saved.values;
+            item.complete = saved.complete;
+            item.status = inferStatus(saved.values, item.type, saved.complete);
+            node.classList.remove("card--dirty");
+            updateStatusBadge(node, item);
+          });
+
+          refreshStats();
+          showToast("Все карточки сохранены");
+        } catch (error) {
+          showToast("Ошибка: " + error.message, true);
+        }
+      });
+    }
+  </script>
+</body>
+</html>

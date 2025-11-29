@@ -10,7 +10,27 @@
   'use strict';
 
   const LEGAL_BASE_PATH = '/shared/legal/';
+  const DEFAULT_SLUG_MAPPING = {
+    terms: 'legal-terms',
+    privacy: 'privacy-policy',
+    offer: 'public-offer',
+    contacts: 'contacts',
+    refund: 'refund-policy',
+    requisites: 'contacts',
+    cookies: 'privacy-policy',
+    default: 'legal-terms'
+  };
+  const slugMapping = (typeof window !== 'undefined' && window.LEGAL_SLUG_MAP && typeof window.LEGAL_SLUG_MAP === 'object')
+    ? { ...DEFAULT_SLUG_MAPPING, ...window.LEGAL_SLUG_MAP }
+    : { ...DEFAULT_SLUG_MAPPING };
   const loadedContent = new Map(); // Кэш загруженного контента
+  const initialModalContent = new Map(); // Стартовое содержимое модалок (fallback)
+  const basePathCandidates = buildBasePathList(); // Возможные базовые пути для dev/prod
+
+  function resolveLegalSlug(legalType) {
+    if (!legalType) return slugMapping.default || legalType;
+    return slugMapping[legalType] || slugMapping.default || legalType;
+  }
 
   /**
    * Открывает модальное окно с legal контентом
@@ -19,6 +39,8 @@
   async function openLegalModal(legalType) {
     const modalId = `legal-${legalType}-modal`;
     const modal = document.getElementById(modalId);
+    const slug = resolveLegalSlug(legalType);
+    const cacheKey = slug || legalType;
 
     if (!modal) {
       console.error(`Модальное окно ${modalId} не найдено`);
@@ -26,15 +48,22 @@
     }
 
     // Загружаем контент, если еще не загружен
-    if (!loadedContent.has(legalType)) {
-      const content = await loadLegalContent(legalType);
+    let content = loadedContent.get(cacheKey);
+
+    if (!content) {
+      content = await loadLegalContent(legalType);
       if (content) {
-        loadedContent.set(legalType, content);
-        injectContentIntoModal(modal, content);
-      } else {
-        console.error(`Не удалось загрузить контент для ${legalType}`);
-        return;
+        loadedContent.set(cacheKey, content);
+      } else if (initialModalContent.has(legalType)) {
+        // Fallback для dev/ошибок сети: используем стартовый текст
+        content = initialModalContent.get(legalType);
+        loadedContent.set(cacheKey, content);
+        console.warn(`[LegalModal] Используется fallback контент для ${legalType}`);
       }
+    }
+
+    if (content) {
+      injectContentIntoModal(modal, content);
     }
 
     // Открываем модальное окно
@@ -70,20 +99,25 @@
    * @returns {Promise<string|null>} - HTML контент или null при ошибке
    */
   async function loadLegalContent(legalType) {
-    const url = `${LEGAL_BASE_PATH}${legalType}.html`;
+    const slug = resolveLegalSlug(legalType);
+    const urlCandidates = basePathCandidates.map((base) => `${base}${slug}-content.html`);
 
-    try {
-      const response = await fetch(url);
+    for (const url of urlCandidates) {
+      try {
+        const response = await fetch(url);
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        return await response.text();
+      } catch (error) {
+        console.warn(`Ошибка загрузки legal контента (${legalType}) с ${url}:`, error.message);
       }
-
-      return await response.text();
-    } catch (error) {
-      console.error(`Ошибка загрузки legal контента (${legalType}):`, error);
-      return null;
     }
+
+    console.error(`Не удалось загрузить legal контент (${legalType}) ни по одному из путей`);
+    return null;
   }
 
   /**
@@ -218,13 +252,50 @@
     // Проверяем, что DOM готов
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => {
+        snapshotInitialContent();
         handleLegalLinks();
         handleEscapeKey();
       });
     } else {
+      snapshotInitialContent();
       handleLegalLinks();
       handleEscapeKey();
     }
+  }
+
+  /**
+   * Сохраняем исходное содержимое модалок как fallback
+   */
+  function snapshotInitialContent() {
+    document.querySelectorAll('.legal-modal').forEach((modal) => {
+      const type = modal.id ? modal.id.replace('legal-', '').replace('-modal', '') : null;
+      const textContainer = modal.querySelector('.legal-text');
+
+      if (type && textContainer && textContainer.innerHTML.trim()) {
+        initialModalContent.set(type, textContainer.innerHTML);
+      }
+    });
+  }
+
+  /**
+   * Строим список базовых путей для запросов в dev/prod
+   */
+  function buildBasePathList() {
+    const bases = new Set();
+    const inlineBase = typeof window !== 'undefined' ? window.LEGAL_BASE_PATH : '';
+    if (inlineBase) bases.add(normalizeBasePath(inlineBase));
+    bases.add(normalizeBasePath(LEGAL_BASE_PATH));
+
+    // Относительные пути на случай, если сайт раздают не из корня
+    const relativePrefixes = ['./', '../', '../../', '../../../'];
+    relativePrefixes.forEach((prefix) => bases.add(normalizeBasePath(`${prefix}shared/legal/`)));
+
+    return Array.from(bases);
+  }
+
+  function normalizeBasePath(path) {
+    if (!path) return '';
+    return path.endsWith('/') ? path.slice(0, -1) + '/' : `${path}/`;
   }
 
   // Экспортируем функции в глобальную область для совместимости с inline onclick

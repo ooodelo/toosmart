@@ -1,8 +1,8 @@
 {
-  "domain": "example.com",
+  "domain": "toosmart.ru",
   "pricing": {
-    "originalAmount": 1490,
-    "currentAmount": 990,
+    "originalAmount": 10000,
+    "currentAmount": 3400,
     "currency": "RUB"
   },
   "ctaTexts": {
@@ -12,12 +12,14 @@
     "openCourse": "Открыть курс"
   },
   "footer": {
-    "companyName": "ООО \"Название компании\"",
-    "inn": "0000000000",
-    "year": 2024
+    "companyName": "ИП Константинова Софья Сергеевна",
+    "inn": "780503823473",
+    "year": 2025
   },
   "legal": {
-    "terms": "01-legal-terms.md"
+    "terms": "01-legal-terms.md",
+    "privacy": "",
+    "offer": ""
   },
   "robokassa": {
     "merchantLogin": "",
@@ -25,13 +27,16 @@
     "password2": "",
     "isTest": true,
     "invoicePrefix": "CLEAN",
+    "description": "",
     "successUrl": "/premium/success.php",
     "failUrl": "/premium/fail.php",
-    "resultUrl": "/premium/src/robokassa/result.php"
+    "resultUrl": "/premium/src/robokassa/result.php",
+    "culture": "ru"
   },
   "build": {
     "wordsPerMinute": 150
   },
+  "recommendationCards": [],
   "features": {
     "cookiesBannerEnabled": true
   }

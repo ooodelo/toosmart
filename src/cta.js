@@ -4,6 +4,8 @@
  * Управляет модальным окном оплаты и интеграцией с Robokassa
  */
 
+import { localizeValidation } from './js/form-validation.js';
+
 export function initCta() {
   // Ждём загрузки DOM
   if (document.readyState === 'loading') {
@@ -40,6 +42,7 @@ function init() {
     if (form) {
       form.addEventListener('submit', handlePayment);
       setupInlineValidation(form);
+      localizeValidation(form);
     }
 
     // Закрытие по Escape
@@ -276,7 +279,18 @@ async function handlePayment(event) {
       body: JSON.stringify({ email })
     });
 
-    const data = await response.json();
+    const responseClone = response.clone();
+    let data;
+    try {
+      data = await response.json();
+    } catch (parseError) {
+      const rawText = await responseClone.text().catch(() => '');
+      console.error('Payment error: invalid JSON from /server/api/order/create.php', {
+        parseError,
+        rawText
+      });
+      throw new Error('Сервер оплат вернул некорректный ответ. Проверьте, запущен ли backend /server.');
+    }
 
     if (!response.ok) {
       throw new Error(data.error || `HTTP ${response.status}`);
@@ -316,7 +330,10 @@ async function handlePayment(event) {
     }
   } catch (error) {
     console.error('Payment error:', error);
-    showError(errorDiv, error.message || 'Произошла ошибка. Попробуйте ещё раз.');
+    const friendlyMessage = error.message?.includes('Failed to fetch')
+      ? 'Не удалось связаться с сервером оплаты. Проверьте подключение или запуск backend (/server).'
+      : error.message || 'Произошла ошибка. Попробуйте ещё раз.';
+    showError(errorDiv, friendlyMessage);
     submitButton.disabled = false;
     submitButton.textContent = originalText;
   }
