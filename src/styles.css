@@ -2204,6 +2204,65 @@ body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
   margin-top: 16px;
 }
 
+.modal-input.invalid {
+  border-color: #e53935;
+  box-shadow: 0 0 0 3px rgba(229, 57, 53, 0.1);
+  animation: shake 0.4s cubic-bezier(.36, .07, .19, .97) both;
+}
+
+.modal-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #666;
+  margin-bottom: 24px;
+}
+
+.modal-checkbox input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: #667eea;
+  flex-shrink: 0;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.modal-checkbox input[type="checkbox"].invalid {
+  outline: 2px solid #e53935;
+  box-shadow: 0 0 8px rgba(229, 57, 53, 0.5);
+  border-color: #e53935;
+  animation: shake 0.4s cubic-bezier(.36, .07, .19, .97) both;
+}
+
+@keyframes shake {
+
+  10%,
+  90% {
+    transform: translate3d(-1px, 0, 0);
+  }
+
+  20%,
+  80% {
+    transform: translate3d(2px, 0, 0);
+  }
+
+  30%,
+  50%,
+  70% {
+    transform: translate3d(-4px, 0, 0);
+  }
+
+  40%,
+  60% {
+    transform: translate3d(4px, 0, 0);
+  }
+}
+
 /* ============================================
    КНОПКИ НАВИГАЦИИ
    ============================================ */

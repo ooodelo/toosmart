@@ -17,15 +17,86 @@ const fs = require('fs');
 const path = require('path');
 const { execSync, spawn } = require('child_process');
 const { networkInterfaces } = require('os');
+const fsp = fs.promises;
 const { buildPaywallSegments, extractBlocks } = require('../scripts/lib/paywall');
 
 const PORT = process.env.PORT || 3001;
 const CONFIG_PATH = path.join(__dirname, '..', 'config', 'site.json');
-const PAYWALL_CONFIG_PATH = path.join(__dirname, '..', 'config', 'paywall.json');
+const CONTENT_META_PATH = path.join(__dirname, '..', 'config', 'content-meta.json');
+const LEGAL_CONFIG_PATH = path.join(__dirname, '..', 'config', 'legal.json');
 const ADMIN_DIR = __dirname;
 const PROJECT_ROOT = path.join(__dirname, '..');
 const PREVIEW_DEFAULT_PORT = process.env.BUILD_PREVIEW_PORT || process.env.PREVIEW_PORT || 4040;
 let previewProcess = null;
+
+const DEFAULT_SITE_CONFIG = {
+  domain: 'example.com',
+  pricing: {
+    originalAmount: 4990,
+    currentAmount: 2990,
+    currency: 'RUB'
+  },
+  ctaTexts: {
+    enterFull: 'Получить полный доступ',
+    next: 'Следующий раздел',
+    goToCourse: 'Вернуться к курсу',
+    openCourse: 'Начать курс'
+  },
+  footer: {
+    companyName: 'ООО \"Название компании\"',
+    inn: '0000000000',
+    year: new Date().getFullYear()
+  },
+  robokassa: {
+    merchantLogin: '',
+    password1: '',
+    password2: '',
+    isTest: true,
+    invoicePrefix: 'SUU',
+    description: 'Курс «Слишком умная уборка»',
+    successUrl: '/success.php',
+    failUrl: '/fail.php',
+    resultUrl: '/robokassa-callback.php',
+    culture: 'ru'
+  },
+  build: {
+    wordsPerMinute: 150
+  },
+  features: {
+    cookiesBannerEnabled: true
+  },
+  seo: {
+    titleSuffix: '— Слишком умная уборка',
+    globalMetaDescription: '',
+    globalOgImage: '/assets/og-default.jpg'
+  },
+  manifest: {
+    name: 'Слишком умная уборка',
+    short_name: 'СУУ',
+    theme_color: '#ffffff',
+    background_color: '#ffffff',
+    start_url: '/'
+  },
+  legal: {}
+};
+
+const DEFAULT_META = {
+  seo_h1: '',
+  title: '',
+  meta_description: '',
+  menu_label: '',
+  menu_subtitle: '',
+  slug: '',
+  paywall: {
+    openBlocks: 3,
+    teaserBlocks: 2
+  },
+  carousel_label: '',
+  carousel_subtitle: '',
+  carousel_icon: '',
+  carousel_order: null,
+  carousel_enabled: true
+};
 
 // Разрешенные HTML-блоки для редактирования
 const HTML_BLOCKS = {
@@ -110,21 +181,20 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    if (pathname === '/api/sections' && req.method === 'GET') {
-      await handleGetSections(req, res);
-      return;
-    }
-
-    if (pathname === '/api/section-content' && req.method === 'GET') {
-      await handleGetSectionContent(req, res, url.searchParams.get('branch'), url.searchParams.get('file'));
-      return;
-    }
-
-    if (pathname === '/api/paywall') {
+    if (pathname === '/api/content') {
       if (req.method === 'GET') {
-        await handleGetPaywallConfig(req, res);
+        await handleGetContent(req, res);
       } else if (req.method === 'POST') {
-        await handleSavePaywall(req, res);
+        await handleSaveContentMeta(req, res);
+      }
+      return;
+    }
+
+    if (pathname === '/api/legal') {
+      if (req.method === 'GET') {
+        await handleGetLegal(req, res);
+      } else if (req.method === 'POST') {
+        await handleSaveLegal(req, res);
       }
       return;
     }
@@ -152,28 +222,12 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // SEO API endpoints
-    if (pathname === '/api/seo/content' && req.method === 'GET') {
-      await handleGetSeoContent(req, res);
-      return;
-    }
-
-    if (pathname === '/api/seo/save' && req.method === 'POST') {
-      await handleSaveSeoData(req, res);
-      return;
-    }
-
-    if (pathname === '/api/seo/load' && req.method === 'GET') {
-      await handleLoadSeoData(req, res);
-      return;
-    }
-
     // Favicon API endpoints
-    if (pathname === '/api/favicon') {
-      if (req.method === 'GET') {
-        await handleGetFavicon(req, res);
-      } else if (req.method === 'POST') {
-        await handleUploadFavicon(req, res);
+  if (pathname === '/api/favicon') {
+    if (req.method === 'GET') {
+      await handleGetFavicon(req, res);
+    } else if (req.method === 'POST') {
+      await handleUploadFavicon(req, res);
       }
       return;
     }
@@ -185,11 +239,16 @@ const server = http.createServer(async (req, res) => {
 
     if (pathname === '/api/favicon/reset' && req.method === 'POST') {
       await handleResetFavicon(req, res);
-      return;
-    }
+    return;
+  }
 
-    // Статические файлы
-    await serveStatic(req, res, pathname);
+  if (pathname === '/api/upload-asset' && req.method === 'POST') {
+    await handleUploadAsset(req, res);
+    return;
+  }
+
+  // Статические файлы
+  await serveStatic(req, res, pathname);
 
   } catch (error) {
     console.error('Server error:', error);
@@ -201,8 +260,7 @@ const server = http.createServer(async (req, res) => {
 // Получение конфигурации
 async function handleGetConfig(req, res) {
   try {
-    const configData = fs.readFileSync(CONFIG_PATH, 'utf8');
-    const config = JSON.parse(configData);
+    const config = loadSiteConfig();
 
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(config));
@@ -222,7 +280,8 @@ async function handleSaveConfig(req, res) {
 
   req.on('end', () => {
     try {
-      const config = JSON.parse(body);
+      const incoming = JSON.parse(body);
+      const config = deepMerge(clone(DEFAULT_SITE_CONFIG), incoming);
 
       // Валидация
       const validation = validateConfig(config);
@@ -232,14 +291,7 @@ async function handleSaveConfig(req, res) {
         return;
       }
 
-      // Создание бэкапа
-      const backupPath = CONFIG_PATH + '.backup';
-      if (fs.existsSync(CONFIG_PATH)) {
-        fs.copyFileSync(CONFIG_PATH, backupPath);
-      }
-
-      // Сохранение
-      fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf8');
+      saveSiteConfig(config);
 
       console.log(`[${new Date().toISOString()}] Конфигурация сохранена`);
 
@@ -270,18 +322,98 @@ function validateConfig(config) {
     return { valid: false, error: 'ИНН должен содержать 10-12 цифр' };
   }
 
-  if (config.recommendationCards && !Array.isArray(config.recommendationCards)) {
-    return { valid: false, error: 'recommendationCards должен быть массивом' };
-  }
-
-  if (Array.isArray(config.recommendationCards)) {
-    const invalid = config.recommendationCards.find(card => !card || typeof card.slug !== 'string');
-    if (invalid) {
-      return { valid: false, error: 'У каждой карточки рекомендаций должен быть slug' };
-    }
-  }
-
   return { valid: true };
+}
+
+async function handleGetContent(req, res) {
+  try {
+    const items = collectContentItems();
+    const stats = computeContentStats(items);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ items, stats }));
+  } catch (error) {
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Ошибка получения контента: ' + error.message }));
+  }
+}
+
+async function handleSaveContentMeta(req, res) {
+  let body = '';
+  req.on('data', chunk => body += chunk.toString());
+  req.on('end', () => {
+    try {
+      const payload = JSON.parse(body || '{}');
+      const pathKey = payload.pathKey;
+      const data = payload.data || {};
+      if (!pathKey) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'pathKey обязателен' }));
+        return;
+      }
+
+      const meta = loadContentMetaFile();
+      const existing = meta[pathKey] || {};
+      const paywall = data.paywall || existing.paywall || {};
+      meta[pathKey] = {
+        ...existing,
+        slug: (data.slug || existing.slug || '').trim(),
+        seo_h1: data.seo_h1 ?? existing.seo_h1 ?? '',
+        title: data.title ?? existing.title ?? '',
+        meta_description: data.meta_description ?? existing.meta_description ?? '',
+        menu_label: data.menu_label ?? existing.menu_label ?? '',
+        menu_subtitle: data.menu_subtitle ?? existing.menu_subtitle ?? '',
+        paywall: {
+          openBlocks: Number.isFinite(Number(paywall.openBlocks || data.openBlocks)) ? Number(paywall.openBlocks || data.openBlocks) : DEFAULT_META.paywall.openBlocks,
+          teaserBlocks: Number.isFinite(Number(paywall.teaserBlocks || data.teaserBlocks)) ? Number(paywall.teaserBlocks || data.teaserBlocks) : DEFAULT_META.paywall.teaserBlocks
+        },
+        carousel_label: data.carousel_label ?? existing.carousel_label ?? '',
+        carousel_subtitle: data.carousel_subtitle ?? existing.carousel_subtitle ?? '',
+        carousel_icon: data.carousel_icon ?? existing.carousel_icon ?? '',
+        carousel_order: Number.isFinite(data.carousel_order) ? Number(data.carousel_order) : Number.isFinite(existing.carousel_order) ? Number(existing.carousel_order) : null,
+        carousel_enabled: data.carousel_enabled !== undefined ? Boolean(data.carousel_enabled) : (existing.carousel_enabled !== undefined ? existing.carousel_enabled : true)
+      };
+
+      saveContentMetaFile(meta);
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true }));
+    } catch (error) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Ошибка сохранения контента: ' + error.message }));
+    }
+  });
+}
+
+async function handleGetLegal(req, res) {
+  try {
+    const legal = loadLegalConfig();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(legal));
+  } catch (error) {
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Ошибка чтения legal.json: ' + error.message }));
+  }
+}
+
+async function handleSaveLegal(req, res) {
+  let body = '';
+  req.on('data', chunk => body += chunk.toString());
+  req.on('end', () => {
+    try {
+      const payload = JSON.parse(body || '{}');
+      if (typeof payload !== 'object') {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Неверные данные legal' }));
+        return;
+      }
+      saveLegalConfig(payload);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true }));
+    } catch (error) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Ошибка сохранения legal: ' + error.message }));
+    }
+  });
 }
 
 // Запуск сборки
@@ -355,6 +487,7 @@ async function handlePreview(req, res) {
       previewProcess = null;
     }
 
+    const lanIp = getLanIp();
     const host = '0.0.0.0';
     const port = PREVIEW_DEFAULT_PORT;
     const distPath = path.join(PROJECT_ROOT, 'dist');
@@ -387,13 +520,15 @@ async function handlePreview(req, res) {
 
     previewProcess = child;
 
-    const url = `http://${getLanIp()}:${port}/`;
+    const urlLan = `http://${lanIp}:${port}/`;
+    const urlLocal = `http://localhost:${port}/`;
 
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
       success: true,
-      url,
-      message: `Превью поднято на ${url} (корень dist)`
+      url: urlLan,
+      urlLocal,
+      message: `Превью поднято на ${urlLan} (LAN) / ${urlLocal} (localhost)`
     }));
   } catch (error) {
     console.error('Preview start error:', error.message);
@@ -502,36 +637,6 @@ function parseMultipart(buffer, boundary) {
   return parts;
 }
 
-function buildRecommendationMeta(filePath) {
-  const file = path.basename(filePath);
-  try {
-    const raw = fs.readFileSync(filePath, 'utf8');
-    const { data, body } = parseFrontMatter(raw);
-    const cleanedFrontMatter = normalizeFrontMatter(data);
-    const slug = cleanedFrontMatter.slug || slugify(file.replace(/^(\d+[-_]?)/, '').replace(/\.md$/, ''));
-    const titleFromFile = cleanedFrontMatter.title || extractH1(body) || slug;
-    const descriptionFromFile = cleanedFrontMatter.excerpt || cleanedFrontMatter.teaser || buildTeaserFromMarkdown(body);
-    const coverFromFile = cleanedFrontMatter.image || cleanedFrontMatter.cover || '';
-
-    return {
-      file,
-      slug,
-      titleFromFile,
-      descriptionFromFile,
-      coverFromFile
-    };
-  } catch (error) {
-    return {
-      file,
-      slug: slugify(file.replace(/\.md$/, '')),
-      titleFromFile: '',
-      descriptionFromFile: '',
-      coverFromFile: '',
-      error: error.message
-    };
-  }
-}
-
 function parseFrontMatter(markdown) {
   const match = markdown.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
   if (!match) {
@@ -569,197 +674,290 @@ function stripQuotes(value) {
   return trimmed;
 }
 
-function slugify(text) {
+const CYR_MAP = {
+  а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ё: 'e', ж: 'zh', з: 'z', и: 'i',
+  й: 'y', к: 'k', л: 'l', м: 'm', н: 'n', о: 'o', п: 'p', р: 'r', с: 's', т: 't',
+  у: 'u', ф: 'f', х: 'h', ц: 'c', ч: 'ch', ш: 'sh', щ: 'sch', ъ: '', ы: 'y', ь: '',
+  э: 'e', ю: 'yu', я: 'ya'
+};
+
+function transliterate(text) {
+  if (!text) return '';
   return text
     .toString()
     .toLowerCase()
-    .trim()
+    .split('')
+    .map(ch => CYR_MAP[ch] || ch)
+    .join('');
+}
+
+function slugifyStrict(text) {
+  if (!text) return '';
+  return transliterate(text)
+    .replace(/[^a-z0-9\s-]/g, ' ')
     .replace(/\s+/g, '-')
-    .replace(/[^\w\-]+/g, '')
-    .replace(/\-\-+/g, '-');
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }
 
-function extractH1(markdown) {
-  const match = markdown.match(/^#\s+(.*)$/m);
-  return match ? match[1] : null;
+function ensureUniqueSlug(base, registry) {
+  let slug = slugifyStrict(base);
+  if (!slug) slug = 'page';
+  let candidate = slug;
+  let counter = 2;
+  while (registry.has(candidate)) {
+    candidate = `${slug}-${counter}`;
+    counter += 1;
+  }
+  registry.add(candidate);
+  return candidate;
 }
 
-function buildTeaserFromMarkdown(markdown) {
-  const withoutHeadings = markdown.replace(/^#\s+.*$/m, '').trim();
-  const paragraphs = withoutHeadings.split(/\n{2,}/).map(p => p.replace(/^##?\s+/g, '').trim()).filter(Boolean);
-  const teaser = paragraphs.slice(0, 2).join(' ');
-  return teaser;
+function stripExtension(filename) {
+  return filename.replace(/\.[^.]+$/, '');
 }
 
-// Получение списка разделов
-async function handleGetSections(req, res) {
-  try {
-    const courseDir = path.join(PROJECT_ROOT, 'content', 'course');
-    const recsDir = path.join(PROJECT_ROOT, 'content', 'recommendations');
-    const introDir = path.join(PROJECT_ROOT, 'content', 'intro');
-    const appendixDir = path.join(PROJECT_ROOT, 'content', 'appendix');
+function extractAndStripH1(markdown) {
+  if (!markdown) return { h1: '', body: '' };
+  const lines = markdown.split('\n');
+  let h1 = '';
+  const rest = [];
+  for (const line of lines) {
+    if (!h1) {
+      const match = line.match(/^#\s+(.*)$/);
+      if (match) {
+        h1 = match[1].trim();
+        continue;
+      }
+    }
+    rest.push(line);
+  }
+  return { h1, body: rest.join('\n').replace(/^\s+/, '') };
+}
 
-    const courseSections = fs.readdirSync(courseDir)
-      .filter(f => f.endsWith('.md'))
-      .sort();
-
-    const introSections = fs.existsSync(introDir)
-      ? fs.readdirSync(introDir).filter(f => f.endsWith('.md')).sort()
-      : [];
-
-    const appendixSections = fs.existsSync(appendixDir)
-      ? fs.readdirSync(appendixDir).filter(f => f.endsWith('.md')).sort()
-      : [];
-
-    const recommendations = fs.existsSync(recsDir)
-      ? fs.readdirSync(recsDir)
-        .filter(f => f.endsWith('.md'))
-        .sort()
-        .map(file => buildRecommendationMeta(path.join(recsDir, file)))
-      : [];
-
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({
-      intro: introSections,
-      course: courseSections,
-      appendix: appendixSections,
-      recommendations: recommendations
-    }));
-  } catch (error) {
-    res.writeHead(500, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Ошибка чтения разделов: ' + error.message }));
+function resolveTypeByBranch(branch) {
+  switch (branch) {
+    case 'intro':
+      return 'intro';
+    case 'course':
+      return 'article';
+    case 'appendix':
+      return 'appendix';
+    case 'recommendations':
+      return 'recommendation';
+    case 'legal':
+      return 'legal';
+    default:
+      return 'article';
   }
 }
 
-function loadPaywallConfig() {
+function normalizeMeta(meta) {
+  const merged = {
+    ...DEFAULT_META,
+    ...meta,
+    paywall: { ...DEFAULT_META.paywall, ...(meta?.paywall || {}) }
+  };
+
+  if (merged.paywall) {
+    merged.paywall.openBlocks = Number.isFinite(merged.paywall.openBlocks) ? Number(merged.paywall.openBlocks) : DEFAULT_META.paywall.openBlocks;
+    merged.paywall.teaserBlocks = Number.isFinite(merged.paywall.teaserBlocks) ? Number(merged.paywall.teaserBlocks) : DEFAULT_META.paywall.teaserBlocks;
+  }
+
+  if (merged.carousel_order != null) {
+    const coerced = Number(merged.carousel_order);
+    merged.carousel_order = Number.isFinite(coerced) ? coerced : null;
+  }
+
+  return merged;
+}
+
+function buildTitleFromSeo(base, suffix) {
+  const safeBase = (base || '').trim();
+  const safeSuffix = (suffix || '').trim();
+  if (safeBase && safeSuffix) return `${safeBase} ${safeSuffix}`.trim();
+  return safeBase || safeSuffix || '';
+}
+
+function loadSiteConfig() {
   try {
-    if (fs.existsSync(PAYWALL_CONFIG_PATH)) {
-      return JSON.parse(fs.readFileSync(PAYWALL_CONFIG_PATH, 'utf8')) || {};
+    if (fs.existsSync(CONFIG_PATH)) {
+      const raw = fs.readFileSync(CONFIG_PATH, 'utf8');
+      const parsed = JSON.parse(raw);
+      return deepMerge(clone(DEFAULT_SITE_CONFIG), parsed);
     }
   } catch (error) {
-    console.warn('⚠️  Ошибка чтения paywall.json:', error.message);
+    console.warn('⚠️  Ошибка чтения site.json:', error.message);
+  }
+  return clone(DEFAULT_SITE_CONFIG);
+}
+
+function saveSiteConfig(config) {
+  fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf8');
+}
+
+function loadContentMetaFile() {
+  try {
+    if (fs.existsSync(CONTENT_META_PATH)) {
+      return JSON.parse(fs.readFileSync(CONTENT_META_PATH, 'utf8')) || {};
+    }
+  } catch (error) {
+    console.warn('⚠️  Ошибка чтения content-meta.json:', error.message);
   }
   return {};
 }
 
-function savePaywallConfig(config) {
-  fs.writeFileSync(PAYWALL_CONFIG_PATH, JSON.stringify(config, null, 2), 'utf8');
+function saveContentMetaFile(data) {
+  fs.writeFileSync(CONTENT_META_PATH, JSON.stringify(data, null, 2), 'utf8');
 }
 
-function getPaywallEntry(config, branch, slug) {
-  if (!config) return null;
-  const key = `${branch}/${slug}`;
-  const entry = config[key] || (config.entries && config.entries[key]);
-  if (!entry || typeof entry !== 'object') return null;
-
-  const normalized = {};
-  if (Number.isFinite(entry.openBlocks)) normalized.openBlocks = Number(entry.openBlocks);
-  if (Number.isFinite(entry.teaserBlocks)) normalized.teaserBlocks = Number(entry.teaserBlocks);
-  return Object.keys(normalized).length ? normalized : null;
-}
-
-async function handleGetPaywallConfig(req, res) {
+function loadLegalConfig() {
   try {
-    const config = loadPaywallConfig();
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(config));
+    if (fs.existsSync(LEGAL_CONFIG_PATH)) {
+      return JSON.parse(fs.readFileSync(LEGAL_CONFIG_PATH, 'utf8')) || {};
+    }
   } catch (error) {
-    res.writeHead(500, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Ошибка чтения paywall: ' + error.message }));
+    console.warn('⚠️  Ошибка чтения legal.json:', error.message);
   }
+  return {};
 }
 
-async function handleGetSectionContent(req, res, branch, file) {
-  try {
-    if (!branch || !file) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Не указан branch или file' }));
-      return;
-    }
-
-    const dir = path.resolve(PROJECT_ROOT, 'content', branch);
-    const fullPath = path.resolve(dir, file);
-    if (!fullPath.startsWith(dir)) {
-      res.writeHead(400, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Некорректный путь файла' }));
-      return;
-    }
-    if (!fs.existsSync(fullPath)) {
-      res.writeHead(404, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Файл не найден' }));
-      return;
-    }
-
-    const raw = fs.readFileSync(fullPath, 'utf8');
-    const { data, body } = parseFrontMatter(raw);
-    const slug = data.slug || slugify(file.replace(/^(\d+[-_]?)/, '').replace(/\.md$/, ''));
-    const title = data.title || extractH1(body) || slug;
-
-    const paywallConfig = loadPaywallConfig();
-    const paywallEntry = getPaywallEntry(paywallConfig, branch, slug);
-    const paywallSegments = buildPaywallSegments(body, paywallEntry);
-    const blocksInfo = extractBlocks(body);
-
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({
-      branch,
-      file,
-      slug,
-      title,
-      paywall: {
-        openBlocks: paywallSegments.openBlocks,
-        teaserBlocks: paywallSegments.teaserBlocks,
-        totalBlocks: paywallSegments.totalBlocks
-      },
-      blocks: blocksInfo.blocks,
-      totalBlocks: blocksInfo.totalBlocks,
-      openHtml: paywallSegments.openHtml,
-      teaserHtml: paywallSegments.teaserHtml
-    }));
-  } catch (error) {
-    res.writeHead(500, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Ошибка чтения раздела: ' + error.message }));
-  }
+function saveLegalConfig(data) {
+  fs.writeFileSync(LEGAL_CONFIG_PATH, JSON.stringify(data, null, 2), 'utf8');
 }
 
-async function handleSavePaywall(req, res) {
-  let body = '';
-  req.on('data', chunk => body += chunk.toString());
-  req.on('end', () => {
-    try {
-      const payload = JSON.parse(body || '{}');
-      const branch = payload.branch;
-      const file = payload.file;
-      const slugFromPayload = payload.slug;
-      const openBlocks = Number(payload.openBlocks);
-      const teaserBlocks = Number(payload.teaserBlocks ?? 3);
+function collectContentItems() {
+  const branches = ['intro', 'course', 'appendix', 'recommendations', 'legal'];
+  const meta = loadContentMetaFile();
+  const registry = new Set();
+  const items = [];
 
-      if (!branch || (!file && !slugFromPayload) || !Number.isFinite(openBlocks)) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Неверные данные paywall' }));
-        return;
-      }
+  branches.forEach(branch => {
+    const dir = path.join(PROJECT_ROOT, 'content', branch);
+    if (!fs.existsSync(dir)) return;
+    const files = fs.readdirSync(dir).filter(f => f.endsWith('.md')).sort();
 
-      const slug = slugFromPayload || slugify(String(file).replace(/^(\d+[-_]?)/, '').replace(/\.md$/, ''));
-      const config = loadPaywallConfig();
-      const key = `${branch}/${slug}`;
-      config[key] = {
-        openBlocks,
-        teaserBlocks: Number.isFinite(teaserBlocks) ? teaserBlocks : 3,
-        updatedAt: new Date().toISOString()
+    files.forEach(file => {
+      const fullPath = path.join(dir, file);
+      const raw = fs.readFileSync(fullPath, 'utf8');
+      const { body } = parseFrontMatter(raw);
+      const { h1, body: bodyWithoutH1 } = extractAndStripH1(body);
+
+      const pathKey = `${branch}/${file}`;
+      const rawMetaEntry = meta[pathKey] || {};
+      const metaEntry = normalizeMeta(rawMetaEntry);
+      const type = metaEntry.type || resolveTypeByBranch(branch);
+      const slugBase = metaEntry.slug || metaEntry.seo_h1 || h1 || stripExtension(file);
+      const slug = type === 'intro' ? 'index' : ensureUniqueSlug(slugBase, registry);
+      const seo_h1 = metaEntry.seo_h1 || h1 || '';
+      const title = metaEntry.title || buildTitleFromSeo(seo_h1 || h1, DEFAULT_SITE_CONFIG.seo.titleSuffix);
+      const meta_description = metaEntry.meta_description || '';
+      const menu_label = (type === 'article' || type === 'appendix') ? (metaEntry.menu_label || h1 || '') : '';
+      const menu_subtitle = (type === 'article' || type === 'appendix') ? (metaEntry.menu_subtitle || '') : '';
+      const paywall = type === 'article' ? metaEntry.paywall : null;
+      const carousel = type === 'recommendation'
+        ? {
+            label: metaEntry.carousel_label || h1 || '',
+            subtitle: metaEntry.carousel_subtitle || '',
+            icon: metaEntry.carousel_icon || '',
+            order: metaEntry.carousel_order,
+            enabled: metaEntry.carousel_enabled !== false
+          }
+        : null;
+
+      const filled = {
+        slug: !!rawMetaEntry.slug,
+        seo_h1: !!rawMetaEntry.seo_h1,
+        title: !!rawMetaEntry.title,
+        meta_description: !!rawMetaEntry.meta_description,
+        menu_label: !!rawMetaEntry.menu_label,
+        menu_subtitle: !!rawMetaEntry.menu_subtitle,
+        paywall_open: type === 'article' && rawMetaEntry.paywall && rawMetaEntry.paywall.openBlocks !== undefined,
+        paywall_teaser: type === 'article' && rawMetaEntry.paywall && rawMetaEntry.paywall.teaserBlocks !== undefined,
+        carousel_label: !!rawMetaEntry.carousel_label,
+        carousel_subtitle: !!rawMetaEntry.carousel_subtitle,
+        carousel_icon: !!rawMetaEntry.carousel_icon,
+        carousel_order: rawMetaEntry.carousel_order !== null && rawMetaEntry.carousel_order !== undefined
       };
 
-      savePaywallConfig(config);
+      let paywallPreview = null;
+      if (type === 'article') {
+        const segments = buildPaywallSegments(bodyWithoutH1, paywall);
+        const blocksInfo = extractBlocks(bodyWithoutH1);
+        const paragraphs = blocksInfo.blocks.filter(b => b.type === 'paragraph').map(b => b.html);
+        const useBlocks = paragraphs.length ? paragraphs : blocksInfo.blocks.map(b => b.html);
+        const totalCount = useBlocks.length;
+        const openCount = Math.min(segments.openBlocks || 0, totalCount);
+        const teaserCount = Math.min(segments.teaserBlocks || 0, Math.max(0, totalCount - openCount));
+        const hiddenStart = openCount + teaserCount;
+        paywallPreview = {
+          paragraphs: useBlocks,
+          open: useBlocks.slice(0, openCount),
+          teaser: useBlocks.slice(openCount, hiddenStart),
+          hidden: useBlocks.slice(hiddenStart),
+          totalBlocks: totalCount,
+          openBlocks: openCount,
+          teaserBlocks: teaserCount
+        };
+      }
 
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ success: true, key }));
-    } catch (error) {
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Ошибка сохранения paywall: ' + error.message }));
-    }
+      items.push({
+        pathKey,
+        branch,
+        type,
+        file,
+        slug,
+        h1_md: h1 || '',
+        seo_h1,
+        title,
+        meta_description,
+        menu_label,
+        menu_subtitle,
+        paywall,
+        carousel,
+        readingTimeMinutes: estimateReadingTime(bodyWithoutH1, loadSiteConfig().build.wordsPerMinute),
+        filled,
+        paywallPreview
+      });
+    });
   });
+
+  return items.sort((a, b) => a.pathKey.localeCompare(b.pathKey));
 }
 
+function estimateReadingTime(text, wpm = 150) {
+  const words = String(text || '').split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.ceil(words / (wpm || 150)));
+}
+
+function computeContentStats(items) {
+  const total = items.length;
+  const filled = items.filter(item => item.slug && (item.title || item.seo_h1)).length;
+  const attention = items.filter(item => item.type !== 'legal' && (!item.meta_description || !item.slug)).length;
+  return { total, filled, attention };
+}
+
+function deepMerge(target, source) {
+  for (const key in source) {
+    if (source[key] instanceof Object && key in target) {
+      Object.assign(source[key], deepMerge(target[key], source[key]));
+    }
+  }
+  Object.assign(target || {}, source);
+  return target;
+}
+
+function clone(obj) {
+  return JSON.parse(JSON.stringify(obj || {}));
+}
+
+function sanitizeFilename(filename) {
+  if (!filename) return '';
+  let sanitized = filename.replace(/\s+/g, '_');
+  sanitized = sanitized.replace(/[^a-zA-Z0-9._-]/g, '_');
+  sanitized = sanitized.replace(/_+/g, '_');
+  return sanitized;
+}
 // Получение HTML модального окна оплаты
 async function handleGetPaymentModal(req, res) {
   try {
@@ -1117,6 +1315,63 @@ const REQUIRED_FAVICON_FILES = [
   'android-chrome-192x192.png',
   'android-chrome-512x512.png'
 ];
+const ASSET_UPLOAD_DIR = path.join(PROJECT_ROOT, 'dist', 'assets', 'uploaded');
+async function ensureDir(dir) {
+  await fsp.mkdir(dir, { recursive: true });
+}
+
+async function handleUploadAsset(req, res) {
+  const contentType = req.headers['content-type'] || '';
+
+  if (!contentType.includes('multipart/form-data')) {
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Требуется multipart/form-data' }));
+    return;
+  }
+
+  const boundary = contentType.split('boundary=')[1];
+  if (!boundary) {
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Не найден boundary' }));
+    return;
+  }
+
+  const chunks = [];
+  req.on('data', chunk => chunks.push(chunk));
+
+  req.on('end', async () => {
+    try {
+      const buffer = Buffer.concat(chunks);
+      const parts = parseMultipart(buffer, boundary);
+      const uploaded = [];
+
+      await ensureDir(ASSET_UPLOAD_DIR);
+
+      for (const part of parts) {
+        if (!part.filename) continue;
+        const safeName = sanitizeFilename(part.filename);
+        const targetPath = path.join(ASSET_UPLOAD_DIR, safeName);
+        await fsp.writeFile(targetPath, part.data);
+        uploaded.push({
+          name: safeName,
+          url: `/assets/uploaded/${safeName}`
+        });
+      }
+
+      if (!uploaded.length) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Файлы не распознаны' }));
+        return;
+      }
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(uploaded[0]));
+    } catch (error) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Ошибка загрузки файла: ' + error.message }));
+    }
+  });
+}
 
 const DEFAULT_MANIFEST = {
   name: 'Site',
@@ -1451,6 +1706,16 @@ async function serveStatic(req, res, pathname) {
     pathname = '/index.html';
   }
 
+  // Отдаём загруженные ассеты из dist
+  if (pathname.startsWith('/assets/uploaded')) {
+    const safePath = pathname.replace(/^\/+/, '');
+    const uploadPath = path.join(PROJECT_ROOT, 'dist', safePath);
+    const distRoot = path.join(PROJECT_ROOT, 'dist');
+    if (uploadPath.startsWith(distRoot)) {
+      return streamStatic(uploadPath, res);
+    }
+  }
+
   const filePath = path.join(ADMIN_DIR, pathname);
 
   // Проверка безопасности пути
@@ -1460,13 +1725,16 @@ async function serveStatic(req, res, pathname) {
     return;
   }
 
+  streamStatic(filePath, res);
+}
+
+function streamStatic(filePath, res) {
   try {
     const stat = fs.statSync(filePath);
 
     if (stat.isFile()) {
       const ext = path.extname(filePath);
       const contentType = MIME_TYPES[ext] || 'application/octet-stream';
-
       res.writeHead(200, { 'Content-Type': contentType });
       fs.createReadStream(filePath).pipe(res);
     } else {
@@ -1479,18 +1747,41 @@ async function serveStatic(req, res, pathname) {
   }
 }
 
-// Запуск сервера
-server.listen(PORT, () => {
-  console.log('═'.repeat(50));
-  console.log('  🚀 Админ-панель запущена');
-  console.log('═'.repeat(50));
-  console.log(`  URL: http://localhost:${PORT}`);
-  console.log(`  Конфиг: ${CONFIG_PATH}`);
-  console.log('═'.repeat(50));
-  console.log('  Для остановки нажмите Ctrl+C');
-  console.log('═'.repeat(50));
-  console.log('');
-});
+// Запуск сервера с автоматическим подбором свободного порта
+function startServer(port, attempt = 0) {
+  const maxAttempts = 10;
+
+  const onError = (err) => {
+    if (err.code === 'EADDRINUSE' && attempt < maxAttempts) {
+      const nextPort = Number(port) + 1;
+      console.warn(`Порт ${port} занят, пробуем ${nextPort}...`);
+      server.removeListener('error', onError);
+      server.removeAllListeners('listening');
+      startServer(nextPort, attempt + 1);
+    } else {
+      console.error('Не удалось запустить сервер админки:', err.message);
+      process.exit(1);
+    }
+  };
+
+  server.removeAllListeners('listening');
+  server.once('error', onError);
+  server.once('listening', () => {
+    console.log('═'.repeat(50));
+    console.log('  🚀 Админ-панель запущена');
+    console.log('═'.repeat(50));
+    console.log(`  URL: http://localhost:${server.address().port}`);
+    console.log(`  Конфиг: ${CONFIG_PATH}`);
+    console.log('═'.repeat(50));
+    console.log('  Для остановки нажмите Ctrl+C');
+    console.log('═'.repeat(50));
+    console.log('');
+  });
+
+  server.listen(port);
+}
+
+startServer(PORT);
 
 // Graceful shutdown
 process.on('SIGINT', () => {

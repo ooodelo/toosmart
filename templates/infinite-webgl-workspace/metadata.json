@@ -1,0 +1,5 @@
+{
+  "name": "Infinite WebGL Workspace",
+  "description": "An interactive workspace to create, drag, and resize generative WebGL animation blocks (Aurora, Metaballs, Fluid) on an infinite canvas.",
+  "requestFramePermissions": []
+}

@@ -7,8 +7,10 @@ const { JSDOM } = require('jsdom');
 const { minify: minifyJS } = require('terser');
 const csso = require('csso');
 const { buildPaywallSegments } = require('./paywall');
+const { execSync } = require('child_process');
 
 let cachedHeadScriptsPartial = null;
+const PROJECT_ROOT = path.resolve(__dirname, '../..');
 
 const PATHS = {
   content: path.resolve(__dirname, '../../content'),
@@ -31,9 +33,9 @@ const PATHS = {
   },
   config: {
     site: path.resolve(__dirname, '../../config/site.json'),
-    seo: path.resolve(__dirname, '../../config/seo-data.json'),
     favicon: path.resolve(__dirname, '../../config/favicon.json'),
-    paywall: path.resolve(__dirname, '../../config/paywall.json')
+    contentMeta: path.resolve(__dirname, '../../config/content-meta.json'),
+    legal: path.resolve(__dirname, '../../config/legal.json')
   },
   srcAssets: path.resolve(__dirname, '../../src/assets'),
   server: {
@@ -70,12 +72,8 @@ const PATHS = {
   viteManifest: path.resolve(__dirname, '../../dist/assets/.vite/manifest.json')
 };
 
-// Кэш SEO данных
-let cachedSeoData = null;
-
 // Кэш favicon конфига
 let cachedFaviconConfig = null;
-let cachedPaywallConfig = null;
 const REQUIRED_FAVICON_FILES = [
   'favicon.svg',
   'favicon.ico',
@@ -96,6 +94,74 @@ const DEFAULT_MANIFEST = {
     { src: '/assets/android-chrome-192x192.png', sizes: '192x192', type: 'image/png' },
     { src: '/assets/android-chrome-512x512.png', sizes: '512x512', type: 'image/png' }
   ]
+};
+
+const DEFAULT_META = {
+  seo_h1: '',
+  title: '',
+  meta_description: '',
+  menu_label: '',
+  menu_subtitle: '',
+  paywall: {
+    openBlocks: 3,
+    teaserBlocks: 2
+  },
+  carousel_label: '',
+  carousel_subtitle: '',
+  carousel_icon: '',
+  carousel_order: null,
+  carousel_enabled: true
+};
+
+const DEFAULT_SITE_CONFIG = {
+  domain: 'example.com',
+  pricing: {
+    originalAmount: 4990,
+    currentAmount: 2990,
+    currency: 'RUB'
+  },
+  ctaTexts: {
+    enterFull: 'Получить полный доступ',
+    next: 'Следующий раздел',
+    goToCourse: 'Вернуться к курсу',
+    openCourse: 'Начать курс'
+  },
+  footer: {
+    companyName: 'ООО "Название компании"',
+    inn: '0000000000',
+    year: new Date().getFullYear()
+  },
+  robokassa: {
+    merchantLogin: '',
+    password1: '',
+    password2: '',
+    isTest: true,
+    invoicePrefix: 'SUU',
+    description: 'Курс «Слишком умная уборка»',
+    successUrl: '/success.php',
+    failUrl: '/fail.php',
+    resultUrl: '/robokassa-callback.php',
+    culture: 'ru'
+  },
+  build: {
+    wordsPerMinute: 150
+  },
+  features: {
+    cookiesBannerEnabled: true
+  },
+  seo: {
+    titleSuffix: '— Слишком умная уборка',
+    globalMetaDescription: '',
+    globalOgImage: '/assets/og-default.jpg'
+  },
+  manifest: {
+    name: 'Слишком умная уборка',
+    short_name: 'СУУ',
+    theme_color: '#ffffff',
+    background_color: '#ffffff',
+    start_url: '/'
+  },
+  legal: {}
 };
 
 /**
@@ -130,6 +196,34 @@ function loadFaviconConfig() {
   return cachedFaviconConfig;
 }
 
+function loadContentMeta() {
+  if (!fs.existsSync(PATHS.config.contentMeta)) {
+    return {};
+  }
+
+  try {
+    const raw = fs.readFileSync(PATHS.config.contentMeta, 'utf8');
+    return JSON.parse(raw) || {};
+  } catch (error) {
+    console.warn('⚠️  Ошибка чтения content-meta.json, используется пустой объект:', error.message);
+    return {};
+  }
+}
+
+function loadLegalConfig() {
+  if (!fs.existsSync(PATHS.config.legal)) {
+    return {};
+  }
+
+  try {
+    const raw = fs.readFileSync(PATHS.config.legal, 'utf8');
+    return JSON.parse(raw) || {};
+  } catch (error) {
+    console.warn('⚠️  Ошибка чтения legal.json, используется пустой объект:', error.message);
+    return {};
+  }
+}
+
 /**
  * Получает текущий файл favicon из конфига
  */
@@ -141,37 +235,6 @@ function getFaviconFilename() {
 function getFaviconManifest() {
   const config = loadFaviconConfig();
   return Object.assign({}, DEFAULT_MANIFEST, config.manifest || {});
-}
-
-function loadPaywallConfig() {
-  if (cachedPaywallConfig !== null) {
-    return cachedPaywallConfig;
-  }
-
-  try {
-    if (fs.existsSync(PATHS.config.paywall)) {
-      cachedPaywallConfig = JSON.parse(fs.readFileSync(PATHS.config.paywall, 'utf8')) || {};
-    } else {
-      cachedPaywallConfig = {};
-    }
-  } catch (error) {
-    console.warn('⚠️  Ошибка чтения paywall.json, используется автосплит:', error.message);
-    cachedPaywallConfig = {};
-  }
-
-  return cachedPaywallConfig;
-}
-
-function getPaywallEntry(config, branch, slug) {
-  if (!config) return null;
-  const key = `${branch}/${slug}`;
-  const entry = config[key] || (config.entries && config.entries[key]);
-  if (!entry || typeof entry !== 'object') return null;
-
-  const result = {};
-  if (Number.isFinite(entry.openBlocks)) result.openBlocks = Number(entry.openBlocks);
-  if (Number.isFinite(entry.teaserBlocks)) result.teaserBlocks = Number(entry.teaserBlocks);
-  return Object.keys(result).length ? result : null;
 }
 
 /**
@@ -191,48 +254,6 @@ function loadViteManifest() {
     return null;
   }
 }
-
-const DEFAULT_SITE_CONFIG = {
-  domain: 'example.com',
-  pricing: {
-    originalAmount: 1490,
-    currentAmount: 990,
-    currency: 'RUB'
-  },
-  recommendationCards: [],
-  ctaTexts: {
-    enterFull: 'Войти в полную версию',
-    next: 'Далее',
-    goToCourse: 'Перейти к курсу',
-    openCourse: 'Открыть курс'
-  },
-  footer: {
-    companyName: 'ООО "Название компании"',
-    inn: '0000000000',
-    year: new Date().getFullYear()
-  },
-  legal: {
-    "terms": "01-legal-terms.md",
-    "privacy": "02-privacy-policy.md",
-    "offer": "03-public-offer.md"
-  },
-  robokassa: {
-    merchantLogin: '',
-    password1: '',
-    password2: '',
-    isTest: true,
-    invoicePrefix: 'CLEAN',
-    successUrl: '/success.php',
-    failUrl: '/fail.php',
-    resultUrl: '/robokassa-callback.php'
-  },
-  build: {
-    wordsPerMinute: 150 // Вдумчивое чтение учебного материала
-  },
-  features: {
-    cookiesBannerEnabled: true
-  }
-};
 
 const sanitize = (() => {
   const { window } = new JSDOM('');
@@ -264,9 +285,54 @@ async function build({ target } = {}) {
 }
 
 async function buildAll() {
+  await cleanTargetsForAll();
+  await ensureViteAssets();
   await buildFree();
   await buildPremium();
   await buildRecommendations();
+}
+
+async function cleanTargetsForAll() {
+  await ensureDir(PATHS.dist.root);
+
+  // Чистим только динамические каталоги
+  const targets = [
+    PATHS.dist.course,
+    PATHS.dist.shared,
+    PATHS.dist.sharedLegal,
+    PATHS.dist.premium,
+    PATHS.dist.recommendations,
+    PATHS.dist.contentAssets
+  ];
+
+  for (const dir of targets) {
+    await cleanDir(dir);
+  }
+
+  // Удаляем динамические файлы в корне dist
+  const dynamicFiles = ['robots.txt', 'sitemap.xml'];
+  for (const file of dynamicFiles) {
+    const full = path.join(PATHS.dist.root, file);
+    if (fs.existsSync(full)) {
+      await fsp.rm(full, { force: true });
+    }
+  }
+}
+
+async function ensureViteAssets() {
+  const manifestExists = fs.existsSync(PATHS.viteManifest);
+  const templatePaywall = path.join(PATHS.dist.assets, 'template-paywall.html');
+  const templatePremium = path.join(PATHS.dist.assets, 'template.html');
+
+  if (manifestExists && fs.existsSync(templatePaywall) && fs.existsSync(templatePremium)) {
+    return;
+  }
+
+  console.log('⚙️  Vite assets отсутствуют после очистки, запускаю build:assets');
+  execSync('npm run build:assets', {
+    cwd: path.resolve(__dirname, '../..'),
+    stdio: 'inherit'
+  });
 }
 
 async function buildFree() {
@@ -282,7 +348,7 @@ async function buildFree() {
   }
 
   try {
-    content = await loadContent(config.build.wordsPerMinute, contentAssets);
+    content = await loadContent(config, contentAssets);
   } catch (error) {
     throw new Error(`Ошибка загрузки контента: ${error.message}`);
   }
@@ -357,7 +423,7 @@ async function buildFree() {
 async function buildPremium() {
   const config = await loadSiteConfig();
   const contentAssets = new Map();
-  const content = await loadContent(config.build.wordsPerMinute, contentAssets);
+  const content = await loadContent(config, contentAssets);
   const legalMap = buildLegalSlugMap(content, config);
 
   const manifest = loadViteManifest();
@@ -418,9 +484,8 @@ function buildPremiumContentPage(item, menuHtml, config, template, { prevUrl, ne
 async function buildRecommendations() {
   const config = await loadSiteConfig();
   const contentAssets = new Map();
-  const content = await loadContent(config.build.wordsPerMinute, contentAssets);
+  const content = await loadContent(config, contentAssets);
   const legalMap = buildLegalSlugMap(content, config);
-  const recommendationCards = Array.isArray(config.recommendationCards) ? config.recommendationCards : [];
 
   const manifest = loadViteManifest();
   const template = await readTemplate('recommendations', manifest);
@@ -434,21 +499,27 @@ async function buildRecommendations() {
   await cleanDir(PATHS.dist.recommendations);
   await ensureDir(PATHS.dist.recommendations);
 
-  const recommendations = content.recommendations.map(rec => {
-    const override = recommendationCards.find(card => card.slug === rec.slug);
-    const title = (override?.title || rec.title || '').trim();
-    const description = (override?.description || rec.excerpt || '').trim();
-    const cover = normalizeCoverValue(override?.cover) || normalizeCoverValue(rec.frontMatter?.image);
+  const recommendations = content.recommendations
+    .filter(rec => !rec.carousel || rec.carousel.enabled !== false)
+    .map(rec => {
+      const carousel = rec.carousel || {};
+      const title = (carousel.label || rec.seo_h1 || rec.h1_md || '').trim();
+      const description = (carousel.subtitle || rec.meta_description || rec.excerpt || '').trim();
+      const { icon, cover } = resolveCarouselIcon(carousel.icon || '', rec, contentAssets);
 
-    return {
-      slug: rec.slug,
-      title: title || rec.slug,
-      excerpt: description || rec.excerpt || '',
-      cover: cover || undefined,
-      readingTimeMinutes: rec.readingTimeMinutes,
-      url: `/recommendations/${rec.slug}.html`
-    };
-  });
+      return {
+        slug: rec.slug,
+        title: title || rec.slug,
+        description: description,
+        subtitle: description,
+        icon: icon || '',
+        order: Number.isFinite(carousel.order) ? carousel.order : rec.order,
+        cover: cover || undefined,
+        readingTimeMinutes: rec.readingTimeMinutes,
+        url: `/recommendations/${rec.slug}.html`
+      };
+    })
+    .sort((a, b) => a.order - b.order);
 
   await fsp.writeFile(
     path.join(PATHS.dist.shared, 'recommendations.json'),
@@ -864,20 +935,146 @@ function injectFaviconMeta(html) {
   return html.replace('</head>', `${snippetLines.join('\n')}\n  </head>`);
 }
 
-async function loadContent(wordsPerMinute, assetRegistry = new Map()) {
-  const paywallConfig = loadPaywallConfig();
-  const intro = await loadMarkdownBranch(path.join(PATHS.content, 'intro'), 'intro', wordsPerMinute, assetRegistry, paywallConfig);
-  const course = await loadMarkdownBranch(path.join(PATHS.content, 'course'), 'course', wordsPerMinute, assetRegistry, paywallConfig);
-  const appendix = await loadMarkdownBranch(path.join(PATHS.content, 'appendix'), 'appendix', wordsPerMinute, assetRegistry, paywallConfig);
-  const recommendations = await loadMarkdownBranch(path.join(PATHS.content, 'recommendations'), 'recommendations', wordsPerMinute, assetRegistry, paywallConfig);
-  const legal = await loadMarkdownBranch(path.join(PATHS.content, 'legal'), 'legal', wordsPerMinute, assetRegistry, paywallConfig);
+const CYR_MAP = {
+  а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ё: 'e', ж: 'zh', з: 'z', и: 'i',
+  й: 'y', к: 'k', л: 'l', м: 'm', н: 'n', о: 'o', п: 'p', р: 'r', с: 's', т: 't',
+  у: 'u', ф: 'f', х: 'h', ц: 'c', ч: 'ch', ш: 'sh', щ: 'sch', ъ: '', ы: 'y', ь: '',
+  э: 'e', ю: 'yu', я: 'ya'
+};
+
+function transliterate(text) {
+  if (!text) return '';
+  return text
+    .toString()
+    .toLowerCase()
+    .split('')
+    .map((ch) => CYR_MAP[ch] || ch)
+    .join('');
+}
+
+function slugifyStrict(text) {
+  if (!text) return '';
+  const prepared = transliterate(text)
+    .replace(/[^a-z0-9\s-]/g, ' ')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  return prepared || '';
+}
+
+function ensureUniqueSlug(base, registry) {
+  let slug = slugifyStrict(base);
+  if (!slug) {
+    slug = 'page';
+  }
+  let candidate = slug;
+  let counter = 2;
+  while (registry.has(candidate)) {
+    candidate = `${slug}-${counter}`;
+    counter += 1;
+  }
+  registry.add(candidate);
+  return candidate;
+}
+
+function stripExtension(filename) {
+  return filename.replace(/\.[^.]+$/, '');
+}
+
+function resolveTypeByBranch(branch) {
+  switch (branch) {
+    case 'intro':
+      return 'intro';
+    case 'course':
+      return 'article';
+    case 'appendix':
+      return 'appendix';
+    case 'recommendations':
+      return 'recommendation';
+    case 'legal':
+      return 'legal';
+    default:
+      return 'article';
+  }
+}
+
+function normalizeMeta(meta) {
+  const merged = {
+    ...DEFAULT_META,
+    ...meta,
+    paywall: { ...DEFAULT_META.paywall, ...(meta?.paywall || {}) }
+  };
+
+  if (merged.paywall) {
+    merged.paywall.openBlocks = Number.isFinite(merged.paywall.openBlocks) ? Number(merged.paywall.openBlocks) : DEFAULT_META.paywall.openBlocks;
+    merged.paywall.teaserBlocks = Number.isFinite(merged.paywall.teaserBlocks) ? Number(merged.paywall.teaserBlocks) : DEFAULT_META.paywall.teaserBlocks;
+  }
+
+  if (merged.carousel_order != null) {
+    const coerced = Number(merged.carousel_order);
+    merged.carousel_order = Number.isFinite(coerced) ? coerced : null;
+  }
+
+  return merged;
+}
+
+function buildTitleFromSeo(base, suffix) {
+  const safeBase = (base || '').trim();
+  const safeSuffix = (suffix || '').trim();
+  if (safeBase && safeSuffix) return `${safeBase} ${safeSuffix}`.trim();
+  return safeBase || safeSuffix || '';
+}
+
+function stripHtml(html) {
+  return String(html || '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function extractAndStripH1(markdown) {
+  if (!markdown) {
+    return { h1: '', bodyWithoutH1: '' };
+  }
+
+  const lines = markdown.split('\n');
+  let h1 = '';
+  const filtered = [];
+
+  for (const line of lines) {
+    if (!h1) {
+      const match = line.match(/^#\s+(.*)$/);
+      if (match) {
+        h1 = match[1].trim();
+        continue;
+      }
+    }
+    filtered.push(line);
+  }
+
+  return {
+    h1,
+    bodyWithoutH1: filtered.join('\n').replace(/^\s+/, '')
+  };
+}
+
+async function loadContent(config, assetRegistry = new Map()) {
+  const contentMeta = loadContentMeta();
+  const slugRegistry = new Set(); // для уникальности slug'ов
+
+  const intro = await loadMarkdownBranch(path.join(PATHS.content, 'intro'), 'intro', config, assetRegistry, contentMeta, slugRegistry);
+  const course = await loadMarkdownBranch(path.join(PATHS.content, 'course'), 'course', config, assetRegistry, contentMeta, slugRegistry);
+  const appendix = await loadMarkdownBranch(path.join(PATHS.content, 'appendix'), 'appendix', config, assetRegistry, contentMeta, slugRegistry);
+  const recommendations = await loadMarkdownBranch(path.join(PATHS.content, 'recommendations'), 'recommendations', config, assetRegistry, contentMeta, slugRegistry);
+  const legal = await loadMarkdownBranch(path.join(PATHS.content, 'legal'), 'legal', config, assetRegistry, contentMeta, slugRegistry);
 
   return { intro, course, appendix, recommendations, legal };
 }
 
 function buildLegalSlugMap(content, config) {
   const legalItems = Array.isArray(content?.legal) ? content.legal : [];
-  const configLegal = config?.legal || {};
+  const configLegal = loadLegalConfig();
   const defaults = {
     terms: 'legal-terms',
     privacy: 'privacy-policy',
@@ -916,7 +1113,7 @@ function buildLegalSlugMap(content, config) {
   return map;
 }
 
-async function loadMarkdownBranch(dirPath, branch, wordsPerMinute = DEFAULT_SITE_CONFIG.build.wordsPerMinute, assetRegistry = new Map(), paywallConfig = {}) {
+async function loadMarkdownBranch(dirPath, branch, config, assetRegistry = new Map(), contentMeta = {}, slugRegistry = new Set()) {
   if (!fs.existsSync(dirPath)) return [];
   const entries = await fsp.readdir(dirPath);
   const files = entries.filter(name => name.endsWith('.md')).sort();
@@ -925,42 +1122,73 @@ async function loadMarkdownBranch(dirPath, branch, wordsPerMinute = DEFAULT_SITE
   for (const file of files) {
     const fullPath = path.join(dirPath, file);
     const rawMarkdown = await fsp.readFile(fullPath, 'utf8');
-    const { data, body } = parseFrontMatter(rawMarkdown);
-    const normalizedFrontMatter = normalizeFrontMatterMedia(data, dirPath, assetRegistry);
-    const slug = data.slug || slugify(file.replace(/^(\d+[-_]?)/, '').replace(/\.md$/, ''));
-    const title = normalizedFrontMatter.title || extractH1(body) || slug;
-    const readingTimeMinutes = calculateReadingTime(body, wordsPerMinute);
-    const { introMd, restMd } = extractLogicalIntro(body);
+    const { data, body: rawBody } = parseFrontMatter(rawMarkdown);
+    const processedBody = preprocessMarkdownMedia(rawBody, dirPath, assetRegistry);
+    const { h1, bodyWithoutH1 } = extractAndStripH1(processedBody);
 
-    // Preprocess markdown to convert absolute image paths before rendering
-    const processedIntroMd = preprocessMarkdownMedia(introMd, dirPath, assetRegistry);
-    const processedRestMd = preprocessMarkdownMedia(restMd, dirPath, assetRegistry);
-    const processedBody = preprocessMarkdownMedia(body, dirPath, assetRegistry);
+    const frontMatter = normalizeFrontMatterMedia(data, dirPath, assetRegistry);
+    const pathKey = `${branch}/${file}`;
+    const meta = normalizeMeta(contentMeta[pathKey] || {});
+    const type = meta.type || resolveTypeByBranch(branch);
+    const slugBase = meta.slug || (meta.seo_h1 || h1 || '');
+    const slug = type === 'intro'
+      ? 'index'
+      : ensureUniqueSlug(slugBase || h1 || stripExtension(file), slugRegistry);
 
-    const introHtml = rewriteContentMedia(renderMarkdown(processedIntroMd), dirPath, assetRegistry);
-    const restHtml = rewriteContentMedia(renderMarkdown(processedRestMd), dirPath, assetRegistry);
-    const fullHtml = rewriteContentMedia(renderMarkdown(processedBody), dirPath, assetRegistry);
-    const teaserHtml = buildTeaser(restHtml);
-    const excerpt = normalizedFrontMatter.excerpt || teaserHtml.replace(/<[^>]+>/g, '').trim();
-    const paywall = buildPaywallSegments(processedBody, getPaywallEntry(paywallConfig, branch, slug));
+    const readingTimeMinutes = calculateReadingTime(bodyWithoutH1, config.build.wordsPerMinute);
+
+    const fullHtml = rewriteContentMedia(renderMarkdown(bodyWithoutH1), dirPath, assetRegistry);
+    const paywallOverride = type === 'article' ? meta.paywall : null;
+    const paywall = type === 'article'
+      ? buildPaywallSegments(bodyWithoutH1, paywallOverride)
+      : { openHtml: '', teaserHtml: '', openBlocks: 0, teaserBlocks: 0, totalBlocks: 0 };
+
+    const seo_h1 = meta.seo_h1 || h1 || '';
+    const title = meta.title || buildTitleFromSeo(seo_h1 || h1, config.seo.titleSuffix);
+    const meta_description = meta.meta_description || config.seo.globalMetaDescription || '';
+    const menu_label = type === 'article' || type === 'appendix'
+      ? (meta.menu_label || h1 || '')
+      : '';
+    const menu_subtitle = type === 'article' || type === 'appendix'
+      ? (meta.menu_subtitle || '')
+      : '';
+
+    const carousel = type === 'recommendation'
+      ? {
+          label: meta.carousel_label || h1 || '',
+          subtitle: meta.carousel_subtitle || '',
+          icon: meta.carousel_icon || '',
+          order: Number.isFinite(meta.carousel_order) ? meta.carousel_order : parseOrder(file),
+          enabled: typeof meta.carousel_enabled === 'boolean' ? meta.carousel_enabled : true
+        }
+      : null;
+
+    const teaserHtml = paywall.teaserHtml || buildTeaser(fullHtml);
+    const excerpt = frontMatter.excerpt || stripHtml(teaserHtml);
+
     items.push({
       file,
-      slug,
-      title,
+      pathKey,
+      branch,
+      type,
       order: parseOrder(file),
-      markdown: body,
-      introMd,
-      restMd,
-      introHtml,
-      restHtml,
+      slug,
+      h1_md: h1 || '',
+      seo_h1,
+      title,
+      meta_description,
+      menu_label,
+      menu_subtitle,
+      paywall: type === 'article' ? { openBlocks: paywall.openBlocks, teaserBlocks: paywall.teaserBlocks } : null,
+      carousel,
+      readingTimeMinutes,
       fullHtml,
       teaserHtml,
       excerpt,
-      readingTimeMinutes,
-      frontMatter: normalizedFrontMatter,
-      branch,
+      frontMatter,
       paywallOpenHtml: paywall.openHtml,
-      paywallTeaserHtml: paywall.teaserHtml
+      paywallTeaserHtml: paywall.teaserHtml,
+      totalBlocks: paywall.totalBlocks
     });
   }
 
@@ -970,22 +1198,12 @@ async function loadMarkdownBranch(dirPath, branch, wordsPerMinute = DEFAULT_SITE
 function buildMenuItems(content, mode) {
   const menu = [];
 
-  // Intro всегда первый (order должен быть 0)
-  for (const intro of content.intro) {
-    menu.push({
-      type: 'intro',
-      title: intro.title,
-      url: mode === 'premium' ? '/premium/' : '/',
-      order: 0, // Явно устанавливаем order=0 для intro
-      readingTimeMinutes: intro.readingTimeMinutes
-    });
-  }
-
-  // Разделы курса - новая логичная структура
+  // Разделы курса
   for (const course of content.course) {
     menu.push({
       type: 'course',
-      title: course.title,
+      title: course.menu_label || course.h1_md,
+      subtitle: course.menu_subtitle || '',
       url: mode === 'premium' ? `/premium/course/${course.slug}.html` : `/course/${course.slug}.html`,
       order: course.order,
       readingTimeMinutes: course.readingTimeMinutes
@@ -997,7 +1215,8 @@ function buildMenuItems(content, mode) {
     for (const appendix of content.appendix) {
       menu.push({
         type: 'appendix',
-        title: appendix.title,
+        title: appendix.menu_label || appendix.h1_md,
+        subtitle: appendix.menu_subtitle || '',
         url: `/premium/appendix/${appendix.slug}.html`,
         order: appendix.order,
         readingTimeMinutes: appendix.readingTimeMinutes
@@ -1023,7 +1242,7 @@ function generateMenuItemsHtml(items) {
   return items
     .map(item => `<li>
       <a href="${item.url}">
-        ${item.title}
+        <div>${item.title}</div>${item.subtitle ? `<small>${item.subtitle}</small>` : ''}
       </a>
     </li>`)
     .join('\n');
@@ -1032,16 +1251,15 @@ function generateMenuItemsHtml(items) {
 function buildIntroPage(item, menuHtml, config, template, mode, nextUrl = '', legalMap = {}) {
   const buttonText = mode === 'premium' ? config.ctaTexts.next : config.ctaTexts.enterFull;
   const pageType = mode === 'premium' ? 'intro-premium' : 'intro-free';
-  const seo = getSeoForItem(item);
 
-  const body = wrapAsSection(item.fullHtml);
+  const body = wrapAsSection(`<h1>${escapeAttr(item.h1_md)}</h1>${item.fullHtml}`);
 
   return applyTemplate(template, {
-    title: `${item.title} — ${config.domain || 'TooSmart'}`,
-    seoTitle: seo?.title || '',
+    title: item.title || buildTitleFromSeo(item.seo_h1 || item.h1_md, config.seo.titleSuffix),
+    seoTitle: '',
     body,
     menu: menuHtml,
-    meta: generateMetaTags(item, config, mode, 'intro'),
+    meta: generateMetaTags(item, config, mode),
     schema: generateSchemaOrg(item, config, 'intro'),
     // Доп параметры для атрибутов
     pageType,
@@ -1054,11 +1272,10 @@ function buildIntroPage(item, menuHtml, config, template, mode, nextUrl = '', le
 }
 
 function buildFreeCoursePage(item, menuHtml, config, template, legalMap = {}) {
-  const seo = getSeoForItem(item);
   const body = `
         <div class="text-box__intro">
           <header>
-            <h1>${seo?.h1 || item.title}</h1>
+            <h1>${item.seo_h1 || item.h1_md}</h1>
             <p class="meta">${formatReadingTime(item.readingTimeMinutes)} чтения</p>
           </header>
           ${item.paywallOpenHtml}
@@ -1075,11 +1292,11 @@ function buildFreeCoursePage(item, menuHtml, config, template, legalMap = {}) {
   `;
 
   return applyTemplate(template, {
-    title: `${item.title} — ${config.domain || 'TooSmart'}`,
-    seoTitle: seo?.title || '',
+    title: item.title || buildTitleFromSeo(item.seo_h1 || item.h1_md, config.seo.titleSuffix),
+    seoTitle: '',
     body,
     menu: menuHtml,
-    meta: generateMetaTags(item, config, 'free', 'course'),
+    meta: generateMetaTags(item, config, 'free'),
     schema: generateSchemaOrg(item, config, 'course'),
     pageType: 'free',
     buttonText: config.ctaTexts.enterFull,
@@ -1091,8 +1308,7 @@ function buildFreeCoursePage(item, menuHtml, config, template, legalMap = {}) {
 }
 
 function buildPremiumPage(item, menuHtml, config, template, { prevUrl, nextUrl }, legalMap = {}) {
-  const seo = getSeoForItem(item);
-  const body = wrapAsSection(item.fullHtml);
+  const body = wrapAsSection(`<h1>${item.h1_md}</h1>${item.fullHtml}`);
 
   const pageType = item.branch === 'intro' ? 'intro' : (item.branch === 'appendix' ? 'appendix' : 'course');
   const progressButtonText = item.branch === 'appendix'
@@ -1100,11 +1316,11 @@ function buildPremiumPage(item, menuHtml, config, template, { prevUrl, nextUrl }
     : config.ctaTexts.next;
 
   return applyTemplate(template, {
-    title: `${item.title} — ${config.domain || 'TooSmart'}`,
-    seoTitle: seo?.title || '',
+    title: item.title || buildTitleFromSeo(item.seo_h1 || item.h1_md, config.seo.titleSuffix),
+    seoTitle: '',
     body,
     menu: menuHtml,
-    meta: generateMetaTags(item, config, 'premium', pageType),
+    meta: generateMetaTags(item, config, 'premium'),
     schema: generateSchemaOrg(item, config, pageType),
     pageType: 'premium',
     buttonText: progressButtonText,
@@ -1116,17 +1332,16 @@ function buildPremiumPage(item, menuHtml, config, template, { prevUrl, nextUrl }
 }
 
 function buildRecommendationPage(item, menuHtml, config, template, mode, legalMap = {}) {
-  const seo = getSeoForItem(item);
   const introUrl = mode === 'premium' ? '/premium/' : '/';
 
-  const body = wrapAsSection(item.fullHtml);
+  const body = wrapAsSection(`<h1>${item.h1_md}</h1>${item.fullHtml}`);
 
   return applyTemplate(template, {
-    title: `${item.title} — ${config.domain || 'TooSmart'}`,
-    seoTitle: seo?.title || '',
+    title: item.title || buildTitleFromSeo(item.seo_h1 || item.h1_md, config.seo.titleSuffix),
+    seoTitle: '',
     body,
     menu: menuHtml,
-    meta: generateMetaTags(item, config, mode, 'recommendation'),
+    meta: generateMetaTags(item, config, mode),
     schema: generateSchemaOrg(item, config, 'recommendation'),
     pageType: 'recommendation',
     buttonText: config.ctaTexts.openCourse,
@@ -1138,15 +1353,14 @@ function buildRecommendationPage(item, menuHtml, config, template, mode, legalMa
 }
 
 function buildLegalPage(item, menuHtml, config, template, mode, legalMap = {}) {
-  const seo = getSeoForItem(item);
-  const body = wrapAsSection(item.fullHtml);
+  const body = wrapAsSection(`<h1>${item.h1_md}</h1>${item.fullHtml}`);
 
   return applyTemplate(template, {
-    title: `${item.title} — ${config.domain || 'TooSmart'}`,
-    seoTitle: seo?.title || '',
+    title: item.seo_h1 || item.h1_md,
+    seoTitle: '',
     body,
     menu: menuHtml,
-    meta: generateMetaTags(item, config, mode, 'legal'),
+    meta: '',
     schema: '',
     pageType: 'legal',
     buttonText: '',
@@ -1196,7 +1410,8 @@ function normalizeFrontMatterMedia(data, dirPath, assetRegistry) {
         assetRegistry.set(resolvedPath, {
           source: resolvedPath,
           destination: filename,
-          url: webPath
+          url: webPath,
+          destDir: PATHS.dist.contentAssets
         });
       }
       normalized.image = webPath;
@@ -1349,7 +1564,8 @@ function preprocessMarkdownMedia(markdown, dirPath, assetRegistry) {
         assetRegistry.set(resolvedPath, {
           source: resolvedPath,
           destination: filename,
-          url: webPath
+          url: webPath,
+          destDir: PATHS.dist.contentAssets
         });
       }
 
@@ -1462,7 +1678,8 @@ function rewriteContentMedia(html, dirPath, assetRegistry) {
         assetRegistry.set(resolvedPath, {
           source: resolvedPath,
           destination: filename,
-          url: webPath
+          url: webPath,
+          destDir: PATHS.dist.contentAssets
         });
       }
 
@@ -1516,46 +1733,6 @@ function parseOrder(filename) {
 }
 
 /**
- * Загружает SEO данные из config/seo-data.json
- */
-function loadSeoData() {
-  if (cachedSeoData !== null) {
-    return cachedSeoData;
-  }
-
-  try {
-    if (fs.existsSync(PATHS.config.seo)) {
-      const raw = fs.readFileSync(PATHS.config.seo, 'utf8');
-      cachedSeoData = JSON.parse(raw);
-      console.log(`✅ Загружены SEO данные (${Object.keys(cachedSeoData).length} записей)`);
-    } else {
-      cachedSeoData = {};
-    }
-  } catch (error) {
-    console.warn('⚠️  Ошибка чтения seo-data.json:', error.message);
-    cachedSeoData = {};
-  }
-
-  return cachedSeoData;
-}
-
-/**
- * Получает SEO данные для конкретного элемента контента
- */
-function getSeoForItem(item) {
-  const seoData = loadSeoData();
-
-  // Генерируем ID в том же формате, что и в админке
-  const seoId = `${item.branch}/${item.file}`.replace(/[^a-zA-Z0-9]/g, '-');
-
-  if (seoData[seoId] && seoData[seoId].values) {
-    return seoData[seoId].values;
-  }
-
-  return null;
-}
-
-/**
  * Экранирует HTML атрибуты
  */
 function escapeAttr(str) {
@@ -1568,58 +1745,51 @@ function escapeAttr(str) {
     .replace(/>/g, '&gt;');
 }
 
-function generateMetaTags(item, config, mode, type) {
-  const seo = getSeoForItem(item);
+function generateMetaTags(item, config, mode) {
   const domain = config.domain || 'example.com';
   const baseUrl = `https://${domain}`;
+  const url = buildPageUrl(item, mode);
+  const description = item.meta_description || config.seo.globalMetaDescription || item.excerpt || '';
+  const ogTitle = item.title || buildTitleFromSeo(item.seo_h1 || item.h1_md, config.seo.titleSuffix);
+  const ogDescription = description;
+  const ogImage = config.seo.globalOgImage || '';
+  const robots = computeRobots(item.type, mode);
+  const canonical = computeCanonical(item, baseUrl, mode);
+  const twitterCard = 'summary_large_image';
+  const ogType = item.type === 'intro' ? 'website' : 'article';
 
-  // Получаем значения из SEO данных или fallback к defaults
-  const description = seo?.description || item.excerpt || '';
-  const ogTitle = seo?.ogTitle || seo?.title || item.title || '';
-  const ogDescription = seo?.ogDescription || description;
-  const ogImage = seo?.ogImage || '';
-  const robots = seo?.robots || 'index,follow';
-  const canonical = seo?.canonical || '';
-  const twitterCard = seo?.twitterCard || 'summary_large_image';
+  const meta = [];
 
-  let meta = [];
-
-  // Базовые мета-теги
   meta.push(`<meta name="description" content="${escapeAttr(description)}">`);
   meta.push(`<meta name="robots" content="${escapeAttr(robots)}">`);
 
-  // Canonical URL
   if (canonical) {
     meta.push(`<link rel="canonical" href="${escapeAttr(canonical)}">`);
   }
 
-  // Open Graph
   meta.push(`<meta property="og:title" content="${escapeAttr(ogTitle)}">`);
   meta.push(`<meta property="og:description" content="${escapeAttr(ogDescription)}">`);
-  meta.push(`<meta property="og:type" content="${seo?.ogType || 'article'}">`);
+  meta.push(`<meta property="og:type" content="${escapeAttr(ogType)}">`);
   meta.push(`<meta property="og:site_name" content="${escapeAttr(domain)}">`);
+  meta.push(`<meta property="og:url" content="${escapeAttr(url ? `${baseUrl}${url}` : baseUrl)}">`);
 
   if (ogImage) {
     const imageUrl = ogImage.startsWith('http') ? ogImage : `${baseUrl}${ogImage}`;
     meta.push(`<meta property="og:image" content="${escapeAttr(imageUrl)}">`);
   }
 
-  // Twitter Card
-  if (twitterCard && twitterCard !== 'none') {
-    meta.push(`<meta name="twitter:card" content="${escapeAttr(twitterCard)}">`);
-    meta.push(`<meta name="twitter:title" content="${escapeAttr(ogTitle)}">`);
-    meta.push(`<meta name="twitter:description" content="${escapeAttr(ogDescription)}">`);
-    if (ogImage) {
-      const imageUrl = ogImage.startsWith('http') ? ogImage : `${baseUrl}${ogImage}`;
-      meta.push(`<meta name="twitter:image" content="${escapeAttr(imageUrl)}">`);
-    }
+  meta.push(`<meta name="twitter:card" content="${escapeAttr(twitterCard)}">`);
+  meta.push(`<meta name="twitter:title" content="${escapeAttr(ogTitle)}">`);
+  meta.push(`<meta name="twitter:description" content="${escapeAttr(ogDescription)}">`);
+  if (ogImage) {
+    const imageUrl = ogImage.startsWith('http') ? ogImage : `${baseUrl}${ogImage}`;
+    meta.push(`<meta name="twitter:image" content="${escapeAttr(imageUrl)}">`);
   }
 
   return meta.join('\n  ');
 }
 
 function generateSchemaOrg(item, config, type) {
-  const seo = getSeoForItem(item);
   const domain = config.domain || 'example.com';
   const baseUrl = `https://${domain}`;
 
@@ -1628,8 +1798,8 @@ function generateSchemaOrg(item, config, type) {
     const schema = {
       "@context": "https://schema.org",
       "@type": "Article",
-      "headline": seo?.title || item.title,
-      "description": seo?.description || item.excerpt || '',
+      "headline": item.title || buildTitleFromSeo(item.seo_h1 || item.h1_md, config.seo.titleSuffix),
+      "description": item.meta_description || config.seo.globalMetaDescription || item.excerpt || '',
       "author": {
         "@type": "Organization",
         "name": config.footer?.companyName || domain
@@ -1640,14 +1810,51 @@ function generateSchemaOrg(item, config, type) {
       }
     };
 
-    if (seo?.ogImage) {
-      schema.image = seo.ogImage.startsWith('http') ? seo.ogImage : `${baseUrl}${seo.ogImage}`;
+    if (config.seo?.globalOgImage) {
+      const og = config.seo.globalOgImage;
+      schema.image = og.startsWith('http') ? og : `${baseUrl}${og}`;
     }
 
     return `<script type="application/ld+json">${JSON.stringify(schema)}</script>`;
   }
 
   return '';
+}
+
+function buildPageUrl(item, mode) {
+  switch (item.type) {
+    case 'intro':
+      return mode === 'premium' ? '/premium/' : '/';
+    case 'article':
+      return mode === 'premium' ? `/premium/course/${item.slug}.html` : `/course/${item.slug}.html`;
+    case 'appendix':
+      return `/premium/appendix/${item.slug}.html`;
+    case 'recommendation':
+      return `/recommendations/${item.slug}.html`;
+    case 'legal':
+      return `/shared/legal/${item.slug}.html`;
+    default:
+      return '/';
+  }
+}
+
+function computeRobots(type, mode) {
+  if (type === 'appendix' || type === 'legal') return 'noindex,nofollow';
+  if (type === 'article' && mode === 'premium') return 'noindex,nofollow';
+  return 'index,follow';
+}
+
+function computeCanonical(item, baseUrl, mode) {
+  if (item.type === 'intro') {
+    return `${baseUrl}/`;
+  }
+  const url = buildPageUrl(item, mode === 'premium' && item.type === 'article' ? 'free' : mode);
+  if (!url) return '';
+  // canonical для премиум-статей должен указывать на free версию
+  if (item.type === 'article' && mode === 'premium') {
+    return `${baseUrl}/course/${item.slug}.html`;
+  }
+  return `${baseUrl}${url}`;
 }
 
 async function ensureDir(dir) {
@@ -1749,13 +1956,14 @@ async function copyContentAssets(assets) {
     return;
   }
 
-  // Ensure destination directory exists and is clean
+  // Ensure base directories exist
   await ensureDir(PATHS.dist.contentAssets);
-  // Clean directory to remove stale assets
-  // We only clean files, not the directory itself to avoid race conditions if parallel
+  await ensureDir(path.join(PATHS.dist.assets, 'uploaded'));
+
+  // Clean content assets directory
   const existingFiles = await fsp.readdir(PATHS.dist.contentAssets);
   for (const file of existingFiles) {
-    if (file !== '.gitkeep') { // preserve .gitkeep if exists
+    if (file !== '.gitkeep') {
       await fsp.unlink(path.join(PATHS.dist.contentAssets, file));
     }
   }
@@ -1765,16 +1973,16 @@ async function copyContentAssets(assets) {
 
   for (const [sourcePath, assetInfo] of assets.entries()) {
     try {
-      const destPath = path.join(PATHS.dist.contentAssets, assetInfo.destination);
+      const destDir = assetInfo.destDir || PATHS.dist.contentAssets;
+      await ensureDir(destDir);
+      const destPath = path.join(destDir, assetInfo.destination);
 
-      // Check if source file exists
       if (!fs.existsSync(sourcePath)) {
         console.warn(`⚠️  Source file not found: ${sourcePath}`);
         errorCount++;
         continue;
       }
 
-      // Copy the file
       await fsp.copyFile(sourcePath, destPath);
       copiedCount++;
     } catch (error) {
@@ -1784,7 +1992,7 @@ async function copyContentAssets(assets) {
   }
 
   if (copiedCount > 0) {
-    console.log(`✅ Copied ${copiedCount} content asset(s) to dist/assets/content/`);
+    console.log(`✅ Copied ${copiedCount} asset(s)`);
   }
   if (errorCount > 0) {
     console.warn(`⚠️  ${errorCount} asset(s) failed to copy`);
@@ -1948,6 +2156,72 @@ function normalizeCoverValue(raw) {
   if (typeof raw !== 'string') return '';
   const trimmed = stripQuotes(raw);
   return trimmed ? trimmed.trim() : '';
+}
+
+function resolveCarouselIcon(rawIcon, rec, assetRegistry) {
+  const trimmed = normalizeCoverValue(rawIcon);
+  if (!trimmed) {
+    return { icon: '', cover: normalizeCoverValue(rec.frontMatter?.image) || '' };
+  }
+
+  // Emoji / single char
+  if (isSingleEmoji(trimmed)) {
+    return { icon: trimmed, cover: trimmed };
+  }
+
+  // URL already web
+  if (/^(https?:)?\/\//i.test(trimmed)) {
+    return { icon: trimmed, cover: trimmed };
+  }
+
+  // /assets/ already web
+  if (trimmed.startsWith('/assets/')) {
+    return { icon: trimmed, cover: trimmed };
+  }
+
+  const resolved = resolveLocalAssetPath(trimmed);
+  if (resolved && assetRegistry) {
+    const filename = sanitizeFilename(path.basename(resolved));
+    const destDir = path.join(PATHS.dist.assets, 'uploaded');
+    const webPath = `/assets/uploaded/${filename}`;
+
+    if (!assetRegistry.has(resolved)) {
+      assetRegistry.set(resolved, {
+        source: resolved,
+        destination: filename,
+        url: webPath,
+        destDir
+      });
+    }
+
+    return { icon: webPath, cover: webPath };
+  }
+
+  // If cannot resolve, return as-is
+  return { icon: trimmed, cover: trimmed };
+}
+
+function isSingleEmoji(value) {
+  if (!value) return false;
+  // Rough check for one emoji (length <= 2 code units and contains pictograph)
+  return value.length <= 4 && /\p{Extended_Pictographic}/u.test(value);
+}
+
+function resolveLocalAssetPath(inputPath) {
+  if (!inputPath) return null;
+
+  // Absolute filesystem path
+  if (isAbsoluteFilesystemPath(inputPath)) {
+    return fs.existsSync(inputPath) ? inputPath : null;
+  }
+
+  // Project-relative
+  const candidate = path.resolve(PROJECT_ROOT, inputPath);
+  if (fs.existsSync(candidate)) {
+    return candidate;
+  }
+
+  return null;
 }
 
 module.exports = { build };

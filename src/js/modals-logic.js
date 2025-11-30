@@ -250,14 +250,17 @@ function setupSettingsModal() {
     inputs.forEach(input => {
         input.addEventListener('invalid', function (e) {
             e.preventDefault();
+            this.classList.add('invalid');
             if (this.validity.valueMissing) {
                 this.setCustomValidity('Пожалуйста, заполните это поле');
             } else {
                 this.setCustomValidity('');
+                this.classList.remove('invalid');
             }
         });
         input.addEventListener('input', function () {
             this.setCustomValidity('');
+            this.classList.remove('invalid');
         });
     });
 

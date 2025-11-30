@@ -16,28 +16,40 @@
     "inn": "780503823473",
     "year": 2025
   },
-  "legal": {
-    "terms": "01-legal-terms.md",
-    "privacy": "",
-    "offer": ""
-  },
   "robokassa": {
     "merchantLogin": "",
     "password1": "",
     "password2": "",
-    "isTest": true,
-    "invoicePrefix": "CLEAN",
-    "description": "",
+    "invoicePrefix": "SUU",
+    "description": "Курс «Слишком умная уборка»",
     "successUrl": "/premium/success.php",
     "failUrl": "/premium/fail.php",
     "resultUrl": "/premium/src/robokassa/result.php",
-    "culture": "ru"
+    "culture": "ru",
+    "isTest": true
   },
   "build": {
     "wordsPerMinute": 150
   },
-  "recommendationCards": [],
   "features": {
     "cookiesBannerEnabled": true
+  },
+  "seo": {
+    "titleSuffix": "— Слишком Умная Уборка",
+    "globalMetaDescription": "",
+    "globalOgImage": "/assets/og-default.jpg"
+  },
+  "manifest": {
+    "name": "Слишком умная уборка",
+    "short_name": "СУУ",
+    "theme_color": "#ffffff",
+    "background_color": "#ffffff",
+    "start_url": "/"
+  },
+  "legal": {
+    "terms": "01-legal-terms.md",
+    "privacy": "",
+    "offer": "",
+    "contacts": ""
   }
 }

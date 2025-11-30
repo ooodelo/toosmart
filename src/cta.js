@@ -196,8 +196,11 @@ function setupInlineValidation(form) {
 
   if (checkbox) {
     checkbox.addEventListener('change', () => {
-      if (checkbox.checked && errorDiv.textContent === 'Необходимо согласие с условиями оферты') {
-        errorDiv.style.display = 'none';
+      if (checkbox.checked) {
+        checkbox.classList.remove('invalid');
+        if (errorDiv.textContent === 'Необходимо согласие с условиями оферты') {
+          errorDiv.style.display = 'none';
+        }
       }
     });
   }
@@ -238,6 +241,7 @@ async function handlePayment(event) {
 
   if (!acceptOffer) {
     showError(errorDiv, 'Необходимо согласие с условиями оферты');
+    acceptOfferField.classList.add('invalid');
     return;
   }
 

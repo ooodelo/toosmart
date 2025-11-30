@@ -20,6 +20,7 @@ export function localizeValidation(form) {
         // Обработчик события invalid - заменяет сообщение при валидации
         input.addEventListener('invalid', function (e) {
             e.preventDefault();
+            this.classList.add('invalid');
 
             if (this.validity.valueMissing) {
                 // Поле обязательно, но пустое
@@ -44,17 +45,20 @@ export function localizeValidation(form) {
             } else {
                 // Сбрасываем сообщение, если ошибок нет
                 this.setCustomValidity('');
+                this.classList.remove('invalid');
             }
         });
 
         // Сбрасываем кастомное сообщение при вводе
         input.addEventListener('input', function () {
             this.setCustomValidity('');
+            this.classList.remove('invalid');
         });
 
         // Сбрасываем кастомное сообщение при изменении (для checkbox, radio)
         input.addEventListener('change', function () {
             this.setCustomValidity('');
+            this.classList.remove('invalid');
         });
     });
 }
