@@ -12,6 +12,7 @@ import('../script.js').catch((err) => {
 import { initCta } from '../cta.js';
 import { initModalsLogic } from '../js/modals-logic.js';
 import { initCookieBanner } from '../js/cookie-banner.js';
+import { initDynamicPaywall } from '../js/paywall-dynamic.js';
 import '../legal-modals.js';
 
 // Флаг для dev-бейпаса логина (в проде всегда false)
@@ -26,5 +27,7 @@ initCta();
 initModalsLogic();
 // Инициализируем куки баннер
 initCookieBanner();
+// Инициализируем новый paywall
+initDynamicPaywall();
 
 console.log('[App] Free version initialized');

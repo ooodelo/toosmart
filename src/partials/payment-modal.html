@@ -2,25 +2,25 @@
 <div class="modal" id="cta-payment-modal" role="dialog" aria-modal="true" aria-labelledby="payment-modal-title">
     <div class="modal-overlay" onclick="closeCTAModal()"></div>
     <div class="modal-content">
-        <h2 id="payment-modal-title" class="modal-title">Получите полный доступ к курсу</h2>
-
-        <ul class="modal-benefits">
+        <ul class="modal-benefits" style="margin-bottom: 32px;">
             <li>✅ 10 полных разделов с подробными объяснениями</li>
             <li>✅ Практические рецепты и таблицы</li>
             <li>✅ Пожизненный доступ к материалам</li>
             <li>✅ Бесплатные обновления курса</li>
         </ul>
 
-        <p class="modal-price">
-            <span class="price-old">__PRICE_ORIGINAL__</span>
-            <span class="price-current">__PRICE_CURRENT__</span>
+        <p class="modal-price" style="justify-content: center; margin-bottom: 32px;">
+            <span class="price-old" style="font-size: 28px;">__PRICE_ORIGINAL__</span>
+            <span class="price-current" style="font-size: 28px;">__PRICE_CURRENT__</span>
         </p>
 
         <div id="payment-error" style="display: none;" role="alert"></div>
 
         <form id="payment-form">
-            <input type="email" name="email" placeholder="Введите ваш email" required autocomplete="email"
-                aria-label="Email для доступа к курсу">
+            <div class="form-group">
+                <input type="email" name="email" class="modal-input" placeholder="Введите ваш email" required
+                    autocomplete="email" aria-label="Email для доступа к курсу">
+            </div>
 
             <label class="modal-checkbox">
                 <input type="checkbox" name="accept_offer" required>
@@ -32,12 +32,12 @@
             </label>
 
             <button type="submit" class="modal-submit">
-                Оплатить __PRICE_CURRENT__
+                Продолжить
             </button>
         </form>
 
         <p class="modal-security">
-            🔒 Безопасная оплата через Robokassa
+            <span>🔒</span> Безопасная оплата через Robokassa
         </p>
     </div>
     <button class="modal-close" type="button" onclick="closeCTAModal()" aria-label="Закрыть">×</button>

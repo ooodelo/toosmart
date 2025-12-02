@@ -60,26 +60,41 @@
           </section>
         </div>
         <div id="article-content">
-          <section id="paywall-content" class="text-section">
-            <div class="premium-teaser">
-              <div class="premium-teaser__blurred" data-nosnippet>
-                <!--noindex-->
-                <p>At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum
-                  deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non
-                  provident.</p>
-                <p>Similique sunt in culpa qui officia deserunt mollitia animi, id est laborum et dolorum fuga. Et harum
-                  quidem rerum facilis est et expedita distinctio.</p>
-                <!--/noindex-->
-              </div>
-              <div class="premium-teaser__overlay">
-                <button class="cta-button" data-analytics="cta-premium" onclick="openCTAModal()">Читать
-                  полностью</button>
+          <div class="paywall-block" data-paywall-root data-locked-src="">
+            <section class="text-section paywall-text" data-locked-body>
+              <p class="paywall-text__hint">Нажмите «Добавить абзац», чтобы подгрузить следующую часть статьи.</p>
+            </section>
+
+            <div class="paywall-overlay" aria-hidden="true">
+              <div class="paywall-overlay__fluid" data-fluid-overlay></div>
+              <div class="paywall-overlay__cta">
+                <div class="paywall-overlay__cta-inner">
+                  <button class="paywall-cta-button cta-button" data-analytics="cta-premium" data-paywall-cta
+                    type="button" onclick="openCTAModal()">
+                    <span class="paywall-cta-button__icon" aria-hidden="true">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M17 11V8a5 5 0 10-10 0v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                          stroke-linejoin="round" />
+                        <rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" stroke-width="2"
+                          stroke-linecap="round" stroke-linejoin="round" />
+                        <circle cx="12" cy="16" r="1.5" fill="currentColor" />
+                      </svg>
+                    </span>
+                    <span>Войти в полную версию</span>
+                  </button>
+
+                  <div class="paywall-fab" data-paywall-fab>
+                    <button class="paywall-fab__btn" data-paywall-add type="button">
+                      <span class="paywall-fab__icon" aria-hidden="true">+</span>
+                      <span data-paywall-add-label>Добавить абзац</span>
+                    </button>
+                    <div class="paywall-fab__timer" data-paywall-timer hidden></div>
+                  </div>
+                </div>
               </div>
             </div>
-
-          </section>
-        </div>
       </article>
+
     </section>
 
     {{> stack-widget }}

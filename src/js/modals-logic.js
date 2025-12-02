@@ -117,7 +117,7 @@ function detectPageContext() {
     const article = document.querySelector('[data-build-slot="body"]');
     const pageType = (article?.dataset.pageType || document.body.dataset.pageType || '').toLowerCase();
     const path = (window.location && window.location.pathname) || '';
-    const hasPaywallTeaser = Boolean(document.querySelector('.premium-teaser'));
+    const hasPaywallTeaser = Boolean(document.querySelector('[data-paywall-root]')) || Boolean(document.querySelector('.premium-teaser'));
 
     const isPaywallType = pageType === 'free' || pageType === 'paywall' || pageType === 'intro-free';
     const isPremiumType = pageType === 'premium' || pageType === 'intro-premium';

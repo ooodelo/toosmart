@@ -60,32 +60,36 @@
     <div class="modal-content">
         <h2 id="login-modal-title" class="modal-title">Войти в личный кабинет</h2>
 
-        <p style="text-align: center; color: #666; margin-bottom: 24px; font-size: 15px;">
+        <p style="text-align: center; color: #666; margin-bottom: 32px; font-size: 15px; line-height: 1.5;">
             Введите email, который использовали при покупке
         </p>
 
         <div id="login-error" style="display: none;" role="alert"></div>
 
         <form id="login-form">
-            <input type="email" name="email" placeholder="Введите ваш email" required autocomplete="email"
-                aria-label="Email для входа">
+            <div class="form-group">
+                <input type="email" name="email" class="modal-input" placeholder="Введите ваш email" required
+                    autocomplete="email" aria-label="Email для входа">
+            </div>
 
-            <input type="password" name="password" placeholder="Введите пароль" required autocomplete="current-password"
-                aria-label="Пароль" style="margin-bottom: 16px;">
+            <div class="form-group">
+                <input type="password" name="password" class="modal-input" placeholder="Введите пароль" required
+                    autocomplete="current-password" aria-label="Пароль">
+            </div>
 
             <button type="submit" class="modal-submit">
                 Войти
             </button>
         </form>
 
-        <p style="text-align: center; margin-top: 16px;">
-            <a href="/premium/" style="color: #667eea; text-decoration: none; font-size: 14px;">
+        <p style="text-align: center; margin-top: 24px;">
+            <a href="/forgot-password.html" style="color: #667eea; text-decoration: none; font-size: 14px; font-weight: 500;">
                 Забыли пароль?
             </a>
         </p>
 
         <p class="modal-security">
-            🔐 Ваши данные надежно защищены
+            <span>🔒</span> Ваши данные надежно защищены
         </p>
     </div>
     <button class="modal-close" type="button" onclick="closeLoginModal()" aria-label="Закрыть">×</button>

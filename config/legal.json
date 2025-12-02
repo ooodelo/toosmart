@@ -1,6 +1,6 @@
 {
   "terms": "01-legal-terms.md",
-  "privacy": "",
-  "offer": "",
-  "contacts": ""
+  "privacy": "02-privacy-policy.md",
+  "offer": "03-public-offer.md",
+  "contacts": "04-contacts.md"
 }

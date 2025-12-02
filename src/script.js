@@ -1654,7 +1654,7 @@ function configureDots() {
   }
   if (!dotsRail) return;
   clearElement(dotsRail);
-  const shouldEnable = (currentMode === 'desktop' || currentMode === 'desktop-wide') && sections.length >= 2;
+  const shouldEnable = (currentMode === 'desktop' || currentMode === 'desktop-wide') && sections.length >= 1;
   dotsRail.hidden = !shouldEnable;
   if (!shouldEnable) {
     teardownObserver();
@@ -2034,6 +2034,10 @@ function initDotsFlyout() {
     sections: sections.length,
   });
 
+  // Обновляем секции каждый раз (DOM может меняться)
+  sections.length = 0;
+  sections.push(...Array.from(document.querySelectorAll('.text-section')));
+
   if (!dotsRail || !dotFlyout) {
     console.error('[FLYOUT] ERROR: dotsRail or dotFlyout not found!', {
       dotsRail: !!dotsRail,
@@ -2043,7 +2047,7 @@ function initDotsFlyout() {
   }
 
   // Flyout показывается только в desktop/desktop-wide
-  const shouldEnable = (currentMode === 'desktop' || currentMode === 'desktop-wide') && sections.length >= 2;
+  const shouldEnable = (currentMode === 'desktop' || currentMode === 'desktop-wide') && sections.length >= 1;
 
   logFlyout('[FLYOUT] Should enable?', {
     currentMode,
@@ -2073,24 +2077,30 @@ function initDotsFlyout() {
   function buildFlyoutMenu() {
     clearElement(dotFlyout);
 
+    let rendered = 0;
+
     sections.forEach((section, index) => {
+      const heading = section.querySelector('h2');
+      const sectionTitle = heading ? heading.textContent?.trim() || '' : '';
+      if (!sectionTitle) return;
+
+      if (!section.id) {
+        section.id = `section-${index + 1}`;
+      }
+
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'dot-flyout__item';
-      btn.dataset.index = String(index);
+      btn.dataset.index = String(rendered);
       btn.dataset.sectionId = section.id;
-
-      // Текст из data-section или h2
-      const sectionTitle = section.dataset.section ||
-        section.querySelector('h2')?.textContent ||
-        `Раздел ${index + 1}`;
-      btn.textContent = sectionTitle.trim();
+      btn.textContent = sectionTitle;
       btn.setAttribute('aria-controls', section.id);
 
       dotFlyout.appendChild(btn);
+      rendered += 1;
     });
 
-    logFlyout('[FLYOUT] Built menu with', sections.length, 'items');
+    logFlyout('[FLYOUT] Built menu with', rendered, 'items');
   }
 
   // Показ flyout с задержкой при закрытии
@@ -2754,19 +2764,22 @@ function initStackCarousel() {
     }
     const title = (rec.title || rec.name || '').trim();
     const description = (rec.description || rec.excerpt || '').trim();
-    const slug = typeof rec.slug === 'string' ? rec.slug : '';
+    const slug = typeof rec.slug === 'string' ? rec.slug.trim() : '';
     const url = typeof rec.url === 'string' && rec.url
       ? rec.url
       : slug
         ? `/recommendations/${slug}.html`
         : '';
+    const cover = normalizeCover(rec.cover || rec.image || '');
+
+    const id = slug || rec.id || `card-${idx}`;
 
     return {
-      id: slug || rec.id || `card-${idx}`,
+      id,
       slug,
-      title: title || slug || 'Рекомендация',
+      title: title || slug || id || 'Рекомендация',
       description: description || '',
-      cover: normalizeCover(rec.cover || rec.image || ''),
+      cover,
       url,
     };
   }
@@ -2873,26 +2886,22 @@ function initStackCarousel() {
     const inner = document.createElement('div');
     inner.className = 'stack-card__inner';
 
-    inner.appendChild(buildCover(card));
+    // Cover: emoji или картинка одного размера
+    const coverWrapper = buildCover(card);
+    inner.appendChild(coverWrapper);
 
+    // Title
     const title = document.createElement('h3');
     title.className = 'stack-card__title';
     title.textContent = card.title || 'Рекомендация';
     inner.appendChild(title);
 
-    const meta = document.createElement('div');
-    meta.className = 'stack-card__meta';
-
-    const bar = document.createElement('span');
-    bar.className = 'stack-card__bar';
-
+    // Description
     const description = document.createElement('p');
     description.className = 'stack-card__description';
     description.textContent = card.description || '';
+    inner.appendChild(description);
 
-    meta.appendChild(bar);
-    meta.appendChild(description);
-    inner.appendChild(meta);
     node.appendChild(inner);
 
     bindCardInteractions(node, index);
@@ -2922,20 +2931,16 @@ function initStackCarousel() {
     const total = cardElements.length;
     if (!total) return;
 
-    const offset = calculateOffset(index);
-    const isActive = offset === 0;
+    const hasHref = node instanceof HTMLAnchorElement && typeof node.href === 'string' && node.href.length > 0;
 
-    if (!isActive) {
-      event.preventDefault();
-      setActiveIndex(index);
+    // If it's a link, allow default navigation (don't preventDefault)
+    if (hasHref) {
       return;
     }
 
-    const hasHref = node instanceof HTMLAnchorElement && typeof node.href === 'string' && node.href.length > 0;
-    if (!hasHref) {
-      event.preventDefault();
-      setActiveIndex(activeIndex + 1);
-    }
+    // If not a link, just select/advance
+    event.preventDefault();
+    setActiveIndex(index);
   }
 
   function setActiveIndex(nextIndex, options = {}) {
@@ -2943,8 +2948,19 @@ function initStackCarousel() {
     if (!cardElements.length) return;
 
     const total = cardElements.length;
+    if (total <= 1) {
+      activeIndex = 0;
+      applyLayout();
+      stopAutoplay();
+      return;
+    }
+
     const safeIndex = ((nextIndex % total) + total) % total;
     if (safeIndex === activeIndex && fromAutoplay) {
+      // Принудительно сдвигаем дальше, чтобы автоплей не залипал
+      const forcedIndex = (safeIndex + 1) % total;
+      activeIndex = forcedIndex;
+      applyLayout();
       return;
     }
 
@@ -2962,6 +2978,10 @@ function initStackCarousel() {
   }
 
   function applyLayout() {
+    // Ensure inline class is set for non-wide modes (Desktop < 1280px, Tablet, Mobile)
+    // This triggers isMobileMode() -> true, enabling horizontal list logic
+    stack.classList.toggle('stack--inline', currentMode !== 'desktop-wide');
+
     const isMobile = isMobileMode();
     const pointerAllowed = isPointerInteractive();
 
@@ -3030,6 +3050,7 @@ function initStackCarousel() {
       transition: '',
       animation: '',
       boxShadow: '',
+      border: '',
     };
 
     if (isMobile) {
@@ -3046,22 +3067,49 @@ function initStackCarousel() {
         style.animation = `${animName} var(--stack-animation-duration) linear forwards`;
       }
     } else if (isHovered) {
-      const expandedYOffset = `calc(${offset} * ((100vh - 460px) / 3))`;
-      style.transform = `translate3d(0, ${expandedYOffset}, 0) scale(1)`;
+      // Horizontal expansion to the left
+      // Each card shifts left by its offset * (step)
+      // Card width is 280px. Overlap is 30px.
+      // Step = 280 - 30 = 250px.
+      const expandedXOffset = `calc(-${offset} * 250px)`;
+      style.transform = `translate3d(${expandedXOffset}, 0, 0) scale(1)`;
       style.opacity = 1;
-      style.transition = 'transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow 0.3s ease';
+
+      // Shadow logic:
+      // Base expanded shadow: 0 30px 60px -12px rgba(0,0,0,0.25)
+      // Selected shadow (50% darker): 0 30px 60px -12px rgba(0,0,0,0.4)
       style.boxShadow = isCardHovered
-        ? '0 30px 60px -12px rgba(0,0,0,0.25)'
-        : '0 10px 40px -10px rgba(0,0,0,0.05)';
+        ? '0 30px 60px -12px rgba(0,0,0,0.4)'
+        : '0 30px 60px -12px rgba(0,0,0,0.25)';
+
+      // No border
+      style.border = 'none';
+
+      // Staggered delay: 0.1s per card index (distinct, luxurious wave)
+      // Soft & Luxurious easing: cubic-bezier(0.2, 0.8, 0.2, 1) (Very smooth ease-out, no bounce)
+      // Duration: 1.0s for a slow, elegant feel
+      style.transition = `transform 1.0s cubic-bezier(0.2, 0.8, 0.2, 1) ${offset * 0.1}s, box-shadow 0.5s ease`;
     } else {
-      if (offset === 0) {
-        style.transform = 'translate3d(0, 0, 0) scale(1)';
-        style.opacity = 1;
-        style.transition = 'none';
-      } else {
-        const animName = activeIndex % 2 === 0 ? 'stackRiseEven' : 'stackRiseOdd';
-        style.animation = `${animName} var(--stack-animation-duration) linear forwards`;
-      }
+      // Desktop Idle State (Stacked)
+      // We use transitions instead of animations to ensure smooth reversibility from hover
+      // and smooth updates during autoplay/navigation.
+
+      // Adjusted shift: 15px (was 18px)
+      const yPos = offset * -15;
+      const zPos = -Math.max(0, offset - 1);
+      const scale = 1 - (offset * 0.05);
+
+      style.transform = `translate3d(0, ${yPos}px, ${zPos}px) scale(${scale})`;
+      style.opacity = 1;
+      style.animation = 'none';
+
+      // Smooth return/update transition
+      // Matches the "Soft & Luxurious" feel
+      style.transition = `transform 1.0s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.5s ease`;
+
+      // Add shadow to stacked cards for better separation
+      // Stronger blur and slightly darker as requested
+      style.boxShadow = '0 15px 50px -10px rgba(0, 0, 0, 0.25)';
     }
 
     return style;
@@ -3080,6 +3128,7 @@ function initStackCarousel() {
     node.style.transform = style.transform || '';
     node.style.transition = style.transition || '';
     node.style.boxShadow = style.boxShadow || '';
+    node.style.border = style.border || '';
 
     const hasAnimation = style.animation && style.animation !== 'none';
     node.style.animation = 'none';
@@ -3148,14 +3197,14 @@ function initStackCarousel() {
     requestAnimationFrame(() => applyLayout());
   };
 
-  disposers.push(trackEvent(deck, 'mouseenter', () => {
+  disposers.push(trackEvent(stack, 'mouseenter', () => {
     if (!isPointerInteractive() || isMobileMode()) return;
     isHovered = true;
     pauseAutoplay('hover');
     applyLayout();
   }, undefined, { module: 'stackCarousel', target: describeTarget(deck) }));
 
-  disposers.push(trackEvent(deck, 'mouseleave', () => {
+  disposers.push(trackEvent(stack, 'mouseleave', () => {
     if (!isPointerInteractive() || isMobileMode()) return;
     isHovered = false;
     hoveredId = null;
@@ -4108,7 +4157,7 @@ function activateProgressWidgetFeature() {
   // Не показывать виджет на страницах с paywall - там статичная кнопка
   const article = document.querySelector('article[data-page-type]');
   const pageType = article?.dataset.pageType || 'unknown';
-  const hasPaywallTeaser = Boolean(document.querySelector('.premium-teaser'));
+  const hasPaywallTeaser = Boolean(document.querySelector('[data-paywall-root]')) || Boolean(document.querySelector('.premium-teaser'));
   const isPaywallPage = pageType === 'free' || pageType === 'paywall' || hasPaywallTeaser;
   if (isPaywallPage) {
     return () => { };

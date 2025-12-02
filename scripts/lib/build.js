@@ -6,7 +6,7 @@ const createDOMPurify = require('dompurify');
 const { JSDOM } = require('jsdom');
 const { minify: minifyJS } = require('terser');
 const csso = require('csso');
-const { buildPaywallSegments } = require('./paywall');
+const { buildPaywallSegments, extractBlocks } = require('./paywall');
 const { execSync } = require('child_process');
 
 let cachedHeadScriptsPartial = null;
@@ -396,7 +396,8 @@ async function buildFree() {
   }
 
   for (const course of content.course) {
-    const page = buildFreeCoursePage(course, menuHtml, config, template, legalMap);
+    const lockedSrc = await writeLockedContentFile(course);
+    const page = buildFreeCoursePage(course, menuHtml, config, template, legalMap, lockedSrc);
     const targetPath = path.join(PATHS.dist.course, `${course.slug}.html`);
     await ensureDir(path.dirname(targetPath));
     await fsp.writeFile(targetPath, page, 'utf8');
@@ -432,6 +433,7 @@ async function buildPremium() {
   await cleanDir(PATHS.dist.premium);
   await ensureDir(PATHS.dist.premium);
   await copyContentAssets(contentAssets);
+  await writeLockedContentFiles(content.course);
   await copyServerFiles(PATHS.dist.premium);
 
   const menuItems = buildMenuItems(content, 'premium');
@@ -494,6 +496,7 @@ async function buildRecommendations() {
   const menuHtml = generateMenuItemsHtml(menuItems);
 
   await copyContentAssets(contentAssets);
+  await writeLockedContentFiles(content.course);
 
   await ensureDir(PATHS.dist.shared);
   await cleanDir(PATHS.dist.recommendations);
@@ -1165,6 +1168,8 @@ async function loadMarkdownBranch(dirPath, branch, config, assetRegistry = new M
 
     const teaserHtml = paywall.teaserHtml || buildTeaser(fullHtml);
     const excerpt = frontMatter.excerpt || stripHtml(teaserHtml);
+    const { blocks } = extractBlocks(bodyWithoutH1);
+    const lockedBlocks = blocks.filter(b => b.index > paywall.openBlocks).map(b => b.html);
 
     items.push({
       file,
@@ -1188,7 +1193,8 @@ async function loadMarkdownBranch(dirPath, branch, config, assetRegistry = new M
       frontMatter,
       paywallOpenHtml: paywall.openHtml,
       paywallTeaserHtml: paywall.teaserHtml,
-      totalBlocks: paywall.totalBlocks
+      totalBlocks: paywall.totalBlocks,
+      lockedBlocks
     });
   }
 
@@ -1248,6 +1254,33 @@ function generateMenuItemsHtml(items) {
     .join('\n');
 }
 
+function getLockedContentFilename(item) {
+  const branchSafe = item.branch || 'course';
+  return `paywall-${branchSafe}-${item.slug}.json`;
+}
+
+async function writeLockedContentFile(item) {
+  if (!item || !Array.isArray(item.lockedBlocks) || item.lockedBlocks.length === 0) {
+    return '';
+  }
+
+  const filename = getLockedContentFilename(item);
+  const destPath = path.join(PATHS.dist.contentAssets, filename);
+  const payload = { blocks: item.lockedBlocks };
+
+  await ensureDir(PATHS.dist.contentAssets);
+  await fsp.writeFile(destPath, JSON.stringify(payload), 'utf8');
+
+  return `/assets/content/${filename}`;
+}
+
+async function writeLockedContentFiles(items = []) {
+  if (!Array.isArray(items) || items.length === 0) return;
+  for (const item of items) {
+    await writeLockedContentFile(item);
+  }
+}
+
 function buildIntroPage(item, menuHtml, config, template, mode, nextUrl = '', legalMap = {}) {
   const buttonText = mode === 'premium' ? config.ctaTexts.next : config.ctaTexts.enterFull;
   const pageType = mode === 'premium' ? 'intro-premium' : 'intro-free';
@@ -1271,7 +1304,9 @@ function buildIntroPage(item, menuHtml, config, template, mode, nextUrl = '', le
   });
 }
 
-function buildFreeCoursePage(item, menuHtml, config, template, legalMap = {}) {
+function buildFreeCoursePage(item, menuHtml, config, template, legalMap = {}, lockedSrc = '') {
+  const paywallSource = lockedSrc || '';
+
   const body = `
         <div class="text-box__intro">
           <header>
@@ -1282,11 +1317,36 @@ function buildFreeCoursePage(item, menuHtml, config, template, legalMap = {}) {
         </div>
 
         <div id="article-content">
-          <div class="premium-teaser">
-            <div class="premium-teaser__blurred" data-nosnippet><!--noindex-->${item.paywallTeaserHtml}<!--/noindex--></div>
-            <div class="premium-teaser__overlay">
-              <button class="cta-button" data-analytics="cta-premium">${config.ctaTexts.enterFull}</button>
+          <div class="paywall-block" data-paywall-root data-locked-src="${escapeAttr(paywallSource)}">
+            <section class="text-section paywall-text" data-locked-body>
+              <p class="paywall-text__hint">Нажмите «Добавить абзац», чтобы подгрузить следующую часть статьи.</p>
+            </section>
+
+            <div class="paywall-overlay" aria-hidden="true">
+              <div class="paywall-overlay__fluid" data-fluid-overlay></div>
+              <div class="paywall-overlay__cta">
+                <div class="paywall-overlay__cta-inner">
+                  <button class="paywall-cta-button cta-button" data-analytics="cta-premium" data-paywall-cta type="button">
+                    <span class="paywall-cta-button__icon" aria-hidden="true">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M17 11V8a5 5 0 10-10 0v3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <circle cx="12" cy="16" r="1.5" fill="currentColor"/>
+                      </svg>
+                    </span>
+                    <span>${escapeAttr(config.ctaTexts.enterFull)}</span>
+                  </button>
+                </div>
+              </div>
             </div>
+          </div>
+
+          <div class="paywall-fab" data-paywall-fab>
+            <button class="paywall-fab__btn" data-paywall-add type="button">
+              <span class="paywall-fab__icon" aria-hidden="true">+</span>
+              <span data-paywall-add-label>Добавить абзац</span>
+            </button>
+            <div class="paywall-fab__timer" data-paywall-timer hidden></div>
           </div>
         </div>
   `;
