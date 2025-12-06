@@ -1457,22 +1457,52 @@ function updateProgressWidgetFloatingAnchors(pwRoot) {
     return;
   }
 
-  const viewportWidth = window.innerWidth || document.documentElement?.clientWidth || 0;
-  const viewportHeight = window.innerHeight || document.documentElement?.clientHeight || 0;
+  // Use visualViewport for stable positioning when mobile browser bars show/hide
+  const viewport = (() => {
+    const vv = window.visualViewport;
+    if (vv && Number.isFinite(vv.width) && Number.isFinite(vv.height)) {
+      const layoutHeight = window.innerHeight || document.documentElement?.clientHeight || vv.height;
+      const safeBottom = Math.max(0, layoutHeight - (vv.height + (vv.offsetTop || 0)));
+      return {
+        width: vv.width,
+        height: vv.height,
+        offsetLeft: vv.offsetLeft || 0,
+        offsetTop: vv.offsetTop || 0,
+        safeBottom,
+      };
+    }
+    return {
+      width: window.innerWidth || document.documentElement?.clientWidth || 0,
+      height: window.innerHeight || document.documentElement?.clientHeight || 0,
+      offsetLeft: 0,
+      offsetTop: 0,
+      safeBottom: 0,
+    };
+  })();
+
   const anchorRect = anchor.getBoundingClientRect();
   const styles = window.getComputedStyle(pwRoot);
+  const widgetHeight = pwRoot.offsetHeight || parseCssNumber(styles.height) || parseCssNumber(styles.getPropertyValue('--pw-pill-height')) || 0;
+  const widgetWidth = pwRoot.offsetWidth || parseCssNumber(styles.width) || parseCssNumber(styles.getPropertyValue('--pw-pill-width')) || 0;
 
-  if (viewportWidth > 0 && anchorRect.width > 0) {
-    const pwWidth = Math.max(pwRoot.offsetWidth || 0, parseCssNumber(styles.width));
-    const maxLeft = Math.max(0, Math.min(anchorRect.left, viewportWidth - pwWidth));
+  if (viewport.width > 0 && anchorRect.width > 0) {
+    const maxLeft = Math.max(
+      0,
+      Math.min(anchorRect.left + viewport.offsetLeft, viewport.width - widgetWidth)
+    );
     pwRoot.style.setProperty('--pw-float-left', `${Math.round(maxLeft)}px`);
   }
 
-  if (viewportHeight > 0) {
+  if (viewport.height > 0) {
     const gap = 10;
-    const bottom = anchorRect.top > 0
-      ? Math.max(gap, Math.round(viewportHeight - anchorRect.top + gap))
-      : Math.max(gap, Math.round(parseCssNumber(styles.bottom)) || gap);
+    const verticalOffset = 67; // Position widget 67px ABOVE the anchor button
+    const anchorBottom = anchorRect.bottom + viewport.offsetTop;
+    const anchorHeight = anchorRect.height || 0;
+    const baseBottom = Math.max(
+      gap,
+      Math.round(viewport.height - anchorBottom + ((anchorHeight - widgetHeight) / 2 || 0)) + verticalOffset
+    );
+    const bottom = Math.max(gap, baseBottom + viewport.safeBottom);
     pwRoot.style.setProperty('--pw-float-bottom', `${bottom}px`);
   }
 
@@ -1540,7 +1570,8 @@ function recordViewportGeometry(viewport) {
 
 function syncScrollHideMode() {
   if (typeof scrollHideControls.setMode === 'function') {
-    const shouldEnable = currentMode === 'mobile' || currentMode === 'tablet';
+    // Хедер скрываем только на мобильных
+    const shouldEnable = currentMode === 'mobile';
     scrollHideControls.setMode(shouldEnable);
   }
 }
@@ -2080,7 +2111,7 @@ function initDotsFlyout() {
     let rendered = 0;
 
     sections.forEach((section, index) => {
-      const heading = section.querySelector('h2');
+      const heading = section.querySelector('h3');
       const sectionTitle = heading ? heading.textContent?.trim() || '' : '';
       if (!sectionTitle) return;
 
@@ -2336,17 +2367,23 @@ function initMenuInteractions() {
   if (menuRail) {
     const stopBodyScrollFromMenu = (event) => {
       if (!(event?.target instanceof HTMLElement)) return;
-      if (!menuRail.contains(event.target)) return;
+      if (!body.classList.contains('menu-open')) return;
+      if (!siteMenu || !siteMenu.contains(event.target)) return;
       // Перехватываем колесо/трекпад чтобы курсор над меню не скролил основной контент
       if (siteMenu && typeof event.deltaY === 'number') {
         const maxScroll = Math.max(0, siteMenu.scrollHeight - siteMenu.clientHeight);
         if (maxScroll > 0) {
-          const nextScroll = Math.min(maxScroll, Math.max(0, siteMenu.scrollTop + event.deltaY));
+          const before = siteMenu.scrollTop;
+          const nextScroll = Math.min(maxScroll, Math.max(0, before + event.deltaY));
           siteMenu.scrollTop = nextScroll;
+          // Блокируем только если реально скроллили меню, иначе позволяем прокручивать страницу
+          if (nextScroll !== before) {
+            event.preventDefault();
+            event.stopPropagation();
+          }
+          return;
         }
       }
-      event.preventDefault();
-      event.stopPropagation();
     };
 
     trackEvent(menuRail, 'wheel', stopBodyScrollFromMenu, { passive: false }, {
@@ -2402,8 +2439,9 @@ function initMenuInteractions() {
   if (backdrop) {
     trackEvent(backdrop, 'click', () => {
       if (!body.classList.contains('menu-open')) return;
-      const origin = currentMode === 'mobile' ? dockHandle : menuHandle;
-      closeMenu({ focusOrigin: origin });
+      if (currentMode === 'mobile') {
+        closeMenu({ focusOrigin: dockHandle || backdrop });
+      }
     }, undefined, { module: 'menu.interactions', target: describeTarget(backdrop) });
   }
 

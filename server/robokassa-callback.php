@@ -1,7 +1,7 @@
 <?php
 /**
  * Robokassa Result URL - обработка успешной оплаты
- * URL в настройках Robokassa: https://toosmart.com/premium/robokassa-callback.php
+ * URL в настройках Robokassa: https://toosmart.ru/premium/robokassa-callback.php
  *
  * SECURITY IMPROVEMENTS:
  * - Passwords are NOT logged
@@ -13,6 +13,10 @@
 
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/security.php';
+require_once __DIR__ . '/src/promo.php';
+require_once __DIR__ . '/src/robokassa/helpers.php';
+require_once __DIR__ . '/src/utils.php';
+require_once __DIR__ . '/src/config_loader.php';
 
 // Загрузить конфигурацию
 Config::load();
@@ -22,6 +26,7 @@ $out_sum = $_POST['OutSum'] ?? '';
 $inv_id = $_POST['InvId'] ?? '';
 $shp_email = $_POST['Shp_email'] ?? '';
 $signature = $_POST['SignatureValue'] ?? '';
+$shp_promo = $_POST['Shp_promo'] ?? '';
 
 // Логирование входящего запроса (БЕЗ чувствительных данных)
 Security::secureLog('INFO', 'Robokassa callback received', [
@@ -30,17 +35,20 @@ Security::secureLog('INFO', 'Robokassa callback received', [
     'email_hash' => md5($shp_email)
 ]);
 
-// Получение конфигурации Robokassa из переменных окружения
-try {
-    $merchant_password2 = Config::require('ROBOKASSA_PASSWORD2');
-} catch (RuntimeException $e) {
-    Security::secureLog('ERROR', 'Robokassa configuration missing', ['error' => $e->getMessage()]);
+$cfg = require __DIR__ . '/src/config_loader.php';
+$isTest = !empty($cfg['robokassa']['is_test']);
+$merchant_password2 = $isTest
+    ? ($cfg['robokassa']['test_password2'] ?? $cfg['robokassa']['pass2'] ?? null)
+    : ($cfg['robokassa']['pass2'] ?? null);
+if (!$merchant_password2) {
+    Security::secureLog('ERROR', 'Robokassa configuration missing', ['error' => 'pass2 not set']);
     http_response_code(500);
     die('Configuration error');
 }
 
 // 1. ПРОВЕРКА ПОДПИСИ (КРИТИЧЕСКИ ВАЖНО!)
-$expected_signature = strtoupper(md5("$out_sum:$inv_id:$merchant_password2:Shp_email=$shp_email"));
+$shp = rk_extract_shp($_POST);
+$expected_signature = strtoupper(rk_make_signature_result($out_sum, $inv_id, $merchant_password2, $shp, $cfg['robokassa']['signature_alg'] ?? 'md5'));
 
 if (!hash_equals(strtoupper($signature), $expected_signature)) {
     Security::secureLog('ERROR', 'Invalid Robokassa signature', [
@@ -120,6 +128,11 @@ try {
 
     $pdo->commit();
 
+    // Промокоды: фиксируем использование после успешной оплаты
+    if (!empty($shp_promo) && !empty($validated_email)) {
+        promo_increment_usage($shp_promo, $validated_email);
+    }
+
     // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Сохранить пароль в сессии для показа на success.php
     Security::initSession();
     $_SESSION['new_password'] = $password;
@@ -145,9 +158,9 @@ try {
 // 5. ОТПРАВКА EMAIL С ПАРОЛЕМ (для всех пользователей - новых и существующих)
 // При дублирующем платеже пользователь получит новый пароль
 if (true) { // Всегда отправляем email
-    $site_url = Config::get('SITE_URL', 'https://toosmart.com');
-    $mail_from = Config::get('MAIL_FROM', 'noreply@toosmart.com');
-    $mail_reply_to = Config::get('MAIL_REPLY_TO', 'support@toosmart.com');
+    $site_url = Config::get('SITE_URL', 'https://toosmart.ru');
+    $mail_from = Config::get('MAIL_FROM', 'noreply@toosmart.ru');
+    $mail_reply_to = Config::get('MAIL_REPLY_TO', 'support@toosmart.ru');
 
     $to = $validated_email;
     $subject = 'Ваш доступ к курсу Clean - Теория правильной уборки';

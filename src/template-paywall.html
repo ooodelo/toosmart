@@ -4,44 +4,20 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  {{> yandex-metrika }}
   <meta http-equiv="Content-Security-Policy"
-    content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';" />
-  <title>UI-каркас (Premium)</title>
+    content="default-src 'self'; script-src 'self' 'unsafe-inline' https://mc.yandex.ru; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https://mc.yandex.ru; connect-src 'self' https://mc.yandex.ru; frame-ancestors 'none'; base-uri 'self'; form-action 'self';" />
+  <title>Основы химии уборки • Слишком Умная Уборка</title>
   {{> head-scripts }}
   <link rel="stylesheet" href="./styles.css">
 </head>
 
 <body>
+  {{> yandex-metrika-noscript }}
   {{> header }}
 
   {{> menu }}
-  <!-- Mock Menu Content for Dev -->
-  <script>
-    (function () {
-      function initMenu() {
-        const menuList = document.querySelector('[data-build-slot="menu"]');
-        if (menuList && menuList.children.length <= 1) { // Check if empty or just has "loading"
-          menuList.innerHTML = `
-            <li><a href="./template-index.html">1. Intro (Index)</a></li>
-            <li><a href="./template-paywall.html">2. Free Article (Paywall)</a></li>
-            <li><a href="./template-paywall.html">3. Another Free Article</a></li>
-            <li><a href="./template.html">4. Premium Article (Full)</a></li>
-            <li><a href="./template.html">5. Deep Cleaning</a></li>
-            <li><a href="./template.html">6. Kitchen Chemistry</a></li>
-            <li><a href="./template.html">7. Bathroom Science</a></li>
-            <li><a href="./template.html">8. Floor Care</a></li>
-            <li><a href="./template-recommendations.html">9. Recommendation Example</a></li>
-            <li><a href="./template.html">10. Safe Storage</a></li>
-          `;
-        }
-      }
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initMenu);
-      } else {
-        initMenu();
-      }
-    })();
-  </script>
+  <script type="module" src="./js/dev-menu.js"></script>
 
   <div class="backdrop" aria-hidden="true"></div>
 
@@ -50,19 +26,39 @@
       <article class="text-box" aria-label="Основной материал" data-build-slot="body" data-page-type="free">
         <div class="text-box__intro">
           <header>
-            <h1>Наука чистоты: Почему мы убираем неправильно?</h1>
-            <p class="meta">~5 минут чтения</p>
+            <nav class="article-breadcrumb"><a href="#">Курс</a><span class="separator"> · </span><span
+                class="current">Урок 1</span></nav>
+            <h1>Основы химии уборки</h1>
+            <p class="meta">~7 минут чтения</p>
           </header>
           <section class="text-section">
+            <!-- FREE: 3 paragraphs -->
             <p>Уборка — это не просто рутина, а сложный химический процесс. Большинство из нас использует средства,
-              которые нейтрализуют друг друга, или применяет техники, размазывающие грязь вместо её удаления. Давайте
-              разберемся, как работает химия чистоты и как тратить на уборку в два раза меньше времени.</p>
+              которые нейтрализуют друг друга, или применяет техники, размазывающие грязь вместо её удаления.</p>
+            <p>Маркетологи убедили нас, что одна бутылка может отмыть всё: от жира на плите до известкового налёта в
+              ванной. Но с точки зрения химии это невозможно. Жир — это органика, требующая щелочной среды (pH &gt; 7).
+              Известковый налёт — минеральные отложения, растворяющиеся только кислотой (pH &lt; 7).</p>
+            <p>Используя «универсальное» средство с нейтральным pH, вы просто механически стираете грязь, прилагая
+              лишние
+              усилия. Профессиональный клининг всегда начинается с определения типа загрязнения.</p>
           </section>
         </div>
         <div id="article-content">
           <div class="paywall-block" data-paywall-root data-locked-src="">
             <section class="text-section paywall-text" data-locked-body>
-              <p class="paywall-text__hint">Нажмите «Добавить абзац», чтобы подгрузить следующую часть статьи.</p>
+              <!-- LOCKED: 6 paragraphs -->
+              <h2>Кислоты и щёлочи: когда что использовать</h2>
+              <p>Щелочные средства (pH 8-14) отлично справляются с органическими загрязнениями: жиром, маслом, белковыми
+                пятнами. Сода, мыло, обезжириватели — всё это щелочи.</p>
+              <p>Кислотные средства (pH 1-6) растворяют минеральные отложения: известковый налёт, ржавчину, мочевой
+                камень. Уксус, лимонная кислота, средства для унитаза — кислоты.</p>
+              <h3>Правило номер один</h3>
+              <p>Никогда не смешивайте кислоты и щёлочи — они нейтрализуют друг друга. А хлорсодержащие средства с
+                кислотами выделяют ядовитый хлор.</p>
+              <p>Время контакта важнее силы трения. Нанесите средство, подождите 5-10 минут — химия сделает работу за
+                вас. Грязь отойдёт сама, останется только смыть.</p>
+              <p>В следующих уроках мы разберём конкретные рецепты для кухни, ванной и жилых комнат. Вы узнаете, как
+                собрать минимальный набор средств, который заменит целый шкаф бытовой химии.</p>
             </section>
 
             <div class="paywall-overlay" aria-hidden="true">
@@ -93,6 +89,8 @@
                 </div>
               </div>
             </div>
+          </div>
+        </div>
       </article>
 
     </section>
@@ -109,8 +107,13 @@
   {{> footer }}
 
   {{> payment-modal }}
-
-  {{> modals }}
+  {{> legal-modals }}
+  {{> login-modal }}
+  {{> cookie-banner }}
+  {{> modal-payment-success }}
+  {{> modal-payment-fail }}
+  {{> modal-settings }}
+  {{> modal-fallbacks }}
 
   <script type="module" src="./entries/free.js"></script>
 </body>

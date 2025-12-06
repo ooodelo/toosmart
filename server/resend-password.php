@@ -97,9 +97,9 @@ try {
     ]);
 
     // 7. SEND EMAIL WITH NEW PASSWORD
-    $site_url = Config::get('SITE_URL', 'https://toosmart.com');
-    $mail_from = Config::get('MAIL_FROM', 'noreply@toosmart.com');
-    $mail_reply_to = Config::get('MAIL_REPLY_TO', 'support@toosmart.com');
+    $site_url = Config::get('SITE_URL', 'https://toosmart.ru');
+    $mail_from = Config::get('MAIL_FROM', 'noreply@toosmart.ru');
+    $mail_reply_to = Config::get('MAIL_REPLY_TO', 'support@toosmart.ru');
 
     $subject = 'Ваш новый пароль - Clean';
     $message = "

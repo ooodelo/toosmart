@@ -76,6 +76,7 @@ const PATHS = {
 let cachedFaviconConfig = null;
 const REQUIRED_FAVICON_FILES = [
   'favicon.svg',
+  'favicon-dark.svg',
   'favicon.ico',
   'favicon-16x16.png',
   'favicon-32x32.png',
@@ -890,6 +891,10 @@ function buildFaviconHtmlSnippetForTemplate(status) {
 
   lines.push(`<link rel="icon" type="${type}" href="/assets/${primary}">`);
 
+  if (files['favicon-dark.svg']?.exists) {
+    lines.push('<link rel="icon" type="image/svg+xml" href="/assets/favicon-dark.svg" media="(prefers-color-scheme: dark)">');
+  }
+
   if (files['favicon-32x32.png']?.exists) {
     lines.push('<link rel="alternate icon" href="/assets/favicon-32x32.png" sizes="32x32">');
   }
@@ -1036,6 +1041,26 @@ function stripHtml(html) {
     .trim();
 }
 
+/**
+ * Extracts article-breadcrumb from HTML and returns it separately
+ * Used to reposition breadcrumb before h1
+ */
+function extractBreadcrumb(html) {
+  if (!html) return { breadcrumb: '', htmlWithoutBreadcrumb: html };
+
+  const breadcrumbRegex = /(<nav class="article-breadcrumb"[^>]*>[\s\S]*?<\/nav>)\s*/;
+  const match = html.match(breadcrumbRegex);
+
+  if (match) {
+    return {
+      breadcrumb: match[1],
+      htmlWithoutBreadcrumb: html.replace(breadcrumbRegex, '')
+    };
+  }
+
+  return { breadcrumb: '', htmlWithoutBreadcrumb: html };
+}
+
 function extractAndStripH1(markdown) {
   if (!markdown) {
     return { h1: '', bodyWithoutH1: '' };
@@ -1158,12 +1183,12 @@ async function loadMarkdownBranch(dirPath, branch, config, assetRegistry = new M
 
     const carousel = type === 'recommendation'
       ? {
-          label: meta.carousel_label || h1 || '',
-          subtitle: meta.carousel_subtitle || '',
-          icon: meta.carousel_icon || '',
-          order: Number.isFinite(meta.carousel_order) ? meta.carousel_order : parseOrder(file),
-          enabled: typeof meta.carousel_enabled === 'boolean' ? meta.carousel_enabled : true
-        }
+        label: meta.carousel_label || h1 || '',
+        subtitle: meta.carousel_subtitle || '',
+        icon: meta.carousel_icon || '',
+        order: Number.isFinite(meta.carousel_order) ? meta.carousel_order : parseOrder(file),
+        enabled: typeof meta.carousel_enabled === 'boolean' ? meta.carousel_enabled : true
+      }
       : null;
 
     const teaserHtml = paywall.teaserHtml || buildTeaser(fullHtml);
@@ -1394,7 +1419,9 @@ function buildPremiumPage(item, menuHtml, config, template, { prevUrl, nextUrl }
 function buildRecommendationPage(item, menuHtml, config, template, mode, legalMap = {}) {
   const introUrl = mode === 'premium' ? '/premium/' : '/';
 
-  const body = wrapAsSection(`<h1>${item.h1_md}</h1>${item.fullHtml}`);
+  // Extract breadcrumb from fullHtml and place it before h1
+  const { breadcrumb, htmlWithoutBreadcrumb } = extractBreadcrumb(item.fullHtml);
+  const body = wrapAsSection(`${breadcrumb}<h1>${item.h1_md}</h1>${htmlWithoutBreadcrumb}`);
 
   return applyTemplate(template, {
     title: item.title || buildTitleFromSeo(item.seo_h1 || item.h1_md, config.seo.titleSuffix),
@@ -1649,8 +1676,16 @@ function preprocessMarkdownMedia(markdown, dirPath, assetRegistry) {
 }
 
 function renderMarkdown(markdown) {
+  // Check if markdown contains enhanced markers (HTML comments)
+  if (markdown && typeof markdown === 'string' && /<!--\s*[a-z-]+\s*-->/.test(markdown)) {
+    const { parseEnhancedMarkdown } = require('./enhanced-markdown-parser');
+    return parseEnhancedMarkdown(markdown);
+  }
+
+  // Fallback to standard marked for compatibility
   return marked(markdown);
 }
+
 
 function rewriteContentMedia(html, dirPath, assetRegistry) {
   if (!html || !html.trim()) {

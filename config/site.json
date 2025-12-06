@@ -40,16 +40,16 @@
     "globalOgImage": "/assets/og-default.jpg"
   },
   "manifest": {
-    "name": "Слишком умная уборка",
-    "short_name": "СУУ",
-    "theme_color": "#ffffff",
-    "background_color": "#ffffff",
+    "name": "СлишкомУмнаяУборка",
+    "short_name": "TooSmart",
+    "theme_color": "#232020",
+    "background_color": "#e4e4e4",
     "start_url": "/"
   },
   "legal": {
     "terms": "01-legal-terms.md",
-    "privacy": "",
-    "offer": "",
-    "contacts": ""
+    "privacy": "02-privacy-policy.md",
+    "offer": "03-public-offer.md",
+    "contacts": "04-contacts.md"
   }
 }

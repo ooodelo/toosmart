@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>ЭКО-РАЗВОД — шаблон лонгрида</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --page-bg: #f5f5f5; /* фон из «text-column» */
+      --text-color: #202124;
+      --muted-color: #6b7280;
+      --accent-color: #111111;
+      --accent-soft: #ffffff;
+      --border-color: rgba(0, 0, 0, 0.08);
+      --marker-color: rgba(250, 148, 80, 0.4);
+
+      /* дизайн-токены для статьи */
+      --radius-article: 32px;
+      --radius-card: 24px;
+      --radius-pill: 999px;
+      --shadow-soft: 0 20px 60px rgba(213, 216, 232, 1);
+
+      --article-max-width: 720px;
+      --article-padding-x-mobile: 20px;
+      --article-padding-x-desktop: 40px;
+      --article-padding-top-mobile: 32px;
+      --article-padding-bottom-mobile: 40px;
+      --article-padding-top-desktop: 40px;
+      --article-padding-bottom-desktop: 48px;
+
+      --font-size-base: 17px;
+      --line-height-base: 1.8;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      background-color: var(--page-bg);
+      color: var(--text-color);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
+        system-ui, -system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    .page {
+      padding: 64px 16px 80px;
+    }
+
+    @media (min-width: 768px) {
+      .page {
+        padding: 80px 24px 96px;
+      }
+    }
+
+    .article {
+      max-width: var(--article-max-width);
+      margin: 0 auto;
+      background-color: transparent;
+      border-radius: var(--radius-article);
+      padding: var(--article-padding-top-mobile) var(--article-padding-x-mobile) var(--article-padding-bottom-mobile);
+      position: relative;
+    }
+
+    @media (min-width: 900px) {
+      .article {
+        padding: var(--article-padding-top-desktop) var(--article-padding-x-desktop) var(--article-padding-bottom-desktop);
+      }
+    }
+
+    .article-meta {
+      font-size: 13px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted-color);
+      margin-bottom: 12px;
+    }
+
+    .article h1 {
+      font-size: clamp(30px, 4vw, 40px);
+      line-height: 1.12;
+      letter-spacing: -0.03em;
+      margin: 0 0 16px;
+    }
+
+    .article-subtitle {
+      font-size: 18px;
+      line-height: 1.6;
+      color: var(--muted-color);
+      margin-bottom: 28px;
+      max-width: 44rem;
+    }
+
+    .article-lead {
+      font-size: 18px;
+      line-height: 1.8;
+      margin-bottom: 28px;
+    }
+
+    .article-lead p {
+      margin: 0 0 14px;
+    }
+
+    .article-divider {
+      height: 1px;
+      width: 100%;
+      background: radial-gradient(circle at center, rgba(15, 23, 42, 0.25), rgba(15, 23, 42, 0.02));
+      margin: 24px 0 32px;
+      border-radius: 999px;
+    }
+
+    .article h2 {
+      font-size: clamp(22px, 2.4vw, 26px);
+      line-height: 1.3;
+      margin: 40px 0 16px;
+      letter-spacing: -0.02em;
+    }
+
+    .section-label {
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted-color);
+      margin-bottom: 8px;
+    }
+
+    .article h3 {
+      font-size: 19px;
+      line-height: 1.4;
+      margin: 28px 0 10px;
+      letter-spacing: -0.01em;
+    }
+
+    .article h4 {
+      font-size: 17px;
+      line-height: 1.4;
+      margin: 22px 0 8px;
+      font-weight: 600;
+    }
+
+    .article p {
+      margin: 0 0 14px;
+      font-size: var(--font-size-base);
+      line-height: var(--line-height-base);
+    }
+
+    .muted {
+      color: var(--muted-color);
+    }
+
+    .article strong {
+      font-weight: 600;
+    }
+
+    .article em {
+      font-style: italic;
+      color: var(--muted-color);
+    }
+
+    /* редкий маркер-подсветка */
+    .marker-highlight {
+      position: relative;
+      display: inline-block;
+      padding: 0 0.12em;
+      border-radius: 0.6em;
+      background: transparent;
+    }
+
+    .marker-highlight::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      transform: scale(1.06, 1.25);
+      background-color: #D5D8E8;
+      filter: blur(6px);
+      z-index: -1;
+    }
+
+    .emphasized-word {
+      font-weight: 700;
+      text-decoration: underline;
+      text-decoration-color: #ffffff;
+      text-decoration-thickness: 6px;
+      text-underline-offset: 5px;
+      letter-spacing: 0.02em;
+    }
+
+    .article ul,
+    .article ol {
+      margin: 0 0 16px 1.4em;
+      padding: 0;
+      font-size: 17px;
+      line-height: 1.75;
+    }
+
+    .article li + li {
+      margin-top: 4px;
+    }
+
+    .article blockquote {
+      position: relative;
+      margin: 24px 0;
+      padding: 16px 20px;
+      text-align: center;
+      border: none;
+      background: transparent;
+      border-radius: var(--radius-pill);
+      font-size: 20px;
+      line-height: 1.6;
+      font-weight: 600;
+    }
+
+    .article blockquote p:last-child {
+      margin-bottom: 0;
+    }
+
+    .composition-highlight {
+      position: relative;
+      text-align: center;
+      border-left: none;
+      background: transparent;
+      padding: 16px 20px;
+    }
+
+    .composition-highlight p {
+      font-size: 20px;
+      font-weight: 600;
+      line-height: 1.6;
+    }
+
+    
+    /* базовый стиль карточки для всех callout-блоков */
+    .article-card {
+      border-radius: var(--radius-card);
+      background: var(--accent-soft);
+      box-shadow: var(--shadow-soft);
+    }
+
+.pullquote {
+      margin: 28px 0;
+      padding: 18px 20px;
+      border-radius: 24px;
+      background: #ffffff;
+      color: #111111;
+      font-size: 18px;
+      line-height: 1.7;
+      font-weight: 500;
+      box-shadow: 0 20px 60px rgba(213, 216, 232, 1);
+    }
+
+    .pullquote small {
+      display: block;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      opacity: 0.5;
+      margin-bottom: 6px;
+    }
+
+    .number-callout {
+      margin: 28px 0 24px;
+      padding: 22px 20px 20px;
+      border-radius: 24px;
+      background: var(--accent-soft);
+      box-shadow: 0 20px 60px rgba(213, 216, 232, 1);
+    }
+
+    .number-callout-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--muted-color);
+      margin-bottom: 6px;
+    }
+
+    .number-callout-value {
+      font-size: 32px;
+      line-height: 1.1;
+      letter-spacing: -0.04em;
+      margin-bottom: 4px;
+    }
+
+    .number-callout-text {
+      font-size: 15px;
+      line-height: 1.7;
+      color: var(--muted-color);
+    }
+
+    .two-column-compare {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 12px;
+      margin: 16px 0 20px;
+    }
+
+    @media (min-width: 768px) {
+      .two-column-compare {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+    }
+
+    .compare-card {
+      border-radius: 24px;
+      padding: 14px 14px 14px;
+      background: var(--accent-soft);
+      box-shadow: 0 20px 60px rgba(213, 216, 232, 1);
+    }
+
+    .compare-card-title {
+      font-size: 13px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted-color);
+      margin-bottom: 6px;
+    }
+
+    .compare-card-heading {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .compare-card ul {
+      margin: 0 0 0 1.1em;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    .compare-card li + li {
+      margin-top: 2px;
+    }
+
+    .checklist {
+      margin: 14px 0 18px;
+      padding: 14px 16px 10px;
+      border-radius: 24px;
+      background: var(--accent-soft);
+      box-shadow: 0 20px 60px rgba(213, 216, 232, 1);
+    }
+
+    .checklist-title {
+      font-size: 13px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted-color);
+      margin-bottom: 6px;
+    }
+
+    .checklist ul {
+      margin: 0 0 0 1.1em;
+      font-size: 15px;
+      line-height: 1.7;
+    }
+
+    .checklist li + li {
+      margin-top: 2px;
+    }
+
+    .article-footer {
+      border-top: 1px solid var(--border-color);
+      margin-top: 28px;
+      padding-top: 18px;
+      font-size: 13px;
+      color: var(--muted-color);
+      line-height: 1.6;
+    }
+  
+    /* опциональная автонумерация заголовков внутри статьи */
+    .article--numbered {
+      counter-reset: numbered-h2;
+    }
+
+    .article--numbered h2 {
+      counter-increment: numbered-h2;
+      counter-reset: numbered-h3;
+    }
+
+    .article--numbered h2::before {
+      content: counter(numbered-h2) ". ";
+      font-weight: 600;
+      color: var(--muted-color);
+      margin-right: 0.35em;
+    }
+
+    .article--numbered h3 {
+      counter-increment: numbered-h3;
+    }
+
+    .article--numbered h3::before {
+      content: counter(numbered-h2) "." counter(numbered-h3) ". ";
+      font-weight: 600;
+      color: var(--muted-color);
+      margin-right: 0.35em;
+    }
+
+</style>
+</head>
+<body>
+  <main class="page">
+    <article class="article">
+      <div class="article-meta">Рекомендации · Эко-маркетинг</div>
+      <h1>ЭКО-РАЗВОД</h1>
+      <p class="article-subtitle">
+        Почему ваше «натуральное» средство обманывает вашу совесть и природу.
+      </p>
+
+      <div class="article-lead">
+        <p>
+          Как часто при выборе моющего средства финальным аргументом становится
+          маркировка «эко»? Зелёный листик на упаковке, надпись «биоразлагаемое»,
+          обещание «натуральных компонентов» — и рука тянется к флакону.
+        </p>
+        <p>
+          Но задумывались ли вы: что на самом деле вкладывает производитель в
+          эту маркировку? И главное — что вкладываете в неё вы сами, какие
+          ожидания за ней скрываются?
+        </p>
+        <p>
+          Разрыв между этими двумя значениями настолько велик, что
+          эко-маркетинг превратился в изощрённый способ манипуляции совестью
+          потребителей.
+        </p>
+      </div>
+
+      <div class="article-divider"></div>
+
+      <section>
+        <div class="section-label">Миф 1</div>
+        <h2>«БЕЗ ХИМИИ» — главная иллюзия эко-маркетинга</h2>
+
+        <p>Давайте начнём с самого распространённого заблуждения.</p>
+
+        <p>
+          Большинство покупателей уверены: эко-средство — это средство без
+          химии, на натуральных компонентах, которое моет благодаря силе
+          природы. Растительные экстракты, эфирные масла, природные минералы —
+          звучит так, будто флакон наполнен концентратом альпийского луга.
+        </p>
+
+        <h3>Разбор реального состава</h3>
+
+        <p>
+          Возьмём популярное средство BioMio для мытья полов. Упаковка кричит об
+          экологичности, на этикетке красуются «эфирное масло мелиссы», «ионы
+          серебра», «экстракт хлопка».
+        </p>
+
+        <p>Открываем состав и смотрим, что там на самом деле моет ваш пол:</p>
+
+        <blockquote class="composition-highlight">
+          <p><span class="marker-highlight">Неионогенные ПАВ.</span> <span class="marker-highlight">Анионные ПАВ.</span> <span class="marker-highlight">Консервант.</span> <span class="marker-highlight">Цитрат серебра.</span></p>
+        </blockquote>
+
+        <p>
+          Узнаёте? Это стандартная химическая база 90% <span class="emphasized-word">всех</span> средств для пола —
+          и эко, и обычных, и профессиональных. ПАВ — поверхностно-активные
+          вещества — производятся на химзаводах путём промышленного синтеза,
+          даже если исходное сырьё растительное. Анионные ПАВы снимают грязь и
+          жир, неионогенные улучшают смачивание и снижают разводы.
+        </p>
+
+        <p>Без этих синтетических молекул средство <span class="emphasized-word">просто</span> не будет работать. <span class="emphasized-word">Точка.</span></p>
+
+        <h3>А что насчёт «ионов серебра»?</h3>
+
+        <p>
+          Это цитрат серебра — химическое соединение, тяжёлый металл в форме
+          соли. Условно добавлен для антимикробного действия, но работает
+          только при длительном контакте в высокой концентрации.
+        </p>
+
+        <p>
+          При мытье пола раствор разбавляется водой в десятки раз, контакт
+          минимальный, эффект стремится к нулю. А вот для водных экосистем и
+          бактерий очистных сооружений ионы металлов губительны.
+        </p>
+
+        <blockquote class="composition-highlight">
+          <p><span class="marker-highlight">То есть серебро</span> <span class="marker-highlight">здесь ещё</span> <span class="marker-highlight">и ухудшает</span> <span class="marker-highlight">«экологичность».</span></p>
+        </blockquote>
+
+        <p>Консервант? Тоже химия — иначе средство испортится через неделю.</p>
+
+        <h3>Миф о «растительном сырье»</h3>
+
+        <p>
+          А что же тогда означает загадочная надпись «на основе растительного
+          сырья»?
+        </p>
+
+        <p>
+          Это значит, что для производства ПАВ на химическом заводе использовали
+          синтез из кокосового масла вместо синтеза из нефти.
+        </p>
+
+        <p>
+          Для вас как потребителя это <span class="emphasized-word">абсолютно</span> ничего не меняет — вы
+          взаимодействуете с одной и той же молекулой, полученной двумя разными
+          промышленными путями.
+        </p>
+
+        <p>
+          А для природы? Вопрос открытый, и ответ <span class="emphasized-word">совсем</span> не такой радужный, как
+          рисует маркетинг. Считается, что синтез из растительного сырья
+          снижает нагрузку на окружающую среду — возобновляемый углерод вместо
+          ископаемого, меньше выбросов при производстве. Звучит убедительно,
+          пока не посмотришь на всю цепочку.
+        </p>
+
+        <p>Производитель не снижает экологический вред — он <span class="emphasized-word">просто</span> переносит его с одного этапа на другой:</p>
+
+        <ul>
+          <li>вырубка тропических лесов под плантации кокосовых пальм;</li>
+          <li>применение пестицидов и удобрений;</li>
+          <li>огромное водопотребление;</li>
+          <li>транспортировка сырья через океан.</li>
+        </ul>
+
+        <p>
+          При неустойчивом землепользовании выброс углерода от вырубленного
+          леса может перекрыть всю мнимую климатическую выгоду. Суммарный
+          экологический вред оказывается сопоставимым с нефтехимией, а в худших
+          сценариях — даже выше.
+        </p>
+
+        <blockquote class="composition-highlight">
+          <p>
+            <span class="marker-highlight">Просто распределён он</span> <span class="marker-highlight">по-другому,</span> <span class="marker-highlight">и маркетологам</span> <span class="marker-highlight">удобнее показывать вам</span> <span class="marker-highlight">зелёный листик,</span> <span class="marker-highlight">чем вырубленный</span> <span class="marker-highlight">гектар джунглей.</span>
+          </p>
+        </blockquote>
+
+        <h3>А что с «натуральностью» на этикетке?</h3>
+
+        <p>
+          Эфирное масло мелиссы выполняет ровно одну функцию — даёт запах. Это
+          обычная отдушка. Кстати, натуральные масла часто вызывают больше
+          аллергий, чем синтетические ароматизаторы — <span class="emphasized-word">именно</span> поэтому в составе
+          отдельно указывают гераниол как потенциальный аллерген.
+        </p>
+
+        <p>
+          Экстракт хлопка? Декоративный элемент без функциональной нагрузки.
+          Маркетинговый «растительный» якорь для создания био-ауры. Это как
+          добавить каплю алоэ в шампунь и написать «с натуральным алоэ».
+          Технически правда, но по факту — декорация.
+        </p>
+
+        <h3>Закономерность</h3>
+
+        <div class="pullquote article-card">
+          <small>Вывод главы</small>
+          <p>
+            Всё, что реально моет и работает — это обычная синтетическая химия.
+            А растительные экстракты, масла и натуральные добавки — бантик
+            сверху, который нужен исключительно для красивых слов на этикетке и
+            спокойствия вашей совести.
+          </p>
+        </div>
+
+        <p>
+          Средство работает на той же химической основе, что и любое другое.
+          Разница <span class="emphasized-word">только</span> в упаковке слов.
+        </p>
+      </section>
+
+      <section>
+        <div class="section-label">Миф 2</div>
+        <h2>«Но ведь хоть немного экологичнее?»</h2>
+
+        <p>
+          Хорошо, допустим, эко-средства не обходятся без химии. Но ведь они
+          всё-таки чем-то отличаются от обычных?
+        </p>
+
+        <p>Самый частый аргумент звучит так:</p>
+
+        <blockquote class="composition-highlight">
+          <p>
+            <span class="marker-highlight">«Может, это</span> <span class="marker-highlight">и не радикальная разница,</span> <span class="marker-highlight">но ведь в них же</span> <span class="marker-highlight">меньше вредных веществ.</span> <span class="marker-highlight">И если я буду</span> <span class="marker-highlight">всегда пользоваться</span> <span class="marker-highlight">эко-средствами,</span> <span class="marker-highlight">это будет полезнее</span> <span class="marker-highlight">для природы,</span> <span class="marker-highlight">чем обычные».</span>
+          </p>
+        </blockquote>
+
+        <p>Давайте честно разберём этот тезис.</p>
+
+        <h3>Впечатляющий список «без»</h3>
+
+        <p>Типичный список на упаковке эко-средства выглядит внушительно:</p>
+
+        <blockquote class="composition-highlight">
+          <p>
+            <span class="marker-highlight">«Не содержит</span> <span class="marker-highlight">хлор, фосфаты,</span> <span class="marker-highlight">фосфонаты,</span> <span class="marker-highlight">агрессивные ПАВ,</span> <span class="marker-highlight">SLS, ППГ, ЭДТА,</span> <span class="marker-highlight">силиконы,</span> <span class="marker-highlight">доноры формальдегида,</span> <span class="marker-highlight">фталаты, красители,</span> <span class="marker-highlight">оптические отбеливатели».</span>
+          </p>
+        </blockquote>
+
+        <p>
+          Впечатляет? Только большая часть этого списка либо давно не
+          используется в соответствующих категориях, либо присутствует в
+          минимальных дозах:
+        </p>
+
+        <ul>
+          <li>
+            Хлор применяют <span class="emphasized-word">только</span> в средствах для жёсткой дезинфекции — его
+            отсутствие в обычных средствах это норма, а не достижение.
+          </li>
+          <li>
+            Фосфаты запрещены законодательно в большинстве стран уже два
+            десятилетия.
+          </li>
+          <li>
+            SLS и фталаты — массовый переход всей индустрии, не эксклюзив
+            эко-брендов.
+          </li>
+        </ul>
+
+        <p>
+          Если говорить честно, отсутствие почти всего перечисленного — общая
+          тенденция рынка, норма для современной бытовой химии. Реально значимые
+          отличия — это отсутствие ЭДТА, фосфонатов и оптических отбеливателей.
+          Всё остальное — маркетинговый шум.
+        </p>
+
+        <h3>Главный вопрос: какую разницу это даёт?</h3>
+
+        <p>
+          Представьте двух людей, которые убирают одинаковую квартиру
+          одинаковыми средствами.
+        </p>
+
+        <div class="two-column-compare">
+          <div class="compare-card article-card">
+            <div class="compare-card-title">Сценарий А</div>
+            <div class="compare-card-heading">Первый человек</div>
+            <ul>
+              <li>моет посуду под горячей проточной водой;</li>
+              <li>стирает на 60&nbsp;°C;</li>
+              <li>льёт средство «на глаз»;</li>
+              <li>иногда запускает полупустую машину.</li>
+            </ul>
+          </div>
+          <div class="compare-card article-card">
+            <div class="compare-card-title">Сценарий B</div>
+            <div class="compare-card-heading">Второй человек</div>
+            <ul>
+              <li>жёстко следит за перерасходом воды;</li>
+              <li>контролирует температуру (20–30&nbsp;°C);</li>
+              <li>дозирует средство по нижней границе инструкции;</li>
+              <li>загружает машины полностью, использует эко-режимы;</li>
+              <li>предварительно удаляет жир салфеткой;</li>
+              <li>берёт <span class="emphasized-word">только</span> крупную тару.</li>
+            </ul>
+          </div>
+        </div>
+
+        <p>
+          Экологический след второго будет в 5–10 раз меньше первого. Потому что
+          основную долю следа создаёт <span class="emphasized-word">именно</span> использование: нагрев воды, её
+          расход, передозировка.
+        </p>
+
+        <h3>А теперь — внимание</h3>
+
+        <p>
+          Второй человек, который уже снизил свой экослед в десять раз
+          правильным поведением, решает перейти с обычных средств на
+          эко-средства.
+        </p>
+
+        <p>Насколько ещё снизится его и так уже минимальный след?</p>
+
+        <div class="number-callout article-card">
+          <div class="number-callout-label">Теоретический максимум эффекта</div>
+          <div class="number-callout-value">2&nbsp;%</div>
+          <div class="number-callout-text">
+            Не в два раза и не на двадцать процентов, а примерно на два процента
+            от уже сниженного экоследа — при идеальных условиях и с изначально
+            «грязными» средствами, которых на рынке почти не осталось.
+          </div>
+        </div>
+
+        <p>
+          То есть реальная разница между современным обычным средством и
+          эко-средством при правильном использовании составляет доли процента к
+          уже минимизированному экоследу.
+        </p>
+
+        <h3>Обратная сторона медали</h3>
+
+        <p>
+          Те самые компоненты, которых действительно нет в эко-средствах — ЭДТА,
+          фосфонаты, оптические отбеливатели — это вещества, отвечающие за
+          эффективность при низких температурах и малых дозировках. Их
+          отсутствие снижает моющую способность, особенно в жёсткой воде и
+          холодной температуре.
+        </p>
+
+        <p>Что происходит дальше? Круг замыкается:</p>
+
+        <ol>
+          <li>Средство экологичнее по составу на бумаге.</li>
+          <li>Но требует компенсации перерасходом ресурсов.</li>
+          <li>
+            Пользователь видит слабый результат и инстинктивно компенсирует
+            недостаток эффективности:
+            <ul>
+              <li>льёт больше средства;</li>
+              <li>повышает температуру воды;</li>
+              <li>запускает дополнительные циклы стирки.</li>
+            </ul>
+          </li>
+        </ol>
+
+        <blockquote class="composition-highlight">
+          <p>
+            <span class="marker-highlight">Итоговая</span> <span class="marker-highlight">экологическая нагрузка</span> <span class="marker-highlight">оказывается выше,</span> <span class="marker-highlight">чем от эффективного</span> <span class="marker-highlight">средства с менее</span> <span class="marker-highlight">«чистым» составом</span> <span class="marker-highlight">при правильном</span> <span class="marker-highlight">использовании.</span>
+          </p>
+        </blockquote>
+      </section>
+
+      <section>
+        <div class="section-label">Миф 3</div>
+        <h2>Экомаркировки — последняя надежда или новый обман?</h2>
+
+        <p>
+          Хорошо, скажете вы, но ведь существуют экологические сертификаты? Ведь
+          это же значит, что продукт не просто назвали «эко» на основании
+          фантазии маркетолога, а проверили по конкретным критериям?
+        </p>
+
+        <h3>Что гарантирует «Листок жизни»?</h3>
+
+        <p>
+          Возьмём «Листок жизни» — наиболее распространённую экомаркировку в
+          России.
+        </p>
+
+        <p>
+          Грубо говоря — это значит, что продукт соответствует уровню «лучше
+          среднего» по ключевым экологическим параметрам. Не идеален, но лучше
+          откровенно грязных решений.
+        </p>
+
+        <p>
+          Он не гарантирует «полностью безвредно» или «100% натурально» — это
+          совсем не его задача. Он даже не означает, что данный продукт всегда и
+          при любых сценариях использования экологичнее любого несертифицированного
+          средства.
+        </p>
+
+        <h3>Как проходит экспертиза</h3>
+
+        <p>Когда продукт проходит независимую экспертизу по стандарту ISO&nbsp;14024, он проверяется по таким критериям:</p>
+
+        <ul>
+          <li>состав;</li>
+          <li>биоразлагаемость;</li>
+          <li>токсичность для водной среды;</li>
+          <li>отсутствие фосфатов и тяжёлых комплексообразователей вроде ЭДТА;</li>
+          <li>корректность дозировки;</li>
+          <li>требования к упаковке и производству.</li>
+        </ul>
+
+        <p>
+          Но есть нюанс. Стандарты проверяют биоразлагаемость в лабораторных
+          условиях: оптимальная температура, контролируемый уровень кислорода,
+          правильные бактерии, контролируемый pH.
+        </p>
+
+        <p>
+          В реальной канализации всё иначе — холоднее, кислорода меньше,
+          разбавление случайное.
+        </p>
+
+        <blockquote class="composition-highlight">
+          <p>
+            <span class="marker-highlight">Если средство</span> <span class="marker-highlight">по стандарту</span> <span class="marker-highlight">«разлагается на 60%</span> <span class="marker-highlight">за 28 дней»,</span> <span class="marker-highlight">это совсем не значит,</span> <span class="marker-highlight">что оно повторит</span> <span class="marker-highlight">то же самое</span> <span class="marker-highlight">в вашем септике</span> <span class="marker-highlight">зимой (или даже летом).</span>
+          </p>
+        </blockquote>
+
+        <h3>Статистика, которая всё меняет</h3>
+
+        <p>
+          Реальными экомаркировками обладает не более 7% брендов среди тех, которые
+          выглядят как эко. Остальные 93% — это нарисованные зелёные листики,
+          капельки воды, планета Земля в дизайне упаковки, создающие био-ауру.
+        </p>
+
+        <p>Так значит ли это, что несертифицированные 93% менее экологичные, чем сертифицированные 7%?</p>
+
+        <blockquote class="composition-highlight">
+          <p><span class="marker-highlight">Нет.</span></p>
+        </blockquote>
+
+        <p>
+          А значит ли это, что все «обычные» средства вредят природе больше, чем
+          те, что честно получили эко-сертификат?
+        </p>
+
+        <blockquote class="composition-highlight">
+          <p><span class="marker-highlight">Тоже нет.</span></p>
+        </blockquote>
+
+        <h3>Почему так происходит</h3>
+
+        <p>
+          Необходимо понимать, что одна из ключевых функций таких стандартов —
+          создать рыночный стимул. Если написано, что считается хорошо, а что
+          плохо, производителю понятно, куда вкладываться, чтобы получить значок
+          отличия от конкурентов.
+        </p>
+
+        <p>
+          Вкладываться во всех смыслах. Значок — не бесплатный. Получение
+          сертификата — дорогая и сложная бюрократическая процедура. Производитель
+          оплачивает не только регулярное проведение всех необходимых проверок,
+          но и саму процедуру сертификации без гарантии получения значка по итогу
+          проверок.
+        </p>
+
+        <p>
+          Таким гигантам, как условный Synergetic, вложиться в подобную услугу
+          ничего не стоит, особенно с учётом того, что вся легенда бренда
+          направлена на эту нишу. А для брендов поменьше, даже если их продукт
+          гораздо более экологичный, это уже затратно.
+        </p>
+
+        <p>
+          Не стоит также забывать о тех продуктах, которые фактически можно
+          считать экологичными по всем критериям, но они не подходят под
+          стандарт, потому что какой-то один ингредиент не проходит. Он может
+          быть не хуже или даже лучше тех, которые нужны для экомаркировки, но
+          формально будет считаться «не подходящим».
+        </p>
+
+        <div class="pullquote article-card">
+          <small>Кратко</small>
+          <p>
+            В современной индустрии бытовой химии особым экологическим
+            преимуществом давно никто не обладает. Стандартами рынка установлен
+            общий уровень экологичности, а значки, даже если они заслуженные,
+            стоит воспринимать как игру корпораций в попытке выделиться на
+            общей полке.
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-label">Финал</div>
+        <h2>Где настоящая экология</h2>
+
+        <p>
+          Парадокс экомаркетинга замыкается окончательно, когда сравниваешь
+          реальный экологический след.
+        </p>
+
+        <blockquote class="composition-highlight">
+          <p>
+            <span class="marker-highlight">Определяется он</span> <span class="marker-highlight">по большей мере</span> <span class="marker-highlight">вашим экологическим</span> <span class="marker-highlight">поведением,</span> <span class="marker-highlight">а не выбором мыла.</span>
+          </p>
+        </blockquote>
+
+        <p>
+          В реальности профессиональный концентрат в крупной таре при правильном
+          применении оказывается экологичнее эко-средства при обычном
+          использовании:
+        </p>
+
+        <div class="checklist article-card">
+          <div class="checklist-title">Что делает средство по-настоящему «эко»</div>
+          <ul>
+            <li>высокоэффективная формула, работающая в холодной воде;</li>
+            <li>концентрат в крупной таре вместо десятка мелких флаконов;</li>
+            <li>точная дозировка без перерасхода;</li>
+            <li>разумная температура и экономичные режимы техники.</li>
+          </ul>
+        </div>
+
+        <p>
+          Реальный экологический след от правильного использования эффективного
+          средства оказывается в разы ниже, чем от эко-средства с компенсацией
+          сниженной эффективности.
+        </p>
+
+        <h3>Вывод</h3>
+
+        <p>
+          Настоящая экология начинается с понимания процессов:
+        </p>
+
+        <ul>
+          <li>какая химия для какого загрязнения;</li>
+          <li>как правильно дозировать;</li>
+          <li>какая температура необходима, а какая избыточна.</li>
+        </ul>
+
+        <p>
+          С этими знаниями можно действовать эффективнее, экономичнее и
+          экологичнее, чем большинство покупателей эко-средств — даже не
+          покупая очередной флакон с зелёным листиком.
+        </p>
+      </section>
+
+      <footer class="article-footer">
+        Это демонстрационный шаблон верстки образовательного лонгрида: одна
+        колонка текста, устойчивые отступы, спокойная типографика, акценты через
+        цитаты, числа и сравнительные блоки. Дополнительно подключены стиль
+        выноски, маркер-подсветка и аккуратные наклонные/жирные выделения.
+      </footer>
+    </article>
+  </main>
+</body>
+</html>

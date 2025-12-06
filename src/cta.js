@@ -44,6 +44,10 @@ function init() {
       setupInlineValidation(form);
       localizeValidation(form);
     }
+    const promoBtn = modal.querySelector('#promo-apply-btn');
+    if (promoBtn) {
+      promoBtn.addEventListener('click', applyPromo);
+    }
 
     // Закрытие по Escape
     document.addEventListener('keydown', function (e) {
@@ -55,6 +59,7 @@ function init() {
 }
 
 let previousActiveElement = null;
+let appliedPromo = null;
 
 /**
  * Открывает модальное окно CTA
@@ -121,6 +126,17 @@ function closeCTAModal() {
     errorDiv.style.display = 'none';
     errorDiv.textContent = '';
   }
+
+  // Сброс промокода
+  appliedPromo = null;
+  const promoStatus = document.getElementById('promo-status');
+  const promoInput = document.getElementById('promo-code-input');
+  const priceCurrent = document.querySelector('#cta-payment-modal .price-current');
+  if (promoStatus) promoStatus.style.display = 'none';
+  if (promoInput) promoInput.value = '';
+  if (priceCurrent && priceCurrent.dataset.basePrice) {
+    priceCurrent.textContent = priceCurrent.dataset.basePrice;
+  }
 }
 
 /**
@@ -152,6 +168,69 @@ function handleFocusTrap(e) {
         e.preventDefault();
       }
     }
+  }
+}
+
+async function applyPromo() {
+  const modal = document.getElementById('cta-payment-modal');
+  if (!modal) return;
+  const promoInput = modal.querySelector('#promo-code-input');
+  const emailInput = modal.querySelector('input[name="email"]');
+  const statusEl = modal.querySelector('#promo-status');
+  const priceCurrent = modal.querySelector('.price-current');
+  if (!promoInput || !statusEl || !priceCurrent) return;
+
+  const code = promoInput.value.trim();
+  if (!code) {
+    statusEl.style.display = 'block';
+    statusEl.style.color = '#d32f2f';
+    statusEl.textContent = 'Введите промокод';
+    return;
+  }
+
+  if (!priceCurrent.dataset.basePrice) {
+    priceCurrent.dataset.basePrice = priceCurrent.textContent;
+  }
+
+  const email = emailInput ? emailInput.value.trim() : 'guest@example.com';
+
+  statusEl.style.display = 'block';
+  statusEl.style.color = '#666';
+  statusEl.textContent = 'Проверяем промокод...';
+
+  try {
+    const res = await fetch('/server/api/promo/validate.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code,
+        email,
+        product_code: 'premium_course'
+      })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Промокод не принят');
+    }
+    appliedPromo = { code: data.code, amount: data.amount, base: data.base_amount };
+    priceCurrent.textContent = formatCurrency(data.amount);
+    statusEl.style.display = 'block';
+    statusEl.style.color = '#2e7d32';
+    statusEl.textContent = `Промокод применён. Итог: ${formatCurrency(data.amount)}`;
+  } catch (error) {
+    appliedPromo = null;
+    priceCurrent.textContent = priceCurrent.dataset.basePrice || priceCurrent.textContent;
+    statusEl.style.display = 'block';
+    statusEl.style.color = '#d32f2f';
+    statusEl.textContent = error.message || 'Промокод не принят';
+  }
+}
+
+function formatCurrency(amount) {
+  try {
+    return new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 0 }).format(amount);
+  } catch (e) {
+    return `${amount} ₽`;
   }
 }
 
@@ -214,11 +293,13 @@ async function handlePayment(event) {
 
   const form = event.target;
   const errorDiv = document.getElementById('payment-error');
-
-  // Проверка наличия обязательных полей формы
   const emailField = form.email;
   const acceptOfferField = form.accept_offer;
   const submitButton = form.querySelector('button[type="submit"]');
+  const promoInput = form.querySelector('input[name="promo_code"]');
+
+  // Проверка наличия обязательных полей формы
+  const promoCode = promoInput ? promoInput.value.trim() : '';
 
   if (!emailField) {
     showError(errorDiv, 'Ошибка формы: поле email не найдено');
@@ -280,7 +361,11 @@ async function handlePayment(event) {
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ email })
+      body: JSON.stringify({
+        email,
+        product_code: 'premium_course',
+        promo_code: appliedPromo ? appliedPromo.code : (promoCode || null)
+      })
     });
 
     const responseClone = response.clone();
@@ -323,8 +408,8 @@ async function handlePayment(event) {
           input.type = 'hidden';
           input.name = key;
           input.value = value;
-          paymentForm.appendChild(input);
-        }
+      paymentForm.appendChild(input);
+    }
       }
 
       document.body.appendChild(paymentForm);

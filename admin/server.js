@@ -104,21 +104,41 @@ const HTML_BLOCKS = {
     label: 'Модальное окно оплаты',
     path: path.join(PROJECT_ROOT, 'src', 'partials', 'payment-modal.html')
   },
-  modals: {
-    label: 'Все модалки и cookie',
-    path: path.join(PROJECT_ROOT, 'src', 'partials', 'modals.html')
-  },
-  cookieBanner: {
-    label: 'Баннер cookies',
-    path: path.join(PROJECT_ROOT, 'src', 'partials', 'modals.html')
+  legalModals: {
+    label: 'Legal-модалки (terms/offer/privacy/contacts)',
+    path: path.join(PROJECT_ROOT, 'src', 'partials', 'legal-modals.html')
   },
   loginModal: {
     label: 'Модалка логина / личный кабинет',
-    path: path.join(PROJECT_ROOT, 'src', 'partials', 'modals.html')
+    path: path.join(PROJECT_ROOT, 'src', 'partials', 'login-modal.html')
+  },
+  cookieBanner: {
+    label: 'Баннер cookies',
+    path: path.join(PROJECT_ROOT, 'src', 'partials', 'cookie-banner.html')
+  },
+  modalFallbacks: {
+    label: 'Скрипты фолбэков модалок/cookie',
+    path: path.join(PROJECT_ROOT, 'src', 'partials', 'modal-fallbacks.html')
   },
   templateFull: {
     label: 'Базовый шаблон (free)',
     path: path.join(PROJECT_ROOT, 'src', 'template-full.html')
+  },
+  error404: {
+    label: 'Страница 404 (404.html)',
+    path: path.join(PROJECT_ROOT, 'public', '404.html')
+  },
+  error403: {
+    label: 'Страница 403 (403.html)',
+    path: path.join(PROJECT_ROOT, 'public', '403.html')
+  },
+  error500: {
+    label: 'Страница 500 (500.html)',
+    path: path.join(PROJECT_ROOT, 'public', '500.html')
+  },
+  error503: {
+    label: 'Страница 503 (503.html)',
+    path: path.join(PROJECT_ROOT, 'public', '503.html')
   }
 };
 
@@ -239,6 +259,16 @@ const server = http.createServer(async (req, res) => {
 
     if (pathname === '/api/favicon/reset' && req.method === 'POST') {
       await handleResetFavicon(req, res);
+    return;
+  }
+
+  if (pathname === '/api/promo' && req.method === 'GET') {
+    await handleGetPromos(req, res);
+    return;
+  }
+
+  if (pathname === '/api/promo' && req.method === 'POST') {
+    await handleSavePromos(req, res);
     return;
   }
 
@@ -1073,6 +1103,34 @@ async function handleListHtmlBlocks(req, res) {
   }
 }
 
+async function handleGetPromos(req, res) {
+  try {
+    const promos = loadPromoConfig();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(promos));
+  } catch (error) {
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Ошибка чтения промокодов: ' + error.message }));
+  }
+}
+
+async function handleSavePromos(req, res) {
+  let body = '';
+  req.on('data', chunk => body += chunk.toString());
+  req.on('end', () => {
+    try {
+      const parsed = JSON.parse(body || '[]');
+      if (!Array.isArray(parsed)) throw new Error('Неверный формат данных');
+      savePromoConfig(parsed);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true }));
+    } catch (error) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Ошибка сохранения промокодов: ' + error.message }));
+    }
+  });
+}
+
 // SEO данные - путь к файлу хранения
 const SEO_DATA_PATH = path.join(PROJECT_ROOT, 'config', 'seo-data.json');
 
@@ -1308,14 +1366,18 @@ const FAVICON_DIR = path.join(ADMIN_DIR, 'assets');
 const DEFAULT_FAVICON = 'favicon.svg';
 const REQUIRED_FAVICON_FILES = [
   'favicon.svg',
+  'favicon-dark.svg',
   'favicon.ico',
   'favicon-16x16.png',
   'favicon-32x32.png',
   'apple-touch-icon.png',
   'android-chrome-192x192.png',
-  'android-chrome-512x512.png'
+  'android-chrome-512x512.png',
+  'web-app-manifest-192x192.png',
+  'web-app-manifest-512x512.png'
 ];
 const ASSET_UPLOAD_DIR = path.join(PROJECT_ROOT, 'dist', 'assets', 'uploaded');
+const PROMO_CONFIG_PATH = path.join(PROJECT_ROOT, 'config', 'promo.json');
 async function ensureDir(dir) {
   await fsp.mkdir(dir, { recursive: true });
 }
@@ -1422,6 +1484,9 @@ function saveFaviconConfig(config) {
 
 function normalizeFaviconTarget(originalName) {
   const lower = (originalName || '').toLowerCase();
+  if (lower.includes('web-app-manifest-192')) return 'web-app-manifest-192x192.png';
+  if (lower.includes('web-app-manifest-512')) return 'web-app-manifest-512x512.png';
+  if (lower.includes('dark')) return 'favicon-dark.svg';
   if (lower.includes('apple-touch')) return 'apple-touch-icon.png';
   if (lower.includes('512')) return 'android-chrome-512x512.png';
   if (lower.includes('192')) return 'android-chrome-192x192.png';
@@ -1444,6 +1509,23 @@ function copyFaviconFile(targetName, buffer) {
   ensureDirSync(path.join(PROJECT_ROOT, 'src', 'assets'));
   fs.writeFileSync(path.join(FAVICON_DIR, targetName), buffer);
   fs.writeFileSync(path.join(PROJECT_ROOT, 'src', 'assets', targetName), buffer);
+}
+
+function loadPromoConfig() {
+  try {
+    if (fs.existsSync(PROMO_CONFIG_PATH)) {
+      const parsed = JSON.parse(fs.readFileSync(PROMO_CONFIG_PATH, 'utf8'));
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (error) {
+    console.warn('⚠️  Ошибка чтения promo.json:', error.message);
+  }
+  return [];
+}
+
+function savePromoConfig(promos) {
+  const safeArray = Array.isArray(promos) ? promos : [];
+  fs.writeFileSync(PROMO_CONFIG_PATH, JSON.stringify(safeArray, null, 2), 'utf8');
 }
 
 function collectFaviconStatus() {
@@ -1713,6 +1795,16 @@ async function serveStatic(req, res, pathname) {
     const distRoot = path.join(PROJECT_ROOT, 'dist');
     if (uploadPath.startsWith(distRoot)) {
       return streamStatic(uploadPath, res);
+    }
+  }
+
+  // Отдаём ассеты из src/assets (favicon и прочее)
+  if (pathname.startsWith('/assets/')) {
+    const safePath = pathname.replace(/^\/+/, '');
+    const assetPath = path.join(PROJECT_ROOT, 'src', 'assets', safePath.replace(/^assets[\\/]/, ''));
+    const assetsRoot = path.join(PROJECT_ROOT, 'src', 'assets');
+    if (assetPath.startsWith(assetsRoot)) {
+      return streamStatic(assetPath, res);
     }
   }
 

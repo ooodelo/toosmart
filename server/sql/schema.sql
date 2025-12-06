@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS orders (
   inv_id INT NOT NULL UNIQUE,
   email VARCHAR(255) NOT NULL,
   amount DECIMAL(10,2) NOT NULL,
+  promo_code VARCHAR(64) NULL,
+  promo_amount DECIMAL(10,2) NULL,
   status VARCHAR(20) NOT NULL DEFAULT 'pending',
   receipt_json TEXT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
