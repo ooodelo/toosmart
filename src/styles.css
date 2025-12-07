@@ -9,7 +9,7 @@
   --text-lh: 1.8;
   --col-max: 720px;
   --article-max-width: 720px;
-  --col-pad: 24px;
+  --col-pad: 40px;
 
   /* Colors - from reference design */
   --text-color: #202124;
@@ -33,9 +33,9 @@
   --shadow-soft: 0 20px 60px rgba(213, 216, 232, 1);
   --article-padding-x-mobile: 20px;
   --article-padding-x-desktop: 40px;
-  --article-padding-top-mobile: 32px;
+  --article-padding-top-mobile: 62px;
   --article-padding-bottom-mobile: 40px;
-  --article-padding-top-desktop: 40px;
+  --article-padding-top-desktop: 70px;
   --article-padding-bottom-desktop: 48px;
 
   color-scheme: light;
@@ -108,6 +108,16 @@
   /* Handheld */
   --mobile-dock: 64px;
   --mobile-dock-footprint: calc(var(--mobile-dock) + env(safe-area-inset-bottom, 0px));
+  --header-height: 80px;
+}
+
+/* Mobile padding override - matching gubka-longread.html template */
+@media (max-width: 900px) {
+  :root {
+    --col-pad: 20px;
+    /* Reduce shadow blur to prevent clipping with 20px padding */
+    --shadow-soft: 0 12px 30px rgba(213, 216, 232, 1);
+  }
 }
 
 * {
@@ -193,6 +203,59 @@ body {
   margin: 22px 0 8px;
   font-weight: 600;
 }
+
+/* Article meta - category/tags line */
+.article-meta {
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted-color);
+  margin-bottom: 12px;
+}
+
+/* Article subtitle - secondary headline */
+.article-subtitle {
+  font-size: 18px;
+  line-height: 1.6;
+  color: var(--muted-color);
+  margin-bottom: 28px;
+  max-width: 44rem;
+}
+
+/* Article lead - intro paragraph block */
+.article-lead {
+  font-size: 18px;
+  line-height: 1.8;
+  margin-bottom: 28px;
+}
+
+.article-lead p {
+  margin: 0 0 14px;
+}
+
+/* Article divider - gradient line between sections */
+.article-divider {
+  height: 1px;
+  width: 100%;
+  background: radial-gradient(circle at center, rgba(15, 23, 42, 0.25), rgba(15, 23, 42, 0.02));
+  margin: 24px 0 32px;
+  border-radius: 999px;
+}
+
+/* Section label - small caps label above headings */
+.section-label {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted-color);
+  margin-bottom: 8px;
+}
+
+/* Muted text helper class */
+.muted {
+  color: var(--muted-color);
+}
+
 
 .article p {
   margin: 0 0 14px;
@@ -424,7 +487,7 @@ a:hover {
   font-size: 18px;
   line-height: 1.7;
   font-weight: 500;
-  box-shadow: 0 20px 60px rgba(213, 216, 232, 1);
+  box-shadow: var(--shadow-soft);
 }
 
 .pullquote small {
@@ -449,7 +512,7 @@ a:hover {
   padding: 22px 20px 20px;
   border-radius: 24px;
   background: var(--accent-soft);
-  box-shadow: 0 20px 60px rgba(213, 216, 232, 1);
+  box-shadow: var(--shadow-soft);
 }
 
 .number-callout-label {
@@ -462,7 +525,6 @@ a:hover {
 
 .number-callout-value {
   font-size: 32px;
-  font-weight: 700;
   line-height: 1.1;
   letter-spacing: -0.04em;
   margin-bottom: 4px;
@@ -494,7 +556,7 @@ a:hover {
   border-radius: 24px;
   padding: 14px;
   background: var(--accent-soft);
-  box-shadow: 0 20px 60px rgba(213, 216, 232, 1);
+  box-shadow: var(--shadow-soft);
 }
 
 .compare-card-title {
@@ -527,7 +589,7 @@ a:hover {
   padding: 14px 16px 10px;
   border-radius: 24px;
   background: var(--accent-soft);
-  box-shadow: 0 20px 60px rgba(213, 216, 232, 1);
+  box-shadow: var(--shadow-soft);
 }
 
 .checklist-title {
@@ -558,8 +620,7 @@ a:hover {
   line-height: 1.6;
 }
 
-/* Article meta label */
-.article-meta,
+/* Article breadcrumb */
 .article-breadcrumb {
   font-size: 13px;
   letter-spacing: 0.14em;
@@ -567,7 +628,6 @@ a:hover {
   color: var(--muted-color);
   margin-bottom: 12px;
   display: block;
-  /* Ensure it behaves like a block */
 }
 
 .article-breadcrumb a {
@@ -583,44 +643,6 @@ a:hover {
 .article-breadcrumb .current {
   color: var(--text-color);
   /* Slightly darker for current item if needed, or keep muted */
-}
-
-/* Article subtitle */
-.article-subtitle {
-  font-size: 18px;
-  line-height: 1.6;
-  color: var(--muted-color);
-  margin-bottom: 28px;
-  max-width: 44rem;
-}
-
-/* Article lead */
-.article-lead {
-  font-size: 18px;
-  line-height: 1.8;
-  margin-bottom: 28px;
-}
-
-.article-lead p {
-  margin: 0 0 14px;
-}
-
-/* Article divider */
-.article-divider {
-  height: 1px;
-  width: 100%;
-  background: radial-gradient(circle at center, rgba(15, 23, 42, 0.25), rgba(15, 23, 42, 0.02));
-  margin: 24px 0 32px;
-  border-radius: 999px;
-}
-
-/* Section label */
-.section-label {
-  font-size: 11px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--muted-color);
-  margin-bottom: 8px;
 }
 
 body {
@@ -639,8 +661,7 @@ body {
 }
 
 html {
-  /* scroll-behavior: smooth removed - causes jank with JS scroll handlers */
-  /* Smooth scroll preserved via JS scrollIntoView() for programmatic navigation */
+  scroll-behavior: smooth;
   overflow-x: hidden;
   max-width: 100%;
 
@@ -727,11 +748,18 @@ body[data-mode="tablet"].menu-open .main::before {
   justify-content: center;
   /* Центрируем logo по горизонтали */
   padding: 0 var(--gap-page);
-  height: 80px;
-  background: #D9D9D9;
+  height: var(--header-height);
+  background: #D2D0D2;
   border: none;
   transition: transform 600ms cubic-bezier(0.4, 0.02, 0.2, 1);
   overflow: visible;
+}
+
+/* Center logo relative to viewport, compensating for menu handle offset */
+body[data-mode="desktop"] .header__link,
+body[data-mode="desktop-wide"] .header__link,
+body[data-mode="tablet"] .header__link {
+  transform: translateX(calc(var(--rail-closed) / -2));
 }
 
 /* Вогнутое скругление в месте стыка header и menu-handle */
@@ -744,7 +772,7 @@ body[data-mode="tablet"] .header::after {
   left: 0;
   width: 28px;
   height: 28px;
-  background: radial-gradient(circle at bottom right, transparent 28px, #D9D9D9 28px);
+  background: radial-gradient(circle at bottom right, transparent 28px, #D2D0D2 28px);
   pointer-events: none;
   z-index: 201;
 }
@@ -866,8 +894,10 @@ body[data-mode="mobile"] .header__link {
 }
 
 body[data-mode="mobile"] .header {
+  left: 0;
+  right: 0;
   padding: 12px 16px;
-  height: auto;
+  height: var(--header-height);
 }
 
 .menu-rail {
@@ -880,7 +910,7 @@ body[data-mode="mobile"] .header {
   /* Ширина контролируется переменной */
   grid-template-rows: minmax(0, 1fr);
   align-items: stretch;
-  background: #D9D9D9;
+  background: #D2D0D2;
   border: none;
   border-radius: 0;
   transform: translateX(calc(var(--rail-closed) - var(--rail-open)));
@@ -910,7 +940,7 @@ body[data-input="pointer"].is-slid .menu-rail {
   padding: 16px calc(var(--handle-padding-right) - 8px) 16px calc(var(--handle-padding-left) + 8px);
 
   cursor: pointer;
-  background: #D9D9D9;
+  background: #D2D0D2;
   pointer-events: auto;
   border: none;
   border-radius: 0;
@@ -985,8 +1015,8 @@ body[data-mode="tablet"] .menu-handle__dots {
 .site-menu {
   grid-column: 1;
   grid-row: 1;
-  /* Menu Fixes: Top margin 80px, Padding bottom to avoid footer overlap */
-  margin: 80px 16px 16px 16px;
+  /* Top margin accounts for header height minus internal top padding to align actions with header bottom */
+  margin: calc(var(--header-height) - 16px) 16px 16px 16px;
   padding: 16px 16px 120px 16px;
   min-width: 0;
   overflow: auto;
@@ -1004,8 +1034,7 @@ body[data-mode="tablet"] .menu-handle__dots {
 }
 
 .site-menu__actions {
-  margin-bottom: 20px;
-  /* Reduced from 32px */
+  margin-bottom: 26px;
 }
 
 .site-menu__actions .login-btn {
@@ -1050,7 +1079,7 @@ body[data-mode="tablet"] .menu-handle__dots {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 7px;
 }
 
 .site-menu__list a {
@@ -1106,7 +1135,7 @@ body[data-mode="tablet"] .menu-handle__dots {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 7px;
 }
 
 .site-menu__list ul a {
@@ -1191,7 +1220,8 @@ body[data-mode="mobile"] .text-section table {
   /* Container-only styles */
   padding: var(--article-padding-top-mobile) var(--article-padding-x-mobile) var(--article-padding-bottom-mobile);
   margin-bottom: 32px;
-  background: var(--surface);
+  background: transparent;
+  /* Прозрачный фон, чтобы белая линия .emphasized-word была видна на #f5f5f5 */
   border-radius: var(--radius-article);
   border: none;
   scroll-margin-top: var(--section-scroll-margin, 120px);
@@ -2253,8 +2283,8 @@ body[data-mode="mobile"] .menu-rail {
   width: auto;
   left: 0;
   right: 0;
-  top: 80px;
-  /* Начинается сразу под header (header height = 80px) */
+  top: var(--header-height);
+  /* Начинается сразу под header */
   bottom: 0;
   margin: 0;
   border-radius: 0;
@@ -2309,11 +2339,6 @@ body[data-mode="mobile"] .site-menu {
 
 body[data-mode="mobile"] .dock {
   display: flex;
-}
-
-body[data-mode="mobile"] .header {
-  padding-left: 16px;
-  padding-right: 16px;
 }
 
 body[data-mode="mobile"].menu-open .backdrop {

@@ -14,6 +14,7 @@ const MARKER_MAP = {
     section: { tag: 'div', class: 'section-label', selfClosing: false },
     highlight: { tag: 'blockquote', class: 'composition-highlight', selfClosing: false },
     marker: { tag: 'span', class: 'marker-highlight', selfClosing: false },
+    emphasized: { tag: 'span', class: 'emphasized-word', selfClosing: false },
     pullquote: { tag: 'div', class: 'pullquote article-card', selfClosing: false },
     callout: { tag: 'div', class: 'number-callout article-card', selfClosing: false },
     compare: { tag: 'div', class: 'two-column-compare', selfClosing: false },
@@ -147,6 +148,57 @@ function processMarkers(markdown) {
                             `<div class="compare-card">${parts[0].trim()}</div>` +
                             `<div class="compare-card">${parts[1].trim()}</div>` +
                             `</${config.tag}>`;
+                    }
+                }
+
+                // Special handling for callout blocks
+                // Format: **Label**\n\n**Value**\n\nDescription
+                if (markerName === 'callout') {
+                    const lines = innerContent.trim().split(/\n\n+/);
+                    if (lines.length >= 2) {
+                        // Extract label from first line (remove ** wrapper)
+                        const labelMatch = lines[0].match(/^\*\*(.+?)\*\*$/);
+                        const label = labelMatch ? labelMatch[1] : lines[0];
+
+                        // Extract value from second line (remove ** wrapper)
+                        const valueMatch = lines[1].match(/^\*\*(.+?)\*\*$/);
+                        const value = valueMatch ? valueMatch[1] : lines[1];
+
+                        // Rest is description text
+                        const description = lines.slice(2).join('\n\n').trim();
+
+                        return `<${config.tag} class="${config.class}">` +
+                            `<div class="number-callout-label">${escapeHtml(label)}</div>` +
+                            `<div class="number-callout-value">${escapeHtml(value)}</div>` +
+                            (description ? `<div class="number-callout-text">${description}</div>` : '') +
+                            `</${config.tag}>`;
+                    }
+                }
+
+                // Special handling for checklist blocks
+                // Format: **Title**\n\n* item\n* item
+                if (markerName === 'checklist') {
+                    const content = innerContent.trim();
+                    // Split into title (first ** block) and list items
+                    const titleMatch = content.match(/^\*\*(.+?)\*\*\s*\n\n?([\s\S]*)$/);
+
+                    if (titleMatch) {
+                        const title = titleMatch[1];
+                        const listContent = titleMatch[2].trim();
+
+                        // Parse list items (lines starting with * or -)
+                        const items = listContent
+                            .split(/\n/)
+                            .filter(line => /^\s*[\*\-]\s+/.test(line))
+                            .map(line => line.replace(/^\s*[\*\-]\s+/, '').trim());
+
+                        if (items.length > 0) {
+                            const listHtml = '<ul>' + items.map(item => `<li>${item}</li>`).join('') + '</ul>';
+                            return `<${config.tag} class="${config.class}">` +
+                                `<div class="checklist-title">${escapeHtml(title)}</div>` +
+                                listHtml +
+                                `</${config.tag}>`;
+                        }
                     }
                 }
 

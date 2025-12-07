@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Ванная и туалет: война с камнем</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --page-bg: #f5f5f5;
+      --text-color: #202124;
+      --muted-color: #6b7280;
+      --accent-color: #111111;
+      --accent-soft: #ffffff;
+      --border-color: rgba(0, 0, 0, 0.08);
+      --marker-color: rgba(250, 148, 80, 0.4);
+
+      --radius-article: 32px;
+      --radius-card: 24px;
+      --radius-pill: 999px;
+      --shadow-soft: 0 20px 60px rgba(213, 216, 232, 1);
+
+      --article-max-width: 720px;
+      --article-padding-x-mobile: 20px;
+      --article-padding-x-desktop: 40px;
+      --article-padding-top-mobile: 32px;
+      --article-padding-bottom-mobile: 40px;
+      --article-padding-top-desktop: 40px;
+      --article-padding-bottom-desktop: 48px;
+
+      --font-size-base: 17px;
+      --line-height-base: 1.8;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      background-color: var(--page-bg);
+      color: var(--text-color);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
+        system-ui, -system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    .page {
+      padding: 64px 16px 80px;
+    }
+
+    @media (min-width: 768px) {
+      .page {
+        padding: 80px 24px 96px;
+      }
+    }
+
+    .article {
+      max-width: var(--article-max-width);
+      margin: 0 auto;
+      background-color: transparent;
+      border-radius: var(--radius-article);
+      padding: var(--article-padding-top-mobile) var(--article-padding-x-mobile) var(--article-padding-bottom-mobile);
+      position: relative;
+    }
+
+    @media (min-width: 900px) {
+      .article {
+        padding: var(--article-padding-top-desktop) var(--article-padding-x-desktop) var(--article-padding-bottom-desktop);
+      }
+    }
+
+    .article-meta {
+      font-size: 13px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted-color);
+      margin-bottom: 12px;
+    }
+
+    .article h1 {
+      font-size: clamp(30px, 4vw, 40px);
+      line-height: 1.12;
+      letter-spacing: -0.03em;
+      margin: 0 0 16px;
+    }
+
+    .article-subtitle {
+      font-size: 18px;
+      line-height: 1.6;
+      color: var(--muted-color);
+      margin-bottom: 28px;
+      max-width: 44rem;
+    }
+
+    .article-lead {
+      font-size: 18px;
+      line-height: 1.8;
+      margin-bottom: 28px;
+    }
+
+    .article-lead p {
+      margin: 0 0 14px;
+    }
+
+    .article-divider {
+      height: 1px;
+      width: 100%;
+      background: radial-gradient(circle at center, rgba(15, 23, 42, 0.25), rgba(15, 23, 42, 0.02));
+      margin: 24px 0 32px;
+      border-radius: 999px;
+    }
+
+    .article h2 {
+      font-size: clamp(22px, 2.4vw, 26px);
+      line-height: 1.3;
+      margin: 40px 0 16px;
+      letter-spacing: -0.02em;
+    }
+
+    .section-label {
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted-color);
+      margin-bottom: 8px;
+    }
+
+    .article h3 {
+      font-size: 19px;
+      line-height: 1.4;
+      margin: 28px 0 10px;
+      letter-spacing: -0.01em;
+    }
+
+    .article h4 {
+      font-size: 17px;
+      line-height: 1.4;
+      margin: 22px 0 8px;
+      font-weight: 600;
+    }
+
+    .article p {
+      margin: 0 0 14px;
+      font-size: var(--font-size-base);
+      line-height: var(--line-height-base);
+    }
+
+    .muted {
+      color: var(--muted-color);
+    }
+
+    .article strong {
+      font-weight: 600;
+    }
+
+    .article em {
+      font-style: italic;
+      color: var(--muted-color);
+    }
+
+    .marker-highlight {
+      position: relative;
+      display: inline-block;
+      padding: 0 0.12em;
+      border-radius: 0.6em;
+      background: transparent;
+    }
+
+    .marker-highlight::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      transform: scale(1.06, 1.25);
+      background-color: #D5D8E8;
+      filter: blur(6px);
+      z-index: -1;
+    }
+
+    .emphasized-word {
+      font-weight: 700;
+      text-decoration: underline;
+      text-decoration-color: #ffffff;
+      text-decoration-thickness: 6px;
+      text-underline-offset: 5px;
+      letter-spacing: 0.02em;
+    }
+
+    .article ul,
+    .article ol {
+      margin: 0 0 16px 1.4em;
+      padding: 0;
+      font-size: 17px;
+      line-height: 1.75;
+    }
+
+    .article li + li {
+      margin-top: 4px;
+    }
+
+    .article blockquote {
+      position: relative;
+      margin: 24px 0;
+      padding: 16px 20px;
+      text-align: center;
+      border: none;
+      background: transparent;
+      border-radius: var(--radius-pill);
+      font-size: 20px;
+      line-height: 1.6;
+      font-weight: 600;
+    }
+
+    .article blockquote p:last-child {
+      margin-bottom: 0;
+    }
+
+    .composition-highlight {
+      position: relative;
+      text-align: center;
+      border-left: none;
+      background: transparent;
+      padding: 16px 20px;
+    }
+
+    .composition-highlight p {
+      font-size: 20px;
+      font-weight: 600;
+      line-height: 1.6;
+    }
+
+    .article-card {
+      border-radius: var(--radius-card);
+      background: var(--accent-soft);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .pullquote {
+      margin: 28px 0;
+      padding: 18px 20px;
+      border-radius: 24px;
+      background: #ffffff;
+      color: #111111;
+      font-size: 18px;
+      line-height: 1.7;
+      font-weight: 500;
+      box-shadow: 0 20px 60px rgba(213, 216, 232, 1);
+    }
+
+    .pullquote small {
+      display: block;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      opacity: 0.5;
+      margin-bottom: 6px;
+    }
+
+    .number-callout {
+      margin: 28px 0 24px;
+      padding: 22px 20px 20px;
+      border-radius: 24px;
+      background: var(--accent-soft);
+      box-shadow: 0 20px 60px rgba(213, 216, 232, 1);
+    }
+
+    .number-callout-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--muted-color);
+      margin-bottom: 6px;
+    }
+
+    .number-callout-value {
+      font-size: 32px;
+      line-height: 1.1;
+      letter-spacing: -0.04em;
+      margin-bottom: 4px;
+    }
+
+    .number-callout-text {
+      font-size: 15px;
+      line-height: 1.7;
+      color: var(--muted-color);
+    }
+
+    .two-column-compare {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 12px;
+      margin: 16px 0 20px;
+    }
+
+    @media (min-width: 768px) {
+      .two-column-compare {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+    }
+
+    .compare-card {
+      border-radius: 24px;
+      padding: 14px 14px 14px;
+      background: var(--accent-soft);
+      box-shadow: 0 20px 60px rgba(213, 216, 232, 1);
+    }
+
+    .compare-card-title {
+      font-size: 13px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted-color);
+      margin-bottom: 6px;
+    }
+
+    .compare-card-heading {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .compare-card ul {
+      margin: 0 0 0 1.1em;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    .compare-card li + li {
+      margin-top: 2px;
+    }
+
+    .checklist {
+      margin: 14px 0 18px;
+      padding: 14px 16px 10px;
+      border-radius: 24px;
+      background: var(--accent-soft);
+      box-shadow: 0 20px 60px rgba(213, 216, 232, 1);
+    }
+
+    .checklist-title {
+      font-size: 13px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted-color);
+      margin-bottom: 6px;
+    }
+
+    .checklist ul {
+      margin: 0 0 0 1.1em;
+      font-size: 15px;
+      line-height: 1.7;
+    }
+
+    .checklist li + li {
+      margin-top: 2px;
+    }
+
+    .article-footer {
+      border-top: 1px solid var(--border-color);
+      margin-top: 28px;
+      padding-top: 18px;
+      font-size: 13px;
+      color: var(--muted-color);
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <article class="article">
+      <div class="article-meta">Гигиена · Уборка</div>
+      <h1>Ванная и туалет: война с камнем</h1>
+      <p class="article-subtitle">
+        Если кухня — битва с жиром, то ванная — война с минеральными отложениями, где главное оружие — кислоты.
+      </p>
+
+      <div class="article-lead">
+        <p>
+          Жёсткая вода оставляет твёрдые минеральные отложения на каждой поверхности, с которой соприкасается. Белый шероховатый налёт на смесителях, матовые разводы на стекле душевой кабины, рыжие подтёки ржавчины — всё это результат химических превращений, которые происходят при испарении воды.
+        </p>
+        <p>
+          В отличие от кухни, где главное оружие — щёлочь, здесь работают кислоты. Но это не значит, что задача проще. <span class="emphasized-word">Кислоты агрессивны</span> и требуют точного понимания того, на какой поверхности их можно применять, а на какой — категорически нельзя. Ошибка с кислотой необратима: протравленный мрамор или помутневший акрил уже не восстановить.
+        </p>
+        <p>
+          В этом разделе мы разберём логику работы с минеральными загрязнениями, научимся различать материалы по их устойчивости к кислотам и построим точные алгоритмы для каждого объекта в санузле.
+        </p>
+      </div>
+
+      <div class="article-divider"></div>
+
+      <section>
+        <div class="section-label">Раздел 1</div>
+        <h2>Стены: плитка и кафель</h2>
+
+        <p>
+          Типичные загрязнения стен в санузле: пыль, лёгкая органика, мыльная плёнка. Минеральный налёт встречается редко — в основном только в поясе вокруг мокрой зоны.
+        </p>
+
+        <div class="checklist article-card">
+          <div class="checklist-title">Что понадобится</div>
+          <ul>
+            <li>универсальный слабощелочной или нейтральный очиститель с ПАВ;</li>
+            <li>кислотник — только локально, где есть видимая минералка;</li>
+            <li>пульверизатор и большая фибра;</li>
+            <li>ПВА-фибра (для глянцевой плитки);</li>
+            <li>скрабер или абразивная сетка (только по видимым рельефным загрязнениям);</li>
+            <li>отдельная щётка для вентиляционной решётки.</li>
+          </ul>
+        </div>
+
+        <div class="pullquote article-card">
+          <small>Важно</small>
+          <p>
+            Гелевые кислотники на стенах избыточны и неудобны: вы замучаетесь смывать их густую пенящуюся консистенцию. Кислоту используем только локально, где есть видимая минералка.
+          </p>
+        </div>
+
+        <h3>Алгоритм: генеральная мойка стен</h3>
+
+        <div class="checklist article-card">
+          <div class="checklist-title">Порядок действий</div>
+          <ul>
+            <li>Начинаем со стен — генеральная уборка санузла всегда начинается с мытья стен сверху вниз;</li>
+            <li>Готовим раствор универсального слабощелочного или нейтрального средства с ПАВ;</li>
+            <li>Очищаем вентиляционную решётку в самом начале специальной щёткой — это предотвратит стекание пыли на вымытую стену;</li>
+            <li>Наносим через пульверизатор раствор сразу по большой поверхности, расчёт: средство должно успеть поработать 1–2 минуты, но не высохнуть;</li>
+            <li>При видимых рельефных загрязнениях — сначала проход скрабером или сеткой локально;</li>
+            <li>Вытираем насухо: для глянцевой плитки — фибра + ПВА-фибра для полировки, для неглянцевой — простая фибра;</li>
+            <li>Моем сверху вниз, слева направо — главное не возвращаться на очищённые зоны.</li>
+          </ul>
+        </div>
+
+        <blockquote class="composition-highlight">
+          <p>
+            <span class="marker-highlight">При сильном ограничении</span> <span class="marker-highlight">по времени</span> <span class="marker-highlight">минимум для стен —</span> <span class="marker-highlight">обработать пояс</span> <span class="marker-highlight">в мокрой зоне</span> <span class="marker-highlight">и зону на уровне глаз.</span>
+          </p>
+        </blockquote>
+      </section>
+
+      <section>
+        <div class="section-label">Раздел 2</div>
+        <h2>Ванна и раковина</h2>
+
+        <p>
+          Стандартные поверхности: акрил, эмаль, сталь. Основное загрязнение — мыльно-известковый налёт, плюс ржавые дорожки и водный камень.
+        </p>
+
+        <div class="pullquote article-card">
+          <small>Критически важно</small>
+          <p>
+            Стандартные поверхности ванн относительно чувствительны к кислотам. На регулярной основе их можно мыть только мягкими кислотами не ниже pH 2: щавелевая, лимонная, молочная, муравьиная кислоты в составе.
+          </p>
+        </div>
+
+        <div class="pullquote article-card">
+          <small>Опасно</small>
+          <p>
+            Соляная, сульфаминовая, фосфорная кислоты испортят покрытие. Их можно применять только в крайних случаях — водный или мочевой камень.
+          </p>
+        </div>
+
+        <p>
+          Щавелевая кислота достаточно мягкая и эффективная. Она справится даже с очень ржавыми ваннами — просто в несколько заходов. Гелевые кислотники со щавелевой (лучше по ржавчине) и лимонной (по извести) кислотами в составе — это идеальные средства для ванн и раковин.
+        </p>
+
+        <h3>Алгоритм: ванна и раковина</h3>
+
+        <div class="checklist article-card">
+          <div class="checklist-title">Порядок действий</div>
+          <ul>
+            <li>Наносим гелевый кислотник на всю поверхность ванны/раковины;</li>
+            <li>Даём поработать, но не пересыхать — ключевой принцип: кислоты не должны пересыхать;</li>
+            <li>Работаем по типу поверхности: гладкие — губкой или скрабером, шероховатая эмаль — меламиновая губка;</li>
+            <li>Смываем всё тщательно водой — без остатка кислоты и пены.</li>
+          </ul>
+        </div>
+
+        <blockquote class="composition-highlight">
+          <p>
+            <span class="marker-highlight">Если нужна</span> <span class="marker-highlight">увеличенная экспозиция —</span> <span class="marker-highlight">периодически смачивайте</span> <span class="marker-highlight">поверхность губкой,</span> <span class="marker-highlight">вспененной той же химией.</span>
+          </p>
+        </blockquote>
+      </section>
+
+      <section>
+        <div class="section-label">Раздел 3</div>
+        <h2>Душевая</h2>
+
+        <p>
+          Внутренние поверхности душевых моются по тому же принципу, что и ванны: гелевый кислотник, губка/скрабер или меламин по фактическому рельефу, контроль экспозиции, тщательный смыв.
+        </p>
+
+        <p>
+          Особое внимание — двум проблемным местам: стеклянные дверцы душевой и ржавые швы плитки.
+        </p>
+
+        <h3>Стеклянные дверцы душевой</h3>
+
+        <p>
+          Основная задача — снять плотный минеральный налёт без бесконечного смывания пены.
+        </p>
+
+        <div class="checklist article-card">
+          <div class="checklist-title">Алгоритм: дверцы душевой</div>
+          <ul>
+            <li>Наносим гелевый мягкий кислотник с перчатки, не вспенивая — просто размазываем тонким ровным слоем по стеклу;</li>
+            <li>Снимаем налёт меламиновой губкой — работает и на глянцевом стекле, и на рельефе;</li>
+            <li>Снимаем средство двумя тряпками (не смываем душем): первый проход — сухая фибра, второй проход — влажная отжатая фибра;</li>
+            <li>Финишная полировка средством для глянца (спиртовой очиститель) + чистая фибра или ПВА.</li>
+          </ul>
+        </div>
+
+        <blockquote class="composition-highlight">
+          <p>
+            <span class="marker-highlight">Такая схема</span> <span class="marker-highlight">минимизирует перерасход</span> <span class="marker-highlight">и количество воды.</span> <span class="marker-highlight">Хорошо работает,</span> <span class="marker-highlight">когда душевых несколько.</span>
+          </p>
+        </blockquote>
+
+        <h3>Ржавые швы плитки в душевой</h3>
+
+        <p>
+          Здесь одновременно плитка, цементный шов и кислотная химия.
+        </p>
+
+        <div class="checklist article-card">
+          <div class="checklist-title">Алгоритм: ржавые швы</div>
+          <ul>
+            <li>Инструмент — только скрабер или сетка, не щётка (неэффективно);</li>
+            <li>Переносим средство с инструмента на шов, не льём кислоту прямо на стену;</li>
+            <li>Режим по умолчанию — мягкие кислоты, швы на цементной основе нельзя долго обрабатывать жёсткими кислотами;</li>
+            <li>Тяжёлый случай — допускается переход на жесткий кислотник, но быстро, маленькими зонами, экспозиция до 5 минут, сразу смываем.</li>
+          </ul>
+        </div>
+
+        <div class="pullquote article-card">
+          <small>Важно</small>
+          <p>
+            С химической точки зрения швы на цементной основе нельзя долго обрабатывать жёсткими кислотами — они растворяют сам шов. В нормальных случаях держимся мягких кислот.
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-label">Раздел 4</div>
+        <h2>Смесители</h2>
+
+        <div class="pullquote article-card">
+          <small>Опасно</small>
+          <p>
+            Материалы смесителей реально подвержены коррозии от сильных кислот (соляная, сульфаминовая, фосфорная кислоты) с первого раза: их можно легко и заметно испортить.
+          </p>
+        </div>
+
+        <p>
+          Хорошая новость: смесители и прочие «металлические» элементы обычно не так сильно загрязняются, как ванна или душевая.
+        </p>
+
+        <h3>Алгоритм: регулярная обработка смесителей</h3>
+
+        <div class="checklist article-card">
+          <div class="checklist-title">Порядок действий</div>
+          <ul>
+            <li>Привязываем к мойке раковины/ванны/душевой — когда моете раковину, в конце проходите смеситель тем же инструментом со средством;</li>
+            <li>Минимальная экспозиция — смывать смеситель лучше в самом начале этапа смыва;</li>
+            <li>Финишная полировка: микроспан или ПВА-тряпка плюс средство для глянца, часто достаточно просто идеально сухой ПВА-тряпки.</li>
+          </ul>
+        </div>
+
+        <blockquote class="composition-highlight">
+          <p>
+            <span class="marker-highlight">Для лёгких</span> <span class="marker-highlight">минеральных налётов</span> <span class="marker-highlight">такой связки</span> <span class="marker-highlight">более чем достаточно.</span>
+          </p>
+        </blockquote>
+      </section>
+
+      <section>
+        <div class="section-label">Раздел 5</div>
+        <h2>Унитазы</h2>
+
+        <p>
+          Щавелевая кислота достаточно мягкая и эффективная. Она справится даже с очень ржавыми поверхностями — просто в несколько заходов. Гелевые кислотники со щавелевой (лучше по ржавчине) и лимонной (по извести) кислотами в составе — это идеальные средства для умеренных загрязнений вплоть до камня.
+        </p>
+
+        <div class="pullquote article-card">
+          <small>Гигиена</small>
+          <p>
+            Губка для унитаза, по-хорошему, одноразовая. После использования её нужно либо выбросить, либо тщательно постирать вместе со скрабером.
+          </p>
+        </div>
+
+        <h3>Алгоритм: обычный (не запущенный) унитаз</h3>
+
+        <div class="checklist article-card">
+          <div class="checklist-title">Порядок действий</div>
+          <ul>
+            <li>Внутри чаши: наносим гелевую кислоту на внутреннюю поверхность, особое внимание — зона уровня воды и под ободком;</li>
+            <li>Даём поработать, затем обрабатываем ершиком или отдельной губкой;</li>
+            <li>Внешняя/внутренняя часть — разный инструмент или ход «от чистого к грязному», после этого губку выбрасываем или стираем;</li>
+            <li>Снимаем средство с внешних поверхностей двумя фибрами: сухая собирает основную массу, влажная нейтрализует остатки кислоты;</li>
+            <li>Направление работы: бачок → ободок → основание.</li>
+          </ul>
+        </div>
+
+        <blockquote class="composition-highlight">
+          <p>
+            <span class="marker-highlight">Внутри чаши смываем</span> <span class="marker-highlight">водой (сливом),</span> <span class="marker-highlight">а снаружи работаем</span> <span class="marker-highlight">тряпками —</span> <span class="marker-highlight">так лучше контролируется</span> <span class="marker-highlight">химия и аккуратность.</span>
+          </p>
+        </blockquote>
+      </section>
+
+      <section>
+        <div class="section-label">Раздел 6</div>
+        <h2>Водный и мочевой камень</h2>
+
+        <p>
+          По сути это одна и та же трудновыводимая затвердевшая форма известкового налёта. Мочевой камень отличается тем, что в его структуре больше органических примесей, но удаляется по сути так же, как обычный водный камень.
+        </p>
+
+        <div class="pullquote article-card">
+          <small>Особенности камня</small>
+          <p>
+            Камень растворяется только жёсткими кислотами (соляная, сульфаминовая, фосфорная кислоты), и то с трудом. Для работы по нему используются исключительно гелевые формы кислотников. При работе средство не вспенивают, а используют с абразивной сеткой.
+          </p>
+        </div>
+
+        <blockquote class="composition-highlight">
+          <p>
+            <span class="marker-highlight">Камень образуется</span> <span class="marker-highlight">не «просто так»,</span> <span class="marker-highlight">а всегда локально —</span> <span class="marker-highlight">там, где постоянно</span> <span class="marker-highlight">идёт ток воды.</span>
+          </p>
+        </blockquote>
+
+        <h3>Камень в унитазе</h3>
+
+        <p>
+          Унитаз — самый простой случай. Камень чаще всего тонкий, крепко держится на поверхности и разрастается по площади. Классические материалы унитаза (санфаянс, керамика) устойчивы к жёстким кислотам.
+        </p>
+
+        <div class="checklist article-card">
+          <div class="checklist-title">Алгоритм</div>
+          <ul>
+            <li>Замачивание через салфетку/марлю: пропитываем жёстким гелевым кислотником, накладываем на загрязнение на 5–30 минут, не допускаем пересыхания;</li>
+            <li>Снимаем размягчённый слой абразивной сеткой;</li>
+            <li>Если всё ещё приходится сильно давить — увеличиваем экспозицию и делаем второй круг, а не усиливаем давление.</li>
+          </ul>
+        </div>
+
+        <h3>Камень на смесителях (сталактиты)</h3>
+
+        <p>
+          Смесители — отдельная проблемная зона. Камень, как правило, в зоне отверстия крана, снизу, под ручками. По сути это «сталактиты» — растут сверху вниз, нарастают в длину, а не по площади.
+        </p>
+
+        <div class="pullquote article-card">
+          <small>Самый спорный случай</small>
+          <p>
+            «Металлические» поверхности и жёсткие кислоты по-хорошему несовместимы — будут ожоги покрытия. Формально правильно стараться свести всю работу к мягким кислотам. На практике даже жёсткие кислоты иногда справляются с большим трудом. Это редкий случай, когда приходится работать рискованно и с усилием.
+          </p>
+        </div>
+
+        <div class="pullquote article-card">
+          <small>Лучшее решение</small>
+          <p>
+            Не допускать роста таких «сталактитов» и убирать камень на ранних стадиях — регулярное мягкое обслуживание смесителей.
+          </p>
+        </div>
+
+        <h3>Рабочий режим по камню на смесителях</h3>
+
+        <div class="checklist article-card">
+          <div class="checklist-title">Порядок действий</div>
+          <ul>
+            <li>Без замачивания по всей детали — работаем только по самому камню;</li>
+            <li>Берём абразивную сетку, переносим жёсткий кислотник с сетки на камень, работаем интенсивно и локально только по камню;</li>
+            <li>Рекомендуется работать по одному участку не дольше 1 минуты;</li>
+            <li>Если камень плоский — можно попробовать суперлокальное замачивание: наносим кислотник ватной палочкой строго на камень, выдерживаем до 5 минут, затем снимаем остатки сеткой.</li>
+          </ul>
+        </div>
+
+        <blockquote class="composition-highlight">
+          <p>
+            <span class="marker-highlight">По сути вы слегка</span> <span class="marker-highlight">растворяете загрязнение,</span> <span class="marker-highlight">а основную работу</span> <span class="marker-highlight">делаете механически —</span> <span class="marker-highlight">«сковыриваете» камень.</span>
+          </p>
+        </blockquote>
+      </section>
+
+      <footer class="article-footer">
+        Образовательный лонгрид о профессиональной уборке санузлов: от базовых алгоритмов до работы со сложными минеральными отложениями. Основан на понимании химии процессов и правильном подборе инструментов для каждой поверхности.
+      </footer>
+    </article>
+  </main>
+</body>
+</html>

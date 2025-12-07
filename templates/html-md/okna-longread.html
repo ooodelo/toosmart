@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Идеально чистые окна — профессиональный алгоритм</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --page-bg: #f5f5f5;
+      --text-color: #202124;
+      --muted-color: #6b7280;
+      --accent-color: #111111;
+      --accent-soft: #ffffff;
+      --border-color: rgba(0, 0, 0, 0.08);
+      --marker-color: rgba(250, 148, 80, 0.4);
+
+      --radius-article: 32px;
+      --radius-card: 24px;
+      --radius-pill: 999px;
+      --shadow-soft: 0 20px 60px rgba(213, 216, 232, 1);
+
+      --article-max-width: 720px;
+      --article-padding-x-mobile: 20px;
+      --article-padding-x-desktop: 40px;
+      --article-padding-top-mobile: 32px;
+      --article-padding-bottom-mobile: 40px;
+      --article-padding-top-desktop: 40px;
+      --article-padding-bottom-desktop: 48px;
+
+      --font-size-base: 17px;
+      --line-height-base: 1.8;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      background-color: var(--page-bg);
+      color: var(--text-color);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
+        system-ui, -system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    .page {
+      padding: 64px 16px 80px;
+    }
+
+    @media (min-width: 768px) {
+      .page {
+        padding: 80px 24px 96px;
+      }
+    }
+
+    .article {
+      max-width: var(--article-max-width);
+      margin: 0 auto;
+      background-color: transparent;
+      border-radius: var(--radius-article);
+      padding: var(--article-padding-top-mobile) var(--article-padding-x-mobile) var(--article-padding-bottom-mobile);
+      position: relative;
+    }
+
+    @media (min-width: 900px) {
+      .article {
+        padding: var(--article-padding-top-desktop) var(--article-padding-x-desktop) var(--article-padding-bottom-desktop);
+      }
+    }
+
+    .article-meta {
+      font-size: 13px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted-color);
+      margin-bottom: 12px;
+    }
+
+    .article h1 {
+      font-size: clamp(30px, 4vw, 40px);
+      line-height: 1.12;
+      letter-spacing: -0.03em;
+      margin: 0 0 16px;
+    }
+
+    .article-subtitle {
+      font-size: 18px;
+      line-height: 1.6;
+      color: var(--muted-color);
+      margin-bottom: 28px;
+      max-width: 44rem;
+    }
+
+    .article-lead {
+      font-size: 18px;
+      line-height: 1.8;
+      margin-bottom: 28px;
+    }
+
+    .article-lead p {
+      margin: 0 0 14px;
+    }
+
+    .article-divider {
+      height: 1px;
+      width: 100%;
+      background: radial-gradient(circle at center, rgba(15, 23, 42, 0.25), rgba(15, 23, 42, 0.02));
+      margin: 24px 0 32px;
+      border-radius: 999px;
+    }
+
+    .article h2 {
+      font-size: clamp(22px, 2.4vw, 26px);
+      line-height: 1.3;
+      margin: 40px 0 16px;
+      letter-spacing: -0.02em;
+    }
+
+    .section-label {
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted-color);
+      margin-bottom: 8px;
+    }
+
+    .article h3 {
+      font-size: 19px;
+      line-height: 1.4;
+      margin: 28px 0 10px;
+      letter-spacing: -0.01em;
+    }
+
+    .article h4 {
+      font-size: 17px;
+      line-height: 1.4;
+      margin: 22px 0 8px;
+      font-weight: 600;
+    }
+
+    .article p {
+      margin: 0 0 14px;
+      font-size: var(--font-size-base);
+      line-height: var(--line-height-base);
+    }
+
+    .muted {
+      color: var(--muted-color);
+    }
+
+    .article strong {
+      font-weight: 600;
+    }
+
+    .article em {
+      font-style: italic;
+      color: var(--muted-color);
+    }
+
+    .marker-highlight {
+      position: relative;
+      display: inline-block;
+      padding: 0 0.12em;
+      border-radius: 0.6em;
+      background: transparent;
+    }
+
+    .marker-highlight::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      transform: scale(1.06, 1.25);
+      background-color: #D5D8E8;
+      filter: blur(6px);
+      z-index: -1;
+    }
+
+    .emphasized-word {
+      font-weight: 700;
+      text-decoration: underline;
+      text-decoration-color: #ffffff;
+      text-decoration-thickness: 6px;
+      text-underline-offset: 5px;
+      letter-spacing: 0.02em;
+    }
+
+    .article ul,
+    .article ol {
+      margin: 0 0 16px 1.4em;
+      padding: 0;
+      font-size: 17px;
+      line-height: 1.75;
+    }
+
+    .article li + li {
+      margin-top: 4px;
+    }
+
+    .article blockquote {
+      position: relative;
+      margin: 24px 0;
+      padding: 16px 20px;
+      text-align: center;
+      border: none;
+      background: transparent;
+      border-radius: var(--radius-pill);
+      font-size: 20px;
+      line-height: 1.6;
+      font-weight: 600;
+    }
+
+    .article blockquote p:last-child {
+      margin-bottom: 0;
+    }
+
+    .composition-highlight {
+      position: relative;
+      text-align: center;
+      border-left: none;
+      background: transparent;
+      padding: 16px 20px;
+    }
+
+    .composition-highlight p {
+      font-size: 20px;
+      font-weight: 600;
+      line-height: 1.6;
+    }
+
+    .article-card {
+      border-radius: var(--radius-card);
+      background: var(--accent-soft);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .pullquote {
+      margin: 28px 0;
+      padding: 18px 20px;
+      border-radius: 24px;
+      background: #ffffff;
+      color: #111111;
+      font-size: 18px;
+      line-height: 1.7;
+      font-weight: 500;
+      box-shadow: 0 20px 60px rgba(213, 216, 232, 1);
+    }
+
+    .pullquote small {
+      display: block;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      opacity: 0.5;
+      margin-bottom: 6px;
+    }
+
+    .number-callout {
+      margin: 28px 0 24px;
+      padding: 22px 20px 20px;
+      border-radius: 24px;
+      background: var(--accent-soft);
+      box-shadow: 0 20px 60px rgba(213, 216, 232, 1);
+    }
+
+    .number-callout-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--muted-color);
+      margin-bottom: 6px;
+    }
+
+    .number-callout-value {
+      font-size: 32px;
+      line-height: 1.1;
+      letter-spacing: -0.04em;
+      margin-bottom: 4px;
+    }
+
+    .number-callout-text {
+      font-size: 15px;
+      line-height: 1.7;
+      color: var(--muted-color);
+    }
+
+    .two-column-compare {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 12px;
+      margin: 16px 0 20px;
+    }
+
+    @media (min-width: 768px) {
+      .two-column-compare {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+    }
+
+    .compare-card {
+      border-radius: 24px;
+      padding: 14px 14px 14px;
+      background: var(--accent-soft);
+      box-shadow: 0 20px 60px rgba(213, 216, 232, 1);
+    }
+
+    .compare-card-title {
+      font-size: 13px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted-color);
+      margin-bottom: 6px;
+    }
+
+    .compare-card-heading {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .compare-card ul {
+      margin: 0 0 0 1.1em;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    .compare-card li + li {
+      margin-top: 2px;
+    }
+
+    .checklist {
+      margin: 14px 0 18px;
+      padding: 14px 16px 10px;
+      border-radius: 24px;
+      background: var(--accent-soft);
+      box-shadow: 0 20px 60px rgba(213, 216, 232, 1);
+    }
+
+    .checklist-title {
+      font-size: 13px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted-color);
+      margin-bottom: 6px;
+    }
+
+    .checklist ul {
+      margin: 0 0 0 1.1em;
+      font-size: 15px;
+      line-height: 1.7;
+    }
+
+    .checklist li + li {
+      margin-top: 2px;
+    }
+
+    .article-footer {
+      border-top: 1px solid var(--border-color);
+      margin-top: 28px;
+      padding-top: 18px;
+      font-size: 13px;
+      color: var(--muted-color);
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <article class="article">
+      <div class="article-meta">Уборка · Инвентарь</div>
+      <h1>Хотите идеально чистые окна? Начните с правильного инвентаря</h1>
+      <p class="article-subtitle">
+        Главный секрет с окнами — их очень легко мыть, если знать все фишки и собрать необходимый инвентарь.
+      </p>
+
+      <div class="article-lead">
+        <p>
+          Если не экономить и один раз купить профессиональный поворотный сквидж и слиписоуп, время работы сокращается примерно в 3–5 раз. Работать обычным сквиджем и спиртовым средством по стеклу тоже можно, но это превращается в акробатику и постоянное подтирание разводов.
+        </p>
+      </div>
+
+      <div class="number-callout article-card">
+        <div class="number-callout-label">Сокращение времени работы с профессиональным инвентарём</div>
+        <div class="number-callout-value">в 3–5 раз</div>
+        <div class="number-callout-text">
+          Профессиональный поворотный сквидж и слиписоуп экономят не только время, но и силы. Вместо бесконечного подтирания разводов вы получаете идеально чистые окна с первого захода.
+        </div>
+      </div>
+
+      <div class="article-divider"></div>
+
+      <section>
+        <div class="section-label">Шаг 1</div>
+        <h2>Пыль по раме и стеклу</h2>
+
+        <p>
+          Задача первого этапа — снять пыль и рыхлую грязь, чтобы дальше не тереть её по стеклу. Это подготовительная работа, которая определяет качество всего последующего мытья.
+        </p>
+
+        <h3>Протирка рам и стекла от пыли</h3>
+
+        <p>
+          Берём большую <strong>фибру с коротким ворсом</strong> и намачиваем её в растворе <strong>мягкого щелочного средства</strong> (слабощёлочник). Просто протираем рамы и стекло, снимая пыль и лёгкую грязь.
+        </p>
+
+        <p>
+          Если окно сильно грязное, сначала смачиваем поверхность средством из пульверизатора, затем вытираем той же фиброй.
+        </p>
+
+        <h3>Углы и щели</h3>
+
+        <p>
+          Щётка для углов и щелей очень сильно упрощает задачу с углами и пазами в рамах. Алгоритм простой:
+        </p>
+
+        <ul>
+          <li>сначала проход щёткой в углах и швах;</li>
+          <li>потом собираем всё фиброй.</li>
+        </ul>
+
+        <p>
+          <em>Этот подход позволяет качественно вычистить труднодоступные места без лишних усилий.</em>
+        </p>
+      </section>
+
+      <section>
+        <div class="section-label">Шаг 2</div>
+        <h2>Рельефные загрязнения на стекле</h2>
+
+        <blockquote class="composition-highlight">
+          <p>
+            <span class="marker-highlight">Все выпуклые загрязнения</span> <span class="marker-highlight">со стекла убираются</span> <span class="marker-highlight">до основного мытья.</span>
+          </p>
+        </blockquote>
+
+        <h3>Пятна и капли краски/штукатурки</h3>
+
+        <p>
+          Связка: <strong>изопропиловый спирт + скрабер</strong> (для плоских загрязнений) или <strong>металлический скребок</strong> (когда много мелких рельефных).
+        </p>
+
+        <p>
+          Металлический скребок при аккуратном использовании по стеклу достаточно безопасен. Работаем аккуратно под углом около 45° к стеклу. Если страшно — используем пластиковый скребок или пластиковую карту.
+        </p>
+
+        <h3>Скотч и герметики</h3>
+
+        <p>
+          Для скотчей и герметиков используем <strong>специализированный растворитель «антискотч» + скрабер</strong>:
+        </p>
+
+        <ul>
+          <li>наносим антискотч на загрязнение;</li>
+          <li>даём сработать;</li>
+          <li>снимаем скрабером.</li>
+        </ul>
+
+        <h3>Высолы на стекле</h3>
+
+        <p>
+          Если столкнулись с высолами, пробуем <strong>кислотники</strong> (мягкие или средние кислотные средства) по стеклу. Но важно понимать: старые цементные высолы зачастую уже не берутся бытовой химией. Такой дефект часто убирается только полировкой или заменой стекла.
+        </p>
+      </section>
+
+      <section>
+        <div class="section-label">Шаг 3</div>
+        <h2>Мытьё стекла: два варианта</h2>
+
+        <blockquote class="composition-highlight">
+          <p>
+            <span class="marker-highlight">Основная проблема с окнами</span> <span class="marker-highlight">и главный пожиратель времени —</span> <span class="marker-highlight">постоянное перемывание</span> <span class="marker-highlight">из-за разводов.</span>
+          </p>
+        </blockquote>
+
+        <p>
+          В профессиональном алгоритме два рабочих варианта. Первый — универсальный, второй — оптимальный для тех, кто готов вложиться в правильный инвентарь.
+        </p>
+
+        <div class="two-column-compare">
+          <div class="compare-card article-card">
+            <div class="compare-card-title">Вариант А</div>
+            <div class="compare-card-heading">Спиртовое средство + сквидж</div>
+            <ul>
+              <li>Наносим средство из пульверизатора сверху вниз</li>
+              <li>Ведём сквидж равномерно параллельными полосами</li>
+              <li>После каждого прохода вытираем резинку насухо</li>
+              <li>Держим сквидж под углом 30–45° к стеклу</li>
+              <li>Подтёки впитываем максимально сухой фиброй</li>
+              <li>Локальные разводы убираем сухими тряпками ПВА</li>
+            </ul>
+          </div>
+          <div class="compare-card article-card">
+            <div class="compare-card-title">Вариант B</div>
+            <div class="compare-card-heading">Слиписоуп + шубка + сквидж</div>
+            <ul>
+              <li>Вспениваем слиписоуп на шубке</li>
+              <li>Равномерно распределяем по всему стеклу</li>
+              <li>Сквиджем работаем в любом направлении</li>
+              <li>При правильной дозировке разводов не остаётся</li>
+              <li>Лишнюю пену снимаем фиброй по кромкам</li>
+              <li>Специально создан для работы без разводов</li>
+            </ul>
+          </div>
+        </div>
+
+        <p>
+          Слиписоуп специально создан для того, чтобы не было разводов. Это делает работу гораздо проще и быстрее по сравнению со спиртовыми средствами.
+        </p>
+
+        <div class="pullquote article-card">
+          <small>Секрет работы со сквиджем</small>
+          <p>
+            При проходах держим сквидж слегка наклонённым в сторону «грязной» стороны, чтобы собранная жидкость не стекала обратно по чистой части и не оставляла разводов. Скорость движения примерно как скорость стекания воды по стеклу.
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-label">Шаг 4</div>
+        <h2>Подоконник и рама (белый пластик)</h2>
+
+        <p>
+          Финальный шаг относится к отбеливанию и общему виду белых пластиковых элементов. Здесь важно понимать специфику работы с меламиновой губкой.
+        </p>
+
+        <h3>Отбеливание белого пластика</h3>
+
+        <p>
+          Для белого пластика (подоконник, рама) используем <strong>слабощелочник + меламиновую губку</strong>, смоченную в нём. Как вариант — отбеливатель пластика по инструкции производителя.
+        </p>
+
+        <blockquote class="composition-highlight">
+          <p>
+            <span class="marker-highlight">Меламин здесь именно</span> <span class="marker-highlight">как инструмент отбеливания</span> <span class="marker-highlight">белого матового пластика,</span> <span class="marker-highlight">а не для всего подряд.</span>
+          </p>
+        </blockquote>
+      </section>
+
+      <section>
+        <div class="section-label">Итого</div>
+        <h2>Ключевые инструменты для идеальных окон</h2>
+
+        <div class="checklist article-card">
+          <div class="checklist-title">Профессиональный набор</div>
+          <ul>
+            <li>Фибра с коротким ворсом для первичной очистки;</li>
+            <li>Щётка для углов и щелей;</li>
+            <li>Изопропиловый спирт и скрабер/скребок для рельефных загрязнений;</li>
+            <li>Поворотный сквидж (профессиональный);</li>
+            <li>Слиписоуп и шубка для нанесения (оптимальный вариант);</li>
+            <li>Меламиновая губка для отбеливания белого пластика.</li>
+          </ul>
+        </div>
+
+        <p>
+          Настоящая эффективность в мытье окон начинается с понимания алгоритма и правильного подбора инвентаря. Профессиональный сквидж и слиписоуп — это не роскошь, а инструменты, которые окупаются уже после первого применения за счёт сэкономленного времени и сил.
+        </p>
+      </section>
+
+      <footer class="article-footer">
+        Это демонстрационный лонгрид на основе шаблона образовательного контента: одна колонка текста, устойчивые отступы, спокойная типографика, акценты через цитаты, числа и чек-листы.
+      </footer>
+    </article>
+  </main>
+</body>
+</html>

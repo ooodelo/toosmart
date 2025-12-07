@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Кухня: профессиональная уборка без ошибок</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --page-bg: #f5f5f5;
+      --text-color: #202124;
+      --muted-color: #6b7280;
+      --accent-color: #111111;
+      --accent-soft: #ffffff;
+      --border-color: rgba(0, 0, 0, 0.08);
+      --marker-color: rgba(250, 148, 80, 0.4);
+
+      --radius-article: 32px;
+      --radius-card: 24px;
+      --radius-pill: 999px;
+      --shadow-soft: 0 20px 60px rgba(213, 216, 232, 1);
+
+      --article-max-width: 720px;
+      --article-padding-x-mobile: 20px;
+      --article-padding-x-desktop: 40px;
+      --article-padding-top-mobile: 32px;
+      --article-padding-bottom-mobile: 40px;
+      --article-padding-top-desktop: 40px;
+      --article-padding-bottom-desktop: 48px;
+
+      --font-size-base: 17px;
+      --line-height-base: 1.8;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      background-color: var(--page-bg);
+      color: var(--text-color);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
+        system-ui, -system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    .page {
+      padding: 64px 16px 80px;
+    }
+
+    @media (min-width: 768px) {
+      .page {
+        padding: 80px 24px 96px;
+      }
+    }
+
+    .article {
+      max-width: var(--article-max-width);
+      margin: 0 auto;
+      background-color: transparent;
+      border-radius: var(--radius-article);
+      padding: var(--article-padding-top-mobile) var(--article-padding-x-mobile) var(--article-padding-bottom-mobile);
+      position: relative;
+    }
+
+    @media (min-width: 900px) {
+      .article {
+        padding: var(--article-padding-top-desktop) var(--article-padding-x-desktop) var(--article-padding-bottom-desktop);
+      }
+    }
+
+    .article-meta {
+      font-size: 13px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted-color);
+      margin-bottom: 12px;
+    }
+
+    .article h1 {
+      font-size: clamp(30px, 4vw, 40px);
+      line-height: 1.12;
+      letter-spacing: -0.03em;
+      margin: 0 0 16px;
+    }
+
+    .article-subtitle {
+      font-size: 18px;
+      line-height: 1.6;
+      color: var(--muted-color);
+      margin-bottom: 28px;
+      max-width: 44rem;
+    }
+
+    .article-lead {
+      font-size: 18px;
+      line-height: 1.8;
+      margin-bottom: 28px;
+    }
+
+    .article-lead p {
+      margin: 0 0 14px;
+    }
+
+    .article-divider {
+      height: 1px;
+      width: 100%;
+      background: radial-gradient(circle at center, rgba(15, 23, 42, 0.25), rgba(15, 23, 42, 0.02));
+      margin: 24px 0 32px;
+      border-radius: 999px;
+    }
+
+    .article h2 {
+      font-size: clamp(22px, 2.4vw, 26px);
+      line-height: 1.3;
+      margin: 40px 0 16px;
+      letter-spacing: -0.02em;
+    }
+
+    .section-label {
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted-color);
+      margin-bottom: 8px;
+    }
+
+    .article h3 {
+      font-size: 19px;
+      line-height: 1.4;
+      margin: 28px 0 10px;
+      letter-spacing: -0.01em;
+    }
+
+    .article h4 {
+      font-size: 17px;
+      line-height: 1.4;
+      margin: 22px 0 8px;
+      font-weight: 600;
+    }
+
+    .article p {
+      margin: 0 0 14px;
+      font-size: var(--font-size-base);
+      line-height: var(--line-height-base);
+    }
+
+    .muted {
+      color: var(--muted-color);
+    }
+
+    .article strong {
+      font-weight: 600;
+    }
+
+    .article em {
+      font-style: italic;
+      color: var(--muted-color);
+    }
+
+    .marker-highlight {
+      position: relative;
+      display: inline-block;
+      padding: 0 0.12em;
+      border-radius: 0.6em;
+      background: transparent;
+    }
+
+    .marker-highlight::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      transform: scale(1.06, 1.25);
+      background-color: #D5D8E8;
+      filter: blur(6px);
+      z-index: -1;
+    }
+
+    .emphasized-word {
+      font-weight: 700;
+      text-decoration: underline;
+      text-decoration-color: #ffffff;
+      text-decoration-thickness: 6px;
+      text-underline-offset: 5px;
+      letter-spacing: 0.02em;
+    }
+
+    .article ul,
+    .article ol {
+      margin: 0 0 16px 1.4em;
+      padding: 0;
+      font-size: 17px;
+      line-height: 1.75;
+    }
+
+    .article li + li {
+      margin-top: 4px;
+    }
+
+    .article blockquote {
+      position: relative;
+      margin: 24px 0;
+      padding: 16px 20px;
+      text-align: center;
+      border: none;
+      background: transparent;
+      border-radius: var(--radius-pill);
+      font-size: 20px;
+      line-height: 1.6;
+      font-weight: 600;
+    }
+
+    .article blockquote p:last-child {
+      margin-bottom: 0;
+    }
+
+    .composition-highlight {
+      position: relative;
+      text-align: center;
+      border-left: none;
+      background: transparent;
+      padding: 16px 20px;
+    }
+
+    .composition-highlight p {
+      font-size: 20px;
+      font-weight: 600;
+      line-height: 1.6;
+    }
+
+    .article-card {
+      border-radius: var(--radius-card);
+      background: var(--accent-soft);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .pullquote {
+      margin: 28px 0;
+      padding: 18px 20px;
+      border-radius: 24px;
+      background: #ffffff;
+      color: #111111;
+      font-size: 18px;
+      line-height: 1.7;
+      font-weight: 500;
+      box-shadow: 0 20px 60px rgba(213, 216, 232, 1);
+    }
+
+    .pullquote small {
+      display: block;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      opacity: 0.5;
+      margin-bottom: 6px;
+    }
+
+    .number-callout {
+      margin: 28px 0 24px;
+      padding: 22px 20px 20px;
+      border-radius: 24px;
+      background: var(--accent-soft);
+      box-shadow: 0 20px 60px rgba(213, 216, 232, 1);
+    }
+
+    .number-callout-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--muted-color);
+      margin-bottom: 6px;
+    }
+
+    .number-callout-value {
+      font-size: 32px;
+      line-height: 1.1;
+      letter-spacing: -0.04em;
+      margin-bottom: 4px;
+    }
+
+    .number-callout-text {
+      font-size: 15px;
+      line-height: 1.7;
+      color: var(--muted-color);
+    }
+
+    .two-column-compare {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 12px;
+      margin: 16px 0 20px;
+    }
+
+    @media (min-width: 768px) {
+      .two-column-compare {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+    }
+
+    .compare-card {
+      border-radius: 24px;
+      padding: 14px 14px 14px;
+      background: var(--accent-soft);
+      box-shadow: 0 20px 60px rgba(213, 216, 232, 1);
+    }
+
+    .compare-card-title {
+      font-size: 13px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted-color);
+      margin-bottom: 6px;
+    }
+
+    .compare-card-heading {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .compare-card ul {
+      margin: 0 0 0 1.1em;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    .compare-card li + li {
+      margin-top: 2px;
+    }
+
+    .checklist {
+      margin: 14px 0 18px;
+      padding: 14px 16px 10px;
+      border-radius: 24px;
+      background: var(--accent-soft);
+      box-shadow: 0 20px 60px rgba(213, 216, 232, 1);
+    }
+
+    .checklist-title {
+      font-size: 13px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted-color);
+      margin-bottom: 6px;
+    }
+
+    .checklist ul {
+      margin: 0 0 0 1.1em;
+      font-size: 15px;
+      line-height: 1.7;
+    }
+
+    .checklist li + li {
+      margin-top: 2px;
+    }
+
+    .article-footer {
+      border-top: 1px solid var(--border-color);
+      margin-top: 28px;
+      padding-top: 18px;
+      font-size: 13px;
+      color: var(--muted-color);
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <article class="article">
+      <div class="article-meta">Профессиональная уборка · Кухня</div>
+      <h1>Кухня: профессиональная уборка без ошибок</h1>
+      <p class="article-subtitle">
+        Самая конфликтная зона в квартире: агрессивные средства встречаются с деликатными поверхностями. Как работать системно и не наделать дорогих ошибок.
+      </p>
+
+      <div class="article-lead">
+        <p>
+          Кухня — это особое место с точки зрения клининга. Здесь происходят процессы, которых нет больше нигде в квартире. Капли масла при жарке нагреваются до 180-200°C, частично испаряются, конденсируются на холодных поверхностях вокруг — на плитке, фасадах, вытяжке.
+        </p>
+        <p>
+          И там, на воздухе, под действием кислорода и остаточного тепла, начинается химическая трансформация. Молекулы жира сшиваются между собой, образуя полимерную сетку. Это уже не просто жир — это полимерный композит, липкий, твёрдый, цепко держащийся за поверхность.
+        </p>
+        <p>
+          В этом материале мы разберём, как работать с кухней системно: распознавать степень трансформации жира, подбирать средства и инструменты под конкретные поверхности, защищать деликатные материалы и избегать ошибок, которые могут стоить дорого.
+        </p>
+      </div>
+
+      <div class="article-divider"></div>
+
+      <section>
+        <div class="section-label">Основы</div>
+        <h2>Азы работы на кухне</h2>
+
+        <h3>Сразу про губку</h3>
+
+        <blockquote class="composition-highlight">
+          <p>
+            <span class="marker-highlight">На кухне классическая</span> <span class="marker-highlight">поролоновая губка</span> <span class="marker-highlight">подходит только</span> <span class="marker-highlight">для посуды.</span>
+          </p>
+        </blockquote>
+
+        <p>
+          По поверхностям кухни (фасады, столешницы, техника) обычная губка плохо держит давление — требуется сильнее давить, а это повышает риск поцарапать. Она быстро превращается в разносчик грязи и жира, провоцирует «возню» вместо контролируемой механики.
+        </p>
+
+        <div class="pullquote article-card">
+          <small>Базовые инструменты</small>
+          <p>
+            Меламиновые губки, скраберы, абразивные сетки с учётом типа поверхности плюс микрофибра. Губка как основной инструмент по кухням — плохой рабочий стандарт.
+          </p>
+        </div>
+
+        <h3>Про ударные дегризеры</h3>
+
+        <p>
+          Под «ударным дегризером» понимается сильная щёлочь с высокой концентрацией в готовом растворе pH 12–14. Готовые бытовые дегризеры специально созданы для того, чтобы «сметать всё на своём пути».
+        </p>
+
+        <p>
+          В отличие от профессиональных концентратов, в них добавляют не только жёсткие щёлочи, но и <span class="emphasized-word">растворители</span> — поэтому они так легко снимают краску и покрытия. По этой же причине они часто действительно моют быстрее, чем мягкие средства.
+        </p>
+
+        <div class="number-callout article-card">
+          <div class="number-callout-label">Для большинства задач</div>
+          <div class="number-callout-value">95%</div>
+          <div class="number-callout-text">
+            Для 95% задач на кухне не нужны ударные жёсткие дегризеры. Грамотный слабощелочной универсал плюс правильный инструмент закрывают задачу достаточно эффективно и гарантированно безопасно.
+          </div>
+        </div>
+
+        <p>
+          Реальные показания к ударному дегризеру: очень сильно пригоревший жир, большая площадь сильно запущенных загрязнений или режим «работаем на скорость» при действительно тяжёлой кухне.
+        </p>
+
+        <h3>Самые чувствительные места кухни</h3>
+
+        <p>
+          Если вы работаете с щелочником (даже мягким от pH 9) и на нём чётко не указано, что он безопасен для алюминия — защитите алюминиевые детали сразу. Проще всего это сделать при помощи малярного скотча.
+        </p>
+
+        <div class="checklist article-card">
+          <div class="checklist-title">Самые уязвимые зоны кухни</div>
+          <ul>
+            <li>алюминий голый и окрашенный;</li>
+            <li>искусственный и натуральный камень;</li>
+            <li>дерево под маслом или воском;</li>
+            <li>soft-touch, матовые и ультраматовые фасады;</li>
+            <li>high-gloss (глянцевые) фасады;</li>
+            <li>оргстекло и поликарбонат;</li>
+            <li>термопластик;</li>
+            <li>крашеные элементы;</li>
+            <li>чернёная фурнитура, шёлкография.</li>
+          </ul>
+        </div>
+
+        <p>
+          Частый сценарий ошибки: капля дегризера или концентрата на деликатной детали, о которой забыли → высохла → белёсое пятно, выцветание или ожог покрытия. Даже если вы проверили средство на незаметном участке и стёрли сразу без следов — это не даёт гарантии при случайном попадании и высыхании.
+        </p>
+      </section>
+
+      <section>
+        <div class="section-label">Базовый алгоритм</div>
+        <h2>Общий случай: гарнитуры, фартук, столешницы, СВЧ</h2>
+
+        <p>
+          Основное загрязнение: тонкая жировая плёнка плюс пыль, мелкие брызги. Речь о корпусе и фасадах гарнитура, фартуке, столешницах (кроме явно деликатных) и корпусах бытовой техники.
+        </p>
+
+        <h3>Химия</h3>
+
+        <blockquote class="composition-highlight">
+          <p>
+            <span class="marker-highlight">Идеальный базовый</span> <span class="marker-highlight">инструмент для кухни —</span> <span class="marker-highlight">один качественный</span> <span class="marker-highlight">слабощелочной универсал</span> <span class="marker-highlight">с ПАВами</span> <span class="marker-highlight">и хелаторами.</span>
+          </p>
+        </blockquote>
+
+        <p>
+          Просто купите сразу безопасный для алюминия щелочной концентрат (pH 9–12, не более) с пометками «без разводов» и «не требует смывания». Он закроет не только 90% всей кухни, но и всей квартиры (кроме минералки).
+        </p>
+
+        <p>
+          В большинстве кухонных задач нужно не «прожечь», а размочить жировую плёнку, разорвать её ПАВами и хелаторами, механически снять скрабером или сеткой, собрать фиброй.
+        </p>
+
+        <h3>Алгоритм работы</h3>
+
+        <div class="checklist article-card">
+          <div class="checklist-title">Пять шагов базовой обработки</div>
+          <ul>
+            <li>Подготовка: проверить, нет ли явно деликатных материалов. Всё деликатное сразу переводим в отдельный режим.</li>
+            <li>Нанесение: распыляем слабощелочной универсал на рабочую зону, даём поработать 1–2 минуты, не доводя до высыхания.</li>
+            <li>Механика: если есть видимый рельеф жира — работаем скрабером или абразивной сеткой. Если рельефа нет — обходимся фиброй.</li>
+            <li>Снятие раствора: если средство не требует смывания — тщательно собираем фиброй. Если требуется смыв — дополнительный проход влажной фиброй.</li>
+            <li>Последовательность: держим логичный маршрут (слева направо, сверху вниз), чтобы не возвращаться на уже очищённые участки.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-label">Деликатные поверхности</div>
+        <h2>Работа с чувствительными материалами</h2>
+
+        <blockquote class="composition-highlight">
+          <p>
+            <span class="marker-highlight">Эти поверхности</span> <span class="marker-highlight">портятся от одного</span> <span class="marker-highlight">неверного применения</span> <span class="marker-highlight">ударного дегризера.</span>
+          </p>
+        </blockquote>
+
+        <p>
+          Список деликатных материалов включает ультраматовые и soft-touch фасады, глянцевые лаковые и акриловые фасады, массив или шпон под маслом или воском, искусственный и натуральный камень, алюминий (голый, анодированный, порошково окрашенный), термопластик, оргстекло, поликарбонат, чернёную фурнитуру и шёлкографию на стекле варочных панелей.
+        </p>
+
+        <p>
+          Потенциально считается, что все эти материалы можно повредить даже более слабым средством, если работать не по инструкции или в неконтролируемой концентрации. Запрещённые поверхности всегда перечислены в инструкции к конкретному средству — перед сложной кухней их нужно перечитывать.
+        </p>
+
+        <div class="pullquote article-card">
+          <small>Общий принцип</small>
+          <p>
+            Только мягкие средства (слабощёлочные, иногда нейтральные), никакого дегризера и жёстких щелочей, минимальная экспозиция (нанесли → отработали → сняли), тест на малозаметном участке при сомнениях.
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-label">Особый случай</div>
+        <h2>Soft-touch фасады</h2>
+
+        <p>
+          Soft-touch (а также матовые и ультраматовые) — отдельная головная боль: покрытие мягкое, с тактильным эффектом. Как правило, на нём вообще не остаётся рельефных капель — всё растекается по микрорельефу. Типичное загрязнение — жирные блестящие отпечатки и пятна.
+        </p>
+
+        <p>
+          Задача — <span class="emphasized-word">убрать блеск жира, не сняв само покрытие.</span>
+        </p>
+
+        <div class="checklist article-card">
+          <div class="checklist-title">Алгоритм работы с soft-touch</div>
+          <ul>
+            <li>Только профессиональное слабощелочное средство для деликатных поверхностей. Распыляем на фасад, не допуская высыхания.</li>
+            <li>Обильно смачиваем меламиновую губку в этом же средстве — она должна быть пропитана раствором, а не полусухой.</li>
+            <li>Работаем минимальным нажимом — ведём губку по поверхности, без «пиления» и кругов по точке. Можно локально по пятну или по всей плоскости фасада.</li>
+            <li>Сразу после прохода меламином промакиваем фасад сухой чистой фиброй — не растираем, а снимаем влагу и эмульгированный жир лёгкими прижимающими движениями.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-label">Экстремальный режим</div>
+        <h2>Когда нужен ударный дегризер</h2>
+
+        <p>
+          Если вы любите рисковать, или вам лень покупать мягкое средство, или у вас действительно настолько тяжёлый случай, когда всё в жиру — вы действительно можете помыть всю кухню одним дегризером. Однако понимайте, что это <span class="emphasized-word">всегда риск</span>.
+        </p>
+
+        <blockquote class="composition-highlight">
+          <p>
+            <span class="marker-highlight">Готовые бытовые</span> <span class="marker-highlight">дегризеры изначально</span> <span class="marker-highlight">сделаны так, чтобы</span> <span class="marker-highlight">«сметать всё</span> <span class="marker-highlight">на своём пути».</span>
+          </p>
+        </blockquote>
+
+        <p>
+          В отличие от профессиональных концентратов, в них много не только жёстких щёлочей, но и растворителей — поэтому они легко снимают краску и покрытия. По этой же причине часто реально моют быстрее, чем мягкие средства.
+        </p>
+
+        <p>
+          Теоретически (и на практике) по следующей схеме можно отмыть даже алюминий, когда он весь в жире. Но поверхность и сама химреакция никогда не идеальны. Вы можете одинаково помыть две одинаковые детали на одной кухне — одна отмоется и сохранится, вторая пойдёт пятнами.
+        </p>
+
+        <h3>Алгоритм работы ударником</h3>
+
+        <div class="checklist article-card">
+          <div class="checklist-title">Если всё-таки моем азелитом всё</div>
+          <ul>
+            <li>Тест на незаметном участке: полностью прогоняем все следующие шаги на малозаметной зоне, смотрим результат после обработки и высыхания.</li>
+            <li>Нанесение только через инструмент: смачиваем скрабер или сетку водой, добавляем 1–2 «пшика» ударника, пожамкали до пены, только потом наносим на поверхность.</li>
+            <li>Минимум экспозиции: наносим и сразу начинаем механику, не ждём «пусть подействует». Как только жир размягчился — дозачищаем и снимаем.</li>
+            <li>Маленькие участки плюс два прохода: работаем не больше одной секции за раз. Сухая фибра снимает максимум щёлочи и жира, сразу следом влажная хорошо отжатая фибра добирает остатки.</li>
+            <li>Дополнительная уксусная нейтрализация по металлам, особенно по алюминию: один ровный проход фиброй, слегка смоченной в уксусе.</li>
+          </ul>
+        </div>
+
+        <p>
+          Этот режим остаётся осознанно рискованным, даже при соблюдении всех шагов. Алгоритм выше лишь снижает вероятность повреждений, но не убирает её.
+        </p>
+      </section>
+
+      <section>
+        <div class="section-label">Холодильник</div>
+        <h2>Три сценария работы с холодильником</h2>
+
+        <p>
+          Холодильник — один из лидеров по количеству разных пластмасс и резин в одном приборе: от внутренних полок и ящиков до фасада и уплотнителя. Почти все эти материалы чувствительны к жёсткой щёлочи.
+        </p>
+
+        <p>
+          Поэтому ударные дегризеры внутри холодильника допускаются только при прямой необходимости и в жёстко контролируемых режимах. Съёмные элементы (полки, ящики) проще всего мыть в посудомойке, если материал это допускает, или руками мягким средством.
+        </p>
+
+        <h3>Вариант 1: лёгкая мойка</h3>
+
+        <p>
+          Холодильник не сильно грязный и без стойкого запаха. Моем внутри мягким нейтральным или мягким щелочным универсалом, без фанатизма по концентрации и экспозиции. Если локально есть рельефная грязь — дорабатываем скрабером или сеткой, не «шкурим» пластик. После отработки вытираем всё насухо сухой фиброй.
+        </p>
+
+        <h3>Вариант 2: очень грязный</h3>
+
+        <p>
+          Это случай, когда на внутренних поверхностях холодильника много жира, подтёков, засохших остатков еды. Можно с чистой совестью использовать более сильный щелочной состав, вплоть до разбавленного ударного дегризера — работаем только переносом с перчатки или скрабера по стенкам и полкам.
+        </p>
+
+        <p>
+          Моете стенки и дно без стоячих луж и без долгой экспозиции. Снятие раствора — два прохода: первый сухой фиброй снимает максимум щёлочи и грязи, второй отжатой влажной фиброй убирает остаток. После мойки оставляете холодильник на проветривание с открытой дверью.
+        </p>
+
+        <h3>Вариант 3: стойкий запах без визуальной грязи</h3>
+
+        <p>
+          Самый коварный случай: внутри всё выглядит чистым, но запах очень стойкий и неприятный. Молекулы запаха впитались в пластик и резину и «сидят» там под тонкой жировой плёнкой.
+        </p>
+
+        <div class="checklist article-card">
+          <div class="checklist-title">Алгоритм борьбы с запахом</div>
+          <ul>
+            <li>Размягчить жировую плёнку: наносим слабощелочное средство от жира или разбавленный дегризер, выдерживаем 5–10 минут, не допуская пересыхания. Тщательно стираем сухой плюс влажной фиброй.</li>
+            <li>Окислить запах: обрабатываем все поверхности и особенно уплотнитель 3% перекисью водорода или тёплым раствором перкарбоната натрия. Замачиваем на 10–30 минут (можно укрыть плёнкой).</li>
+            <li>Собрать остатки и высушить: проходим чистой водой, вытираем всё насухо, оставляем дверь приоткрытой минимум на час.</li>
+            <li>Сорбционная «подстраховка»: ставим внутрь пакет активированного угля или цеолит. Держим сутки–двое, чтобы сорбент добрал остатки запаха.</li>
+          </ul>
+        </div>
+
+        <p>
+          Если после полного цикла запах заметно снизился, но всё равно ощущается, это уже вопрос не только к уборке, но и к возрасту и состоянию пластика холодильника.
+        </p>
+      </section>
+
+      <footer class="article-footer">
+        Материал создан на основе профессиональных алгоритмов уборки кухонь. Для получения полной информации о работе с различными типами загрязнений и поверхностей обратитесь к полному руководству по клинингу.
+      </footer>
+    </article>
+  </main>
+</body>
+</html>
