@@ -1332,45 +1332,46 @@ function buildIntroPage(item, menuHtml, config, template, mode, nextUrl = '', le
 function buildFreeCoursePage(item, menuHtml, config, template, legalMap = {}, lockedSrc = '') {
   const paywallSource = lockedSrc || '';
 
-  const introSection = wrapAsSection(`
-    <h1>${item.seo_h1 || item.h1_md}</h1>
-    <p class="meta">${formatReadingTime(item.readingTimeMinutes)} чтения</p>
-    ${item.paywallOpenHtml || ''}
-  `);
-
   const body = `
-    ${introSection}
-
-    <div id="article-content">
-      <div class="paywall-block" data-paywall-root data-locked-src="${escapeAttr(paywallSource)}">
-        <section class="text-section paywall-text" data-locked-body>
-          ${item.paywallTeaserHtml || ''}
-          <p class="paywall-text__hint">Нажмите «Добавить абзац», чтобы подгрузить следующую часть статьи.</p>
-        </section>
-
-        <div class="paywall-overlay__fluid" data-fluid-overlay aria-hidden="true"></div>
-
-        <div class="paywall-cta-sticky">
-          <button class="paywall-cta-button cta-button" data-analytics="cta-premium" data-paywall-cta type="button">
-            <span class="paywall-cta-button__icon" aria-hidden="true">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M17 11V8a5 5 0 10-10 0v3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <circle cx="12" cy="16" r="1.5" fill="currentColor"/>
-              </svg>
-            </span>
-            <span>${escapeAttr(config.ctaTexts.enterFull)}</span>
-          </button>
+        <div class="text-box__intro">
+          <header>
+            <h1>${item.seo_h1 || item.h1_md}</h1>
+            <p class="meta">${formatReadingTime(item.readingTimeMinutes)} чтения</p>
+          </header>
+          ${item.paywallOpenHtml}
         </div>
-      </div>
-      <div class="paywall-fab" data-paywall-fab>
-        <button class="paywall-fab__btn" data-paywall-add type="button">
-          <span class="paywall-fab__icon" aria-hidden="true">+</span>
-          <span data-paywall-add-label>Добавить абзац</span>
-        </button>
-        <div class="paywall-fab__timer" data-paywall-timer hidden></div>
-      </div>
-    </div>
+
+        <div id="article-content">
+          <div class="paywall-block" data-paywall-root data-locked-src="${escapeAttr(paywallSource)}">
+            <div class="paywall-cta-sticky">
+              <button class="paywall-cta-button cta-button" data-analytics="cta-premium" data-paywall-cta type="button">
+                <span class="paywall-cta-button__icon" aria-hidden="true">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M17 11V8a5 5 0 10-10 0v3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <circle cx="12" cy="16" r="1.5" fill="currentColor"/>
+                  </svg>
+                </span>
+                <span>${escapeAttr(config.ctaTexts.enterFull)}</span>
+              </button>
+            </div>
+
+            <section class="text-section paywall-text" data-locked-body>
+              ${item.paywallTeaserHtml}
+              <p class="paywall-text__hint">Нажмите «Добавить абзац», чтобы подгрузить следующую часть статьи.</p>
+            </section>
+
+            <div class="paywall-overlay__fluid" data-fluid-overlay aria-hidden="true"></div>
+          </div>
+
+          <div class="paywall-fab" data-paywall-fab>
+            <button class="paywall-fab__btn" data-paywall-add type="button">
+              <span class="paywall-fab__icon" aria-hidden="true">+</span>
+              <span data-paywall-add-label>Добавить абзац</span>
+            </button>
+            <div class="paywall-fab__timer" data-paywall-timer hidden></div>
+          </div>
+        </div>
   `;
 
   return applyTemplate(template, {
