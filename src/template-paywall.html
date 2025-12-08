@@ -47,39 +47,6 @@
         </div>
         <div id="article-content">
           <div class="paywall-block" data-paywall-root data-locked-src="">
-            <!-- CTA layer FIRST - so sticky has content after it to scroll through -->
-            <div class="paywall-cta-layer">
-              <div class="paywall-overlay__cta">
-                <div class="paywall-overlay__cta-inner">
-                  <button class="paywall-cta-button cta-button" data-analytics="cta-premium" data-paywall-cta
-                    type="button" onclick="openCTAModal()">
-                    <span class="paywall-cta-button__icon" aria-hidden="true">
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M17 11V8a5 5 0 10-10 0v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                          stroke-linejoin="round" />
-                        <rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" stroke-width="2"
-                          stroke-linecap="round" stroke-linejoin="round" />
-                        <circle cx="12" cy="16" r="1.5" fill="currentColor" />
-                      </svg>
-                    </span>
-                    <span>Войти в полную версию</span>
-                  </button>
-
-                  <div class="paywall-fab" data-paywall-fab>
-                    <button class="paywall-fab__btn" data-paywall-add type="button">
-                      <span class="paywall-fab__icon" aria-hidden="true">+</span>
-                      <span data-paywall-add-label>Добавить абзац</span>
-                    </button>
-                    <div class="paywall-fab__timer" data-paywall-timer hidden></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="paywall-overlay" aria-hidden="true">
-              <div class="paywall-overlay__fluid" data-fluid-overlay></div>
-            </div>
-
             <section class="text-section paywall-text" data-locked-body>
               <!-- LOCKED: 6 paragraphs -->
               <h2>Кислоты и щёлочи: когда что использовать</h2>
@@ -95,6 +62,34 @@
               <p>В следующих уроках мы разберём конкретные рецепты для кухни, ванной и жилых комнат. Вы узнаете, как
                 собрать минимальный набор средств, который заменит целый шкаф бытовой химии.</p>
             </section>
+
+            <div class="paywall-overlay" aria-hidden="true">
+              <div class="paywall-overlay__fluid" data-fluid-overlay></div>
+              <div class="paywall-overlay__cta">
+                <div class="paywall-overlay__cta-inner">
+              <button class="paywall-cta-button cta-button" data-analytics="cta-premium" data-paywall-cta
+                type="button" onclick="openCTAModal()">
+                <span class="paywall-cta-button__icon" aria-hidden="true">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M17 11V8a5 5 0 10-10 0v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                          stroke-linejoin="round" />
+                        <rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" stroke-width="2"
+                          stroke-linecap="round" stroke-linejoin="round" />
+                        <circle cx="12" cy="16" r="1.5" fill="currentColor" />
+                  </svg>
+                </span>
+                <span>Войти в полную версию</span>
+              </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="paywall-fab" data-paywall-fab>
+            <button class="paywall-fab__btn" data-paywall-add type="button">
+              <span class="paywall-fab__icon" aria-hidden="true">+</span>
+              <span data-paywall-add-label>Добавить абзац</span>
+            </button>
+            <div class="paywall-fab__timer" data-paywall-timer hidden></div>
           </div>
         </div>
       </article>

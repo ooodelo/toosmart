@@ -92,7 +92,7 @@
     "menu_label": "РАЗДЕЛ 2: ИНСТРУМЕНТЫ — ФИЗИКА И ПРИМЕНЕНИЕ",
     "menu_subtitle": "",
     "paywall": {
-      "openBlocks": 3,
+      "openBlocks": 6,
       "teaserBlocks": 15
     },
     "carousel_label": "",
@@ -167,6 +167,91 @@
     "carousel_subtitle": "Начните с ГУБКИ!!!",
     "carousel_icon": "🧽",
     "carousel_order": 4,
+    "carousel_enabled": true
+  },
+  "course/07_раздел_7_ванная.md": {
+    "slug": "razdel-7-vannaya",
+    "seo_h1": "РАЗДЕЛ 7: ВАННАЯ",
+    "title": "РАЗДЕЛ 7: ВАННАЯ — Слишком умная уборка",
+    "meta_description": "",
+    "menu_label": "РАЗДЕЛ 7: ВАННАЯ",
+    "menu_subtitle": "",
+    "paywall": {
+      "openBlocks": 3,
+      "teaserBlocks": 11
+    },
+    "carousel_label": "",
+    "carousel_subtitle": "",
+    "carousel_icon": "",
+    "carousel_order": null,
+    "carousel_enabled": true
+  },
+  "course/bezopasnost-v-klininge-enhanced.md": {
+    "slug": "bezopasnost-i-predotvraschenie-oshibok-v-klininge",
+    "seo_h1": "Безопасность и предотвращение ошибок в клининге",
+    "title": "Безопасность и предотвращение ошибок в клининге — Слишком умная уборка",
+    "meta_description": "",
+    "menu_label": "Безопасность и предотвращение ошибок в клининге",
+    "menu_subtitle": "",
+    "paywall": {
+      "openBlocks": 8,
+      "teaserBlocks": 17
+    },
+    "carousel_label": "",
+    "carousel_subtitle": "",
+    "carousel_icon": "",
+    "carousel_order": null,
+    "carousel_enabled": true
+  },
+  "course/osnovy-uborki-longread-enhanced.md": {
+    "slug": "osnovy-effektivnoy-uborki-ot-teorii-k-praktike",
+    "seo_h1": "Основы эффективной уборки: от теории к практике",
+    "title": "Основы эффективной уборки: от теории к практике — Слишком умная уборка",
+    "meta_description": "",
+    "menu_label": "Основы эффективной уборки: от теории к практике",
+    "menu_subtitle": "",
+    "paywall": {
+      "openBlocks": 10,
+      "teaserBlocks": 15
+    },
+    "carousel_label": "",
+    "carousel_subtitle": "",
+    "carousel_icon": "",
+    "carousel_order": null,
+    "carousel_enabled": true
+  },
+  "course/himiya-longread-enhanced.md": {
+    "slug": "himiya-sredstva-i-ih-celevoe-primenenie",
+    "seo_h1": "Химия — средства и их целевое применение",
+    "title": "Химия — средства и их целевое применение — Слишком умная уборка",
+    "meta_description": "",
+    "menu_label": "Химия — средства и их целевое применение",
+    "menu_subtitle": "",
+    "paywall": {
+      "openBlocks": 7,
+      "teaserBlocks": 10
+    },
+    "carousel_label": "",
+    "carousel_subtitle": "",
+    "carousel_icon": "",
+    "carousel_order": null,
+    "carousel_enabled": true
+  },
+  "course/instrumenty-longread-enhanced.md": {
+    "slug": "instrumenty-fizika-i-primenenie",
+    "seo_h1": "Инструменты — физика и применение",
+    "title": "Инструменты — физика и применение — Слишком умная уборка",
+    "meta_description": "",
+    "menu_label": "Инструменты — физика и применение",
+    "menu_subtitle": "",
+    "paywall": {
+      "openBlocks": 7,
+      "teaserBlocks": 11
+    },
+    "carousel_label": "",
+    "carousel_subtitle": "",
+    "carousel_icon": "",
+    "carousel_order": null,
     "carousel_enabled": true
   }
 }

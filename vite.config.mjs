@@ -6,6 +6,7 @@ import { JSDOM } from 'jsdom';
 export default defineConfig({
   root: 'src',
   publicDir: 'public',  // Serves src/public as root for /shared/recommendations.json
+  base: '/assets/',     // Base path for production build (fixes dynamic import paths)
 
   // Dev server configuration
   server: {

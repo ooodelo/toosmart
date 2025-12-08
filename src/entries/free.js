@@ -34,7 +34,11 @@ import('../js/consent-banner.js')
   .catch((err) => {
     console.warn('[App] Consent banner failed/blocked, continuing without it', err);
   });
-// Инициализируем новый paywall
-initDynamicPaywall();
+// Инициализируем новый paywall (после готовности DOM)
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => initDynamicPaywall());
+} else {
+  initDynamicPaywall();
+}
 
 console.log('[App] Free version initialized');

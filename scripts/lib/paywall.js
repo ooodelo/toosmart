@@ -1,6 +1,27 @@
 const { marked } = require('marked');
+const { processMarkers, extractMeta, renderBreadcrumb } = require('./enhanced-markdown-parser');
 
 const DEFAULT_TEASER_BLOCKS = 3;
+
+function preparePaywallMarkdown(markdown = '') {
+  const source = typeof markdown === 'string' ? markdown : '';
+  const { meta, cleanedMarkdown } = extractMeta(source);
+  const processed = processMarkers(cleanedMarkdown || '');
+  const breadcrumb = renderBreadcrumb(meta);
+  return breadcrumb ? `${breadcrumb}\n\n${processed}` : processed;
+}
+
+function isCountableToken(token) {
+  if (!token || token.type === 'space') return false;
+  if (token.type === 'html') {
+    const raw = typeof token.raw === 'string' ? token.raw.trim() : '';
+    const text = typeof token.text === 'string' ? token.text.trim() : '';
+    const value = raw || text;
+    if (value.startsWith('<!--')) return false;
+    if (/^<nav[^>]+article-breadcrumb/i.test(value)) return false;
+  }
+  return true;
+}
 
 function stripHtml(html) {
   return String(html || '')
@@ -21,7 +42,8 @@ function splitTokensByBlocks(tokens, openBlocks = 1, teaserBlocks = DEFAULT_TEAS
 
   for (const token of tokens) {
     const isSpace = token.type === 'space';
-    if (!isSpace) {
+    const countable = isCountableToken(token);
+    if (countable) {
       blockCounter++;
     }
 
@@ -30,11 +52,11 @@ function splitTokensByBlocks(tokens, openBlocks = 1, teaserBlocks = DEFAULT_TEAS
       continue;
     }
 
-    if (!isSpace && teaserCounter >= teaserBlocks) {
+    if (countable && teaserCounter >= teaserBlocks) {
       continue;
     }
 
-    if (!isSpace) {
+    if (countable) {
       teaserCounter++;
     }
     if (teaserCounter <= teaserBlocks) {
@@ -42,7 +64,7 @@ function splitTokensByBlocks(tokens, openBlocks = 1, teaserBlocks = DEFAULT_TEAS
     }
   }
 
-  const totalBlocks = tokens.filter(t => t.type !== 'space').length;
+  const totalBlocks = tokens.filter(isCountableToken).length;
 
   return {
     openTokens,
@@ -55,7 +77,8 @@ function splitTokensByBlocks(tokens, openBlocks = 1, teaserBlocks = DEFAULT_TEAS
 
 // Port of legacy heuristic with block counts
 function analyzePaywallStructure(markdown) {
-  const tokens = marked.lexer(markdown);
+  const prepared = preparePaywallMarkdown(markdown);
+  const tokens = marked.lexer(prepared);
   let openTokens = [];
   let teaserTokens = [];
   let boundaryIndex = -1;
@@ -179,9 +202,9 @@ function analyzePaywallStructure(markdown) {
     }
   }
 
-  const totalBlocks = tokens.filter(t => t.type !== 'space').length;
-  const openBlocks = openTokens.filter(t => t.type !== 'space').length;
-  const teaserBlocks = teaserTokens.filter(t => t.type !== 'space').length;
+  const totalBlocks = tokens.filter(isCountableToken).length;
+  const openBlocks = openTokens.filter(isCountableToken).length;
+  const teaserBlocks = teaserTokens.filter(isCountableToken).length;
 
   const openHtml = marked.parser(attachLinks(openTokens, tokens.links));
   const teaserHtml = marked.parser(attachLinks(teaserTokens, tokens.links));
@@ -190,9 +213,10 @@ function analyzePaywallStructure(markdown) {
 }
 
 function buildPaywallSegments(markdown, override) {
-  const tokens = marked.lexer(markdown);
+  const prepared = preparePaywallMarkdown(markdown);
+  const tokens = marked.lexer(prepared);
   const links = tokens.links || {};
-  const totalBlocks = tokens.filter(t => t.type !== 'space').length;
+  const totalBlocks = tokens.filter(isCountableToken).length;
 
   if (override && typeof override.openBlocks === 'number') {
     const openBlocks = Math.max(1, Math.min(override.openBlocks, totalBlocks || 1));
@@ -218,13 +242,14 @@ function buildPaywallSegments(markdown, override) {
 }
 
 function extractBlocks(markdown) {
-  const tokens = marked.lexer(markdown);
+  const prepared = preparePaywallMarkdown(markdown);
+  const tokens = marked.lexer(prepared);
   const links = tokens.links || {};
   const blocks = [];
   let index = 0;
 
   tokens.forEach((token, tokenIndex) => {
-    if (token.type === 'space') return;
+    if (!isCountableToken(token)) return;
     index += 1;
     const html = marked.parser(attachLinks([token], links));
     blocks.push({
