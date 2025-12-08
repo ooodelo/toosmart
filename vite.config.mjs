@@ -4,13 +4,18 @@ import handlebars from 'vite-plugin-handlebars';
 import { JSDOM } from 'jsdom';
 
 export default defineConfig({
+  // Корень dev‑сервера — исходники в src
   root: 'src',
+  // Явно фиксируем base=/ для dev и preview,
+  // чтобы Vite не пытался работать с базой /assets/
+  base: '/',
   publicDir: 'public',  // Serves src/public as root for /shared/recommendations.json
 
   // Dev server configuration
   server: {
     port: 3000,
-    open: '/template.html'
+    // Не открываем браузер автоматически при старте dev-сервера
+    open: false
   },
 
   // Transpile modern syntax for older Safari

@@ -20,7 +20,9 @@ function getLanIp() {
 
 const host = getLanIp();
 const port = process.env.PORT || 4173;
-const args = ['vite', '--host', host, '--port', String(port), '--clearScreen', 'false', '--strictPort'];
+// Явно фиксируем base=/, чтобы dev‑сервер не пытался
+// обслуживать HTML по префиксу /assets/ (как в prod-сборке).
+const args = ['vite', '--base', '/', '--host', host, '--port', String(port), '--clearScreen', 'false', '--strictPort'];
 
 console.log(`\n🌐 Starting Vite dev server on ${host}:${port} (LAN)\n`);
 console.log(`   URLs:`);
@@ -41,14 +43,3 @@ const child = spawn('npx', args, {
 child.on('exit', (code) => {
   process.exit(code || 0);
 });
-
-function openSafari(urls = []) {
-  if (process.platform !== 'darwin' || !urls.length) return;
-  const args = ['-na', 'Safari', ...urls];
-  spawn('open', args, { stdio: 'ignore', detached: true }).unref();
-}
-
-// Открываем обе вкладки
-const base = `http://${host}:${port}`;
-const urls = [`${base}/template.html`, `${base}/template-paywall.html`];
-setTimeout(() => openSafari(urls), 1500);

@@ -323,9 +323,10 @@ function initSinglePaywall(root) {
 
   const appendBlock = (html) => {
     if (!body) return;
-    const block = document.createElement('p');
-    block.innerHTML = html;
-    body.appendChild(block);
+    // Используем template для корректной вставки блочных элементов (h2, div, blockquote и т.д.)
+    const temp = document.createElement('template');
+    temp.innerHTML = html;
+    body.appendChild(temp.content);
     if (hint) hint.remove();
   };
 

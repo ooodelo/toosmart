@@ -2798,12 +2798,8 @@ body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
   margin: 0;
 }
 
-.paywall-overlay {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 10;
-  overflow: hidden;
+.paywall-block {
+  position: relative;
 }
 
 .paywall-overlay__fluid {
@@ -2812,15 +2808,7 @@ body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
   overflow: hidden;
   pointer-events: none;
   background: transparent;
-}
-
-.paywall-cta-layer {
-  position: relative;
-  width: 100%;
-  display: block;
-  pointer-events: none;
-  z-index: 11;
-  overflow: visible;
+  z-index: 1;
 }
 
 .paywall-fluid__canvas {
@@ -2832,25 +2820,16 @@ body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
   background: transparent !important;
 }
 
-.paywall-overlay__cta {
-  position: relative;
-  display: block;
-  pointer-events: none;
-  width: 100%;
-}
-
-.paywall-overlay__cta-inner {
+.paywall-cta-sticky {
   position: sticky;
   top: 50vh;
   transform: translateY(-50%);
-  width: min(640px, 100%);
-  max-width: 640px;
+  z-index: 10;
   display: flex;
-  flex-direction: column;
-  align-items: center;
   justify-content: center;
-  gap: 16px;
-  margin: 0 auto;
+  align-items: center;
+  pointer-events: none;
+  margin-top: -80px;
 }
 
 .paywall-cta-button {

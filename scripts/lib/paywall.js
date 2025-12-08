@@ -13,6 +13,17 @@ function attachLinks(tokens, links) {
   return Object.assign([], tokens, { links: links || {} });
 }
 
+/**
+ * Проверяет, является ли токен служебным маркером (divider, section, meta, subtitle, lead).
+ * Такие токены не должны учитываться при подсчёте контентных блоков.
+ */
+function isServiceMarker(token) {
+  if (token.type !== 'paragraph') return false;
+  const raw = (token.raw || '').trim();
+  // Проверяем на HTML-комментарии служебных маркеров
+  return /^<!--\s*(divider|section|\/section|meta|\/meta|subtitle|\/subtitle|lead|\/lead)\s*-->/.test(raw);
+}
+
 function splitTokensByBlocks(tokens, openBlocks = 1, teaserBlocks = DEFAULT_TEASER_BLOCKS) {
   const openTokens = [];
   const teaserTokens = [];
@@ -21,7 +32,10 @@ function splitTokensByBlocks(tokens, openBlocks = 1, teaserBlocks = DEFAULT_TEAS
 
   for (const token of tokens) {
     const isSpace = token.type === 'space';
-    if (!isSpace) {
+    const isService = isServiceMarker(token);
+
+    // Служебные маркеры не учитываются в подсчёте, но включаются в токены
+    if (!isSpace && !isService) {
       blockCounter++;
     }
 
@@ -30,19 +44,20 @@ function splitTokensByBlocks(tokens, openBlocks = 1, teaserBlocks = DEFAULT_TEAS
       continue;
     }
 
-    if (!isSpace && teaserCounter >= teaserBlocks) {
+    // Для teaser: служебные маркеры не съедают квоту
+    if (!isSpace && !isService && teaserCounter >= teaserBlocks) {
       continue;
     }
 
-    if (!isSpace) {
+    if (!isSpace && !isService) {
       teaserCounter++;
     }
-    if (teaserCounter <= teaserBlocks) {
+    if (teaserCounter <= teaserBlocks || isService || isSpace) {
       teaserTokens.push(token);
     }
   }
 
-  const totalBlocks = tokens.filter(t => t.type !== 'space').length;
+  const totalBlocks = tokens.filter(t => t.type !== 'space' && !isServiceMarker(t)).length;
 
   return {
     openTokens,
@@ -90,7 +105,8 @@ function analyzePaywallStructure(markdown) {
       }
 
       openTokens.push(t);
-      if (t.type === 'paragraph') {
+      // Служебные маркеры не считаются как контентные параграфы
+      if (t.type === 'paragraph' && !isServiceMarker(t)) {
         paragraphCount++;
         if (paragraphCount >= 3) break;
       }
@@ -104,7 +120,8 @@ function analyzePaywallStructure(markdown) {
 
     let hasTextAfterH1 = false;
     for (let i = startIndex; i < limitIndex; i++) {
-      if (tokens[i].type === 'paragraph') {
+      // Служебные маркеры не считаются как текст
+      if (tokens[i].type === 'paragraph' && !isServiceMarker(tokens[i])) {
         hasTextAfterH1 = true;
         break;
       }
@@ -119,7 +136,8 @@ function analyzePaywallStructure(markdown) {
         if (t.type === 'hr') break;
 
         openTokens.push(t);
-        if (t.type === 'paragraph') {
+        // Служебные маркеры не считаются как контентные параграфы
+        if (t.type === 'paragraph' && !isServiceMarker(t)) {
           paragraphCount++;
           if (paragraphCount >= 3) break;
         }
@@ -140,7 +158,8 @@ function analyzePaywallStructure(markdown) {
           if (t.type === 'hr') break;
 
           openTokens.push(t);
-          if (t.type === 'paragraph') {
+          // Служебные маркеры не считаются как контентные параграфы
+          if (t.type === 'paragraph' && !isServiceMarker(t)) {
             paragraphCount++;
             if (paragraphCount >= 3) break;
           }
@@ -153,7 +172,8 @@ function analyzePaywallStructure(markdown) {
         while (currentIdx < tokens.length) {
           const t = tokens[currentIdx];
           openTokens.push(t);
-          if (t.type === 'paragraph') {
+          // Служебные маркеры не считаются как контентные параграфы
+          if (t.type === 'paragraph' && !isServiceMarker(t)) {
             paragraphCount++;
             if (paragraphCount >= 3) break;
           }
@@ -170,7 +190,8 @@ function analyzePaywallStructure(markdown) {
 
     while (currentIdx < tokens.length) {
       const t = tokens[currentIdx];
-      if (t.type === 'paragraph') {
+      // Служебные маркеры не считаются как контентные параграфы
+      if (t.type === 'paragraph' && !isServiceMarker(t)) {
         teaserTokens.push(t);
         paragraphCount++;
         if (paragraphCount >= DEFAULT_TEASER_BLOCKS) break;
@@ -179,9 +200,10 @@ function analyzePaywallStructure(markdown) {
     }
   }
 
-  const totalBlocks = tokens.filter(t => t.type !== 'space').length;
-  const openBlocks = openTokens.filter(t => t.type !== 'space').length;
-  const teaserBlocks = teaserTokens.filter(t => t.type !== 'space').length;
+  // Исключаем служебные маркеры из подсчёта блоков
+  const totalBlocks = tokens.filter(t => t.type !== 'space' && !isServiceMarker(t)).length;
+  const openBlocks = openTokens.filter(t => t.type !== 'space' && !isServiceMarker(t)).length;
+  const teaserBlocks = teaserTokens.filter(t => t.type !== 'space' && !isServiceMarker(t)).length;
 
   const openHtml = marked.parser(attachLinks(openTokens, tokens.links));
   const teaserHtml = marked.parser(attachLinks(teaserTokens, tokens.links));
