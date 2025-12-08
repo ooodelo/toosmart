@@ -9,7 +9,9 @@
     content="default-src 'self'; script-src 'self' 'unsafe-inline' https://mc.yandex.ru; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https://mc.yandex.ru; connect-src 'self' https://mc.yandex.ru; frame-ancestors 'none'; base-uri 'self'; form-action 'self';" />
   <title>Основы химии уборки • Слишком Умная Уборка</title>
   {{> head-scripts }}
+  <link rel="stylesheet" href="./progress-widget.css">
   <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./bubble-carousel.css">
 </head>
 
 <body>
@@ -45,24 +47,8 @@
         </div>
         <div id="article-content">
           <div class="paywall-block" data-paywall-root data-locked-src="">
-            <section class="text-section paywall-text" data-locked-body>
-              <!-- LOCKED: 6 paragraphs -->
-              <h2>Кислоты и щёлочи: когда что использовать</h2>
-              <p>Щелочные средства (pH 8-14) отлично справляются с органическими загрязнениями: жиром, маслом, белковыми
-                пятнами. Сода, мыло, обезжириватели — всё это щелочи.</p>
-              <p>Кислотные средства (pH 1-6) растворяют минеральные отложения: известковый налёт, ржавчину, мочевой
-                камень. Уксус, лимонная кислота, средства для унитаза — кислоты.</p>
-              <h3>Правило номер один</h3>
-              <p>Никогда не смешивайте кислоты и щёлочи — они нейтрализуют друг друга. А хлорсодержащие средства с
-                кислотами выделяют ядовитый хлор.</p>
-              <p>Время контакта важнее силы трения. Нанесите средство, подождите 5-10 минут — химия сделает работу за
-                вас. Грязь отойдёт сама, останется только смыть.</p>
-              <p>В следующих уроках мы разберём конкретные рецепты для кухни, ванной и жилых комнат. Вы узнаете, как
-                собрать минимальный набор средств, который заменит целый шкаф бытовой химии.</p>
-            </section>
-
-            <div class="paywall-overlay" aria-hidden="true">
-              <div class="paywall-overlay__fluid" data-fluid-overlay></div>
+            <!-- CTA layer FIRST - so sticky has content after it to scroll through -->
+            <div class="paywall-cta-layer">
               <div class="paywall-overlay__cta">
                 <div class="paywall-overlay__cta-inner">
                   <button class="paywall-cta-button cta-button" data-analytics="cta-premium" data-paywall-cta
@@ -89,14 +75,34 @@
                 </div>
               </div>
             </div>
+
+            <div class="paywall-overlay" aria-hidden="true">
+              <div class="paywall-overlay__fluid" data-fluid-overlay></div>
+            </div>
+
+            <section class="text-section paywall-text" data-locked-body>
+              <!-- LOCKED: 6 paragraphs -->
+              <h2>Кислоты и щёлочи: когда что использовать</h2>
+              <p>Щелочные средства (pH 8-14) отлично справляются с органическими загрязнениями: жиром, маслом, белковыми
+                пятнами. Сода, мыло, обезжириватели — всё это щелочи.</p>
+              <p>Кислотные средства (pH 1-6) растворяют минеральные отложения: известковый налёт, ржавчину, мочевой
+                камень. Уксус, лимонная кислота, средства для унитаза — кислоты.</p>
+              <h3>Правило номер один</h3>
+              <p>Никогда не смешивайте кислоты и щёлочи — они нейтрализуют друг друга. А хлорсодержащие средства с
+                кислотами выделяют ядовитый хлор.</p>
+              <p>Время контакта важнее силы трения. Нанесите средство, подождите 5-10 минут — химия сделает работу за
+                вас. Грязь отойдёт сама, останется только смыть.</p>
+              <p>В следующих уроках мы разберём конкретные рецепты для кухни, ванной и жилых комнат. Вы узнаете, как
+                собрать минимальный набор средств, который заменит целый шкаф бытовой химии.</p>
+            </section>
           </div>
         </div>
       </article>
 
     </section>
-
-    {{> stack-widget }}
   </main>
+
+  {{> bubble-carousel }}
 
   <div class="dock" role="presentation">
     <button class="dock-handle" type="button" aria-controls="site-menu" aria-expanded="false">
@@ -115,6 +121,7 @@
   {{> modal-settings }}
   {{> modal-fallbacks }}
 
+  <script type="module" src="./js/bubble-carousel.js"></script>
   <script type="module" src="./entries/free.js"></script>
 </body>
 

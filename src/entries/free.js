@@ -11,7 +11,6 @@ import('../script.js').catch((err) => {
 // Импортируем и инициализируем CTA для free версии
 import { initCta } from '../cta.js';
 import { initModalsLogic } from '../js/modals-logic.js';
-import { initCookieBanner } from '../js/cookie-banner.js';
 import { initDynamicPaywall } from '../js/paywall-dynamic.js';
 import '../legal-modals.js';
 
@@ -25,8 +24,16 @@ window.__APP_VERSION__ = 'free';
 initCta();
 // Инициализируем логику модальных окон
 initModalsLogic();
-// Инициализируем куки баннер
-initCookieBanner();
+// Инициализируем куки баннер (глушим контент-блокеры)
+import('../js/consent-banner.js')
+  .then(({ initCookieBanner }) => {
+    if (typeof initCookieBanner === 'function') {
+      initCookieBanner();
+    }
+  })
+  .catch((err) => {
+    console.warn('[App] Consent banner failed/blocked, continuing without it', err);
+  });
 // Инициализируем новый paywall
 initDynamicPaywall();
 

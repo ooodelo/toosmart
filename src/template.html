@@ -9,7 +9,9 @@
     content="default-src 'self'; script-src 'self' 'unsafe-inline' https://mc.yandex.ru; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https://mc.yandex.ru; connect-src 'self' https://mc.yandex.ru; frame-ancestors 'none'; base-uri 'self'; form-action 'self';" />
   <title>Демонстрация стилей • Слишком Умная Уборка</title>
   {{> head-scripts }}
+  <link rel="stylesheet" href="./progress-widget.css">
   <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./bubble-carousel.css">
 </head>
 
 <body>
@@ -130,17 +132,19 @@
                 class="marker-highlight">и подбора</span> <span class="marker-highlight">соответствующего
                 реагента.</span></p>
           </blockquote>
-
-          <footer class="article-footer">Демонстрация enhanced markdown с примерами всех элементов стилизации из
-            референсного дизайна gubka-longread.html.</footer>
         </section>
       </article>
       <nav class="dots-rail" aria-label="Навигация по разделам" data-lazy="dots-nav"></nav>
       <div class="dot-flyout is-hidden" hidden role="navigation" aria-label="Оглавление разделов"></div>
     </section>
 
-    {{> stack-widget }}
   </main>
+
+  <!-- Progress Widget docking slot - BEFORE carousel -->
+  <div class="pw-slot"></div>
+
+  <!-- Carousel outside main for unrestricted shadow -->
+  {{> bubble-carousel }}
 
   <div class="dock" role="presentation">
     <button class="dock-handle" type="button" aria-controls="site-menu" aria-expanded="false">
@@ -158,6 +162,7 @@
   {{> modal-settings }}
   {{> modal-fallbacks }}
 
+  <script type="module" src="./js/bubble-carousel.js"></script>
   <script type="module" src="./entries/premium.js"></script>
 </body>
 

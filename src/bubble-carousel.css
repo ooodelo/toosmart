@@ -1,0 +1,357 @@
+/* ============================================
+   BUBBLE CAROUSEL - Complete Refactored Implementation
+   Based on carousel-switchable.jsx React template
+   
+   Desktop/Tablet: Vertical stack, 2 cards visible
+   Mobile: Horizontal scroll with scroll-snap
+   ============================================ */
+
+/* === Variables === */
+.bubble-carousel {
+    --bubble-card-width: 280px;
+    --bubble-card-width-mobile: 260px;
+    --bubble-gap: 24px;
+    --bubble-gap-mobile: 16px;
+    --bubble-radius: 24px;
+    --bubble-shadow: 0 20px 30px rgba(0, 0, 0, 0.2);
+    --bubble-bg: #ffffff;
+    --bubble-title-color: #202124;
+    --bubble-desc-color: #6b7280;
+    --bubble-dot-inactive: #d1d1d6;
+    --bubble-dot-active: #202124;
+}
+
+/* === Container === */
+.bubble-carousel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 100%;
+    padding: 0;
+    /* Wrapper handles spacing now */
+    overflow: visible;
+    font-family: var(--sans, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif);
+    -webkit-font-smoothing: antialiased;
+}
+
+.bubble-carousel.is-hidden {
+    display: none;
+}
+
+/* =============================================
+   MODE-SPECIFIC POSITIONING
+   ============================================= */
+
+/* DESKTOP-WIDE: Fixed right column */
+body[data-mode="desktop-wide"] .bubble-carousel {
+    position: fixed;
+    top: var(--stack-top, 16px);
+    right: 0;
+    left: auto;
+    /* Expanded container for side shadows */
+    width: 450px;
+    /* Increased from 320px */
+    min-width: 450px;
+    max-width: 450px;
+    right: -40px;
+    /* Shift right so card position remains similar but container extends left */
+
+    margin: 0;
+    padding: 20px;
+    z-index: 1200;
+    overflow: visible;
+    /* CRITICAL */
+    grid-column: 3;
+}
+
+/* DESKTOP-WIDE: Disable scroll wrapper functionality */
+body[data-mode="desktop-wide"] .bubble-carousel__scroll-wrapper {
+    width: 100%;
+    overflow: visible;
+    /* No scroll */
+    padding: 0;
+    /* Reset padding */
+    display: block;
+}
+
+/* DESKTOP: Full width horizontal carousel (outside main) */
+body[data-mode="desktop"] .bubble-carousel {
+    position: relative;
+    width: 100%;
+    margin: 0;
+    /* Clean spacing - no negative margins */
+    padding: 0;
+    z-index: 1;
+    overflow: visible;
+}
+
+/* TABLET: Full width horizontal carousel (outside main) */
+body[data-mode="tablet"] .bubble-carousel {
+    position: relative;
+    width: 100%;
+    margin: 0;
+    /* Clean spacing */
+    padding: 0;
+    overflow: visible;
+}
+
+/* MOBILE: Full width horizontal carousel (outside main) */
+body[data-mode="mobile"] .bubble-carousel {
+    position: relative;
+    width: 100%;
+    margin: 0;
+    /* Clean spacing */
+    padding: 0;
+    overflow: visible;
+}
+
+body[data-mode="mobile"] .bubble-carousel__scroll-wrapper {
+    padding: 32px 24px 40px 24px;
+}
+
+/* =============================================
+   SCROLL WRAPPER: Handles horizontal scroll
+   Separates scroll from shadow visibility
+   ============================================= */
+.bubble-carousel__scroll-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    scroll-snap-type: x mandatory;
+
+    /* Padding for shadow visibility - balanced, not excessive */
+    padding: 32px 0 40px 0;
+}
+
+.bubble-carousel__scroll-wrapper::-webkit-scrollbar {
+    display: none;
+}
+
+/* =============================================
+   DESKTOP / TABLET: Vertical Stacked Layout
+   React template lines 336-355:
+   - display: flex
+   - flexDirection: column
+   - alignItems: center
+   - gap: 24px
+   ============================================= */
+.bubble-carousel__track {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--bubble-gap);
+    padding: 8px 20px 24px;
+}
+
+/* === Bubble Card (Base) === */
+/* React template lines 63-77:
+   - position: relative (implicit via flexShrink: 0)
+   - flexShrink: 0
+   - width: 280px (desktop) / 260px (mobile)
+   - borderRadius: 24px
+   - backgroundColor: #ffffff
+   - boxShadow: 0 20px 60px rgba(213, 216, 232, 1)
+   - border: 1px solid transparent (hover: #d9d9d9)
+*/
+.bubble-card {
+    position: relative;
+    flex-shrink: 0;
+    width: var(--bubble-card-width);
+    min-height: 200px;
+    padding: 22px 20px 26px;
+
+    background: var(--bubble-bg);
+    border-radius: var(--bubble-radius);
+    border: 1px solid transparent;
+    box-shadow: var(--bubble-shadow);
+
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+
+    /* Simple opacity transition for fade effect */
+    transition: opacity 0.3s ease, border-color 0.2s ease;
+}
+
+/* Desktop: Hide cards beyond first 2 */
+.bubble-card:nth-child(n+3) {
+    display: none;
+}
+
+.bubble-card:hover {
+    border-color: #d9d9d9;
+}
+
+/* === Card Content === */
+/* React template lines 80-116 */
+.bubble-card__emoji {
+    display: block;
+    font-size: 52px;
+    line-height: 1;
+    margin-bottom: 14px;
+}
+
+.bubble-card__title {
+    margin: 0 0 10px 0;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    line-height: 1.2;
+    color: var(--bubble-title-color);
+    text-transform: uppercase;
+}
+
+.bubble-card__desc {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.7;
+    letter-spacing: 0.01em;
+    color: var(--bubble-desc-color);
+    text-transform: uppercase;
+}
+
+/* === Bubble Tail (Speech Bubble Effect) === */
+/* React template lines 118-133 */
+.bubble-card__tail {
+    position: absolute;
+    bottom: -13px;
+    right: 18px;
+    width: 60px;
+    height: 13px;
+    pointer-events: none;
+}
+
+.bubble-card__tail path {
+    fill: var(--bubble-bg);
+}
+
+/* === Dots Navigation === */
+/* React template lines 195-222 */
+.bubble-carousel__dots {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 0;
+}
+
+.bubble-carousel__dot {
+    width: 8px;
+    height: 8px;
+    padding: 0;
+    border: none;
+    border-radius: 100px;
+    background-color: var(--bubble-dot-inactive);
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.bubble-carousel__dot:hover {
+    background-color: #9ca3af;
+}
+
+.bubble-carousel__dot[aria-current="true"],
+.bubble-carousel__dot.is-active {
+    width: 20px;
+    background-color: var(--bubble-dot-active);
+}
+
+.bubble-carousel__dot[aria-current="true"]:hover,
+.bubble-carousel__dot.is-active:hover {
+    background-color: var(--bubble-dot-active);
+}
+
+/* =============================================
+   TABLET / DESKTOP INLINE: Track Layout (scrolling handled by wrapper)
+   ============================================= */
+body[data-mode="tablet"] .bubble-carousel__track,
+body[data-mode="desktop"] .bubble-carousel__track {
+    display: inline-flex;
+    /* Inline to allow content overflow */
+    flex-direction: row;
+    align-items: stretch;
+    gap: var(--bubble-gap);
+    overflow: visible;
+    /* Allow shadows to show */
+}
+
+/* Tablet/Desktop inline: ALL cards visible */
+body[data-mode="tablet"] .bubble-card:nth-child(n+3),
+body[data-mode="desktop"] .bubble-card:nth-child(n+3) {
+    display: block;
+}
+
+/* Tablet/Desktop inline: scroll-snap on cards */
+body[data-mode="tablet"] .bubble-card,
+body[data-mode="desktop"] .bubble-card {
+    flex-shrink: 0;
+    /* CRITICAL: prevent cards from shrinking to fit container */
+    scroll-snap-align: center;
+    scroll-snap-stop: always;
+}
+
+/* =============================================
+   MOBILE: Horizontal Scroll Layout
+   React template lines 304-333:
+   - display: flex
+   - gap: 16px
+   - overflowX: auto
+   - scrollSnapType: 'x mandatory'
+   - WebkitOverflowScrolling: touch
+   - scrollbarWidth: none
+   - paddingLeft/Right: calc((100% - cardWidth) / 2)
+   
+   CRITICAL: Cards must be position: static/relative for scroll-snap
+   ============================================= */
+body[data-mode="mobile"] .bubble-carousel__track {
+    display: inline-flex;
+    /* Inline to allow content overflow */
+    flex-direction: row;
+    align-items: stretch;
+    gap: var(--bubble-gap-mobile);
+    overflow: visible;
+    /* Allow shadows to show */
+}
+
+/* Mobile: ALL cards visible (override nth-child rule) */
+body[data-mode="mobile"] .bubble-card:nth-child(n+3) {
+    display: block;
+}
+
+/* Mobile card adjustments - STRICTLY 70% viewport width */
+body[data-mode="mobile"] .bubble-card {
+    flex-shrink: 0;
+    /* CRITICAL: prevent cards from shrinking */
+    width: 70vw;
+    /* Always 70% of screen width */
+    min-height: 180px;
+    padding: 20px 18px 24px;
+
+    /* CRITICAL: scroll-snap requires cards in normal flow */
+    scroll-snap-align: center;
+    scroll-snap-stop: always;
+}
+
+body[data-mode="mobile"] .bubble-card__emoji {
+    font-size: 48px;
+    margin-bottom: 12px;
+}
+
+body[data-mode="mobile"] .bubble-card__title {
+    font-size: 15px;
+    margin-bottom: 8px;
+}
+
+body[data-mode="mobile"] .bubble-card__desc {
+    font-size: 12px;
+    line-height: 1.65;
+}
+
+body[data-mode="mobile"] .bubble-card__tail {
+    right: 16px;
+}

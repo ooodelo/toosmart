@@ -5,11 +5,17 @@ import { JSDOM } from 'jsdom';
 
 export default defineConfig({
   root: 'src',
+  publicDir: 'public',  // Serves src/public as root for /shared/recommendations.json
 
   // Dev server configuration
   server: {
     port: 3000,
     open: '/template.html'
+  },
+
+  // Transpile modern syntax for older Safari
+  esbuild: {
+    target: 'safari13'
   },
 
   plugins: [
@@ -41,6 +47,7 @@ export default defineConfig({
   ],
 
   build: {
+    target: 'safari13',
     outDir: '../dist/assets',
     emptyOutDir: false, // Don't clear dist (build.js manages content)
     manifest: true, // Generate manifest.json for build.js

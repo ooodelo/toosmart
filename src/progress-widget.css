@@ -1,0 +1,83 @@
+/* Progress Widget (Docking Button) */
+
+/* Container for the button */
+.pw-button-container {
+    z-index: 1000;
+    /* Above most things, below modals */
+    pointer-events: none;
+    /* Let clicks pass through container area */
+    display: flex;
+    justify-content: center;
+    width: 100%;
+}
+
+/* Floating State (Default when appended to Body) */
+body>.pw-button-container {
+    position: fixed;
+    bottom: 32px;
+    /* iOS safe area + gap */
+    left: 0;
+    right: 0;
+}
+
+/* Docked State (When inside .pw-slot) */
+.pw-slot .pw-button-container {
+    position: relative;
+    /* Static flow inside slot */
+    bottom: auto;
+    left: auto;
+    right: auto;
+    z-index: 1;
+    /* Standard z-index */
+    height: 100%;
+    align-items: center;
+}
+
+/* .pw-slot styles are defined in styles.css */
+
+/* The Button Itself */
+.pw-button {
+    pointer-events: auto;
+    /* Re-enable clicks */
+    background: #000;
+    /* Black accent */
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    padding: 12px 24px;
+    font-size: 17px;
+    font-weight: 600;
+    font-family: var(--sans);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+    cursor: pointer;
+}
+
+.pw-button:active {
+    transform: scale(0.96);
+}
+
+.pw-button svg {
+    margin-right: -4px;
+}
+
+/* Mobile specific overrides */
+@media (max-width: 768px) {
+    body>.pw-button-container {
+        pointer-events: none;
+        /* Container passes clicks */
+        padding: 0 20px;
+        /* Safe gutters */
+        bottom: 24px;
+    }
+
+    .pw-button {
+        width: 100%;
+        /* Full width on mobile float? Or pill? Let's stick to pill for now, maybe elegant width */
+        max-width: 360px;
+        justify-content: center;
+    }
+}

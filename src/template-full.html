@@ -38,7 +38,9 @@
       }
     })();
   </script>
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="./progress-widget.css">
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./bubble-carousel.css">
 </head>
 
 <body>
@@ -161,16 +163,19 @@
             не даёт жиру накапливаться и полимеризоваться, что значительно облегчает уборку.</p>
         </section>
 
-        <!-- Слот для Progress Widget (кнопка "Далее" или альтернативная) -->
-        <div class="pw-slot"></div>
+        <!-- pw-slot moved outside - docking happens visually -->
 
       </article>
       <nav class="dots-rail" aria-label="Навигация по разделам" data-lazy="dots-nav"></nav>
       <div class="dot-flyout is-hidden" hidden role="navigation" aria-label="Оглавление разделов"></div>
     </section>
 
-    {{> stack-widget }}
   </main>
+
+  <!-- Progress Widget docking slot - BEFORE stack -->
+  <div class="pw-slot"></div>
+
+  {{> bubble-carousel }}
 
   <div class="dock" role="presentation">
     <button class="dock-handle" type="button" aria-controls="site-menu" aria-expanded="false">
@@ -474,17 +479,18 @@
     });
 
     // Закрытие всех модальных окон по Escape
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') {
-        closeLegalModal('terms');
-        closeLegalModal('offer');
-        closeLegalModal('privacy');
-        closeLegalModal('refund');
-        closeLegalModal('contacts');
-        closeCookieBanner();
-      }
-    });
-  </script>
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      closeLegalModal('terms');
+      closeLegalModal('offer');
+      closeLegalModal('privacy');
+      closeLegalModal('refund');
+      closeLegalModal('contacts');
+      closeCookieBanner();
+    }
+  });
+</script>
+  <script type="module" src="./js/bubble-carousel.js"></script>
 </body>
 
 </html>

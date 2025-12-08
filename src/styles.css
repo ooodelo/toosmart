@@ -34,7 +34,7 @@
   --article-padding-x-mobile: 20px;
   --article-padding-x-desktop: 40px;
   --article-padding-top-mobile: 62px;
-  --article-padding-bottom-mobile: 40px;
+  --article-padding-bottom-mobile: 16px;
   --article-padding-top-desktop: 70px;
   --article-padding-bottom-desktop: 48px;
 
@@ -610,16 +610,6 @@ a:hover {
   margin-top: 2px;
 }
 
-/* Article footer */
-.article-footer {
-  border-top: 1px solid var(--border-color);
-  margin-top: 28px;
-  padding-top: 18px;
-  font-size: 13px;
-  color: var(--muted-color);
-  line-height: 1.6;
-}
-
 /* Article breadcrumb */
 .article-breadcrumb {
   font-size: 13px;
@@ -679,20 +669,32 @@ html {
   text-rendering: optimizeLegibility;
 }
 
+/* Scroll Lock - overflow-based approach (no position: fixed jump) */
 body[data-lock="scroll"] {
-  overflow: hidden;
+  overflow: hidden !important;
+  touch-action: none;
+  overscroll-behavior: none;
 }
 
 html[data-lock="scroll"] {
-  overflow: hidden;
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+
+/* Allow scrolling inside menu when body is locked */
+body[data-lock="scroll"] .site-menu {
+  touch-action: pan-y;
+  overscroll-behavior: contain;
 }
 
 .main {
   display: grid;
   column-gap: 0;
-  padding: calc(var(--gap-page) * 1.5) var(--gap-page) calc(var(--gap-page) * 2);
+  padding: calc(var(--gap-page) * 1.5) var(--gap-page) 0;
   position: relative;
-  /* Context for pseudo-elements if needed, though grid items work without it */
+  /* Prevent main from growing and pushing next button down */
+  flex: 0 0 auto;
+  width: 100%;
 }
 
 /* 
@@ -1164,8 +1166,7 @@ body[data-mode="tablet"] .menu-handle__dots {
 
 @media (min-width: 768px) {
   .panel {
-    padding: 80px 24px 96px;
-    /* Match reference .page padding */
+    padding: 80px 24px 0;
   }
 }
 
@@ -1226,6 +1227,10 @@ body[data-mode="mobile"] .text-section table {
   border: none;
   scroll-margin-top: var(--section-scroll-margin, 120px);
   /* Typography inherits from global/article styles via CSS cascade */
+}
+
+.text-section:last-child {
+  margin-bottom: 0;
 }
 
 /* Breadcrumbs */
@@ -1395,16 +1400,16 @@ body[data-mode="mobile"] .text-section table {
 /* Базовые стили для всех браузеров (progressive enhancement) */
 .dot-flyout {
   position: fixed;
-  top: 50%;
+  top: var(--flyout-top, 50%);
   /* Позиция: справа от dots-rail (между точками и текстом) */
   left: calc(50% - var(--text-box-width) / 2 - 48px + 24px + 16px);
   /* rail_left + max_dot_width + gap */
   z-index: 9999;
 
   /* Transform с префиксами для старых браузеров */
-  -webkit-transform: translateY(-50%);
-  -ms-transform: translateY(-50%);
-  transform: translateY(-50%);
+  -webkit-transform: translateY(var(--flyout-translate, -50%));
+  -ms-transform: translateY(var(--flyout-translate, -50%));
+  transform: translateY(var(--flyout-translate, -50%));
 
   /* Layout: block fallback → grid для современных браузеров */
   display: block;
@@ -1619,20 +1624,22 @@ body[data-mode="mobile"] .dot-flyout {
   bottom: 0;
   right: 0;
   width: 280px;
-  /* Fixed width as requested */
-  /* Fixed width for horizontal expansion */
   display: block;
-  padding: 24px;
+  padding: 22px 20px 26px;
   height: var(--stack-height-collapsed);
-  background: #fff;
-  border-radius: 32px;
-  border: none;
-  box-shadow: 0 40px 80px -20px rgba(0, 0, 0, 0.08);
+  background: #ffffff;
+  border-radius: 24px;
+  border: 1px solid transparent;
+  box-shadow: var(--shadow-soft);
   color: inherit;
   text-decoration: none;
-  overflow: hidden;
+  overflow: visible;
   transform-origin: 50% 50%;
   will-change: transform, opacity;
+  transition: border-color 0.2s ease, box-shadow 0.3s ease;
+  cursor: pointer;
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
 }
 
 .stack-card__inner {
@@ -1674,32 +1681,27 @@ body[data-mode="mobile"] .dot-flyout {
 /* Title at the top */
 /* Title in the middle */
 .stack-card__title {
-  margin: 0 0 12px 0;
+  margin: 0 0 10px 0;
   font-family: var(--sans);
-  font-size: 20px;
-  line-height: 1.4;
-  color: #C7A049;
-  /* Golden Retriever */
+  font-size: 16px;
+  line-height: 1.2;
+  color: #202124;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  text-decoration: underline;
-  text-decoration-color: var(--text-color);
-  text-decoration-thickness: 3px;
-  text-underline-offset: 4px;
-  transition: text-decoration-color 0.3s ease;
+  text-decoration: none;
 }
 
-.stack-card:hover .stack-card__title {
-  text-decoration-color: var(--link-color);
+.stack-card:hover {
+  border-color: #d9d9d9;
 }
 
 /* Emoji at the top */
 .stack-card__emoji {
   display: inline-block;
-  font-size: 58px;
+  font-size: 52px;
   line-height: 1;
-  margin: 0;
+  margin: 0 0 14px 0;
 }
 
 /* Description at the bottom */
@@ -1707,13 +1709,27 @@ body[data-mode="mobile"] .dot-flyout {
   margin: 0;
   padding: 0;
   font-family: var(--sans);
-  font-size: 14px;
-  line-height: 1.6;
-  letter-spacing: normal;
-  text-transform: none;
-  color: #86868b;
+  font-size: 13px;
+  line-height: 1.7;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  color: #6b7280;
   font-weight: 400;
   display: block;
+}
+
+/* Bubble tail (speech bubble effect) */
+.stack-card__tail {
+  position: absolute;
+  bottom: -13px;
+  right: 18px;
+  width: 60px;
+  height: 13px;
+  pointer-events: none;
+}
+
+.stack-card__tail path {
+  fill: #ffffff;
 }
 
 /* Deprecated meta container (removed from DOM, but keeping safe fallback just in case) */
@@ -1804,6 +1820,43 @@ body[data-mode="mobile"] .dot-flyout {
 
 .stack--mobile .stack-card {
   transform-origin: 50% 100%;
+}
+
+/* Dot Navigation */
+.stack__dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 20px;
+  position: relative;
+  z-index: 2;
+}
+
+.stack__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 100px;
+  background-color: #d1d1d6;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stack__dot[aria-current="true"],
+.stack__dot.is-active {
+  width: 20px;
+  background-color: #202124;
+}
+
+.stack__dot:hover {
+  background-color: #9ca3af;
+}
+
+.stack__dot[aria-current="true"]:hover,
+.stack__dot.is-active:hover {
+  background-color: #202124;
 }
 
 .stack.stack--empty {
@@ -2054,10 +2107,17 @@ body[data-mode="desktop-wide"] .panel {
   grid-column: 2;
   grid-row: 1;
   padding: 0;
+  padding-bottom: 0 !important;
 }
 
 body[data-mode="desktop-wide"] .text-box {
   width: 100%;
+}
+
+/* Force remove bottom margin/padding to fix 128px gap */
+body[data-mode="desktop-wide"] .text-section {
+  margin-bottom: 0 !important;
+  padding-bottom: 16px;
 }
 
 body[data-mode="desktop-wide"] .stack {
@@ -2408,21 +2468,18 @@ body[data-mode="mobile"].menu-open .backdrop {
   opacity: 1;
 }
 
-/* Контейнер-слот для мобильного режима */
+/* Контейнер-слот для докинга кнопки "Далее" — все режимы */
 .pw-slot {
-  display: contents;
-}
-
-body[data-mode="mobile"] .pw-slot {
   display: flex;
   position: relative;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
-  min-height: calc(var(--pw-pill-height) + 16px);
-  margin: 24px auto 0;
-  padding-bottom: 16px;
+  justify-content: center;
+  min-height: calc(var(--pw-pill-height) + 24px);
+  margin: 16px auto 40px;
+  padding: 12px 0;
   width: 100%;
+  max-width: var(--text-box-width, 640px);
 }
 
 /* Визуальный контейнер */
@@ -2589,6 +2646,21 @@ body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
   z-index: 1400;
 }
 
+/* ============================================
+   DOCKED STATE - Instant snap to .pw-slot
+   Button stays in body, position syncs to slot
+   NO TRANSITIONS - instant docking
+   ============================================ */
+#pw-root.is-docked {
+  position: fixed !important;
+  left: 50% !important;
+  top: var(--pw-dock-top) !important;
+  bottom: auto !important;
+  transform: translate(-50%, -50%);
+  z-index: 150;
+  /* NO transition - instant snap */
+}
+
 /* Отключение анимаций для prefers-reduced-motion */
 @media (prefers-reduced-motion: reduce) {
   body[data-mode="mobile"] #pw-root {
@@ -2610,13 +2682,8 @@ body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
    PAYWALL БЛОК ДЛЯ FREE ВЕРСИИ
    ============================================ */
 
-/* Слот для Progress Widget */
-.pw-slot {
-  position: relative;
-  min-height: var(--pw-footprint);
-  margin-top: 48px;
-  margin-bottom: 24px;
-}
+/* pw-slot styles are defined earlier at line ~2470 */
+/* Removed duplicate definition here */
 
 .premium-teaser {
   position: relative;
@@ -2736,6 +2803,7 @@ body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
   inset: 0;
   pointer-events: none;
   z-index: 10;
+  overflow: hidden;
 }
 
 .paywall-overlay__fluid {
@@ -2744,6 +2812,15 @@ body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
   overflow: hidden;
   pointer-events: none;
   background: transparent;
+}
+
+.paywall-cta-layer {
+  position: relative;
+  width: 100%;
+  display: block;
+  pointer-events: none;
+  z-index: 11;
+  overflow: visible;
 }
 
 .paywall-fluid__canvas {
@@ -2756,21 +2833,24 @@ body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
 }
 
 .paywall-overlay__cta {
-  position: absolute;
-  inset: 0;
+  position: relative;
+  display: block;
   pointer-events: none;
+  width: 100%;
 }
 
 .paywall-overlay__cta-inner {
   position: sticky;
   top: 50vh;
   transform: translateY(-50%);
-  width: 100%;
+  width: min(640px, 100%);
+  max-width: 640px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 16px;
+  margin: 0 auto;
 }
 
 .paywall-cta-button {
@@ -3133,14 +3213,6 @@ body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
 /* ============================================
    КНОПКИ НАВИГАЦИИ
    ============================================ */
-
-.article-footer {
-  margin-top: 48px;
-  padding-top: 32px;
-  border-top: 1px solid #e5e7eb;
-  display: flex;
-  justify-content: center;
-}
 
 /* Основная кнопка "Далее" для Premium course */
 .btn-next {

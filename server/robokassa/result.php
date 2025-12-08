@@ -6,6 +6,7 @@ require_once __DIR__ . '/../src/schema_init.php';
 
 $cfg = require __DIR__ . '/../src/config_loader.php';
 $alg = $cfg['robokassa']['signature_alg'] ?? 'md5';
+$isTest = !empty($cfg['robokassa']['is_test']);
 
 $src = ($_SERVER['REQUEST_METHOD'] === 'POST') ? $_POST : $_GET;
 $outSum = $src['OutSum'] ?? null;
@@ -15,7 +16,11 @@ $shp = rk_extract_shp($src);
 
 if (!$outSum || !$invId || !$sig) { http_response_code(400); echo "bad_request"; exit; }
 
-$calc = strtoupper(rk_make_signature_result($outSum, $invId, $cfg['robokassa']['pass2'], $shp, $alg));
+$pass2 = $isTest
+  ? ($cfg['robokassa']['test_password2'] ?? $cfg['robokassa']['pass2'])
+  : $cfg['robokassa']['pass2'];
+
+$calc = strtoupper(rk_make_signature_result($outSum, $invId, $pass2, $shp, $alg));
 if (!hash_equals($calc, $sig)) { http_response_code(403); echo "bad_signature"; exit; }
 
 $pdo = db();

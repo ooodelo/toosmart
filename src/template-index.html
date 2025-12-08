@@ -9,7 +9,9 @@
         content="default-src 'self'; script-src 'self' 'unsafe-inline' https://mc.yandex.ru; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https://mc.yandex.ru; connect-src 'self' https://mc.yandex.ru; frame-ancestors 'none'; base-uri 'self'; form-action 'self';" />
     <title>Введение в курс • Слишком Умная Уборка</title>
     {{> head-scripts }}
+    <link rel="stylesheet" href="./progress-widget.css">
     <link rel="stylesheet" href="./styles.css">
+    <link rel="stylesheet" href="./bubble-carousel.css">
 </head>
 
 <body>
@@ -74,9 +76,9 @@
             <nav class="dots-rail" aria-label="Навигация по разделам" data-lazy="dots-nav"></nav>
             <div class="dot-flyout is-hidden" hidden role="navigation" aria-label="Оглавление разделов"></div>
         </section>
-
-        {{> stack-widget }}
     </main>
+
+    {{> bubble-carousel }}
 
     <div class="dock" role="presentation">
         <button class="dock-handle" type="button" aria-controls="site-menu" aria-expanded="false">
@@ -94,6 +96,7 @@
     {{> modal-settings }}
     {{> modal-fallbacks }}
 
+    <script type="module" src="./js/bubble-carousel.js"></script>
     <script type="module" src="./entries/free.js"></script>
 </body>
 
