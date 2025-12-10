@@ -2014,7 +2014,6 @@ body[data-mode="desktop"] .main {
   padding: calc(var(--gap-page) * 1.5) var(--gap-page) calc(var(--gap-page) + var(--pw-footprint) + var(--mobile-dock-footprint)) var(--gap-page);
   width: 100%;
   max-width: 100%;
-  overflow-x: hidden;
   align-items: center;
 }
 
@@ -2256,7 +2255,6 @@ body[data-mode="mobile"] .main {
   padding: calc(var(--gap-page) * 1.5) 16px calc(var(--gap-page) + var(--pw-footprint) + var(--mobile-dock-footprint)) 16px;
   width: 100%;
   max-width: 100%;
-  overflow-x: hidden;
 }
 
 body[data-mode="mobile"] .panel {
@@ -2802,13 +2800,40 @@ body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
   position: relative;
 }
 
+.paywall-overlay {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
 .paywall-overlay__fluid {
   position: absolute;
   inset: 0;
   overflow: hidden;
   pointer-events: none;
   background: transparent;
-  z-index: 1;
+}
+
+.paywall-overlay__cta {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.paywall-overlay__cta-inner {
+  position: sticky;
+  top: 50vh;
+  transform: translateY(-50%);
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
 }
 
 .paywall-fluid__canvas {
@@ -2818,18 +2843,6 @@ body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
   height: 100%;
   display: block;
   background: transparent !important;
-}
-
-.paywall-cta-sticky {
-  position: sticky;
-  top: 50vh;
-  transform: translateY(-50%);
-  z-index: 10;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  pointer-events: none;
-  margin-top: -80px;
 }
 
 .paywall-cta-button {
@@ -3807,11 +3820,6 @@ body[data-mode="mobile"] .site-footer {
   /* Добавляем отступ снизу, чтобы контент футера не прятался под кнопками */
 }
 
-/* Fix sticky positioning on mobile by allowing overflow */
-body[data-mode="mobile"] .main,
-body[data-mode="mobile"] .text-box {
-  overflow: visible;
-}
 
 /* === CUSTOM COMPONENTS (Apple Marker Theme) === */
 

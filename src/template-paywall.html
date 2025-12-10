@@ -47,22 +47,6 @@
         </div>
         <div id="article-content">
           <div class="paywall-block" data-paywall-root data-locked-src="">
-            <div class="paywall-cta-sticky">
-              <button class="paywall-cta-button cta-button" data-analytics="cta-premium" data-paywall-cta
-                type="button" onclick="openCTAModal()">
-                <span class="paywall-cta-button__icon" aria-hidden="true">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M17 11V8a5 5 0 10-10 0v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                      stroke-linejoin="round" />
-                    <rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" stroke-width="2"
-                      stroke-linecap="round" stroke-linejoin="round" />
-                    <circle cx="12" cy="16" r="1.5" fill="currentColor" />
-                  </svg>
-                </span>
-                <span>Войти в полную версию</span>
-              </button>
-            </div>
-
             <section class="text-section paywall-text" data-locked-body>
               <!-- LOCKED: 6 paragraphs -->
               <h2>Кислоты и щёлочи: когда что использовать</h2>
@@ -80,7 +64,26 @@
               <p class="paywall-text__hint">Нажмите «Добавить абзац», чтобы подгрузить следующую часть статьи.</p>
             </section>
 
-            <div class="paywall-overlay__fluid" data-fluid-overlay aria-hidden="true"></div>
+            <div class="paywall-overlay" aria-hidden="true">
+              <div class="paywall-overlay__fluid" data-fluid-overlay></div>
+              <div class="paywall-overlay__cta">
+                <div class="paywall-overlay__cta-inner">
+                  <button class="paywall-cta-button cta-button" data-analytics="cta-premium" data-paywall-cta
+                    type="button" onclick="openCTAModal()">
+                    <span class="paywall-cta-button__icon" aria-hidden="true">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M17 11V8a5 5 0 10-10 0v3" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                          stroke-linejoin="round" />
+                        <rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" stroke-width="2"
+                          stroke-linecap="round" stroke-linejoin="round" />
+                        <circle cx="12" cy="16" r="1.5" fill="currentColor" />
+                      </svg>
+                    </span>
+                    <span>Войти в полную версию</span>
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div class="paywall-fab" data-paywall-fab>

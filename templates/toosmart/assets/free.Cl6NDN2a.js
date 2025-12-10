@@ -1,0 +1,2 @@
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["script.BQf6_qxl.js","legal-modals.HlgFiOUJ.js"])))=>i.map(i=>d[i]);
+import{_ as o,i as _,a as e,b as a}from"./legal-modals.HlgFiOUJ.js";o(()=>import("./script.BQf6_qxl.js"),__vite__mapDeps([0,1])).catch(i=>{console.error("[App] Base script failed to load",i)});window.__DEV_LOGIN_BYPASS__=!1;window.__APP_VERSION__="free";_();e();a();console.log("[App] Free version initialized");
