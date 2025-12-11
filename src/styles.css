@@ -652,8 +652,6 @@ body {
 
 html {
   scroll-behavior: smooth;
-  overflow-x: hidden;
-  max-width: 100%;
 
   /* Проблема 2: Отключение Safari bounce (резиновый эффект) */
   -ms-scroll-chaining: none;
