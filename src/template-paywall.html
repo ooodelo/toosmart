@@ -11,7 +11,6 @@
   {{> head-scripts }}
   <link rel="stylesheet" href="./progress-widget.css">
   <link rel="stylesheet" href="./styles.css">
-  <link rel="stylesheet" href="./bubble-carousel.css">
 </head>
 
 <body>
@@ -28,21 +27,17 @@
       <article class="text-box" aria-label="Основной материал" data-build-slot="body" data-page-type="free">
         <div class="text-box__intro">
           <header>
-            <nav class="article-breadcrumb"><a href="#">Курс</a><span class="separator"> · </span><span
-                class="current">Урок 1</span></nav>
             <h1>Основы химии уборки</h1>
             <p class="meta">~7 минут чтения</p>
           </header>
           <section class="text-section">
-            <!-- FREE: 3 paragraphs -->
             <p>Уборка — это не просто рутина, а сложный химический процесс. Большинство из нас использует средства,
               которые нейтрализуют друг друга, или применяет техники, размазывающие грязь вместо её удаления.</p>
             <p>Маркетологи убедили нас, что одна бутылка может отмыть всё: от жира на плите до известкового налёта в
               ванной. Но с точки зрения химии это невозможно. Жир — это органика, требующая щелочной среды (pH &gt; 7).
               Известковый налёт — минеральные отложения, растворяющиеся только кислотой (pH &lt; 7).</p>
             <p>Используя «универсальное» средство с нейтральным pH, вы просто механически стираете грязь, прилагая
-              лишние
-              усилия. Профессиональный клининг всегда начинается с определения типа загрязнения.</p>
+              лишние усилия. Профессиональный клининг всегда начинается с определения типа загрязнения.</p>
           </section>
         </div>
         <div id="article-content">
@@ -81,25 +76,23 @@
                     </span>
                     <span>Войти в полную версию</span>
                   </button>
+
+                  <div class="paywall-fab" data-paywall-fab>
+                    <button class="paywall-fab__btn" data-paywall-add type="button">
+                      <span class="paywall-fab__icon" aria-hidden="true">+</span>
+                      <span data-paywall-add-label>Добавить абзац</span>
+                    </button>
+                    <div class="paywall-fab__timer" data-paywall-timer hidden></div>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-
-          <div class="paywall-fab" data-paywall-fab>
-            <button class="paywall-fab__btn" data-paywall-add type="button">
-              <span class="paywall-fab__icon" aria-hidden="true">+</span>
-              <span data-paywall-add-label>Добавить абзац</span>
-            </button>
-            <div class="paywall-fab__timer" data-paywall-timer hidden></div>
           </div>
         </div>
       </article>
 
     </section>
   </main>
-
-  {{> bubble-carousel }}
 
   <div class="dock" role="presentation">
     <button class="dock-handle" type="button" aria-controls="site-menu" aria-expanded="false">
@@ -118,7 +111,6 @@
   {{> modal-settings }}
   {{> modal-fallbacks }}
 
-  <script type="module" src="./js/bubble-carousel.js"></script>
   <script type="module" src="./entries/free.js"></script>
 </body>
 

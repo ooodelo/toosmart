@@ -1338,7 +1338,9 @@ function buildFreeCoursePage(item, menuHtml, config, template, legalMap = {}, lo
             <h1>${item.seo_h1 || item.h1_md}</h1>
             <p class="meta">${formatReadingTime(item.readingTimeMinutes)} чтения</p>
           </header>
-          ${item.paywallOpenHtml}
+          <section class="text-section">
+            ${item.paywallOpenHtml}
+          </section>
         </div>
 
         <div id="article-content">
@@ -1362,17 +1364,17 @@ function buildFreeCoursePage(item, menuHtml, config, template, legalMap = {}, lo
                     </span>
                     <span>${escapeAttr(config.ctaTexts.enterFull)}</span>
                   </button>
+
+                  <div class="paywall-fab" data-paywall-fab>
+                    <button class="paywall-fab__btn" data-paywall-add type="button">
+                      <span class="paywall-fab__icon" aria-hidden="true">+</span>
+                      <span data-paywall-add-label>Добавить абзац</span>
+                    </button>
+                    <div class="paywall-fab__timer" data-paywall-timer hidden></div>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-
-          <div class="paywall-fab" data-paywall-fab>
-            <button class="paywall-fab__btn" data-paywall-add type="button">
-              <span class="paywall-fab__icon" aria-hidden="true">+</span>
-              <span data-paywall-add-label>Добавить абзац</span>
-            </button>
-            <div class="paywall-fab__timer" data-paywall-timer hidden></div>
           </div>
         </div>
   `;
