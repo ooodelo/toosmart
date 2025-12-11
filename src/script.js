@@ -2339,6 +2339,59 @@ function detectBackdropFilter() {
 }
 
 /**
+ * Fallback для CSS :has() селектора (iOS 15, Safari <16)
+ * Добавляет класс .text-section--before-paywall к секциям перед paywall
+ */
+function applyHasSelectorFallback() {
+  // Проверяем поддержку :has() селектора
+  let hasSupported = false;
+  try {
+    hasSupported = CSS.supports('selector(:has(+ *))');
+  } catch (e) {
+    hasSupported = false;
+  }
+
+  if (hasSupported) {
+    if (DEBUG_MODE_DETECTION) {
+      console.log('[FEATURE] CSS :has() supported ✓');
+    }
+    return;
+  }
+
+  if (DEBUG_MODE_DETECTION) {
+    console.log('[FEATURE] CSS :has() not supported, applying JS fallback');
+  }
+
+  // Находим все .paywall-block элементы
+  const paywallBlocks = document.querySelectorAll('.paywall-block');
+
+  paywallBlocks.forEach((paywall) => {
+    // Ищем предыдущий sibling .text-section
+    let prev = paywall.previousElementSibling;
+    while (prev) {
+      if (prev.classList.contains('text-section')) {
+        prev.classList.add('text-section--before-paywall');
+        break;
+      }
+      prev = prev.previousElementSibling;
+    }
+
+    // Также проверяем случай когда paywall внутри #article-content
+    const articleContent = paywall.closest('#article-content');
+    if (articleContent) {
+      let prevSection = articleContent.previousElementSibling;
+      while (prevSection) {
+        if (prevSection.classList.contains('text-section')) {
+          prevSection.classList.add('text-section--before-paywall');
+          break;
+        }
+        prevSection = prevSection.previousElementSibling;
+      }
+    }
+  });
+}
+
+/**
  * Helper: обновляет режим и синхронизирует observer с layout
  */
 function runModeUpdateFrame() {
@@ -3175,7 +3228,7 @@ function initStackCarousel() {
         style.zIndex = 60;
         style.animation = 'flyOutMobile 800ms cubic-bezier(0.32, 0.72, 0, 1) forwards';
       } else {
-        const animName = activeIndex % 2 === 0 ? 'stackApproachEven' : 'stackApproachOdd';
+        const animName = 'stackTransform';
         style.zIndex = 40 - offset;
         style.animation = `${animName} var(--stack-animation-duration) linear forwards`;
       }
@@ -4422,6 +4475,7 @@ function init() {
 
   // Feature detection
   detectBackdropFilter();
+  applyHasSelectorFallback();
 
   const modeState = updateMode();
 

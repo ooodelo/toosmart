@@ -103,7 +103,7 @@ body[data-mode="mobile"] .bubble-carousel {
     margin: 0;
     /* Clean spacing */
     padding: 0;
-    overflow: visible;
+    overflow-x: hidden;
 }
 
 body[data-mode="mobile"] .bubble-carousel__scroll-wrapper {
