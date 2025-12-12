@@ -47,21 +47,19 @@
 body[data-mode="desktop-wide"] .bubble-carousel {
     position: fixed;
     top: var(--stack-top, 16px);
-    right: 0;
+    right: 20px;
+    /* Clean 20px gap from right edge */
     left: auto;
-    /* Expanded container for side shadows */
-    width: 450px;
-    /* Increased from 320px */
-    min-width: 450px;
-    max-width: 450px;
-    right: -40px;
-    /* Shift right so card position remains similar but container extends left */
+    /* Container width for shadows */
+    width: 340px;
+    min-width: 340px;
+    max-width: 340px;
 
     margin: 0;
-    padding: 20px;
+    padding: 20px 0 20px 40px;
+    /* Left padding for shadows, right is 0 */
     z-index: 1200;
     overflow: visible;
-    /* CRITICAL */
     grid-column: 3;
 }
 
@@ -69,10 +67,14 @@ body[data-mode="desktop-wide"] .bubble-carousel {
 body[data-mode="desktop-wide"] .bubble-carousel__scroll-wrapper {
     width: 100%;
     overflow: visible;
-    /* No scroll */
     padding: 0;
-    /* Reset padding */
     display: block;
+}
+
+/* DESKTOP-WIDE: Cards aligned to right edge */
+body[data-mode="desktop-wide"] .bubble-carousel__track {
+    align-items: flex-end;
+    padding: 0;
 }
 
 /* DESKTOP: Full width horizontal carousel (outside main) */
@@ -163,6 +165,7 @@ body[data-mode="mobile"] .bubble-carousel__scroll-wrapper {
     width: var(--bubble-card-width);
     min-height: 200px;
     padding: 22px 20px 26px;
+    overflow: hidden;
 
     background: var(--bubble-bg);
     border-radius: var(--bubble-radius);
@@ -173,8 +176,18 @@ body[data-mode="mobile"] .bubble-carousel__scroll-wrapper {
     color: inherit;
     cursor: pointer;
 
+    /* CRITICAL: visible for tail SVG to show outside card bounds */
+    overflow: visible;
+
     /* Simple opacity transition for fade effect */
     transition: opacity 0.3s ease, border-color 0.2s ease;
+}
+
+/* Inner content wrapper - clips overflowing text while allowing tail to be visible */
+.bubble-card__content {
+    position: relative;
+    overflow: hidden;
+    height: 100%;
 }
 
 /* Desktop: Hide cards beyond first 2 */
@@ -266,6 +279,11 @@ body[data-mode="mobile"] .bubble-carousel__scroll-wrapper {
     background-color: var(--bubble-dot-active);
 }
 
+/* DESKTOP-WIDE: Dots positioned lower */
+body[data-mode="desktop-wide"] .bubble-carousel__dots {
+    margin-top: 5px;
+}
+
 /* =============================================
    TABLET / DESKTOP INLINE: Track Layout (scrolling handled by wrapper)
    ============================================= */
@@ -293,6 +311,12 @@ body[data-mode="desktop"] .bubble-card {
     /* CRITICAL: prevent cards from shrinking to fit container */
     scroll-snap-align: center;
     scroll-snap-stop: always;
+    height: 250px;
+}
+
+/* Desktop-wide (side column): shorter cards */
+body[data-mode="desktop-wide"] .bubble-card {
+    height: 220px;
 }
 
 /* =============================================

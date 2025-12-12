@@ -15,6 +15,7 @@
     "preview:dist": "live-server dist --port=3003",
     "dev:lan": "node scripts/dev-lan.js",
     "admin": "node admin/server.js",
+    "admin:lan": "PORT=3001 node admin/server.js",
     "clean": "rm -rf dist/*",
     "lint:links": "node scripts/link-linter.js",
     "lint:links:fix": "node scripts/link-linter.js --fix"

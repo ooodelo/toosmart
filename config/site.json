@@ -2,7 +2,7 @@
   "domain": "toosmart.ru",
   "pricing": {
     "originalAmount": 10000,
-    "currentAmount": 3400,
+    "currentAmount": 5490,
     "currency": "RUB"
   },
   "ctaTexts": {
@@ -29,7 +29,7 @@
     "isTest": true
   },
   "build": {
-    "wordsPerMinute": 150
+    "wordsPerMinute": 100
   },
   "features": {
     "cookiesBannerEnabled": true

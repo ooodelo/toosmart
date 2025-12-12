@@ -1102,6 +1102,34 @@
             </div>
           </div>
         </div>
+
+        <div class="card" style="margin-top: 20px;">
+          <div class="card-header">
+            <div class="card-title">🖼 Изображения</div>
+            <div class="filter-chips" id="imagesFilters" style="gap: 8px; flex-wrap: wrap;">
+              <button class="chip active" data-img-filter="all">Все</button>
+              <button class="chip" data-img-filter="missing">Без alt</button>
+              <button class="chip" data-img-filter="markdown">Markdown</button>
+              <button class="chip" data-img-filter="static">Статика</button>
+              <button class="chip" data-img-filter="upload">Загрузки</button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="form-row" style="gap:12px; align-items:flex-end;">
+              <div class="form-group" style="flex:1;">
+                <label class="form-label">Поиск</label>
+                <input type="search" class="form-input" id="imagesSearch" placeholder="Путь, имя, alt...">
+              </div>
+              <div class="form-group" style="width:220px;">
+                <label class="form-label">Загрузка</label>
+                <input type="file" accept="image/*" id="imageUploadInput">
+              </div>
+            </div>
+            <div id="imagesList" class="content-list" style="margin-top:12px;">
+              <div class="card"><div class="card-body">Загрузка изображений...</div></div>
+            </div>
+          </div>
+        </div>
       </section>
 
       <section class="section" data-section="settings">
@@ -1410,7 +1438,10 @@
       htmlBlocks: [],
       selectedBlock: null,
       editorMode: 'code',
-      promos: []
+      promos: [],
+      images: [],
+      imagesFilter: 'all',
+      imagesSearch: ''
     };
 
     const qs = (sel) => document.querySelector(sel);
@@ -1431,11 +1462,12 @@
       bindEditorMode();
       initWysiwygFrame();
       bindPromoPreview();
+      bindImagesPanel();
       loadAll();
     });
 
     async function loadAll() {
-      await Promise.all([loadContent(), loadConfig(), loadLegal(), loadHtmlBlocksList(), loadFaviconStatus(), loadPromos()]);
+      await Promise.all([loadContent(), loadConfig(), loadLegal(), loadHtmlBlocksList(), loadFaviconStatus(), loadPromos(), loadImages()]);
     }
 
     function setStatus(text, isLoading = false) {
@@ -1450,6 +1482,48 @@
       toast.textContent = msg;
       toast.className = `toast ${type} show`;
       setTimeout(() => toast.classList.remove('show'), 2500);
+    }
+
+    function bindImagesPanel() {
+      const filters = qs('#imagesFilters');
+      if (filters) {
+        filters.addEventListener('click', (e) => {
+          const chip = e.target.closest('.chip');
+          if (!chip) return;
+          filters.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+          chip.classList.add('active');
+          state.imagesFilter = chip.dataset.imgFilter || 'all';
+          renderImages();
+        });
+      }
+      const search = qs('#imagesSearch');
+      if (search) {
+        search.addEventListener('input', (e) => {
+          state.imagesSearch = (e.target.value || '').toLowerCase();
+          renderImages();
+        });
+      }
+      const uploadInput = qs('#imageUploadInput');
+      if (uploadInput) {
+        uploadInput.addEventListener('change', async (e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          try {
+            setStatus('Загрузка изображения...', true);
+            const form = new FormData();
+            form.append('file', file);
+            const res = await fetch('/api/upload-image', { method: 'POST', body: form });
+            if (!res.ok) throw new Error('Не удалось загрузить');
+            await loadImages();
+            showToast('Изображение загружено');
+          } catch (error) {
+            showToast(error.message || 'Ошибка загрузки', 'error');
+          } finally {
+            setStatus('Готово', false);
+            uploadInput.value = '';
+          }
+        });
+      }
     }
 
     function bindTabs() {
@@ -1544,6 +1618,103 @@
         state.promos = [];
       }
     }
+
+    async function loadImages() {
+      try {
+        const res = await fetch('/api/images');
+        if (!res.ok) throw new Error('Не удалось загрузить изображения');
+        state.images = await res.json();
+        renderImages();
+      } catch (error) {
+        const container = qs('#imagesList');
+        if (container) container.innerHTML = `<div class="card"><div class="card-body">Ошибка загрузки: ${error.message}</div></div>`;
+      }
+    }
+
+    function filterImages(list) {
+      const q = (state.imagesSearch || '').trim();
+      const filter = state.imagesFilter;
+      return list.filter(img => {
+        const matchesFilter = filter === 'all'
+          ? true
+          : filter === 'missing'
+            ? img.status?.missingAlt
+            : img.sources?.includes(filter);
+        const hay = [
+          img.path,
+          img.filename,
+          img.alt,
+          img.description
+        ].join(' ').toLowerCase();
+        const matchesSearch = q ? hay.includes(q.toLowerCase()) : true;
+        return matchesFilter && matchesSearch;
+      });
+    }
+
+    function renderImages() {
+      const container = qs('#imagesList');
+      if (!container) return;
+      const images = filterImages(state.images || []);
+      if (!images.length) {
+        container.innerHTML = '<div class="card"><div class="card-body">Нет изображений</div></div>';
+        return;
+      }
+      container.innerHTML = '';
+      images.forEach(img => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <div class="card-body" style="display:flex; gap:12px; align-items:flex-start;">
+            <div style="width:80px; height:80px; border:1px solid var(--border-light); border-radius:12px; overflow:hidden; flex-shrink:0; display:flex; align-items:center; justify-content:center; background:#fafafa;">
+              <img src="${img.path}" alt="" style="max-width:100%; max-height:100%; object-fit:contain;">
+            </div>
+            <div style="flex:1; min-width:0;">
+              <div style="font-weight:600; font-size:13px; margin-bottom:4px; word-break:break-all;">${img.path}</div>
+              <div style="font-size:12px; color:var(--text-muted); margin-bottom:8px;">${(img.sources||[]).join(', ') || '—'} · use: ${img.inUse?.length || 0}</div>
+              <div class="form-row" style="gap:8px;">
+                <div class="form-group" style="flex:1;">
+                  <label class="form-label">Alt</label>
+                  <input type="text" class="form-input" data-img-alt="${img.id}" value="${img.alt || ''}">
+                </div>
+                <div class="form-group" style="flex:1;">
+                  <label class="form-label">Описание</label>
+                  <input type="text" class="form-input" data-img-desc="${img.id}" value="${img.description || ''}">
+                </div>
+                <button type="button" class="btn btn-primary btn-sm" data-img-save="${img.id}">Сохранить</button>
+              </div>
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+
+      container.querySelectorAll('[data-img-save]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const id = btn.dataset.imgSave;
+          const altInput = container.querySelector(`[data-img-alt="${CSS.escape(id)}"]`);
+          const descInput = container.querySelector(`[data-img-desc="${CSS.escape(id)}"]`);
+          try {
+            setStatus('Сохранение alt/description...', true);
+            const res = await fetch(`/api/images/${encodeURIComponent(id)}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                alt: altInput?.value || '',
+                description: descInput?.value || ''
+              })
+            });
+            if (!res.ok) throw new Error('Не удалось сохранить');
+            showToast('Сохранено');
+            await loadImages();
+          } catch (error) {
+            showToast(error.message || 'Ошибка сохранения', 'error');
+          } finally {
+            setStatus('Готово', false);
+          }
+        });
+      });
+    }
+
 
     function renderPromos() {
       const container = qs('#promoList');

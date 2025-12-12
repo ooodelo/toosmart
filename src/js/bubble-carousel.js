@@ -19,20 +19,41 @@
 
     const RECOMMENDATIONS_URL = '/shared/recommendations.json';
     const AUTOPLAY_INTERVAL = 4000;
+    const PAYWALL_IDLE_DELAY = 600;
 
     // Infinite scroll constants
     const CLONE_COUNT = 3;
-    const GAP = 16;  // from CSS --bubble-gap-mobile
 
     /**
      * Get card total (width + gap) dynamically from DOM
      * Supports different card widths for mobile (70vw) vs desktop (280px)
      */
+    function getComputedGap() {
+        if (!track) return 16;
+        const style = window.getComputedStyle(track);
+        // Для колонок (desktop) основной — row-gap; для mobile — gap/columnGap
+        const candidates = [style.rowGap, style.columnGap, style.gap];
+        for (const val of candidates) {
+            const parsed = parseFloat(val);
+            if (Number.isFinite(parsed) && parsed > 0) return parsed;
+        }
+        return 16;
+    }
+
     function getCardTotal() {
         const card = track?.querySelector('.bubble-card');
-        if (!card) return 276; // fallback: 260 + 16
+        if (!card) return 276; // fallback: 260 + default gap
         const cardWidth = card.offsetWidth || 260;
-        return cardWidth + GAP;
+        const gap = getComputedGap();
+        return cardWidth + gap;
+    }
+
+    function scheduleInitWithIdle(fn) {
+        if (typeof requestIdleCallback === 'function') {
+            requestIdleCallback(fn, { timeout: 1000 });
+            return;
+        }
+        setTimeout(fn, PAYWALL_IDLE_DELAY);
     }
 
     let carousel = null;
@@ -57,11 +78,14 @@
      * Check if current mode uses horizontal scroll (all except desktop-wide)
      * Desktop-wide uses vertical stacked layout
      */
+    function isSideMode() {
+        return getCurrentMode() === 'desktop-wide';
+    }
+
     function checkIsHorizontal() {
-        const mode = getCurrentMode();
         // Horizontal scroll for mobile, tablet, and regular desktop (inline below content)
-        // Vertical stack only for desktop-wide (fixed right column)
-        return mode !== 'desktop-wide';
+        // Side column (desktop-wide) uses vertical/stacked rendering
+        return !isSideMode();
     }
 
     /**
@@ -244,9 +268,11 @@
         }
 
         element.innerHTML = `
-            <span class="bubble-card__emoji">${card.emoji || '📋'}</span>
-            <h3 class="bubble-card__title">${card.title || ''}</h3>
-            <p class="bubble-card__desc">${card.description || ''}</p>
+            <div class="bubble-card__content">
+                <span class="bubble-card__emoji">${card.emoji || '📋'}</span>
+                <h3 class="bubble-card__title">${card.title || ''}</h3>
+                <p class="bubble-card__desc">${card.description || ''}</p>
+            </div>
             <svg class="bubble-card__tail" width="60" height="13" viewBox="0 0 60 13">
                 <path d="M0 0 C20 0 20 13 30 13 C40 13 40 0 60 0 Z" fill="#ffffff"/>
             </svg>
@@ -262,9 +288,9 @@
         if (!dotsContainer) return;
         dotsContainer.innerHTML = '';
 
-        // Desktop: dots = number of slides (pairs of 2)
-        // Mobile: dots = original cards count
-        const total = isHorizontal ? cardsData.length : Math.ceil(cardsData.length / 2);
+        const total = isHorizontal
+            ? cardsData.length
+            : (isSideMode() ? cardsData.length : Math.ceil(cardsData.length / 2));
 
         for (let i = 0; i < total; i++) {
             const dot = document.createElement('button');
@@ -307,12 +333,12 @@
      */
     function goToSlide(index) {
         if (isHorizontal) {
-            // Mobile: scroll to card position
+            // Mobile/inline: scroll to card position
             currentIndex = index;
             updateDots();
             scrollToCard(index, true);
         } else {
-            // Desktop: update visible cards
+            // Stack/side: update visible cards
             currentIndex = index;
             updateDots();
             updateVisibleCards();
@@ -346,29 +372,24 @@
         const total = cardsData.length;
         if (total === 0) return;
 
-        // Calculate which 2 card indices should be visible
-        const idx1 = (currentIndex * 2) % total;        // First card
-        const idx2 = (currentIndex * 2 + 1) % total;    // Second card
+        const visibleCount = isSideMode() ? 1 : 2;
+        const idx1 = (currentIndex * visibleCount) % total;
+        const idx2 = visibleCount === 2 ? (currentIndex * visibleCount + 1) % total : null;
 
-        // Reorder DOM: move visible cards to first two positions
-        // This works with CSS :nth-child(n+3) { display: none }
         const cardArray = Array.from(cards);
-        const card1 = cardArray[idx1];
-        const card2 = cardArray[idx2];
+        const card1 = cardArray[idx1] || null;
+        const card2 = idx2 !== null ? (cardArray[idx2] || null) : null;
 
-        if (card1 && card2) {
-            // Clear track and re-add in correct order
-            track.innerHTML = '';
-            track.appendChild(card1);
-            track.appendChild(card2);
+        track.innerHTML = '';
+        if (card1) track.appendChild(card1);
+        if (card2) track.appendChild(card2);
 
-            // Re-add remaining cards (they will be hidden by CSS)
-            cardArray.forEach((card, i) => {
-                if (i !== idx1 && i !== idx2) {
-                    track.appendChild(card);
-                }
-            });
-        }
+        // Re-add remaining cards (они скрыты CSS начиная с третьего элемента)
+        cardArray.forEach((card, i) => {
+            if (i !== idx1 && i !== idx2) {
+                track.appendChild(card);
+            }
+        });
     }
 
     /**
@@ -395,8 +416,11 @@
         // When scrolling left: teleport forward when reaching first clone
         // When scrolling right: teleport backward when reaching last clone
         const cardTotal = getCardTotal();
-        const minScroll = cardTotal * 1;  // After first clone
-        const maxScroll = cardTotal * (CLONE_COUNT + totalOriginal);  // Before last clone ends
+        // Телепортируемся, как только входим в зону клонов
+        const minScroll = cardTotal * (CLONE_COUNT - 1);  // передний край клонов слева
+        // Правая граница: чуть раньше середины первого правого клона,
+        // чтобы scroll-snap не застревал в последнем оригинале
+        const maxScroll = cardTotal * (CLONE_COUNT + totalOriginal - 0.5);
 
         if (scrollLeft <= minScroll) {
             isScrolling = true;
@@ -451,15 +475,26 @@
      * Go to next slide
      */
     function nextSlide() {
-        const total = isHorizontal ? cardsData.length : Math.ceil(cardsData.length / 2);
+        const total = isHorizontal
+            ? cardsData.length
+            : (isSideMode() ? cardsData.length : Math.ceil(cardsData.length / 2));
         const next = (currentIndex + 1) % total;
         goToSlide(next);
     }
 
+    function startInit() {
+        const hasPaywall = Boolean(document.querySelector('[data-paywall-root]'));
+        if (hasPaywall) {
+            scheduleInitWithIdle(init);
+        } else {
+            init();
+        }
+    }
+
     // Initialize when DOM is ready
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
+        document.addEventListener('DOMContentLoaded', startInit);
     } else {
-        init();
+        startInit();
     }
 })();

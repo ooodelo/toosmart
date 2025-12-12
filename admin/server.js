@@ -23,11 +23,46 @@ const { buildPaywallSegments, extractBlocks } = require('../scripts/lib/paywall'
 const PORT = process.env.PORT || 3001;
 const CONFIG_PATH = path.join(__dirname, '..', 'config', 'site.json');
 const CONTENT_META_PATH = path.join(__dirname, '..', 'config', 'content-meta.json');
+const IMAGES_META_PATH = path.join(__dirname, '..', 'config', 'images-meta.json');
 const LEGAL_CONFIG_PATH = path.join(__dirname, '..', 'config', 'legal.json');
 const ADMIN_DIR = __dirname;
 const PROJECT_ROOT = path.join(__dirname, '..');
 const PREVIEW_DEFAULT_PORT = process.env.BUILD_PREVIEW_PORT || process.env.PREVIEW_PORT || 4040;
+
+function getLanIp() {
+  const nets = networkInterfaces();
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name] || []) {
+      if (net.family === 'IPv4' && !net.internal) {
+        return net.address;
+      }
+    }
+  }
+  return 'localhost';
+}
 let previewProcess = null;
+
+function readJsonSafe(filePath, fallback = {}) {
+  try {
+    if (!fs.existsSync(filePath)) return fallback;
+    const raw = fs.readFileSync(filePath, 'utf8');
+    return JSON.parse(raw);
+  } catch (error) {
+    console.warn(`⚠️  Ошибка чтения ${filePath}:`, error.message);
+    return fallback;
+  }
+}
+
+function writeJsonSafe(filePath, data) {
+  try {
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+    return true;
+  } catch (error) {
+    console.warn(`⚠️  Ошибка записи ${filePath}:`, error.message);
+    return false;
+  }
+}
 
 const DEFAULT_SITE_CONFIG = {
   domain: 'example.com',
@@ -153,6 +188,120 @@ const MIME_TYPES = {
   '.svg': 'image/svg+xml'
 };
 
+const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg']);
+
+function walkFiles(dir, exts = null, acc = []) {
+  if (!fs.existsSync(dir)) return acc;
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      walkFiles(full, exts, acc);
+    } else if (!exts || exts.has(path.extname(entry.name).toLowerCase())) {
+      acc.push(full);
+    }
+  }
+  return acc;
+}
+
+function parseMarkdownImages(md) {
+  const results = [];
+  const imageMd = /!\[[^\]]*\]\(([^)]+)\)/g;
+  const imageHtml = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
+  let m;
+  while ((m = imageMd.exec(md)) !== null) {
+    results.push(m[1]);
+  }
+  while ((m = imageHtml.exec(md)) !== null) {
+    results.push(m[1]);
+  }
+  return results;
+}
+
+function normalizeWebPath(p) {
+  if (!p) return '';
+  return p.replace(/\\/g, '/');
+}
+
+function loadImagesMeta() {
+  return readJsonSafe(IMAGES_META_PATH, {});
+}
+
+function saveImagesMeta(meta) {
+  return writeJsonSafe(IMAGES_META_PATH, meta);
+}
+
+async function buildImagesIndex() {
+  const meta = loadImagesMeta();
+  const imagesMap = new Map();
+
+  const addImage = (filePath, source) => {
+    const rel = normalizeWebPath(path.relative(PROJECT_ROOT, filePath));
+    const webPath = '/' + rel.replace(/^\/+/, '');
+    const key = webPath;
+    const stat = fs.existsSync(filePath) ? fs.statSync(filePath) : null;
+    if (!stat) return;
+    const entry = imagesMap.get(key) || {
+      id: key,
+      path: key,
+      filename: path.basename(filePath),
+      size: stat.size,
+      sources: new Set(),
+      inUse: [],
+      alt: meta[key]?.alt || '',
+      description: meta[key]?.description || '',
+      caption: meta[key]?.caption || ''
+    };
+    entry.sources.add(source);
+    imagesMap.set(key, entry);
+  };
+
+  // Static dirs
+  const staticDirs = [
+    { dir: path.join(PROJECT_ROOT, 'content', 'images'), source: 'static' },
+    { dir: path.join(PROJECT_ROOT, 'content', 'uploads'), source: 'upload' },
+    { dir: path.join(PROJECT_ROOT, 'public', 'assets'), source: 'static' },
+    { dir: path.join(PROJECT_ROOT, 'src', 'assets'), source: 'static' }
+  ];
+  for (const { dir, source } of staticDirs) {
+    walkFiles(dir, IMAGE_EXTS).forEach(f => addImage(f, source));
+  }
+
+  // Markdown references
+  const mdFiles = walkFiles(path.join(PROJECT_ROOT, 'content'), null).filter(f => f.endsWith('.md'));
+  for (const mdPath of mdFiles) {
+    const raw = fs.readFileSync(mdPath, 'utf8');
+    const images = parseMarkdownImages(raw);
+    images.forEach(imgPath => {
+      const key = normalizeWebPath(imgPath.startsWith('/') ? imgPath : '/' + imgPath.replace(/^\.?\//, ''));
+      const entry = imagesMap.get(key) || {
+        id: key,
+        path: key,
+        filename: path.basename(key),
+        size: null,
+        sources: new Set(),
+        inUse: [],
+        alt: meta[key]?.alt || '',
+        description: meta[key]?.description || '',
+        caption: meta[key]?.caption || ''
+      };
+      entry.sources.add('markdown');
+      entry.inUse.push({ file: normalizeWebPath(path.relative(PROJECT_ROOT, mdPath)), type: 'markdown' });
+      imagesMap.set(key, entry);
+    });
+  }
+
+  const list = Array.from(imagesMap.values()).map(item => ({
+    ...item,
+    sources: Array.from(item.sources),
+    status: {
+      missingAlt: !item.alt
+    }
+  }));
+
+  return list.sort((a, b) => a.path.localeCompare(b.path));
+}
+
 // Создание HTTP сервера
 const server = http.createServer(async (req, res) => {
   // CORS заголовки - только для localhost
@@ -160,7 +309,7 @@ const server = http.createServer(async (req, res) => {
   if (origin) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   }
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
 
@@ -198,6 +347,21 @@ const server = http.createServer(async (req, res) => {
 
     if (pathname === '/api/files' && req.method === 'POST') {
       await handleFileUpload(req, res);
+      return;
+    }
+
+    if (pathname === '/api/images' && req.method === 'GET') {
+      await handleGetImages(req, res);
+      return;
+    }
+
+    if (pathname.startsWith('/api/images/') && req.method === 'PATCH') {
+      await handlePatchImage(req, res, pathname.replace('/api/images/', ''));
+      return;
+    }
+
+    if (pathname === '/api/upload-image' && req.method === 'POST') {
+      await handleUploadImage(req, res);
       return;
     }
 
@@ -627,6 +791,101 @@ async function handleFileUpload(req, res) {
     } catch (error) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Ошибка загрузки: ' + error.message }));
+    }
+  });
+}
+
+async function handleGetImages(req, res) {
+  try {
+    const images = await buildImagesIndex();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(images));
+  } catch (error) {
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: error.message }));
+  }
+}
+
+async function handlePatchImage(req, res, id) {
+  try {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    await new Promise(resolve => req.on('end', resolve));
+    const data = JSON.parse(body || '{}');
+    const meta = loadImagesMeta();
+    const key = id.startsWith('/') ? id : `/${id}`;
+    meta[key] = {
+      alt: data.alt || '',
+      description: data.description || '',
+      caption: data.caption || ''
+    };
+    saveImagesMeta(meta);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true }));
+  } catch (error) {
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: error.message }));
+  }
+}
+
+async function handleUploadImage(req, res) {
+  // Обёртка над upload-asset: сохраняем в content/uploads и возвращаем путь, регистрируем в meta
+  if (req.method !== 'POST') {
+    res.writeHead(405);
+    res.end();
+    return;
+  }
+
+  const boundary = req.headers['content-type']?.split('boundary=')[1];
+  if (!boundary) {
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'No boundary' }));
+    return;
+  }
+
+  // Простая разбивка multipart (для небольших файлов)
+  const chunks = [];
+  req.on('data', (c) => chunks.push(c));
+  req.on('end', async () => {
+    try {
+      const buffer = Buffer.concat(chunks);
+      const parts = buffer.toString('binary').split(`--${boundary}`);
+      let fileName = null;
+      let fileData = null;
+      for (const part of parts) {
+        if (part.includes('Content-Disposition') && part.includes('filename=')) {
+          const matchName = part.match(/filename="([^"]+)"/);
+          if (matchName) fileName = path.basename(matchName[1]);
+          const idx = part.indexOf('\r\n\r\n');
+          if (idx !== -1) {
+            const bin = part.substring(idx + 4, part.lastIndexOf('\r\n'));
+            fileData = Buffer.from(bin, 'binary');
+            break;
+          }
+        }
+      }
+      if (!fileName || !fileData) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'No file' }));
+        return;
+      }
+
+      const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const uploadDir = path.join(PROJECT_ROOT, 'content', 'uploads');
+      fs.mkdirSync(uploadDir, { recursive: true });
+      const filePath = path.join(uploadDir, safeName);
+      fs.writeFileSync(filePath, fileData);
+
+      const webPath = `/content/uploads/${safeName}`;
+      const meta = loadImagesMeta();
+      meta[webPath] = meta[webPath] || { alt: '', description: '', caption: '' };
+      saveImagesMeta(meta);
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ url: webPath }));
+    } catch (error) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: error.message }));
     }
   });
 }
@@ -1859,10 +2118,13 @@ function startServer(port, attempt = 0) {
   server.removeAllListeners('listening');
   server.once('error', onError);
   server.once('listening', () => {
+    const lan = getLanIp();
+    const portUsed = server.address().port;
     console.log('═'.repeat(50));
     console.log('  🚀 Админ-панель запущена');
     console.log('═'.repeat(50));
-    console.log(`  URL: http://localhost:${server.address().port}`);
+    console.log(`  Local:   http://localhost:${portUsed}`);
+    console.log(`  Network: http://${lan}:${portUsed}`);
     console.log(`  Конфиг: ${CONFIG_PATH}`);
     console.log('═'.repeat(50));
     console.log('  Для остановки нажмите Ctrl+C');

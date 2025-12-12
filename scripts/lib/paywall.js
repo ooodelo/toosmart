@@ -231,13 +231,21 @@ function buildPaywallSegments(markdown, override) {
     };
   }
 
-  const analyzed = analyzePaywallStructure(markdown);
+  // По умолчанию открываем не более 20% контента (минимум 1 блок, минимум 1 блок остаётся закрытым при total>=2)
+  const targetOpen = totalBlocks > 0
+    ? Math.min(
+      Math.max(1, Math.floor(totalBlocks * 0.2)),
+      totalBlocks - 1 || 1
+    )
+    : 0;
+  const split = splitTokensByBlocks(tokens, targetOpen, 0);
+
   return {
-    openHtml: analyzed.openHtml,
-    teaserHtml: analyzed.teaserHtml,
-    openBlocks: analyzed.openBlocks || 0,
-    teaserBlocks: analyzed.teaserBlocks || 0,
-    totalBlocks: analyzed.totalBlocks || totalBlocks
+    openHtml: marked.parser(attachLinks(split.openTokens, links)),
+    teaserHtml: '',
+    openBlocks: split.openBlocks,
+    teaserBlocks: 0,
+    totalBlocks: split.totalBlocks
   };
 }
 

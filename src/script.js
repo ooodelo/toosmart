@@ -79,6 +79,7 @@ let previousFocus = null;
 let trapDisposer = null;
 let observer = null;
 let observerDisposer = () => { };
+let contentBoundaryObserver = null;
 let edgeGestureHandler = null;
 let flyoutHideTimeoutCancel = null;
 let flyoutListenersAttached = false;
@@ -1962,7 +1963,57 @@ function initDots() {
     return;
   }
   configureDots();
-  // IntersectionObserver уже обрабатывает активную секцию, scroll handler не нужен
+  setupContentBoundaryObserver();
+}
+
+/**
+ * Установка observer для скрытия dots-rail когда контент уходит из viewport
+ */
+function setupContentBoundaryObserver() {
+  // Очистка предыдущего observer
+  if (contentBoundaryObserver) {
+    contentBoundaryObserver.disconnect();
+    contentBoundaryObserver = null;
+  }
+
+  if (!dotsRail) return;
+
+  // Пропускаем если не в desktop режиме
+  if (currentMode !== 'desktop' && currentMode !== 'desktop-wide') {
+    dotsRail.classList.remove('is-fading');
+    return;
+  }
+
+  // Проверка поддержки IntersectionObserver
+  if (!('IntersectionObserver' in window)) {
+    return;
+  }
+
+  // Ищем контейнер контента
+  const contentBody = document.querySelector('.content-body') || document.querySelector('.text-box');
+  if (!contentBody) {
+    return;
+  }
+
+  contentBoundaryObserver = new IntersectionObserver(
+    ([entry]) => {
+      // Показываем dots если контент виден (>=10% в viewport)
+      dotsRail.classList.toggle('is-fading', !entry.isIntersecting);
+    },
+    {
+      root: null,
+      threshold: 0.1 // 10% видимости достаточно
+    }
+  );
+
+  contentBoundaryObserver.observe(contentBody);
+
+  registerLifecycleDisposer(() => {
+    if (contentBoundaryObserver) {
+      contentBoundaryObserver.disconnect();
+      contentBoundaryObserver = null;
+    }
+  }, { module: 'dotsRail', kind: 'observer', detail: 'content boundary' });
 }
 
 /**

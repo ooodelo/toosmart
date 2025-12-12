@@ -1310,7 +1310,8 @@ function buildIntroPage(item, menuHtml, config, template, mode, nextUrl = '', le
   const buttonText = mode === 'premium' ? config.ctaTexts.next : config.ctaTexts.enterFull;
   const pageType = mode === 'premium' ? 'intro-premium' : 'intro-free';
 
-  const body = wrapAsSection(`<h1>${escapeAttr(item.h1_md)}</h1>${item.fullHtml}`);
+  const { breadcrumb, htmlWithoutBreadcrumb } = extractBreadcrumb(item.fullHtml);
+  const body = wrapAsSection(`${breadcrumb}<h1>${escapeAttr(item.h1_md)}</h1>${htmlWithoutBreadcrumb}`);
 
   return applyTemplate(template, {
     title: item.title || buildTitleFromSeo(item.seo_h1 || item.h1_md, config.seo.titleSuffix),
@@ -1331,21 +1332,27 @@ function buildIntroPage(item, menuHtml, config, template, mode, nextUrl = '', le
 
 function buildFreeCoursePage(item, menuHtml, config, template, legalMap = {}, lockedSrc = '') {
   const paywallSource = lockedSrc || '';
+  const { breadcrumb, htmlWithoutBreadcrumb } = extractBreadcrumb(item.paywallOpenHtml);
 
   const body = `
-        <div class="text-box__intro">
-          <header>
-            <h1>${item.seo_h1 || item.h1_md}</h1>
-            <p class="meta">${formatReadingTime(item.readingTimeMinutes)} чтения</p>
-          </header>
-          ${item.paywallOpenHtml}
+        <div class="text-box__intro content-shell">
+          <div class="content-body">
+            ${breadcrumb}
+            <header>
+              <h1>${item.seo_h1 || item.h1_md}</h1>
+              <p class="meta">${formatReadingTime(item.readingTimeMinutes)} чтения</p>
+            </header>
+            ${htmlWithoutBreadcrumb}
+          </div>
         </div>
 
         <div id="article-content">
           <div class="paywall-block" data-paywall-root data-locked-src="${escapeAttr(paywallSource)}">
-            <section class="text-section paywall-text" data-locked-body>
-              ${item.paywallTeaserHtml}
-              <p class="paywall-text__hint">Нажмите «Добавить абзац», чтобы подгрузить следующую часть статьи.</p>
+            <section class="text-section paywall-text content-shell">
+              <div class="content-body" data-locked-body>
+                ${item.paywallTeaserHtml}
+                <p class="paywall-text__hint">Нажмите «Добавить абзац», чтобы подгрузить следующую часть статьи.</p>
+              </div>
             </section>
 
             <div class="paywall-overlay" aria-hidden="true">
@@ -1353,13 +1360,6 @@ function buildFreeCoursePage(item, menuHtml, config, template, legalMap = {}, lo
               <div class="paywall-overlay__cta">
                 <div class="paywall-overlay__cta-inner">
                   <button class="paywall-cta-button cta-button" data-analytics="cta-premium" data-paywall-cta type="button">
-                    <span class="paywall-cta-button__icon" aria-hidden="true">
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M17 11V8a5 5 0 10-10 0v3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        <rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        <circle cx="12" cy="16" r="1.5" fill="currentColor"/>
-                      </svg>
-                    </span>
                     <span>${escapeAttr(config.ctaTexts.enterFull)}</span>
                   </button>
 
@@ -1394,7 +1394,8 @@ function buildFreeCoursePage(item, menuHtml, config, template, legalMap = {}, lo
 }
 
 function buildPremiumPage(item, menuHtml, config, template, { prevUrl, nextUrl }, legalMap = {}) {
-  const body = wrapAsSection(`<h1>${item.h1_md}</h1>${item.fullHtml}`);
+  const { breadcrumb, htmlWithoutBreadcrumb } = extractBreadcrumb(item.fullHtml);
+  const body = wrapAsSection(`${breadcrumb}<h1>${item.h1_md}</h1>${htmlWithoutBreadcrumb}`);
 
   const pageType = item.branch === 'intro' ? 'intro' : (item.branch === 'appendix' ? 'appendix' : 'course');
   const progressButtonText = item.branch === 'appendix'
@@ -1549,7 +1550,7 @@ function formatReadingTime(minutes) {
 function wrapAsSection(html, { id = '', dataSection = '' } = {}) {
   const idAttr = id ? ` id="${id}"` : '';
   const dataSectionAttr = dataSection ? ` data-section="${dataSection}"` : '';
-  return `<section class="text-section"${idAttr}${dataSectionAttr}>${html}</section>`;
+  return `<section class="text-section content-shell"${idAttr}${dataSectionAttr}><div class="content-body">${html}</div></section>`;
 }
 
 function extractLogicalIntro(markdown) {

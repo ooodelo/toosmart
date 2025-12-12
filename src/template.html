@@ -26,113 +26,121 @@
   <main class="main">
     <section class="panel" data-lazy="dots-nav progress-widget">
       <article class="text-box" aria-label="Основной материал" data-build-slot="body" data-page-type="premium">
-        <section class="text-section">
-          <nav class="article-breadcrumb"><a href="#">Курс</a><span class="separator"> · </span><span
-              class="current">Демонстрация стилей</span></nav>
+        <div class="content-body">
+          <section class="text-section content-shell">
+            <nav class="article-breadcrumb"><a href="#">Курс</a><span class="separator"> · </span><span
+                class="current">Демонстрация стилей</span></nav>
 
-          <h1>Полная демонстрация Enhanced Markdown</h1>
+            <h1>Полная демонстрация Enhanced Markdown</h1>
 
-          <p class="article-subtitle">Все элементы разметки на одной странице для проверки визуального соответствия</p>
+            <p class="article-subtitle">Все элементы разметки на одной странице для проверки визуального соответствия</p>
 
-          <div class="article-lead">
-            <p>Эта страница демонстрирует все элементы enhanced markdown: breadcrumbs, subtitles, leads, dividers,
-              section labels, marker highlights, composition highlights, pullquotes, callouts, checklists и compare
-              blocks.</p>
-            <p>Используется для проверки визуального соответствия с референсным дизайном gubka-longread.html.</p>
-          </div>
-
-          <div class="article-divider"></div>
-
-          <div class="section-label">Базовая типографика</div>
-
-          <h2>Обычная типографика</h2>
-          <p>Это обычный текст параграфа размером 17px с межстрочным интервалом 1.8, использующий шрифт SF Pro /
-            system-ui. Обратите внимание на улучшенную читаемость с правильными отступами.</p>
-
-          <h3>Подзаголовок третьего уровня</h3>
-          <p><strong>Жирный текст для акцента</strong> и <em>курсив для примечаний</em>. Всё выровнено по референсному
-            дизайну gubka-longread.html.</p>
-
-          <h4>Подзаголовок четвертого уровня</h4>
-          <ul>
-            <li>Элемент списка с отступом 4px</li>
-            <li>Второй элемент демонстрирует правильное форматирование списка</li>
-            <li>Третий элемент с консистентным межстрочным интервалом 1.75</li>
-          </ul>
-
-          <blockquote class="composition-highlight">
-            <p><span class="marker-highlight">Выделенный текст</span> <span class="marker-highlight">с эффектом
-                blur</span> <span class="marker-highlight">как в референсе</span></p>
-          </blockquote>
-
-          <p>Обратите внимание на <strong>жирное выделение</strong> в тексте параграфа.</p>
-
-          <p>А это <span class="emphasized-word">жирное подчёркивание с белой линией</span> — используется для ключевых
-            слов, как в референсе gubka-longread.html.</p>
+            <div class="article-lead">
+              <p>Эта страница демонстрирует все элементы enhanced markdown: breadcrumbs, subtitles, leads, dividers,
+                section labels, marker highlights, composition highlights, pullquotes, callouts, checklists и compare
+                blocks.</p>
+              <p>Используется для проверки визуального соответствия с референсным дизайном gubka-longread.html.</p>
+            </div>
+          </section>
 
           <div class="article-divider"></div>
 
-          <div class="section-label">Карточки и компоненты</div>
+          <section class="text-section content-shell">
+            <div class="section-label">Базовая типографика</div>
 
-          <h2>Числовые вызовы и чеклисты</h2>
+            <h2>Обычная типографика</h2>
+            <p>Это обычный текст параграфа размером 17px с межстрочным интервалом 1.8, использующий шрифт SF Pro /
+              system-ui. Обратите внимание на улучшенную читаемость с правильными отступами.</p>
 
-          <div class="number-callout article-card">
-            <div class="number-callout-label">Важное число</div>
-            <div class="number-callout-value">1 неделя</div>
-            <div class="number-callout-text">Максимальный срок службы кухонной губки до бактериальной перегрузки</div>
-          </div>
+            <h3>Подзаголовок третьего уровня</h3>
+            <p><strong>Жирный текст для акцента</strong> и <em>курсив для примечаний</em>. Всё выровнено по референсному
+              дизайну gubka-longread.html.</p>
 
-          <div class="checklist article-card">
-            <div class="checklist-title">Системные требования</div>
+            <h4>Подзаголовок четвертого уровня</h4>
             <ul>
-              <li>Понимание структуры загрязнений</li>
-              <li>Знание физики инструментов</li>
-              <li>Выбор химических средств</li>
-              <li>Проектирование эффективных алгоритмов</li>
+              <li>Элемент списка с отступом 4px</li>
+              <li>Второй элемент демонстрирует правильное форматирование списка</li>
+              <li>Третий элемент с консистентным межстрочным интервалом 1.75</li>
             </ul>
-          </div>
 
-          <div class="pullquote article-card">
-            <small>Ключевая мысль</small>
-            <p>Настоящая чистота начинается с понимания системы, а не с покупки чудо-средств из рекламы.</p>
-          </div>
+            <blockquote class="composition-highlight">
+              <p><span class="marker-highlight">Выделенный текст</span> <span class="marker-highlight">с эффектом
+                  blur</span> <span class="marker-highlight">как в референсе</span></p>
+            </blockquote>
+
+            <p>Обратите внимание на <strong>жирное выделение</strong> в тексте параграфа.</p>
+
+            <p>А это <span class="emphasized-word">жирное подчёркивание с белой линией</span> — используется для ключевых
+              слов, как в референсе gubka-longread.html.</p>
+          </section>
 
           <div class="article-divider"></div>
 
-          <div class="section-label">Блоки сравнения</div>
+          <section class="text-section content-shell">
+            <div class="section-label">Карточки и компоненты</div>
 
-          <h2>Двухколоночное сравнение</h2>
+            <h2>Числовые вызовы и чеклисты</h2>
 
-          <div class="two-column-compare">
-            <div class="compare-card">
-              <div class="compare-card-title">Неправильный подход</div>
-              <div class="compare-card-heading">Универсальные средства</div>
+            <div class="number-callout article-card">
+              <div class="number-callout-label">Важное число</div>
+              <div class="number-callout-value">1 неделя</div>
+              <div class="number-callout-text">Максимальный срок службы кухонной губки до бактериальной перегрузки</div>
+            </div>
+
+            <div class="checklist article-card">
+              <div class="checklist-title">Системные требования</div>
               <ul>
-                <li>Заявляют, что моют всё</li>
-                <li>Нейтральный pH = неэффективно</li>
-                <li>Требуют чрезмерных усилий</li>
+                <li>Понимание структуры загрязнений</li>
+                <li>Знание физики инструментов</li>
+                <li>Выбор химических средств</li>
+                <li>Проектирование эффективных алгоритмов</li>
               </ul>
             </div>
-            <div class="compare-card">
-              <div class="compare-card-title">Правильный подход</div>
-              <div class="compare-card-heading">Целевая химия</div>
-              <ul>
-                <li>Щелочь для жиров (pH &gt;7)</li>
-                <li>Кислота для минералов (pH&lt;7)</li>
-                <li>Эффективно с минимальными усилиями</li>
-              </ul>
+
+            <div class="pullquote article-card">
+              <small>Ключевая мысль</small>
+              <p>Настоящая чистота начинается с понимания системы, а не с покупки чудо-средств из рекламы.</p>
             </div>
-          </div>
+          </section>
 
-          <p>После сравнения видно преимущество системного подхода над универсальными решениями.</p>
+          <div class="article-divider"></div>
 
-          <blockquote class="composition-highlight">
-            <p><span class="marker-highlight">Профессиональный клининг</span> <span class="marker-highlight">всегда
-                начинается</span> <span class="marker-highlight">с определения типа загрязнения</span> <span
-                class="marker-highlight">и подбора</span> <span class="marker-highlight">соответствующего
-                реагента.</span></p>
-          </blockquote>
-        </section>
+          <section class="text-section content-shell">
+            <div class="section-label">Блоки сравнения</div>
+
+            <h2>Двухколоночное сравнение</h2>
+
+            <div class="two-column-compare">
+              <div class="compare-card">
+                <div class="compare-card-title">Неправильный подход</div>
+                <div class="compare-card-heading">Универсальные средства</div>
+                <ul>
+                  <li>Заявляют, что моют всё</li>
+                  <li>Нейтральный pH = неэффективно</li>
+                  <li>Требуют чрезмерных усилий</li>
+                </ul>
+              </div>
+              <div class="compare-card">
+                <div class="compare-card-title">Правильный подход</div>
+                <div class="compare-card-heading">Целевая химия</div>
+                <ul>
+                  <li>Щелочь для жиров (pH &gt;7)</li>
+                  <li>Кислота для минералов (pH&lt;7)</li>
+                  <li>Эффективно с минимальными усилиями</li>
+                </ul>
+              </div>
+            </div>
+
+            <p>После сравнения видно преимущество системного подхода над универсальными решениями.</p>
+
+            <blockquote class="composition-highlight">
+              <p><span class="marker-highlight">Профессиональный клининг</span> <span class="marker-highlight">всегда
+                  начинается</span> <span class="marker-highlight">с определения типа загрязнения</span> <span
+                  class="marker-highlight">и подбора</span> <span class="marker-highlight">соответствующего
+                  реагента.</span></p>
+            </blockquote>
+          </section>
+        </div>
       </article>
       <nav class="dots-rail" aria-label="Навигация по разделам" data-lazy="dots-nav"></nav>
       <div class="dot-flyout is-hidden" hidden role="navigation" aria-label="Оглавление разделов"></div>
