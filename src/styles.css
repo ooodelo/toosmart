@@ -3442,12 +3442,12 @@ body[data-mode="mobile"] .cookie-close {
   /* Ensure z-index applies */
 }
 
-/* === FOOTER - CSS GRID RESPONSIVE SYSTEM === */
+/* === FOOTER - 4 COLUMNS RESPONSIVE SYSTEM === */
 
-/* Base Footer Container - preserved */
+/* Base Footer Container */
 .site-footer {
   border-top: none;
-  padding: 12px 0;
+  padding: 20px 0;
   font-family: var(--sans);
   background: #d9d9d9;
   margin-top: auto;
@@ -3456,52 +3456,30 @@ body[data-mode="mobile"] .cookie-close {
   width: 100%;
 }
 
-/* Footer Content - CSS Grid Layout */
+/* Footer Content - Flex column layout */
 .footer-content {
   max-width: 1400px;
   margin: 0 auto;
   padding: 0 var(--col-pad);
-
-  display: grid;
-  grid-template-areas: "info links";
-  grid-template-columns: auto 1fr;
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 32px;
+  gap: 16px;
 }
 
-/* Footer Info - Base */
-.footer-info {
-  grid-area: info;
-  font-size: 12px;
-  line-height: 1.4;
-  color: var(--gray-900);
-  white-space: nowrap;
-}
-
-/* Footer Nav - Base */
+/* Footer Nav - Contains the links grid */
 .footer-nav {
-  grid-area: links;
+  width: 100%;
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
 }
 
-/* Footer Links - Clean 2x2 grid for better wrapping */
+/* Footer Links - Grid system */
 .footer-links {
-  list-style: none;
-  margin: 0;
-  padding: 0;
   display: grid;
-  grid-template-columns: auto auto;
-  gap: 6px 24px;
-  /* row-gap column-gap */
-  justify-content: end;
+  gap: 12px 24px;
+  justify-items: center;
   align-items: center;
-}
-
-.footer-links li {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
 }
 
 .footer-links a {
@@ -3512,200 +3490,97 @@ body[data-mode="mobile"] .cookie-close {
   text-decoration: none;
   white-space: nowrap;
   transition: opacity 0.2s ease;
+  text-align: center;
 }
 
 .footer-links a:hover {
   opacity: 0.7;
 }
 
-/* ====================================================================
-   DESKTOP-WIDE: Wide enough for single row
-   ==================================================================== */
-body[data-mode="desktop-wide"] .footer-content {
-  grid-template-areas: "info links";
-  grid-template-columns: auto 1fr;
-}
-
-body[data-mode="desktop-wide"] .footer-links {
-  grid-template-columns: repeat(4, auto);
-  /* All 4 in one row */
-  gap: 0 20px;
-}
-
-body[data-mode="desktop-wide"] .footer-info {
-  text-align: left;
-}
-
-body[data-mode="desktop-wide"] .footer-nav {
-  justify-content: flex-end;
-}
-
-/* ====================================================================
-   DESKTOP: 2x2 grid for links, info left
-   ==================================================================== */
-body[data-mode="desktop"] .footer-content {
-  grid-template-areas: "info links";
-  grid-template-columns: auto 1fr;
-}
-
-body[data-mode="desktop"] .footer-links {
-  grid-template-columns: auto auto;
-  /* 2x2 grid */
-  gap: 6px 24px;
-}
-
-body[data-mode="desktop"] .footer-info {
-  text-align: left;
-}
-
-body[data-mode="desktop"] .footer-nav {
-  justify-content: flex-end;
-}
-
-/* ====================================================================
-   TABLET: Stacked - [links] on top, [info] below, both centered
-   ==================================================================== */
-body[data-mode="tablet"] .footer-content {
-  grid-template-areas:
-    "links"
-    "info";
-  grid-template-columns: 1fr;
-  justify-items: center;
-  gap: 16px;
-}
-
-body[data-mode="tablet"] .footer-info {
-  text-align: center;
+/* Footer Info - Copyright (2 lines, centered) */
+.footer-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
   font-size: 12px;
+  line-height: 1.4;
+  color: var(--gray-900);
+  text-align: center;
 }
 
-body[data-mode="tablet"] .footer-nav {
-  justify-content: center;
-  width: auto;
+.footer-info span {
+  display: block;
 }
 
+/* ====================================================================
+   DESKTOP & DESKTOP-WIDE: 4 columns in one row
+   ==================================================================== */
+body[data-mode="desktop-wide"] .footer-links,
+body[data-mode="desktop"] .footer-links {
+  grid-template-columns: repeat(4, auto);
+  gap: 0 32px;
+}
+
+/* ====================================================================
+   TABLET: 2 columns, 2 rows for links + 1 row copyright = 3 rows total
+   ==================================================================== */
 body[data-mode="tablet"] .footer-links {
-  grid-template-columns: auto auto;
-  /* 2x2 centered */
-  gap: 8px 28px;
-  justify-content: center;
-}
-
-body[data-mode="tablet"] .footer-links li {
-  justify-content: center;
+  grid-template-columns: repeat(2, auto);
+  gap: 10px 28px;
 }
 
 body[data-mode="tablet"] .footer-links a {
   font-size: 12px;
 }
 
+body[data-mode="tablet"] .footer-info {
+  font-size: 12px;
+}
+
 /* ====================================================================
-   MOBILE: 2x2 grid for links, info below centered
+   MOBILE: 1 column, 4 rows for links + 1 row copyright = 5 rows total
    ==================================================================== */
 body[data-mode="mobile"] .footer-content {
-  grid-template-areas:
-    "links"
-    "info";
-  grid-template-columns: 1fr;
-  justify-items: center;
-  gap: 14px;
   padding-left: max(var(--col-pad), env(safe-area-inset-left, 0px));
   padding-right: max(var(--col-pad), env(safe-area-inset-right, 0px));
-}
-
-body[data-mode="mobile"] .footer-info {
-  text-align: center;
-  font-size: 11px;
-  white-space: normal;
-}
-
-body[data-mode="mobile"] .footer-nav {
-  justify-content: center;
-  width: auto;
+  gap: 12px;
 }
 
 body[data-mode="mobile"] .footer-links {
-  grid-template-columns: auto auto;
-  /* 2x2 centered */
-  gap: 8px 20px;
-  justify-content: center;
-}
-
-body[data-mode="mobile"] .footer-links li {
-  justify-content: center;
+  grid-template-columns: 1fr;
+  gap: 10px;
 }
 
 body[data-mode="mobile"] .footer-links a {
   font-size: 12px;
-  text-align: center;
+}
+
+body[data-mode="mobile"] .footer-info {
+  font-size: 11px;
 }
 
 /* ====================================================================
    FALLBACK: No data-mode attribute (uses media queries)
    ==================================================================== */
 @media (max-width: 700px) {
-  body:not([data-mode]) .footer-content {
-    grid-template-areas:
-      "links"
-      "info";
-    grid-template-columns: 1fr;
-    justify-items: center;
-    gap: 16px;
-  }
-
-  body:not([data-mode]) .footer-info {
-    text-align: center;
-  }
-
-  body:not([data-mode]) .footer-nav {
-    justify-content: center;
-    width: 100%;
-  }
-
   body:not([data-mode]) .footer-links {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
-    justify-items: center;
+    grid-template-columns: 1fr;
+    gap: 10px;
   }
 }
 
 @media (min-width: 701px) and (max-width: 1100px) {
-  body:not([data-mode]) .footer-content {
-    grid-template-areas:
-      "links"
-      "info";
-    grid-template-columns: 1fr;
-    justify-items: center;
-    gap: 20px;
-  }
-
-  body:not([data-mode]) .footer-info {
-    text-align: center;
-  }
-
-  body:not([data-mode]) .footer-nav {
-    justify-content: center;
-  }
-
   body:not([data-mode]) .footer-links {
-    flex-wrap: wrap;
-    justify-content: center;
+    grid-template-columns: repeat(2, auto);
+    gap: 10px 28px;
   }
 }
 
 @media (min-width: 1101px) {
-  body:not([data-mode]) .footer-content {
-    grid-template-areas: "info links";
-    grid-template-columns: auto 1fr;
-  }
-
-  body:not([data-mode]) .footer-info {
-    text-align: left;
-  }
-
-  body:not([data-mode]) .footer-nav {
-    justify-content: flex-end;
+  body:not([data-mode]) .footer-links {
+    grid-template-columns: repeat(4, auto);
+    gap: 0 32px;
   }
 }
 

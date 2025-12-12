@@ -113,19 +113,15 @@ body[data-mode="mobile"] .bubble-carousel__scroll-wrapper {
 }
 
 /* =============================================
-   SCROLL WRAPPER: Handles horizontal scroll
-   Separates scroll from shadow visibility
+   SCROLL WRAPPER: Now just a container (no native scroll)
    ============================================= */
 .bubble-carousel__scroll-wrapper {
     width: 100%;
-    overflow-x: auto;
-    overflow-y: visible;
-    -webkit-overflow-scrolling: touch;
+    overflow: visible;
     scrollbar-width: none;
     -ms-overflow-style: none;
-    scroll-snap-type: x mandatory;
 
-    /* Padding for shadow visibility - balanced, not excessive */
+    /* Padding for shadow visibility */
     padding: 32px 0 40px 0;
 }
 
@@ -145,8 +141,10 @@ body[data-mode="mobile"] .bubble-carousel__scroll-wrapper {
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: var(--bubble-gap);
     padding: 8px 20px 24px;
+    position: relative;
 }
 
 /* === Bubble Card (Base) === */
@@ -190,10 +188,7 @@ body[data-mode="mobile"] .bubble-carousel__scroll-wrapper {
     height: 100%;
 }
 
-/* Desktop: Hide cards beyond first 2 */
-.bubble-card:nth-child(n+3) {
-    display: none;
-}
+/* Cards are now controlled by JS - no hiding needed */
 
 .bubble-card:hover {
     border-color: #d9d9d9;
@@ -285,32 +280,22 @@ body[data-mode="desktop-wide"] .bubble-carousel__dots {
 }
 
 /* =============================================
-   TABLET / DESKTOP INLINE: Track Layout (scrolling handled by wrapper)
+   TABLET / DESKTOP INLINE: Track Layout (transform-based)
    ============================================= */
 body[data-mode="tablet"] .bubble-carousel__track,
 body[data-mode="desktop"] .bubble-carousel__track {
-    display: inline-flex;
-    /* Inline to allow content overflow */
+    display: flex;
     flex-direction: row;
     align-items: stretch;
+    justify-content: center;
     gap: var(--bubble-gap);
     overflow: visible;
-    /* Allow shadows to show */
 }
 
-/* Tablet/Desktop inline: ALL cards visible */
-body[data-mode="tablet"] .bubble-card:nth-child(n+3),
-body[data-mode="desktop"] .bubble-card:nth-child(n+3) {
-    display: block;
-}
-
-/* Tablet/Desktop inline: scroll-snap on cards */
+/* Tablet/Desktop inline: card sizing */
 body[data-mode="tablet"] .bubble-card,
 body[data-mode="desktop"] .bubble-card {
     flex-shrink: 0;
-    /* CRITICAL: prevent cards from shrinking to fit container */
-    scroll-snap-align: center;
-    scroll-snap-stop: always;
     height: 250px;
 }
 
@@ -320,45 +305,23 @@ body[data-mode="desktop-wide"] .bubble-card {
 }
 
 /* =============================================
-   MOBILE: Horizontal Scroll Layout
-   React template lines 304-333:
-   - display: flex
-   - gap: 16px
-   - overflowX: auto
-   - scrollSnapType: 'x mandatory'
-   - WebkitOverflowScrolling: touch
-   - scrollbarWidth: none
-   - paddingLeft/Right: calc((100% - cardWidth) / 2)
-   
-   CRITICAL: Cards must be position: static/relative for scroll-snap
+   MOBILE: Horizontal Layout (transform-based)
    ============================================= */
 body[data-mode="mobile"] .bubble-carousel__track {
-    display: inline-flex;
-    /* Inline to allow content overflow */
+    display: flex;
     flex-direction: row;
     align-items: stretch;
+    justify-content: center;
     gap: var(--bubble-gap-mobile);
     overflow: visible;
-    /* Allow shadows to show */
 }
 
-/* Mobile: ALL cards visible (override nth-child rule) */
-body[data-mode="mobile"] .bubble-card:nth-child(n+3) {
-    display: block;
-}
-
-/* Mobile card adjustments - STRICTLY 70% viewport width */
+/* Mobile card adjustments - centered single card */
 body[data-mode="mobile"] .bubble-card {
     flex-shrink: 0;
-    /* CRITICAL: prevent cards from shrinking */
     width: 70vw;
-    /* Always 70% of screen width */
     min-height: 180px;
     padding: 20px 18px 24px;
-
-    /* CRITICAL: scroll-snap requires cards in normal flow */
-    scroll-snap-align: center;
-    scroll-snap-stop: always;
 }
 
 body[data-mode="mobile"] .bubble-card__emoji {
