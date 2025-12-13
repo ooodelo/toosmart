@@ -1,15 +1,11 @@
 /* ============================================
-   BUBBLE CAROUSEL - Complete Refactored Implementation
-   Based on carousel-switchable.jsx React template
-   
-   Desktop/Tablet: Vertical stack, 2 cards visible
-   Mobile: Horizontal scroll with scroll-snap
+   BUBBLE CAROUSEL - FINAL LAYOUT
    ============================================ */
 
 /* === Variables === */
 .bubble-carousel {
     --bubble-card-width: 280px;
-    --bubble-card-width-mobile: 260px;
+    --bubble-card-width-mobile: 70vw;
     --bubble-gap: 24px;
     --bubble-gap-mobile: 16px;
     --bubble-radius: 24px;
@@ -19,212 +15,319 @@
     --bubble-desc-color: #6b7280;
     --bubble-dot-inactive: #d1d1d6;
     --bubble-dot-active: #202124;
+    --dog-height-overlay: 220px;
+    /* Larger dog for horizontal overlay */
 }
 
 /* === Container === */
 .bubble-carousel {
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: 100%;
-    max-width: 100%;
-    padding: 0;
-    /* Wrapper handles spacing now */
-    overflow: visible;
     font-family: var(--sans, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif);
     -webkit-font-smoothing: antialiased;
+    z-index: 100;
 }
 
 .bubble-carousel.is-hidden {
     display: none;
 }
 
-/* =============================================
-   MODE-SPECIFIC POSITIONING
-   ============================================= */
-
-/* DESKTOP-WIDE: Fixed right column */
-body[data-mode="desktop-wide"] .bubble-carousel {
-    position: fixed;
-    top: var(--stack-top, 16px);
-    right: 20px;
-    /* Clean 20px gap from right edge */
-    left: auto;
-    /* Container width for shadows */
-    width: 340px;
-    min-width: 340px;
-    max-width: 340px;
-
-    margin: 0;
-    padding: 20px 0 20px 40px;
-    /* Left padding for shadows, right is 0 */
-    z-index: 1200;
-    overflow: visible;
-    grid-column: 3;
+.bubble-carousel__dog img {
+    display: block;
+    width: auto;
+    height: 100%;
+    object-fit: contain;
 }
 
-/* DESKTOP-WIDE: Disable scroll wrapper functionality */
+/* =============================================
+   VERTICAL MODE (Desktop Wide)
+   - FIXED bottom-right
+   - 1 Card + Dog
+   - Order (Natural DOM): Dots -> Wrapper -> Dog
+   ============================================= */
+body[data-mode="desktop-wide"] .bubble-carousel {
+    position: fixed;
+    bottom: 0;
+    /* Прижата к низу экрана */
+    right: 20px;
+    /* Отступ 20px от правого края */
+
+    width: 280px;
+    flex-direction: column;
+    align-items: center;
+
+    z-index: 1200;
+}
+
+/* Natural DOM Order is conserved: Dots are first in HTML now. */
+body[data-mode="desktop-wide"] .bubble-carousel__dots {
+    margin-bottom: 10px;
+    width: 100%;
+    justify-content: center;
+}
+
 body[data-mode="desktop-wide"] .bubble-carousel__scroll-wrapper {
     width: 100%;
     overflow: visible;
-    padding: 0;
-    display: block;
+    margin-bottom: 0;
+    /* Dog sits right under */
 }
 
-/* DESKTOP-WIDE: Cards aligned to right edge */
 body[data-mode="desktop-wide"] .bubble-carousel__track {
-    align-items: flex-end;
-    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--bubble-gap);
+    padding: 0 0 10px 0;
+    /* Shadow space */
 }
 
-/* DESKTOP: Full width horizontal carousel (outside main) */
-body[data-mode="desktop"] .bubble-carousel {
-    position: relative;
+body[data-mode="desktop-wide"] .bubble-carousel__dog {
     width: 100%;
-    margin: 0;
-    /* Clean spacing - no negative margins */
-    padding: 0;
-    z-index: 1;
-    overflow: visible;
+    /* Не выходит за пределы колонки */
+    max-width: 280px;
+    height: auto;
+    margin-top: 10px;
 }
 
-/* TABLET: Full width horizontal carousel (outside main) */
-body[data-mode="tablet"] .bubble-carousel {
-    position: relative;
+/* Картинка внутри контейнера собаки */
+body[data-mode="desktop-wide"] .bubble-carousel__dog img {
+    display: block;
+    /* Убирает 1px inline-gap */
     width: 100%;
-    margin: 0;
-    /* Clean spacing */
-    padding: 0;
-    overflow: visible;
+    height: auto;
+    max-width: 100%;
 }
 
-/* MOBILE: Full width horizontal carousel (outside main) */
-body[data-mode="mobile"] .bubble-carousel {
-    position: relative;
-    width: 100%;
-    margin: 0;
-    /* Clean spacing */
-    padding: 0;
-    overflow-x: hidden;
-}
-
-body[data-mode="mobile"] .bubble-carousel__scroll-wrapper {
-    padding: 32px 24px 40px 24px;
-}
-
-/* =============================================
-   SCROLL WRAPPER: Now just a container (no native scroll)
-   ============================================= */
-.bubble-carousel__scroll-wrapper {
-    width: 100%;
-    overflow: visible;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-
-    /* Padding for shadow visibility */
-    padding: 32px 0 40px 0;
-}
-
-.bubble-carousel__scroll-wrapper::-webkit-scrollbar {
+body[data-mode="desktop-wide"] .bubble-card:nth-child(n+2) {
     display: none;
 }
 
 /* =============================================
-   DESKTOP / TABLET: Vertical Stacked Layout
-   React template lines 336-355:
-   - display: flex
-   - flexDirection: column
-   - alignItems: center
-   - gap: 24px
+   HORIZONTAL & TABLET MODE
+   - Flow Layout (Sibling of Main)
+   - Dog Overlay: Absolute, Right 0, Bottom 0, Height 220px
+   - Dots: Above cards (Natural DOM)
    ============================================= */
-.bubble-carousel__track {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: var(--bubble-gap);
-    padding: 8px 20px 24px;
+body[data-mode="desktop"] .bubble-carousel,
+body[data-mode="tablet"] .bubble-carousel {
     position: relative;
+    width: 100%;
+    flex-direction: column;
+    margin-top: 0;
+    padding: 10px 0 0;
+    /* Minimal top padding */
 }
 
-/* === Bubble Card (Base) === */
-/* React template lines 63-77:
-   - position: relative (implicit via flexShrink: 0)
-   - flexShrink: 0
-   - width: 280px (desktop) / 260px (mobile)
-   - borderRadius: 24px
-   - backgroundColor: #ffffff
-   - boxShadow: 0 20px 60px rgba(213, 216, 232, 1)
-   - border: 1px solid transparent (hover: #d9d9d9)
-*/
+/* Dots: Natural DOM (First) */
+body[data-mode="desktop"] .bubble-carousel__dots,
+body[data-mode="tablet"] .bubble-carousel__dots {
+    width: 100%;
+    justify-content: center;
+    margin-bottom: 10px;
+    margin-top: 0;
+}
+
+/* Track */
+body[data-mode="desktop"] .bubble-carousel__scroll-wrapper,
+body[data-mode="tablet"] .bubble-carousel__scroll-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    /* Space for shadow (bottom) + Dog overlap visual space if needed? 
+       Actually, check screenshots. Cards usually have shadow space. */
+    padding: 0 20px 40px 20px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+body[data-mode="desktop"] .bubble-carousel__scroll-wrapper::-webkit-scrollbar,
+body[data-mode="tablet"] .bubble-carousel__scroll-wrapper::-webkit-scrollbar {
+    display: none;
+}
+
+body[data-mode="desktop"] .bubble-carousel__track,
+body[data-mode="tablet"] .bubble-carousel__track {
+    display: flex;
+    flex-direction: row;
+    gap: var(--bubble-gap);
+}
+
+body[data-mode="desktop"] .bubble-card:nth-child(n+2),
+body[data-mode="tablet"] .bubble-card:nth-child(n+2) {
+    display: block;
+}
+
+/* Dog Overlay */
+body[data-mode="desktop"] .bubble-carousel__dog,
+body[data-mode="tablet"] .bubble-carousel__dog {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    /* Sit on the bottom edge */
+    width: auto;
+    height: var(--dog-height-overlay);
+    /* 220px */
+    z-index: 20;
+    pointer-events: none;
+}
+
+/* =============================================
+   MOBILE MODE
+   - Stacked Layout
+   - Dog Overlay
+   ============================================= */
+body[data-mode="mobile"] .bubble-carousel {
+    position: relative;
+    width: 100%;
+    flex-direction: column;
+    padding: 40px 0 0;
+    overflow: hidden;
+}
+
+body[data-mode="mobile"] .bubble-carousel__dots {
+    width: 100%;
+    justify-content: center;
+    margin-bottom: 10px;
+}
+
+body[data-mode="mobile"] .bubble-carousel__scroll-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding: 20px 0 60px;
+    /* More padding bottom for dog space? */
+    scrollbar-width: none;
+}
+
+body[data-mode="mobile"] .bubble-carousel__scroll-wrapper::-webkit-scrollbar {
+    display: none;
+}
+
+body[data-mode="mobile"] .bubble-carousel__track {
+    display: flex;
+    gap: var(--bubble-gap-mobile);
+    padding: 0 24px;
+}
+
+body[data-mode="mobile"] .bubble-card {
+    flex-shrink: 0;
+    width: var(--bubble-card-width-mobile);
+    /* 70vw */
+    scroll-snap-align: center;
+    scroll-snap-stop: always;
+}
+
+body[data-mode="mobile"] .bubble-card:nth-child(n+2) {
+    display: block;
+}
+
+/* Dog Overlay - Mobile */
+body[data-mode="mobile"] .bubble-carousel__dog {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    height: 160px;
+    /* Slightly smaller than desktop but big enough */
+    z-index: 20;
+    pointer-events: none;
+}
+
+/* =============================================
+   SHARED
+   ============================================= */
 .bubble-card {
     position: relative;
     flex-shrink: 0;
     width: var(--bubble-card-width);
-    min-height: 200px;
-    padding: 22px 20px 26px;
-    overflow: hidden;
-
-    background: var(--bubble-bg);
-    border-radius: var(--bubble-radius);
-    border: 1px solid transparent;
-    box-shadow: var(--bubble-shadow);
-
+    min-height: 213px;
+    /* 200px + 13px tail */
     text-decoration: none;
     color: inherit;
     cursor: pointer;
-
-    /* CRITICAL: visible for tail SVG to show outside card bounds */
     overflow: visible;
-
-    /* Simple opacity transition for fade effect */
-    transition: opacity 0.3s ease, border-color 0.2s ease;
+    /* No background/shadow on card itself - SVG handles it */
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
 }
 
-/* Inner content wrapper - clips overflowing text while allowing tail to be visible */
+/* SVG bubble shape - absolutely positioned behind content */
+.bubble-card__shape {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    overflow: visible;
+    /* Prevent stroke clipping */
+    filter: drop-shadow(0 20px 30px rgba(0, 0, 0, 0.2));
+}
+
+.bubble-card__bg {
+    fill: var(--bubble-bg);
+}
+
+.bubble-card__stroke {
+    fill: none;
+    stroke: transparent;
+    stroke-width: 3px;
+    transition: stroke 0.2s ease;
+}
+
+.bubble-card:hover .bubble-card__stroke {
+    stroke: rgb(38, 39, 40);
+}
+
 .bubble-card__content {
     position: relative;
+    z-index: 1;
+    padding: 24px 22px 26px;
     overflow: hidden;
-    height: 100%;
+    height: calc(100% - 13px);
+    /* Exclude tail height */
 }
 
-/* Cards are now controlled by JS - no hiding needed */
-
-.bubble-card:hover {
-    border-color: #d9d9d9;
-}
-
-/* === Card Content === */
-/* React template lines 80-116 */
 .bubble-card__emoji {
     display: block;
-    font-size: 52px;
+    font-size: 44px;
     line-height: 1;
-    margin-bottom: 14px;
+    margin-bottom: 12px;
 }
 
 .bubble-card__title {
-    margin: 0 0 10px 0;
+    margin: 0 0 12px;
     font-size: 16px;
     font-weight: 700;
-    letter-spacing: 0.06em;
-    line-height: 1.2;
-    color: var(--bubble-title-color);
     text-transform: uppercase;
+    letter-spacing: 0.06em;
+    line-height: 1.3;
 }
 
 .bubble-card__desc {
     margin: 0;
     font-size: 13px;
-    font-weight: 400;
-    line-height: 1.7;
-    letter-spacing: 0.01em;
     color: var(--bubble-desc-color);
     text-transform: uppercase;
+    letter-spacing: 0.01em;
+    line-height: 1.55;
+    text-decoration: none;
+    transition: text-decoration-color 0.2s ease;
+
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
-/* === Bubble Tail (Speech Bubble Effect) === */
-/* React template lines 118-133 */
+.bubble-card:hover .bubble-card__desc {
+    text-decoration: underline;
+    text-decoration-color: rgb(38, 39, 40);
+    text-underline-offset: 2px;
+    text-decoration-thickness: 1px;
+}
+
 .bubble-card__tail {
     position: absolute;
     bottom: -13px;
@@ -238,107 +341,24 @@ body[data-mode="mobile"] .bubble-carousel__scroll-wrapper {
     fill: var(--bubble-bg);
 }
 
-/* === Dots Navigation === */
-/* React template lines 195-222 */
 .bubble-carousel__dots {
     display: flex;
     align-items: center;
-    justify-content: center;
     gap: 6px;
-    padding: 8px 0;
 }
 
 .bubble-carousel__dot {
     width: 8px;
     height: 8px;
-    padding: 0;
-    border: none;
     border-radius: 100px;
     background-color: var(--bubble-dot-inactive);
+    border: none;
+    padding: 0;
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.3s;
 }
 
-.bubble-carousel__dot:hover {
-    background-color: #9ca3af;
-}
-
-.bubble-carousel__dot[aria-current="true"],
 .bubble-carousel__dot.is-active {
     width: 20px;
     background-color: var(--bubble-dot-active);
-}
-
-.bubble-carousel__dot[aria-current="true"]:hover,
-.bubble-carousel__dot.is-active:hover {
-    background-color: var(--bubble-dot-active);
-}
-
-/* DESKTOP-WIDE: Dots positioned lower */
-body[data-mode="desktop-wide"] .bubble-carousel__dots {
-    margin-top: 5px;
-}
-
-/* =============================================
-   TABLET / DESKTOP INLINE: Track Layout (transform-based)
-   ============================================= */
-body[data-mode="tablet"] .bubble-carousel__track,
-body[data-mode="desktop"] .bubble-carousel__track {
-    display: flex;
-    flex-direction: row;
-    align-items: stretch;
-    justify-content: center;
-    gap: var(--bubble-gap);
-    overflow: visible;
-}
-
-/* Tablet/Desktop inline: card sizing */
-body[data-mode="tablet"] .bubble-card,
-body[data-mode="desktop"] .bubble-card {
-    flex-shrink: 0;
-    height: 250px;
-}
-
-/* Desktop-wide (side column): shorter cards */
-body[data-mode="desktop-wide"] .bubble-card {
-    height: 220px;
-}
-
-/* =============================================
-   MOBILE: Horizontal Layout (transform-based)
-   ============================================= */
-body[data-mode="mobile"] .bubble-carousel__track {
-    display: flex;
-    flex-direction: row;
-    align-items: stretch;
-    justify-content: center;
-    gap: var(--bubble-gap-mobile);
-    overflow: visible;
-}
-
-/* Mobile card adjustments - centered single card */
-body[data-mode="mobile"] .bubble-card {
-    flex-shrink: 0;
-    width: 70vw;
-    min-height: 180px;
-    padding: 20px 18px 24px;
-}
-
-body[data-mode="mobile"] .bubble-card__emoji {
-    font-size: 48px;
-    margin-bottom: 12px;
-}
-
-body[data-mode="mobile"] .bubble-card__title {
-    font-size: 15px;
-    margin-bottom: 8px;
-}
-
-body[data-mode="mobile"] .bubble-card__desc {
-    font-size: 12px;
-    line-height: 1.65;
-}
-
-body[data-mode="mobile"] .bubble-card__tail {
-    right: 16px;
 }

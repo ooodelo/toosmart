@@ -2935,7 +2935,7 @@ function initStackCarousel() {
       : slug
         ? `/recommendations/${slug}.html`
         : '';
-    const cover = normalizeCover(rec.cover || rec.image || '');
+    const cover = normalizeCover(rec.cover || rec.emoji || rec.icon || rec.image || '');
 
     const id = slug || rec.id || `card-${idx}`;
 

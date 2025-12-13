@@ -776,6 +776,62 @@
       line-height: 1.5;
     }
 
+    .paywall-block {
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px dashed var(--border-light);
+      background: rgba(255, 255, 255, 0.85);
+      color: var(--text-primary);
+    }
+
+    .paywall-block :is(p, li, h2, h3, h4) {
+      margin: 0;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .paywall-block .article-divider {
+      display: block;
+      height: 1px;
+      background: var(--border-medium);
+      margin: 6px 0;
+      border-radius: 999px;
+    }
+
+    .paywall-block .section-label {
+      display: inline-block;
+      padding: 4px 6px;
+      font-size: 10px;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      border: 1px solid var(--border-light);
+      border-radius: 8px;
+      background: var(--bg-hover);
+    }
+
+    .paywall-block :is(.article-lead, .article-subtitle) {
+      background: var(--bg-hover);
+      border-radius: 8px;
+      padding: 6px 8px;
+      margin: 4px 0;
+      font-weight: 600;
+    }
+
+    .paywall-block :is(.article-card, .component-card, .product-list, .pullquote, .number-callout, .two-column-compare, .checklist, footer.article-footer) {
+      border: 1px dashed var(--border-light);
+      border-radius: 10px;
+      padding: 8px;
+      background: var(--bg-page);
+    }
+
+    .paywall-block blockquote {
+      margin: 4px 0;
+      padding-left: 10px;
+      border-left: 2px solid var(--border-medium);
+      color: var(--text-secondary);
+    }
+
     .paywall-block-placeholder {
       color: var(--text-muted);
       font-style: italic;
@@ -1126,7 +1182,9 @@
               </div>
             </div>
             <div id="imagesList" class="content-list" style="margin-top:12px;">
-              <div class="card"><div class="card-body">Загрузка изображений...</div></div>
+              <div class="card">
+                <div class="card-body">Загрузка изображений...</div>
+              </div>
             </div>
           </div>
         </div>
@@ -1156,23 +1214,33 @@
                     <option value="EUR">EUR (€)</option>
                   </select></div>
               </div>
-              <p style="font-size:12px; color: var(--text-muted); margin-top: 8px;">Старая цена показывается перечёркнутой, актуальная участвует в расчётах и промокодах.</p>
+              <p style="font-size:12px; color: var(--text-muted); margin-top: 8px;">Старая цена показывается
+                перечёркнутой, актуальная участвует в расчётах и промокодах.</p>
             </div>
           </div>
 
           <div class="card">
-            <div class="card-header"><div class="card-title">🏷️ Промокод (предпросмотр)</div></div>
+            <div class="card-header">
+              <div class="card-title">🏷️ Промокод (предпросмотр)</div>
+            </div>
             <div class="card-body">
               <div class="form-row">
-                <div class="form-group" style="flex:1;"><label class="form-label">Код</label><input type="text" class="form-input" id="promoCodePreview" placeholder="PROMO2025"></div>
-                <div class="form-group" style="width:160px;"><label class="form-label">Тип</label><select class="form-select" id="promoTypePreview"><option value="percent">% скидка</option><option value="fixed">Фикс. сумма</option></select></div>
-                <div class="form-group" style="width:140px;"><label class="form-label">Значение</label><input type="number" class="form-input" id="promoValuePreview" placeholder="10"></div>
+                <div class="form-group" style="flex:1;"><label class="form-label">Код</label><input type="text"
+                    class="form-input" id="promoCodePreview" placeholder="PROMO2025"></div>
+                <div class="form-group" style="width:160px;"><label class="form-label">Тип</label><select
+                    class="form-select" id="promoTypePreview">
+                    <option value="percent">% скидка</option>
+                    <option value="fixed">Фикс. сумма</option>
+                  </select></div>
+                <div class="form-group" style="width:140px;"><label class="form-label">Значение</label><input
+                    type="number" class="form-input" id="promoValuePreview" placeholder="10"></div>
               </div>
               <div class="form-row" style="align-items: center; gap:12px;">
                 <div class="form-group" style="flex:1;">
                   <label class="form-label">Итог с учётом промокода</label>
                   <div id="promoResult" style="font-weight:700; font-size:16px; color: var(--text-primary);">—</div>
-                  <div id="promoHint" style="font-size:12px; color: var(--text-muted);">Базовая цена берётся из поля “Актуальная цена”.</div>
+                  <div id="promoHint" style="font-size:12px; color: var(--text-muted);">Базовая цена берётся из поля
+                    “Актуальная цена”.</div>
                 </div>
                 <div class="btn-group">
                   <button type="button" class="btn btn-outline btn-sm" id="promoApplyPreview">Обновить</button>
@@ -1188,8 +1256,8 @@
             <div class="card-title">✍️ Тексты CTA</div>
           </div>
           <div class="card-body">
-            <div class="form-group"><label class="form-label">Free → Оплата</label><input type="text"
-                class="form-input" id="ctaEnterFull"></div>
+            <div class="form-group"><label class="form-label">Free → Оплата</label><input type="text" class="form-input"
+                id="ctaEnterFull"></div>
             <div class="form-group"><label class="form-label">Premium → Далее</label><input type="text"
                 class="form-input" id="ctaNext"></div>
             <div class="form-group"><label class="form-label">Appendix → Курс</label><input type="text"
@@ -1200,7 +1268,9 @@
         </div>
 
         <div class="card">
-          <div class="card-header"><div class="card-title">🎯 Favicon и иконки</div><span class="badge badge-muted">Текущий набор</span></div>
+          <div class="card-header">
+            <div class="card-title">🎯 Favicon и иконки</div><span class="badge badge-muted">Текущий набор</span>
+          </div>
           <div class="card-body">
             <div class="form-group">
               <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;" id="faviconPreview">
@@ -1211,12 +1281,12 @@
             <div class="grid-2" style="margin-top: 12px;">
               <div class="form-group"><label class="form-label">Name</label><input type="text" class="form-input"
                   id="manifestName"></div>
-              <div class="form-group"><label class="form-label">Short Name</label><input type="text"
-                  class="form-input" id="manifestShortName"></div>
+              <div class="form-group"><label class="form-label">Short Name</label><input type="text" class="form-input"
+                  id="manifestShortName"></div>
             </div>
             <div class="grid-2">
-              <div class="form-group"><label class="form-label">Theme Color</label><input type="text"
-                  class="form-input" id="manifestThemeColor"></div>
+              <div class="form-group"><label class="form-label">Theme Color</label><input type="text" class="form-input"
+                  id="manifestThemeColor"></div>
               <div class="form-group"><label class="form-label">Background Color</label><input type="text"
                   class="form-input" id="manifestBgColor"></div>
             </div>
@@ -1242,10 +1312,10 @@
             </div>
           </div>
 
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">🔍 SEO по умолчанию</div>
-          </div>
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">🔍 SEO по умолчанию</div>
+            </div>
             <div class="card-body">
               <div class="form-group"><label class="form-label">Суффикс &lt;title&gt;</label><input type="text"
                   class="form-input" id="titleSuffix"></div>
@@ -1267,7 +1337,8 @@
           </div>
           <div class="card-body">
             <div id="promoList"></div>
-            <p style="font-size:12px; color: var(--text-muted); margin-top:8px;">Удалите код из списка, чтобы деактивировать его при следующем сохранении.</p>
+            <p style="font-size:12px; color: var(--text-muted); margin-top:8px;">Удалите код из списка, чтобы
+              деактивировать его при следующем сохранении.</p>
           </div>
         </div>
 
@@ -1416,7 +1487,8 @@
                   <button type="button" data-cmd="clear">✖ Очистить</button>
                 </div>
                 <iframe class="wysiwyg-frame" id="wysiwygFrame" style="display:none;" title="WYSIWYG редактор"></iframe>
-                <textarea class="form-textarea code-area" id="htmlBlockContent" placeholder="Выберите блок и нажмите «Загрузить»"></textarea>
+                <textarea class="form-textarea code-area" id="htmlBlockContent"
+                  placeholder="Выберите блок и нажмите «Загрузить»"></textarea>
               </div>
             </div>
           </div>
@@ -1670,7 +1742,7 @@
             </div>
             <div style="flex:1; min-width:0;">
               <div style="font-weight:600; font-size:13px; margin-bottom:4px; word-break:break-all;">${img.path}</div>
-              <div style="font-size:12px; color:var(--text-muted); margin-bottom:8px;">${(img.sources||[]).join(', ') || '—'} · use: ${img.inUse?.length || 0}</div>
+              <div style="font-size:12px; color:var(--text-muted); margin-bottom:8px;">${(img.sources || []).join(', ') || '—'} · use: ${img.inUse?.length || 0}</div>
               <div class="form-row" style="gap:8px;">
                 <div class="form-group" style="flex:1;">
                   <label class="form-label">Alt</label>
@@ -2036,10 +2108,11 @@
       `;
     }
     function renderPaywall(item) {
-      const open = item.paywall?.openBlocks ?? 3;
-      const teaser = item.paywall?.teaserBlocks ?? 2;
+      const maxBlocks = item.paywallPreview?.totalBlocks || 30;
+      const open = Math.min(item.paywallPreview?.openBlocks ?? item.paywall?.openBlocks ?? 3, maxBlocks);
+      const teaser = Math.min(item.paywallPreview?.teaserBlocks ?? item.paywall?.teaserBlocks ?? 2, Math.max(0, maxBlocks - open));
       const idSafe = safeId(item.pathKey);
-      const dataPreview = item.paywallPreview ? encodeURIComponent(JSON.stringify(item.paywallPreview.paragraphs || [])) : '[]';
+      const dataPreview = item.paywallPreview ? encodeURIComponent(JSON.stringify(item.paywallPreview.blocks || item.paywallPreview.paragraphs || [])) : '[]';
       return `
         <div class="field-block">
           <div class="field-block-header">
@@ -2050,19 +2123,19 @@
               <div class="paywall-control">
                 <label>Открыто блоков</label>
                 <div style="display: flex; align-items: center; gap: 12px;">
-                  <input type="range" class="paywall-slider" min="0" max="30" value="${open}" data-field="openBlocks" data-target="openValue-${idSafe}">
+                  <input type="range" class="paywall-slider" min="0" max="${maxBlocks}" value="${open}" data-field="openBlocks" data-target="openValue-${idSafe}">
                   <span class="paywall-control-value" id="openValue-${idSafe}">${open}</span>
                 </div>
               </div>
               <div class="paywall-control">
                 <label>Блоков в блюре (teaser)</label>
                 <div style="display: flex; align-items: center; gap: 12px;">
-                  <input type="number" class="form-input" style="width:90px;" value="${teaser}" data-teaser-input data-field="teaserBlocks" data-target="teaserValue-${idSafe}">
+                  <input type="number" class="form-input" style="width:90px;" min="0" max="${maxBlocks}" value="${teaser}" data-teaser-input data-field="teaserBlocks" data-target="teaserValue-${idSafe}">
                   <span class="paywall-control-value" id="teaserValue-${idSafe}">${teaser}</span>
                 </div>
               </div>
             </div>
-            <div class="paywall-preview-vertical" data-paywall-paragraphs="${dataPreview}">${renderPaywallPreview(item.paywallPreview, open, teaser)}</div>
+            <div class="paywall-preview-vertical" data-paywall-blocks="${dataPreview}">${renderPaywallPreview(item.paywallPreview, open, teaser)}</div>
           </div>
         </div>
       `;
@@ -2225,15 +2298,15 @@
       `;
     }
 
-    function renderPaywallPreviewFromParagraphs(paragraphs, open, teaser) {
-      const total = paragraphs.length;
+    function renderPaywallPreviewFromBlocks(blocks, open, teaser) {
+      const total = blocks.length;
       const openCount = Math.min(Number(open) || 0, total);
       const teaserCount = Math.min(Number(teaser) || 0, Math.max(0, total - openCount));
       const hiddenStart = openCount + teaserCount;
 
-      const openBlocks = paragraphs.slice(0, openCount);
-      const teaserBlocks = paragraphs.slice(openCount, hiddenStart);
-      const hiddenBlocks = paragraphs.slice(hiddenStart);
+      const openBlocks = blocks.slice(0, openCount);
+      const teaserBlocks = blocks.slice(openCount, hiddenStart);
+      const hiddenBlocks = blocks.slice(hiddenStart);
 
       return renderPaywallPreview({
         open: openBlocks,
@@ -2244,18 +2317,18 @@
 
     function updatePaywallPreview(editor) {
       if (!editor) return;
-      const previewBox = editor.querySelector('.paywall-preview-vertical[data-paywall-paragraphs]');
+      const previewBox = editor.querySelector('.paywall-preview-vertical[data-paywall-blocks]');
       if (!previewBox) return;
-      const paragraphsRaw = previewBox.dataset.paywallParagraphs || '[]';
-      let paragraphs = [];
+      const blocksRaw = previewBox.dataset.paywallBlocks || '[]';
+      let blocks = [];
       try {
-        paragraphs = JSON.parse(decodeURIComponent(paragraphsRaw));
+        blocks = JSON.parse(decodeURIComponent(blocksRaw));
       } catch (e) {
-        paragraphs = [];
+        blocks = [];
       }
       const open = Number(editor.querySelector('.paywall-slider')?.value || 0);
       const teaser = Number(editor.querySelector('[data-teaser-input]')?.value || 0);
-      previewBox.innerHTML = renderPaywallPreviewFromParagraphs(paragraphs, open, teaser);
+      previewBox.innerHTML = renderPaywallPreviewFromBlocks(blocks, open, teaser);
     }
 
     async function saveContent(pathKey) {
@@ -2879,15 +2952,15 @@
         });
 
         const primary = data.primary ? `Основной: ${data.primary}` : 'Основной не задан';
-      const manifestParts = [];
-      if (manifest.name) manifestParts.push(`Имя: ${manifest.name}`);
-      if (manifest.short_name || manifest.shortName) manifestParts.push(`Короткое: ${manifest.short_name || manifest.shortName}`);
-      if (manifest.theme_color || manifest.themeColor) manifestParts.push(`Тема: ${manifest.theme_color || manifest.themeColor}`);
-      if (manifest.background_color || manifest.backgroundColor) manifestParts.push(`Фон: ${manifest.background_color || manifest.backgroundColor}`);
-      if (manifest.icons && manifest.icons.length) {
-        manifestParts.push(`Иконок: ${manifest.icons.length}`);
-      }
-      meta.textContent = [primary, manifestParts.join(' • ')].filter(Boolean).join(' — ');
+        const manifestParts = [];
+        if (manifest.name) manifestParts.push(`Имя: ${manifest.name}`);
+        if (manifest.short_name || manifest.shortName) manifestParts.push(`Короткое: ${manifest.short_name || manifest.shortName}`);
+        if (manifest.theme_color || manifest.themeColor) manifestParts.push(`Тема: ${manifest.theme_color || manifest.themeColor}`);
+        if (manifest.background_color || manifest.backgroundColor) manifestParts.push(`Фон: ${manifest.background_color || manifest.backgroundColor}`);
+        if (manifest.icons && manifest.icons.length) {
+          manifestParts.push(`Иконок: ${manifest.icons.length}`);
+        }
+        meta.textContent = [primary, manifestParts.join(' • ')].filter(Boolean).join(' — ');
 
         // Обновляем поля манифеста из favicon-конфига
         qs('#manifestName').value = manifest.name || '';

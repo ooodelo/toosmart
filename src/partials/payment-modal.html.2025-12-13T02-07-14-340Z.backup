@@ -1,0 +1,53 @@
+<!-- МОДАЛЬНОЕ ОКНО ОПЛАТЫ -->
+<div class="modal" id="cta-payment-modal" role="dialog" aria-modal="true" aria-labelledby="payment-modal-title">
+    <div class="modal-overlay" onclick="closeCTAModal()"></div>
+    <div class="modal-content">
+        <ul class="modal-benefits" style="margin-bottom: 32px;">
+            <li>✅ 10 полных разделов с подробными объяснениями</li>
+            <li>✅ Практические рецепты и таблицы</li>
+            <li>✅ Пожизненный доступ к материалам</li>
+            <li>✅ Бесплатные обновления курса</li>
+        </ul>
+
+        <p class="modal-price" style="justify-content: center; margin-bottom: 32px;">
+            <span class="price-old" style="font-size: 28px;">__PRICE_ORIGINAL__</span>
+            <span class="price-current" style="font-size: 28px;">__PRICE_CURRENT__</span>
+        </p>
+
+        <div id="payment-error" style="display: none;" role="alert"></div>
+
+        <form id="payment-form">
+            <div class="form-group">
+                <input type="email" name="email" class="modal-input" placeholder="Введите ваш email" required
+                    autocomplete="email" aria-label="Email для доступа к курсу">
+            </div>
+
+            <div class="form-group-promo">
+                <input type="text" name="promo_code" id="promo-code-input" class="modal-input" placeholder="Промокод"
+                    aria-label="Промокод">
+                <button type="button" class="promo-submit" id="promo-apply-btn">Применить</button>
+            </div>
+            <div id="promo-status" style="display:none; font-size: 14px; margin-top: -8px; margin-bottom: 12px;"></div>
+
+            <label class="modal-checkbox">
+                <input type="checkbox" name="accept_offer" required>
+                <span>
+                    Согласен с
+                    <a href="/shared/legal/publichnaya-oferta-na-okazanie-informacionnyh-uslug.html"
+                        onclick="openLegalModal('offer'); return false;">публичной офертой</a> и
+                    <a href="/shared/legal/politika-konfidencial-nosti.html"
+                        onclick="openLegalModal('privacy'); return false;">политикой конфиденциальности</a>
+                </span>
+            </label>
+
+            <button type="submit" class="modal-submit">
+                Продолжить
+            </button>
+        </form>
+
+        <p class="modal-security">
+            <span>🔒</span> Безопасная оплата через Robokassa
+        </p>
+    </div>
+    <button class="modal-close" type="button" onclick="closeCTAModal()" aria-label="Закрыть">×</button>
+</div>

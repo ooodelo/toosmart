@@ -6,7 +6,7 @@ const createDOMPurify = require('dompurify');
 const { JSDOM } = require('jsdom');
 const { minify: minifyJS } = require('terser');
 const csso = require('csso');
-const { buildPaywallSegments, extractBlocks } = require('./paywall');
+const { buildPaywallSegments } = require('./paywall');
 const { execSync } = require('child_process');
 
 let cachedHeadScriptsPartial = null;
@@ -103,16 +103,17 @@ const DEFAULT_META = {
   meta_description: '',
   menu_label: '',
   menu_subtitle: '',
-  paywall: {
-    openBlocks: 3,
-    teaserBlocks: 2
-  },
   carousel_label: '',
   carousel_subtitle: '',
   carousel_icon: '',
   carousel_order: null,
   carousel_enabled: true
 };
+
+function hasExplicitPaywall(meta = {}) {
+  const pw = meta.paywall || {};
+  return pw.openBlocks !== undefined || pw.teaserBlocks !== undefined;
+}
 
 const DEFAULT_SITE_CONFIG = {
   domain: 'example.com',
@@ -545,17 +546,37 @@ async function buildRecommendations() {
   );
 }
 
+function cloneConfig(obj) {
+  return JSON.parse(JSON.stringify(obj || {}));
+}
+
+function normalizePricing(pricing = {}, fallback = DEFAULT_SITE_CONFIG.pricing) {
+  const safeFallback = fallback || { originalAmount: 0, currentAmount: 0, currency: 'RUB' };
+  const toNumber = (value, defaultValue) => {
+    const num = Number(value);
+    return Number.isFinite(num) ? num : defaultValue;
+  };
+
+  return {
+    originalAmount: toNumber(pricing.originalAmount, safeFallback.originalAmount),
+    currentAmount: toNumber(pricing.currentAmount, safeFallback.currentAmount),
+    currency: (pricing.currency || safeFallback.currency || 'RUB').trim() || safeFallback.currency || 'RUB'
+  };
+}
+
 async function loadSiteConfig() {
   if (!fs.existsSync(PATHS.config.site)) {
-    return DEFAULT_SITE_CONFIG;
+    return cloneConfig(DEFAULT_SITE_CONFIG);
   }
   try {
     const raw = await fsp.readFile(PATHS.config.site, 'utf8');
     const parsed = JSON.parse(raw);
-    return deepMerge(DEFAULT_SITE_CONFIG, parsed);
+    const merged = deepMerge(cloneConfig(DEFAULT_SITE_CONFIG), parsed);
+    merged.pricing = normalizePricing(merged.pricing, DEFAULT_SITE_CONFIG.pricing);
+    return merged;
   } catch (error) {
     console.warn('⚠️  Ошибка чтения site.json, используется конфиг по умолчанию:', error.message);
-    return DEFAULT_SITE_CONFIG;
+    return cloneConfig(DEFAULT_SITE_CONFIG);
   }
 }
 
@@ -1010,13 +1031,17 @@ function resolveTypeByBranch(branch) {
 function normalizeMeta(meta) {
   const merged = {
     ...DEFAULT_META,
-    ...meta,
-    paywall: { ...DEFAULT_META.paywall, ...(meta?.paywall || {}) }
+    ...meta
   };
 
-  if (merged.paywall) {
-    merged.paywall.openBlocks = Number.isFinite(merged.paywall.openBlocks) ? Number(merged.paywall.openBlocks) : DEFAULT_META.paywall.openBlocks;
-    merged.paywall.teaserBlocks = Number.isFinite(merged.paywall.teaserBlocks) ? Number(merged.paywall.teaserBlocks) : DEFAULT_META.paywall.teaserBlocks;
+  if (meta && typeof meta === 'object' && meta.paywall) {
+    const pw = meta.paywall || {};
+    merged.paywall = {
+      openBlocks: Number.isFinite(Number(pw.openBlocks)) ? Number(pw.openBlocks) : pw.openBlocks,
+      teaserBlocks: Number.isFinite(Number(pw.teaserBlocks)) ? Number(pw.teaserBlocks) : pw.teaserBlocks
+    };
+  } else {
+    delete merged.paywall;
   }
 
   if (merged.carousel_order != null) {
@@ -1059,6 +1084,17 @@ function extractBreadcrumb(html) {
   }
 
   return { breadcrumb: '', htmlWithoutBreadcrumb: html };
+}
+
+/**
+ * Injects reading time into breadcrumb HTML
+ * Adds mint-colored reading time span before closing </nav>
+ */
+function injectReadingTimeIntoBreadcrumb(breadcrumbHtml, readingTimeMinutes) {
+  if (!breadcrumbHtml || !readingTimeMinutes) return breadcrumbHtml;
+
+  const readingTimeSpan = `<span class="separator"> · </span><span class="reading-time-inline">~${readingTimeMinutes} минут чтения</span>`;
+  return breadcrumbHtml.replace('</nav>', `${readingTimeSpan}</nav>`);
 }
 
 function extractAndStripH1(markdown) {
@@ -1156,7 +1192,8 @@ async function loadMarkdownBranch(dirPath, branch, config, assetRegistry = new M
 
     const frontMatter = normalizeFrontMatterMedia(data, dirPath, assetRegistry);
     const pathKey = `${branch}/${file}`;
-    const meta = normalizeMeta(contentMeta[pathKey] || {});
+    const rawMetaEntry = contentMeta[pathKey] || {};
+    const meta = normalizeMeta(rawMetaEntry);
     const type = meta.type || resolveTypeByBranch(branch);
     const slugBase = meta.slug || (meta.seo_h1 || h1 || '');
     const slug = type === 'intro'
@@ -1166,10 +1203,10 @@ async function loadMarkdownBranch(dirPath, branch, config, assetRegistry = new M
     const readingTimeMinutes = calculateReadingTime(bodyWithoutH1, config.build.wordsPerMinute);
 
     const fullHtml = rewriteContentMedia(renderMarkdown(bodyWithoutH1), dirPath, assetRegistry);
-    const paywallOverride = type === 'article' ? meta.paywall : null;
+    const paywallOverride = type === 'article' && hasExplicitPaywall(rawMetaEntry) ? meta.paywall : null;
     const paywall = type === 'article'
       ? buildPaywallSegments(bodyWithoutH1, paywallOverride)
-      : { openHtml: '', teaserHtml: '', openBlocks: 0, teaserBlocks: 0, totalBlocks: 0 };
+      : { openHtml: '', teaserHtml: '', openBlocks: 0, teaserBlocks: 0, totalBlocks: 0, lockedBlocks: [] };
 
     const seo_h1 = meta.seo_h1 || h1 || '';
     const title = meta.title || buildTitleFromSeo(seo_h1 || h1, config.seo.titleSuffix);
@@ -1193,8 +1230,7 @@ async function loadMarkdownBranch(dirPath, branch, config, assetRegistry = new M
 
     const teaserHtml = paywall.teaserHtml || buildTeaser(fullHtml);
     const excerpt = frontMatter.excerpt || stripHtml(teaserHtml);
-    const { blocks } = extractBlocks(bodyWithoutH1);
-    const lockedBlocks = blocks.filter(b => b.index > paywall.openBlocks).map(b => b.html);
+    const lockedBlocks = Array.isArray(paywall.lockedBlocks) ? paywall.lockedBlocks : [];
 
     items.push({
       file,
@@ -1333,11 +1369,12 @@ function buildIntroPage(item, menuHtml, config, template, mode, nextUrl = '', le
 function buildFreeCoursePage(item, menuHtml, config, template, legalMap = {}, lockedSrc = '') {
   const paywallSource = lockedSrc || '';
   const { breadcrumb, htmlWithoutBreadcrumb } = extractBreadcrumb(item.paywallOpenHtml);
+  const breadcrumbWithTime = injectReadingTimeIntoBreadcrumb(breadcrumb, item.readingTimeMinutes);
 
   const body = `
         <div class="text-box__intro content-shell">
           <div class="content-body">
-            ${breadcrumb}
+            ${breadcrumbWithTime}
             <header>
               <h1>${item.seo_h1 || item.h1_md}</h1>
               <p class="meta">${formatReadingTime(item.readingTimeMinutes)} чтения</p>

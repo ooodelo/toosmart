@@ -1,28 +1,19 @@
-const { marked } = require('marked');
-const { processMarkers, extractMeta, renderBreadcrumb } = require('./enhanced-markdown-parser');
+/**
+ * Paywall Module - Refactored
+ * 
+ * Архитектура:
+ * 1. parseEnhancedMarkdown() — единственная точка рендера markdown → HTML
+ * 2. Разбиваем HTML на блоки и уже по ним режем открытую/тизер/закрытую части
+ * 3. Если есть <!-- divider --> — граница ставится по нему, divider остаётся в открытой части
+ */
 
-const DEFAULT_TEASER_BLOCKS = 3;
+const { parseEnhancedMarkdown, extractMeta } = require('./enhanced-markdown-parser');
 
-function preparePaywallMarkdown(markdown = '') {
-  const source = typeof markdown === 'string' ? markdown : '';
-  const { meta, cleanedMarkdown } = extractMeta(source);
-  const processed = processMarkers(cleanedMarkdown || '');
-  const breadcrumb = renderBreadcrumb(meta);
-  return breadcrumb ? `${breadcrumb}\n\n${processed}` : processed;
-}
+const DEFAULT_TEASER_BLOCKS = 4;
 
-function isCountableToken(token) {
-  if (!token || token.type === 'space') return false;
-  if (token.type === 'html') {
-    const raw = typeof token.raw === 'string' ? token.raw.trim() : '';
-    const text = typeof token.text === 'string' ? token.text.trim() : '';
-    const value = raw || text;
-    if (value.startsWith('<!--')) return false;
-    if (/^<nav[^>]+article-breadcrumb/i.test(value)) return false;
-  }
-  return true;
-}
-
+/**
+ * Strip HTML tags to get plain text
+ */
 function stripHtml(html) {
   return String(html || '')
     .replace(/<[^>]+>/g, ' ')
@@ -30,251 +21,286 @@ function stripHtml(html) {
     .trim();
 }
 
-function attachLinks(tokens, links) {
-  return Object.assign([], tokens, { links: links || {} });
+/**
+ * Check if an HTML block is a divider
+ */
+function isDividerBlock(html) {
+  return /<div[^>]+class="[^"]*article-divider[^"]*"/i.test(html);
 }
 
-function splitTokensByBlocks(tokens, openBlocks = 1, teaserBlocks = DEFAULT_TEASER_BLOCKS) {
-  const openTokens = [];
-  const teaserTokens = [];
-  let blockCounter = 0;
-  let teaserCounter = 0;
+/**
+ * Check if an HTML block is non-countable (dividers, section labels, breadcrumbs)
+ */
+function isNonCountableBlock(html) {
+  const trimmed = html.trim();
+  if (!trimmed) return true;
+  if (/<div[^>]+class="[^"]*article-divider[^"]*"/i.test(trimmed)) return true;
+  if (/<div[^>]+class="[^"]*section-label[^"]*"/i.test(trimmed)) return true;
+  if (/<nav[^>]+class="[^"]*article-breadcrumb[^"]*"/i.test(trimmed)) return true;
+  return false;
+}
 
-  for (const token of tokens) {
-    const isSpace = token.type === 'space';
-    const countable = isCountableToken(token);
-    if (countable) {
-      blockCounter++;
-    }
+/**
+ * Extract blocks from rendered HTML
+ * Splits HTML by top-level block elements (p, h1-h6, div, blockquote, ul, ol, etc.)
+ * Returns array of { html, isCountable, isDivider }
+ */
+function extractHtmlBlocks(html) {
+  const blocks = [];
 
-    if (blockCounter <= openBlocks) {
-      openTokens.push(token);
-      continue;
-    }
+  // Match paired block tags and hr
+  const blockPattern = /<(p|h[1-6]|div|blockquote|ul|ol|section|article|header|footer|nav|table|pre)(\s[^>]*)?>[\s\S]*?<\/\1>|<hr[^>]*\/?>(?=(?:[^<]|<[^/])*$)/gi;
 
-    if (countable && teaserCounter >= teaserBlocks) {
-      continue;
-    }
-
-    if (countable) {
-      teaserCounter++;
-    }
-    if (teaserCounter <= teaserBlocks) {
-      teaserTokens.push(token);
+  let match;
+  while ((match = blockPattern.exec(html)) !== null) {
+    const blockHtml = (match[0] || '').trim();
+    if (blockHtml) {
+      blocks.push({
+        html: blockHtml,
+        isCountable: !isNonCountableBlock(blockHtml),
+        isDivider: isDividerBlock(blockHtml)
+      });
     }
   }
 
-  const totalBlocks = tokens.filter(isCountableToken).length;
+  return blocks;
+}
+
+/**
+ * Split HTML blocks into open/teaser/locked segments
+ */
+function splitHtmlBlocks(blocks, openBlockCount, teaserBlockCount = DEFAULT_TEASER_BLOCKS) {
+  const openBlocks = [];
+  const teaserBlocks = [];
+  const lockedBlocks = [];
+
+  let countableIndex = 0;
+
+  for (const block of blocks) {
+    if (block.isCountable) {
+      countableIndex++;
+    }
+
+    if (countableIndex <= openBlockCount) {
+      openBlocks.push(block);
+    } else if (countableIndex <= openBlockCount + teaserBlockCount) {
+      teaserBlocks.push(block);
+    } else {
+      lockedBlocks.push(block);
+    }
+  }
 
   return {
-    openTokens,
-    teaserTokens,
-    openBlocks: Math.min(openBlocks, totalBlocks),
-    teaserBlocks: teaserCounter,
-    totalBlocks
+    openBlocks,
+    teaserBlocks,
+    lockedBlocks,
+    openCount: openBlocks.filter(b => b.isCountable).length,
+    teaserCount: teaserBlocks.filter(b => b.isCountable).length,
+    totalCount: blocks.filter(b => b.isCountable).length
   };
 }
 
-// Port of legacy heuristic with block counts
-function analyzePaywallStructure(markdown) {
-  const prepared = preparePaywallMarkdown(markdown);
-  const tokens = marked.lexer(prepared);
-  let openTokens = [];
-  let teaserTokens = [];
-  let boundaryIndex = -1;
+/**
+ * Find the first divider and split there
+ * Divider остаётся в открытой части
+ */
+function splitAtFirstDivider(blocks, teaserBlockCount = DEFAULT_TEASER_BLOCKS) {
+  const dividerIndex = blocks.findIndex(b => b.isDivider);
 
-  const h1Index = tokens.findIndex(t => t.type === 'heading' && t.depth === 1);
-  const startIndex = h1Index !== -1 ? h1Index + 1 : 0;
-
-  if (h1Index !== -1) {
-    openTokens.push(tokens[h1Index]);
+  if (dividerIndex === -1) {
+    // Нет divider — fallback: 20% контента в открытую, без тизера
+    const totalCountable = blocks.filter(b => b.isCountable).length;
+    const targetOpen = totalCountable > 0
+      ? Math.min(Math.max(1, Math.floor(totalCountable * 0.2)), Math.max(totalCountable - 1, 1))
+      : 0;
+    return splitHtmlBlocks(blocks, targetOpen, 0);
   }
 
-  const introSubheaderIndex = tokens.findIndex((t, i) =>
-    i >= startIndex &&
-    t.type === 'heading' &&
-    t.depth > 1 &&
-    /введение|introduction/i.test(t.text)
-  );
+  const openBlocks = blocks.slice(0, dividerIndex + 1); // divider включён
+  const remaining = blocks.slice(dividerIndex + 1);
 
-  if (introSubheaderIndex !== -1) {
-    let currentIdx = introSubheaderIndex;
-    let paragraphCount = 0;
-    openTokens.push(tokens[introSubheaderIndex]);
-
-    currentIdx++;
-    while (currentIdx < tokens.length) {
-      const t = tokens[currentIdx];
-      if (t.type === 'heading' && t.depth <= tokens[introSubheaderIndex].depth) {
-        break;
-      }
-      if (t.type === 'hr') {
-        break;
-      }
-
-      openTokens.push(t);
-      if (t.type === 'paragraph') {
-        paragraphCount++;
-        if (paragraphCount >= 3) break;
-      }
-      currentIdx++;
+  const teaserBlocks = [];
+  let teaserCountable = 0;
+  for (const block of remaining) {
+    if (block.isCountable) {
+      teaserCountable++;
+      if (teaserCountable > teaserBlockCount) break;
     }
-    boundaryIndex = currentIdx;
-
-  } else {
-    const firstSubheaderIndex = tokens.findIndex((t, i) => i >= startIndex && t.type === 'heading');
-    const limitIndex = firstSubheaderIndex !== -1 ? firstSubheaderIndex : tokens.length;
-
-    let hasTextAfterH1 = false;
-    for (let i = startIndex; i < limitIndex; i++) {
-      if (tokens[i].type === 'paragraph') {
-        hasTextAfterH1 = true;
-        break;
-      }
-    }
-
-    if (hasTextAfterH1) {
-      let currentIdx = startIndex;
-      let paragraphCount = 0;
-
-      while (currentIdx < limitIndex) {
-        const t = tokens[currentIdx];
-        if (t.type === 'hr') break;
-
-        openTokens.push(t);
-        if (t.type === 'paragraph') {
-          paragraphCount++;
-          if (paragraphCount >= 3) break;
-        }
-        currentIdx++;
-      }
-      boundaryIndex = currentIdx;
-
-    } else {
-      if (firstSubheaderIndex !== -1) {
-        openTokens.push(tokens[firstSubheaderIndex]);
-
-        let currentIdx = firstSubheaderIndex + 1;
-        let paragraphCount = 0;
-
-        while (currentIdx < tokens.length) {
-          const t = tokens[currentIdx];
-          if (t.type === 'heading' && t.depth <= tokens[firstSubheaderIndex].depth) break;
-          if (t.type === 'hr') break;
-
-          openTokens.push(t);
-          if (t.type === 'paragraph') {
-            paragraphCount++;
-            if (paragraphCount >= 3) break;
-          }
-          currentIdx++;
-        }
-        boundaryIndex = currentIdx;
-      } else {
-        let currentIdx = startIndex;
-        let paragraphCount = 0;
-        while (currentIdx < tokens.length) {
-          const t = tokens[currentIdx];
-          openTokens.push(t);
-          if (t.type === 'paragraph') {
-            paragraphCount++;
-            if (paragraphCount >= 3) break;
-          }
-          currentIdx++;
-        }
-        boundaryIndex = currentIdx;
-      }
-    }
+    teaserBlocks.push(block);
   }
 
-  if (boundaryIndex !== -1 && boundaryIndex < tokens.length) {
-    let currentIdx = boundaryIndex;
-    let paragraphCount = 0;
+  const lockedBlocks = remaining.slice(teaserBlocks.length);
 
-    while (currentIdx < tokens.length) {
-      const t = tokens[currentIdx];
-      if (t.type === 'paragraph') {
-        teaserTokens.push(t);
-        paragraphCount++;
-        if (paragraphCount >= DEFAULT_TEASER_BLOCKS) break;
-      }
-      currentIdx++;
-    }
-  }
-
-  const totalBlocks = tokens.filter(isCountableToken).length;
-  const openBlocks = openTokens.filter(isCountableToken).length;
-  const teaserBlocks = teaserTokens.filter(isCountableToken).length;
-
-  const openHtml = marked.parser(attachLinks(openTokens, tokens.links));
-  const teaserHtml = marked.parser(attachLinks(teaserTokens, tokens.links));
-
-  return { openHtml, teaserHtml, openBlocks, teaserBlocks, totalBlocks };
+  return {
+    openBlocks,
+    teaserBlocks,
+    lockedBlocks,
+    openCount: openBlocks.filter(b => b.isCountable).length,
+    teaserCount: teaserBlocks.filter(b => b.isCountable).length,
+    totalCount: blocks.filter(b => b.isCountable).length
+  };
 }
 
+/**
+ * Build paywall segments from markdown
+ * Main entry point for paywall processing
+ */
 function buildPaywallSegments(markdown, override) {
-  const prepared = preparePaywallMarkdown(markdown);
-  const tokens = marked.lexer(prepared);
-  const links = tokens.links || {};
-  const totalBlocks = tokens.filter(isCountableToken).length;
+  if (!markdown || typeof markdown !== 'string') {
+    return { openHtml: '', teaserHtml: '', openBlocks: 0, teaserBlocks: 0, totalBlocks: 0, lockedBlocks: [] };
+  }
 
+  const { cleanedMarkdown } = extractMeta(markdown);
+
+  // 1) Если в meta задан openBlocks/teaserBlocks — приоритетно, даже если есть divider
   if (override && typeof override.openBlocks === 'number') {
-    const openBlocks = Math.max(1, Math.min(override.openBlocks, totalBlocks || 1));
-    const teaserBlocks = Math.max(0, override.teaserBlocks ?? DEFAULT_TEASER_BLOCKS);
-    const split = splitTokensByBlocks(tokens, openBlocks, teaserBlocks);
+    const fullHtml = parseEnhancedMarkdown(cleanedMarkdown);
+    const blocks = extractHtmlBlocks(fullHtml);
+    const teaserCount = override.teaserBlocks ?? DEFAULT_TEASER_BLOCKS;
+    const split = splitHtmlBlocks(blocks, override.openBlocks, teaserCount);
+
     return {
-      openHtml: marked.parser(attachLinks(split.openTokens, links)),
-      teaserHtml: marked.parser(attachLinks(split.teaserTokens, links)),
-      openBlocks: split.openBlocks,
-      teaserBlocks: split.teaserBlocks,
-      totalBlocks: split.totalBlocks
+      openHtml: split.openBlocks.map(b => b.html).join('\n'),
+      teaserHtml: split.teaserBlocks.map(b => b.html).join('\n'),
+      openBlocks: split.openCount,
+      teaserBlocks: split.teaserCount,
+      totalBlocks: split.totalCount,
+      lockedBlocks: split.lockedBlocks.map(b => b.html)
     };
   }
 
-  // По умолчанию открываем не более 20% контента (минимум 1 блок, минимум 1 блок остаётся закрытым при total>=2)
-  const targetOpen = totalBlocks > 0
-    ? Math.min(
-      Math.max(1, Math.floor(totalBlocks * 0.2)),
-      totalBlocks - 1 || 1
-    )
-    : 0;
-  const split = splitTokensByBlocks(tokens, targetOpen, 0);
+  // 2) Есть явный <!-- divider --> — режем по нему ДО рендера HTML
+  const dividerRegex = /<!--\s*divider\s*-->/i;
+  if (dividerRegex.test(cleanedMarkdown)) {
+    const parts = cleanedMarkdown.split(dividerRegex);
+    const openMd = (parts[0] || '') + '\n\n<!-- divider -->\n'; // divider в открытую часть
+    const lockedMd = parts.slice(1).join('<!-- divider -->');
+
+    const { blocks: openBlockList } = extractBlocksWithMarkers(openMd);
+    const openHtml = openBlockList.map(b => b.html).join('\n');
+    const openCount = openBlockList.length;
+
+    const { blocks: lockedBlockList } = extractBlocksWithMarkers(lockedMd);
+    const teaserLimit = DEFAULT_TEASER_BLOCKS;
+
+    const teaserBlocks = [];
+    const lockedBlocks = [];
+    let teaserAdded = 0;
+    for (const block of lockedBlockList) {
+      if (teaserAdded < teaserLimit) {
+        teaserBlocks.push(block.html);
+        teaserAdded++;
+      } else {
+        lockedBlocks.push(block.html);
+      }
+    }
+
+    return {
+      openHtml,
+      teaserHtml: teaserBlocks.join('\n'),
+      openBlocks: openCount,
+      teaserBlocks: teaserBlocks.length,
+      totalBlocks: openCount + lockedBlockList.length,
+      lockedBlocks
+    };
+  }
+
+  // 3) Нет явного делителя и нет override — авто по первому divider в HTML или 20%
+  const fullHtml = parseEnhancedMarkdown(cleanedMarkdown);
+  const blocks = extractHtmlBlocks(fullHtml);
+  const split = splitAtFirstDivider(blocks, DEFAULT_TEASER_BLOCKS);
 
   return {
-    openHtml: marked.parser(attachLinks(split.openTokens, links)),
-    teaserHtml: '',
-    openBlocks: split.openBlocks,
-    teaserBlocks: 0,
-    totalBlocks: split.totalBlocks
+    openHtml: split.openBlocks.map(b => b.html).join('\n'),
+    teaserHtml: split.teaserBlocks.map(b => b.html).join('\n'),
+    openBlocks: split.openCount,
+    teaserBlocks: split.teaserCount,
+    totalBlocks: split.totalCount,
+    lockedBlocks: split.lockedBlocks.map(b => b.html)
   };
 }
 
+/**
+ * Extract individual blocks for admin preview
+ */
 function extractBlocks(markdown) {
-  const prepared = preparePaywallMarkdown(markdown);
-  const tokens = marked.lexer(prepared);
-  const links = tokens.links || {};
+  if (!markdown || typeof markdown !== 'string') {
+    return { blocks: [], totalBlocks: 0 };
+  }
+
+  const { cleanedMarkdown } = extractMeta(markdown);
+  const fullHtml = parseEnhancedMarkdown(cleanedMarkdown);
+  const htmlBlocks = extractHtmlBlocks(fullHtml);
+
   const blocks = [];
   let index = 0;
 
-  tokens.forEach((token, tokenIndex) => {
-    if (!isCountableToken(token)) return;
-    index += 1;
-    const html = marked.parser(attachLinks([token], links));
+  for (const block of htmlBlocks) {
+    if (!block.isCountable) continue;
+    index++;
     blocks.push({
       index,
-      tokenIndex,
-      type: token.type,
-      html,
-      text: stripHtml(html)
+      type: block.isDivider ? 'divider' : 'content',
+      html: block.html,
+      text: stripHtml(block.html)
     });
-  });
+  }
 
   return { blocks, totalBlocks: index };
+}
+
+/**
+ * Extract blocks with markers attached
+ * Non-countable blocks are attached to the previous countable block
+ */
+function extractBlocksWithMarkers(markdown) {
+  if (!markdown || typeof markdown !== 'string') {
+    return { blocks: [], totalBlocks: 0 };
+  }
+
+  const { cleanedMarkdown } = extractMeta(markdown);
+  const fullHtml = parseEnhancedMarkdown(cleanedMarkdown);
+  const htmlBlocks = extractHtmlBlocks(fullHtml);
+
+  const blocks = [];
+  let index = 0;
+  let leadingCarry = '';
+
+  for (const block of htmlBlocks) {
+    if (block.isCountable) {
+      index++;
+      const composedHtml = leadingCarry ? leadingCarry + block.html : block.html;
+      blocks.push({
+        index,
+        type: 'content',
+        html: composedHtml,
+        text: stripHtml(composedHtml)
+      });
+      leadingCarry = '';
+    } else {
+      if (blocks.length) {
+        blocks[blocks.length - 1].html += block.html;
+      } else {
+        leadingCarry += block.html;
+      }
+    }
+  }
+
+  return { blocks, totalBlocks: index };
+}
+
+/**
+ * Analyze paywall structure (legacy compatibility)
+ */
+function analyzePaywallStructure(markdown) {
+  return buildPaywallSegments(markdown);
 }
 
 module.exports = {
   buildPaywallSegments,
   extractBlocks,
+  extractBlocksWithMarkers,
   analyzePaywallStructure,
+  extractHtmlBlocks,
   DEFAULT_TEASER_BLOCKS
 };

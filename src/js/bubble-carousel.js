@@ -1,16 +1,17 @@
 /**
- * Bubble Carousel - Transform-Based Infinite Implementation
+ * Bubble Carousel - Complete Refactored Implementation
+ * Based on carousel-switchable.jsx React template
  * 
  * Modes:
- * - Horizontal (mobile/tablet/desktop): Transform-based infinite scroll
- * - Vertical (desktop-wide): Shows 2 cards at a time with pair cycling
+ * - Desktop/Tablet: Vertical stacked cards (2 visible at a time)
+ * - Mobile: Horizontal scroll carousel with infinite loop
  * 
  * Features:
- * - No native scroll - pure transform-based
- * - Infinite loop in both directions
- * - Touch/swipe support
+ * - Dynamic content loading from /shared/recommendations.json
+ * - Fallback to DOM data if API fails
  * - Autoplay with pause on interaction
- * - Handles odd number of cards for pair display
+ * - Dot navigation
+ * - Mode switching via body[data-mode]
  */
 
 (function () {
@@ -19,27 +20,33 @@
     const RECOMMENDATIONS_URL = '/shared/recommendations.json';
     const AUTOPLAY_INTERVAL = 4000;
     const PAYWALL_IDLE_DELAY = 600;
-    const SWIPE_THRESHOLD = 50;  // Min swipe distance in px
-    const ANIMATION_DURATION = 300;  // Transition duration in ms
 
-    // DOM elements
-    let carousel = null;
-    let track = null;
-    let dotsContainer = null;
+    // Infinite scroll constants
+    const CLONE_COUNT = 3;
 
-    // State
-    let cardsData = [];
-    let currentIndex = 0;
-    let autoplayTimer = null;
-    let isPaused = false;
-    let isAnimating = false;
-    let isVerticalMode = false;
+    /**
+     * Get card total (width + gap) dynamically from DOM
+     * Supports different card widths for mobile (70vw) vs desktop (280px)
+     */
+    function getComputedGap() {
+        if (!track) return 16;
+        const style = window.getComputedStyle(track);
+        // Для колонок (desktop) основной — row-gap; для mobile — gap/columnGap
+        const candidates = [style.rowGap, style.columnGap, style.gap];
+        for (const val of candidates) {
+            const parsed = parseFloat(val);
+            if (Number.isFinite(parsed) && parsed > 0) return parsed;
+        }
+        return 16;
+    }
 
-    // Touch state
-    let touchStartX = 0;
-    let touchStartY = 0;
-    let touchDeltaX = 0;
-    let isSwiping = false;
+    function getCardTotal() {
+        const card = track?.querySelector('.bubble-card');
+        if (!card) return 276; // fallback: 260 + default gap
+        const cardWidth = card.offsetWidth || 260;
+        const gap = getComputedGap();
+        return cardWidth + gap;
+    }
 
     function scheduleInitWithIdle(fn) {
         if (typeof requestIdleCallback === 'function') {
@@ -49,6 +56,17 @@
         setTimeout(fn, PAYWALL_IDLE_DELAY);
     }
 
+    let carousel = null;
+    let scrollWrapper = null;  // Wrapper for horizontal scroll
+    let track = null;
+    let dotsContainer = null;
+    let cardsData = [];
+    let currentIndex = 0;
+    let autoplayTimer = null;
+    let isPaused = false;
+    let isHorizontal = false;
+    let isScrolling = false; // Lock to prevent recursive scroll during teleport
+
     /**
      * Get current mode from body[data-mode] attribute
      */
@@ -57,48 +75,17 @@
     }
 
     /**
-     * Check if current mode is vertical (side column)
+     * Check if current mode uses horizontal scroll (all except desktop-wide)
+     * Desktop-wide uses vertical stacked layout
      */
     function isSideMode() {
         return getCurrentMode() === 'desktop-wide';
     }
 
-    /**
-     * Get number of cards visible at once
-     */
-    function getVisibleCount() {
-        return isSideMode() ? 2 : 1;
-    }
-
-    /**
-     * Get total number of "pages" (pairs or singles)
-     */
-    function getTotalPages() {
-        if (cardsData.length === 0) return 0;
-        if (isSideMode()) {
-            // In pair mode, we cycle through all cards, showing 2 at a time
-            // This creates cardsData.length pages (each starting from a different index)
-            return cardsData.length;
-        }
-        return cardsData.length;
-    }
-
-    /**
-     * Get card(s) for the given page index
-     * In vertical mode, returns 2 cards (second wraps around if odd)
-     */
-    function getCardsForPage(pageIndex) {
-        const total = cardsData.length;
-        if (total === 0) return [];
-
-        const idx = ((pageIndex % total) + total) % total;
-
-        if (isSideMode()) {
-            // Return pair: current and next (wrapping)
-            const idx2 = ((idx + 1) % total);
-            return [cardsData[idx], cardsData[idx2]];
-        }
-        return [cardsData[idx]];
+    function checkIsHorizontal() {
+        // Horizontal scroll for mobile, tablet, and regular desktop (inline below content)
+        // Side column (desktop-wide) uses vertical/stacked rendering
+        return !isSideMode();
     }
 
     /**
@@ -108,12 +95,13 @@
         carousel = document.querySelector('.bubble-carousel');
         if (!carousel) return;
 
+        scrollWrapper = carousel.querySelector('.bubble-carousel__scroll-wrapper');
         track = carousel.querySelector('[data-carousel-track]');
         dotsContainer = carousel.querySelector('[data-carousel-dots]');
-        if (!track) return;
+        if (!track || !scrollWrapper) return;
 
         // Detect initial mode
-        isVerticalMode = isSideMode();
+        isHorizontal = checkIsHorizontal();
 
         // Read fallback data from DOM
         const fallbackData = readCardsFromDOM();
@@ -126,17 +114,28 @@
                 } else {
                     cardsData = fallbackData;
                 }
-                renderCurrentPage();
+                renderCards();
                 startAutoplay();
             })
             .catch(() => {
                 cardsData = fallbackData;
-                renderCurrentPage();
+                renderCards();
                 startAutoplay();
             });
 
-        // Setup event listeners
-        setupEventListeners();
+        // Event listeners
+        carousel.addEventListener('mouseenter', pauseAutoplay);
+        carousel.addEventListener('mouseleave', resumeAutoplay);
+
+        // Touch events for mobile
+        if (track) {
+            track.addEventListener('touchstart', pauseAutoplay, { passive: true });
+            track.addEventListener('touchend', resumeAutoplay, { passive: true });
+            // Dots update during scroll
+            scrollWrapper.addEventListener('scroll', handleScroll, { passive: true });
+            // Teleport check after scroll settles
+            scrollWrapper.addEventListener('scroll', onScrollForTeleport, { passive: true });
+        }
 
         // Watch for data-mode attribute changes on body
         const observer = new MutationObserver((mutations) => {
@@ -150,33 +149,16 @@
     }
 
     /**
-     * Setup all event listeners
-     */
-    function setupEventListeners() {
-        // Pause on hover
-        carousel.addEventListener('mouseenter', pauseAutoplay);
-        carousel.addEventListener('mouseleave', resumeAutoplay);
-
-        // Touch events for swipe
-        track.addEventListener('touchstart', onTouchStart, { passive: true });
-        track.addEventListener('touchmove', onTouchMove, { passive: false });
-        track.addEventListener('touchend', onTouchEnd);
-
-        // Mouse drag support
-        track.addEventListener('mousedown', onMouseDown);
-    }
-
-    /**
      * Update mode when body[data-mode] changes
      */
     function updateMode() {
-        const wasVertical = isVerticalMode;
-        isVerticalMode = isSideMode();
+        const wasHorizontal = isHorizontal;
+        isHorizontal = checkIsHorizontal();
 
-        if (wasVertical !== isVerticalMode) {
+        if (wasHorizontal !== isHorizontal) {
+            // Mode changed - re-render cards
             currentIndex = 0;
-            renderCurrentPage();
-            renderDots();
+            renderCards();
         }
     }
 
@@ -213,9 +195,27 @@
     }
 
     /**
-     * Render current page cards
+     * Create cloned slides for infinite scroll (mobile)
+     * React template lines 37-42
      */
-    function renderCurrentPage() {
+    function createInfiniteSlides(slides) {
+        const beforeClones = slides.slice(-CLONE_COUNT).map((s, i) => ({
+            ...s,
+            id: `before-${i}`,
+            isClone: true
+        }));
+        const afterClones = slides.slice(0, CLONE_COUNT).map((s, i) => ({
+            ...s,
+            id: `after-${i}`,
+            isClone: true
+        }));
+        return [...beforeClones, ...slides, ...afterClones];
+    }
+
+    /**
+     * Render all cards
+     */
+    function renderCards() {
         if (!track || cardsData.length === 0) {
             if (carousel) carousel.classList.add('is-hidden');
             return;
@@ -224,18 +224,38 @@
         carousel.classList.remove('is-hidden');
         track.innerHTML = '';
 
-        const cards = getCardsForPage(currentIndex);
-        cards.forEach((cardData, i) => {
-            const element = createCardElement(cardData, i);
-            track.appendChild(element);
-        });
+        if (isHorizontal) {
+            // Mobile: render with clones for infinite scroll
+            // All cards visible, scroll-snap handles positioning
+            const infiniteSlides = createInfiniteSlides(cardsData);
+            infiniteSlides.forEach((card, index) => {
+                const element = createCardElement(card, index);
+                track.appendChild(element);
+            });
+
+            // Set initial scroll position (offset by CLONE_COUNT)
+            // React template lines 232-237
+            requestAnimationFrame(() => {
+                const initialScroll = (CLONE_COUNT + currentIndex) * getCardTotal();
+                scrollWrapper.scrollLeft = initialScroll;
+            });
+        } else {
+            // Desktop: render only original cards
+            // CSS hides cards beyond 2 via :nth-child(n+3) { display: none }
+            cardsData.forEach((card, index) => {
+                const element = createCardElement(card, index);
+                track.appendChild(element);
+            });
+            updateVisibleCards();
+        }
 
         renderDots();
         carousel.setAttribute('data-loaded', 'true');
     }
 
     /**
-     * Create a single card element
+     * Create a single card element with SVG bubble shape
+     * The path includes both rounded rectangle and speech bubble tail
      */
     function createCardElement(card, index) {
         const isLink = Boolean(card.url);
@@ -243,20 +263,44 @@
         element.className = 'bubble-card';
         element.setAttribute('data-card', '');
         element.setAttribute('data-index', index);
+        if (card.isClone) {
+            element.setAttribute('data-clone', 'true');
+        }
 
         if (isLink) {
             element.href = card.url;
         }
 
+        // SVG bubble path: rounded rect (280x200) with r=24, plus tail at bottom-right
+        // Tail: 60px wide (x=180 to x=240), 13px tall, peak at x=210
+        // Path offset by 2px to account for stroke padding
+        const bubblePath = `
+            M24,0 
+            H256 
+            Q280,0 280,24 
+            V176 
+            Q280,200 256,200 
+            H240 
+            C230,200 220,213 210,213 
+            C200,213 190,200 180,200 
+            H24 
+            Q0,200 0,176 
+            V24 
+            Q0,0 24,0 
+            Z
+        `;
+
+        // viewBox has 2px padding on all sides for stroke
         element.innerHTML = `
+            <svg class="bubble-card__shape" viewBox="-2 -2 284 217" preserveAspectRatio="none" aria-hidden="true">
+                <path class="bubble-card__bg" d="${bubblePath}" />
+                <path class="bubble-card__stroke" d="${bubblePath}" />
+            </svg>
             <div class="bubble-card__content">
-                <span class="bubble-card__emoji">${card.emoji || '📋'}</span>
+                <span class="bubble-card__emoji">${card.emoji || card.cover || card.icon || '📋'}</span>
                 <h3 class="bubble-card__title">${card.title || ''}</h3>
                 <p class="bubble-card__desc">${card.description || ''}</p>
             </div>
-            <svg class="bubble-card__tail" width="60" height="13" viewBox="0 0 60 13">
-                <path d="M0 0 C20 0 20 13 30 13 C40 13 40 0 60 0 Z" fill="#ffffff"/>
-            </svg>
         `;
 
         return element;
@@ -269,7 +313,10 @@
         if (!dotsContainer) return;
         dotsContainer.innerHTML = '';
 
-        const total = getTotalPages();
+        const total = isHorizontal
+            ? cardsData.length
+            : (isSideMode() ? cardsData.length : Math.ceil(cardsData.length / 2));
+
         for (let i = 0; i < total; i++) {
             const dot = document.createElement('button');
             dot.className = 'bubble-carousel__dot';
@@ -283,7 +330,7 @@
 
             dot.addEventListener('click', (e) => {
                 e.preventDefault();
-                goToPage(i);
+                goToSlide(i);
             });
             dotsContainer.appendChild(dot);
         }
@@ -295,10 +342,8 @@
     function updateDots() {
         if (!dotsContainer) return;
         const dots = dotsContainer.querySelectorAll('.bubble-carousel__dot');
-        const normalizedIndex = ((currentIndex % cardsData.length) + cardsData.length) % cardsData.length;
-
         dots.forEach((dot, i) => {
-            if (i === normalizedIndex) {
+            if (i === currentIndex) {
                 dot.setAttribute('aria-current', 'true');
                 dot.classList.add('is-active');
             } else {
@@ -309,213 +354,174 @@
     }
 
     /**
-     * Go to specific page with animation
+     * Go to specific slide
      */
-    function goToPage(pageIndex, direction = 0) {
-        if (isAnimating || cardsData.length === 0) return;
-
-        const total = cardsData.length;
-        const newIndex = ((pageIndex % total) + total) % total;
-
-        if (newIndex === currentIndex && direction === 0) return;
-
-        isAnimating = true;
-
-        // Determine animation direction
-        const animDir = direction !== 0 ? direction : (newIndex > currentIndex ? 1 : -1);
-
-        // Animate out current cards
-        const currentCards = track.querySelectorAll('.bubble-card');
-        currentCards.forEach(card => {
-            card.style.transition = `transform ${ANIMATION_DURATION}ms ease-out, opacity ${ANIMATION_DURATION}ms ease-out`;
-            card.style.transform = `translateX(${-animDir * 100}%)`;
-            card.style.opacity = '0';
-        });
-
-        setTimeout(() => {
-            // Update index and render new cards
-            currentIndex = newIndex;
-            track.innerHTML = '';
-
-            const newCards = getCardsForPage(currentIndex);
-            newCards.forEach((cardData, i) => {
-                const element = createCardElement(cardData, i);
-                // Start from opposite side
-                element.style.transform = `translateX(${animDir * 100}%)`;
-                element.style.opacity = '0';
-                track.appendChild(element);
-            });
-
-            // Force reflow
-            track.offsetHeight;
-
-            // Animate in
-            requestAnimationFrame(() => {
-                track.querySelectorAll('.bubble-card').forEach(card => {
-                    card.style.transition = `transform ${ANIMATION_DURATION}ms ease-out, opacity ${ANIMATION_DURATION}ms ease-out`;
-                    card.style.transform = 'translateX(0)';
-                    card.style.opacity = '1';
-                });
-            });
-
+    function goToSlide(index) {
+        if (isHorizontal) {
+            // Mobile/inline: scroll to card position
+            currentIndex = index;
             updateDots();
-
-            setTimeout(() => {
-                // Clean up transitions
-                track.querySelectorAll('.bubble-card').forEach(card => {
-                    card.style.transition = '';
-                    card.style.transform = '';
-                    card.style.opacity = '';
-                });
-                isAnimating = false;
-            }, ANIMATION_DURATION);
-        }, ANIMATION_DURATION);
+            scrollToCard(index, true);
+        } else {
+            // Stack/side: update visible cards
+            currentIndex = index;
+            updateDots();
+            updateVisibleCards();
+        }
     }
 
     /**
-     * Go to next page
+     * Scroll to specific card (mobile mode)
+     * React template lines 271-280
      */
-    function nextPage() {
-        goToPage(currentIndex + 1, 1);
+    function scrollToCard(index, smooth = true) {
+        if (!track) return;
+        isScrolling = true;
+        const targetScroll = (CLONE_COUNT + index) * getCardTotal();
+        scrollWrapper.scrollTo({
+            left: targetScroll,
+            behavior: smooth ? 'smooth' : 'auto'
+        });
+        setTimeout(() => { isScrolling = false; }, 100);
     }
 
     /**
-     * Go to previous page
+     * Update visible cards (desktop mode)
+     * React template lines 282-284:
+     * visibleSlides = [slides[currentIndex], slides[(currentIndex + 1) % slides.length]]
+     * 
+     * We use CSS :nth-child to hide cards, and reorder DOM for visibility
      */
-    function prevPage() {
-        goToPage(currentIndex - 1, -1);
-    }
+    function updateVisibleCards() {
+        const cards = track.querySelectorAll('.bubble-card');
+        const total = cardsData.length;
+        if (total === 0) return;
 
-    // ========================================
-    // Touch/Swipe handling
-    // ========================================
+        const visibleCount = isSideMode() ? 1 : 2;
+        // Strict 1 card for side mode as requested ("одна карточка в вертикальном формате")
+        const idx1 = (currentIndex * 1) % total;
+        const idx2 = (visibleCount === 2) ? (currentIndex * 1 + 1) % total : null;
 
-    function onTouchStart(e) {
-        if (isAnimating) return;
-        pauseAutoplay();
-        touchStartX = e.touches[0].clientX;
-        touchStartY = e.touches[0].clientY;
-        touchDeltaX = 0;
-        isSwiping = false;
-    }
+        // Note: For side mode (1 card), step is 1. For horizontal desktop (if we want 2), step might be 2?
+        // Actually, user just said "1 card in vertical". Horizontal they didn't specify visible count, 
+        // but implied scrolling. "Horizontal mode" usually implies scroll.
+        // Let's stick to: Vertical = 1 card fixed. Horizontal = All cards scrollable.
 
-    function onTouchMove(e) {
-        if (isAnimating) return;
+        // If we are in side mode, we only show 1 card.
+        // If we are in horizontal mode, we generally don't use this function because 
+        // we use scroll-snap with creating clones in 'renderCards'.
+        // Wait, renderCards calls updateVisibleCards ONLY for !isHorizontal (which includes Side Mode).
+        // So this function is primarily for Side Mode now.
 
-        const deltaX = e.touches[0].clientX - touchStartX;
-        const deltaY = e.touches[0].clientY - touchStartY;
+        const cardArray = Array.from(cards);
+        const card1 = cardArray[idx1] || null;
+        const card2 = idx2 !== null ? (cardArray[idx2] || null) : null;
 
-        // Only swipe if horizontal movement is greater than vertical
-        if (!isSwiping && Math.abs(deltaX) > 10) {
-            if (Math.abs(deltaX) > Math.abs(deltaY)) {
-                isSwiping = true;
+        track.innerHTML = '';
+        if (card1) track.appendChild(card1);
+        if (card2) track.appendChild(card2);
+
+        // Re-add remaining cards (они скрыты CSS начиная с третьего элемента)
+        cardArray.forEach((card, i) => {
+            if (i !== idx1 && i !== idx2) {
+                track.appendChild(card);
             }
-        }
-
-        if (isSwiping) {
-            e.preventDefault();  // Prevent page scroll
-            touchDeltaX = deltaX;
-
-            // Visual feedback during swipe
-            const progress = Math.min(Math.abs(deltaX) / 100, 1);
-            track.querySelectorAll('.bubble-card').forEach(card => {
-                card.style.transform = `translateX(${deltaX * 0.3}px)`;
-                card.style.opacity = String(1 - progress * 0.2);
-            });
-        }
-    }
-
-    function onTouchEnd() {
-        resumeAutoplay();
-
-        if (!isSwiping) return;
-        isSwiping = false;
-
-        // Reset card positions
-        track.querySelectorAll('.bubble-card').forEach(card => {
-            card.style.transform = '';
-            card.style.opacity = '';
-        });
-
-        // Determine if swipe was significant
-        if (Math.abs(touchDeltaX) > SWIPE_THRESHOLD) {
-            if (touchDeltaX < 0) {
-                nextPage();  // Swipe left = next
-            } else {
-                prevPage();  // Swipe right = prev
-            }
-        }
-
-        touchDeltaX = 0;
-    }
-
-    // Mouse drag support
-    let isMouseDown = false;
-    let mouseStartX = 0;
-
-    function onMouseDown(e) {
-        if (isAnimating) return;
-        isMouseDown = true;
-        mouseStartX = e.clientX;
-        pauseAutoplay();
-        e.preventDefault();
-
-        document.addEventListener('mousemove', onMouseMove);
-        document.addEventListener('mouseup', onMouseUp);
-    }
-
-    function onMouseMove(e) {
-        if (!isMouseDown) return;
-        const deltaX = e.clientX - mouseStartX;
-        touchDeltaX = deltaX;
-
-        const progress = Math.min(Math.abs(deltaX) / 100, 1);
-        track.querySelectorAll('.bubble-card').forEach(card => {
-            card.style.transform = `translateX(${deltaX * 0.3}px)`;
-            card.style.opacity = String(1 - progress * 0.2);
         });
     }
 
-    function onMouseUp() {
-        if (!isMouseDown) return;
-        isMouseDown = false;
-        resumeAutoplay();
+    /**
+     * Handle scroll event - update dots only
+     */
+    function handleScroll() {
+        if (!isHorizontal || !track || isScrolling) return;
 
-        document.removeEventListener('mousemove', onMouseMove);
-        document.removeEventListener('mouseup', onMouseUp);
+        const scrollLeft = scrollWrapper.scrollLeft;
+        const totalOriginal = cardsData.length;
+        const cardTotal = getCardTotal();
 
-        // Reset positions
-        track.querySelectorAll('.bubble-card').forEach(card => {
-            card.style.transform = '';
-            card.style.opacity = '';
-        });
+        // Calculate real index accounting for clones
+        const rawIndex = Math.round(scrollLeft / cardTotal);
+        const adjustedIndex = rawIndex - CLONE_COUNT;
+        const realIndex = ((adjustedIndex % totalOriginal) + totalOriginal) % totalOriginal;
 
-        if (Math.abs(touchDeltaX) > SWIPE_THRESHOLD) {
-            if (touchDeltaX < 0) {
-                nextPage();
-            } else {
-                prevPage();
-            }
+        if (realIndex !== currentIndex) {
+            currentIndex = realIndex;
+            updateDots();
         }
-
-        touchDeltaX = 0;
     }
 
-    // ========================================
-    // Autoplay
-    // ========================================
+    /**
+     * Check if we're on a clone and need to teleport
+     * Called after scroll settles (via scrollend or timeout)
+     */
+    function checkTeleport() {
+        if (!isHorizontal || !track || isScrolling) return;
 
+        const scrollLeft = scrollWrapper.scrollLeft;
+        const totalOriginal = cardsData.length;
+        const cardTotal = getCardTotal();
+
+        // Which card position are we at?
+        const cardIndex = Math.round(scrollLeft / cardTotal);
+
+        // Clone boundaries
+        const firstOriginal = CLONE_COUNT;  // index 3
+        const lastOriginal = CLONE_COUNT + totalOriginal - 1;  // e.g., 6 for 4 cards
+
+        if (cardIndex < firstOriginal) {
+            // On before-clone → teleport forward
+            teleport(scrollLeft + (totalOriginal * cardTotal));
+        } else if (cardIndex > lastOriginal) {
+            // On after-clone → teleport backward
+            teleport(scrollLeft - (totalOriginal * cardTotal));
+        }
+    }
+
+    /**
+     * Instant teleport without visual jump
+     */
+    function teleport(newScrollLeft) {
+        isScrolling = true;
+
+        // Disable scroll-snap during teleport
+        scrollWrapper.style.scrollSnapType = 'none';
+        scrollWrapper.style.scrollBehavior = 'auto';
+
+        scrollWrapper.scrollLeft = newScrollLeft;
+
+        // Re-enable after render
+        requestAnimationFrame(() => {
+            scrollWrapper.style.scrollSnapType = '';
+            scrollWrapper.style.scrollBehavior = '';
+            isScrolling = false;
+        });
+    }
+
+    // Debounced scroll-end detection for teleportation
+    let scrollEndTimer = null;
+    function onScrollForTeleport() {
+        if (!isHorizontal || isScrolling) return;
+        if (scrollEndTimer) clearTimeout(scrollEndTimer);
+        scrollEndTimer = setTimeout(checkTeleport, 100);
+    }
+
+    /**
+     * Start autoplay
+     */
     function startAutoplay() {
         stopAutoplay();
         if (cardsData.length <= 1) return;
 
         autoplayTimer = setInterval(() => {
-            if (!isPaused && !isAnimating) {
-                nextPage();
+            if (!isPaused) {
+                nextSlide();
             }
         }, AUTOPLAY_INTERVAL);
     }
 
+    /**
+     * Stop autoplay
+     */
     function stopAutoplay() {
         if (autoplayTimer) {
             clearInterval(autoplayTimer);
@@ -523,17 +529,30 @@
         }
     }
 
+    /**
+     * Pause autoplay (on hover/touch)
+     */
     function pauseAutoplay() {
         isPaused = true;
     }
 
+    /**
+     * Resume autoplay (on mouse leave/touch end)
+     */
     function resumeAutoplay() {
         isPaused = false;
     }
 
-    // ========================================
-    // Initialization
-    // ========================================
+    /**
+     * Go to next slide
+     */
+    function nextSlide() {
+        const total = isHorizontal
+            ? cardsData.length
+            : (isSideMode() ? cardsData.length : Math.ceil(cardsData.length / 2));
+        const next = (currentIndex + 1) % total;
+        goToSlide(next);
+    }
 
     function startInit() {
         const hasPaywall = Boolean(document.querySelector('[data-paywall-root]'));
@@ -542,8 +561,56 @@
         } else {
             init();
         }
+
+        // Start footer collision watcher
+        initFooterObserver();
     }
 
+    /**
+     * Footer Collision Handling for Vertical Fixed Mode
+     * Pushes the fixed carousel up when footer enters viewport
+     */
+    function initFooterObserver() {
+        // Find the site footer specifically, not article-footer
+        const footer = document.querySelector('.site-footer') || document.querySelector('footer:last-of-type');
+        if (!footer) return;
+
+        function updateCarouselPosition() {
+            // Only active in vertical mode (desktop-wide)
+            if (!isSideMode()) {
+                // Reset if mode changes
+                const carouselEl = document.querySelector('.bubble-carousel');
+                if (carouselEl) carouselEl.style.bottom = '';
+                return;
+            }
+
+            // Query carousel inside handler to ensure it's available after lazy init
+            const carouselEl = document.querySelector('.bubble-carousel');
+            if (!carouselEl) return;
+
+            const footerRect = footer.getBoundingClientRect();
+            const viewportHeight = window.innerHeight;
+
+            // If footer is visible
+            if (footerRect.top < viewportHeight) {
+                const overlap = viewportHeight - footerRect.top;
+                carouselEl.style.bottom = `${overlap}px`;
+            } else {
+                carouselEl.style.bottom = '0';
+            }
+        }
+
+        // Listen to scroll and resize
+        window.addEventListener('scroll', updateCarouselPosition, { passive: true });
+        window.addEventListener('resize', updateCarouselPosition, { passive: true });
+
+        // Call immediately and after a short delay (for layout stabilization)
+        updateCarouselPosition();
+        setTimeout(updateCarouselPosition, 100);
+        setTimeout(updateCarouselPosition, 500);
+    }
+
+    // Initialize when DOM is ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', startInit);
     } else {

@@ -480,4 +480,79 @@ export function initDynamicPaywall() {
   const roots = document.querySelectorAll('[data-paywall-root]');
   if (!roots.length) return;
   initSinglePaywall(roots[0]);
+  initCtaIconAnimation();
+}
+
+/**
+ * CTA Icon Animation - cycles through cleaning tool images
+ */
+const CTA_ICONS = [
+  '/assets/cloth.png',
+  '/assets/glove.png',
+  '/assets/pump_bottle.png',
+  '/assets/rect_brush.png',
+  '/assets/round_brush.png',
+  '/assets/toilet_brush.png',
+  '/assets/trigger_spray.png'
+];
+
+function initCtaIconAnimation() {
+  const button = document.querySelector('.paywall-cta-button');
+  const existingIcon = button?.querySelector('.paywall-cta-button__icon');
+  if (!button || !existingIcon) return;
+
+  // Create slot machine container
+  const slotContainer = document.createElement('div');
+  slotContainer.className = 'paywall-cta-slot';
+
+  const slotTrack = document.createElement('div');
+  slotTrack.className = 'paywall-cta-slot__track';
+
+  // Create slot items - duplicate first item at end for seamless loop
+  const allIcons = [...CTA_ICONS, CTA_ICONS[0]];
+
+  allIcons.forEach((src) => {
+    const item = document.createElement('div');
+    item.className = 'paywall-cta-slot__item';
+    const img = document.createElement('img');
+    img.src = src;
+    img.alt = '';
+    img.setAttribute('aria-hidden', 'true');
+    item.appendChild(img);
+    slotTrack.appendChild(item);
+  });
+
+  slotContainer.appendChild(slotTrack);
+  existingIcon.replaceWith(slotContainer);
+
+  // Preload all images
+  CTA_ICONS.forEach(src => {
+    const img = new Image();
+    img.src = src;
+  });
+
+  let currentIndex = 0;
+  const itemHeight = 150; // Same as CSS .paywall-cta-slot__item height
+
+  function animateToNext() {
+    currentIndex++;
+
+    // Enable smooth transition
+    slotTrack.style.transition = 'transform 0.8s cubic-bezier(0.33, 1, 0.68, 1)';
+    slotTrack.style.transform = `translateY(-${currentIndex * itemHeight}px)`;
+
+    // If we reach the duplicate (last item), reset to beginning
+    if (currentIndex >= CTA_ICONS.length) {
+      setTimeout(() => {
+        // Disable transition for instant reset
+        slotTrack.style.transition = 'none';
+        slotTrack.style.transform = 'translateY(0)';
+        currentIndex = 0;
+        // Force reflow
+        void slotTrack.offsetHeight;
+      }, 850); // Slightly after animation completes
+    }
+  }
+
+  setInterval(animateToNext, 1800);
 }

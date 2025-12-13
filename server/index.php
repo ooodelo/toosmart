@@ -15,6 +15,49 @@ require_once __DIR__ . '/security.php';
 Config::load();
 Security::initSession();
 
+function resolvePremiumHome(): string {
+    // 1) Пытаемся взять из собранного списка курса
+    $menuPath = __DIR__ . '/../dist/shared/menu.json';
+    if (file_exists($menuPath)) {
+        $json = @file_get_contents($menuPath);
+        if ($json) {
+            $data = json_decode($json, true);
+            if (is_array($data)) {
+                $courseItems = array_values(array_filter($data, function($item) {
+                    return isset($item['type']) && $item['type'] === 'course' && !empty($item['url']);
+                }));
+                if (!empty($courseItems)) {
+                    // Сортировка по order, если задан
+                    usort($courseItems, function($a, $b) {
+                        $oa = $a['order'] ?? 0;
+                        $ob = $b['order'] ?? 0;
+                        return $oa <=> $ob;
+                    });
+                    $first = $courseItems[0];
+                    if (!empty($first['url'])) {
+                        return $first['url'];
+                    }
+                }
+            }
+        }
+    }
+
+    // 2) Фолбэк на первую страницу курса по маске
+    $courseDir = __DIR__ . '/../dist/premium/course';
+    if (is_dir($courseDir)) {
+        $files = array_values(array_filter(scandir($courseDir), function($f) {
+            return preg_match('/^p-\\d+-.*\\.html$/', $f);
+        }));
+        sort($files, SORT_NATURAL);
+        if (!empty($files)) {
+            return '/premium/course/' . $files[0];
+        }
+    }
+
+    // 3) Самый последний фолбэк
+    return '/premium/course/p-1-osnova.html';
+}
+
 // Security Headers
 header('Content-Type: text/html; charset=UTF-8');
 header('X-Content-Type-Options: nosniff');
@@ -22,9 +65,12 @@ header('X-Frame-Options: SAMEORIGIN');
 header('X-XSS-Protection: 1; mode=block');
 header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://mc.yandex.ru; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https://mc.yandex.ru; connect-src 'self' https://mc.yandex.ru; frame-ancestors 'none'; base-uri 'self'; form-action 'self';");
 
-// Если уже авторизован → редирект на главную
+// Куда отправлять авторизованного пользователя
+$premiumHome = resolvePremiumHome();
+
+// Если уже авторизован → редирект на главную страницу курса
 if (isset($_SESSION['premium_user'])) {
-    header('Location: home.html');
+    header("Location: {$premiumHome}");
     exit;
 }
 

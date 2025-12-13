@@ -18,7 +18,7 @@ const path = require('path');
 const { execSync, spawn } = require('child_process');
 const { networkInterfaces } = require('os');
 const fsp = fs.promises;
-const { buildPaywallSegments, extractBlocks } = require('../scripts/lib/paywall');
+const { buildPaywallSegments, extractBlocks, extractBlocksWithMarkers } = require('../scripts/lib/paywall');
 
 const PORT = process.env.PORT || 3001;
 const CONFIG_PATH = path.join(__dirname, '..', 'config', 'site.json');
@@ -407,11 +407,11 @@ const server = http.createServer(async (req, res) => {
     }
 
     // Favicon API endpoints
-  if (pathname === '/api/favicon') {
-    if (req.method === 'GET') {
-      await handleGetFavicon(req, res);
-    } else if (req.method === 'POST') {
-      await handleUploadFavicon(req, res);
+    if (pathname === '/api/favicon') {
+      if (req.method === 'GET') {
+        await handleGetFavicon(req, res);
+      } else if (req.method === 'POST') {
+        await handleUploadFavicon(req, res);
       }
       return;
     }
@@ -423,26 +423,26 @@ const server = http.createServer(async (req, res) => {
 
     if (pathname === '/api/favicon/reset' && req.method === 'POST') {
       await handleResetFavicon(req, res);
-    return;
-  }
+      return;
+    }
 
-  if (pathname === '/api/promo' && req.method === 'GET') {
-    await handleGetPromos(req, res);
-    return;
-  }
+    if (pathname === '/api/promo' && req.method === 'GET') {
+      await handleGetPromos(req, res);
+      return;
+    }
 
-  if (pathname === '/api/promo' && req.method === 'POST') {
-    await handleSavePromos(req, res);
-    return;
-  }
+    if (pathname === '/api/promo' && req.method === 'POST') {
+      await handleSavePromos(req, res);
+      return;
+    }
 
-  if (pathname === '/api/upload-asset' && req.method === 'POST') {
-    await handleUploadAsset(req, res);
-    return;
-  }
+    if (pathname === '/api/upload-asset' && req.method === 'POST') {
+      await handleUploadAsset(req, res);
+      return;
+    }
 
-  // Статические файлы
-  await serveStatic(req, res, pathname);
+    // Статические файлы
+    await serveStatic(req, res, pathname);
 
   } catch (error) {
     console.error('Server error:', error);
@@ -1041,6 +1041,11 @@ function resolveTypeByBranch(branch) {
   }
 }
 
+function hasExplicitPaywall(meta = {}) {
+  const pw = meta.paywall || {};
+  return pw.openBlocks !== undefined || pw.teaserBlocks !== undefined;
+}
+
 function normalizeMeta(meta) {
   const merged = {
     ...DEFAULT_META,
@@ -1143,15 +1148,18 @@ function collectContentItems() {
       const meta_description = metaEntry.meta_description || '';
       const menu_label = (type === 'article' || type === 'appendix') ? (metaEntry.menu_label || h1 || '') : '';
       const menu_subtitle = (type === 'article' || type === 'appendix') ? (metaEntry.menu_subtitle || '') : '';
-      const paywall = type === 'article' ? metaEntry.paywall : null;
+      const hasPaywallOverride = type === 'article' && hasExplicitPaywall(rawMetaEntry);
+      const paywallOverride = hasPaywallOverride ? metaEntry.paywall : null;
+      const paywallSegments = type === 'article' ? buildPaywallSegments(bodyWithoutH1, paywallOverride) : null;
+      let paywall = null;
       const carousel = type === 'recommendation'
         ? {
-            label: metaEntry.carousel_label || h1 || '',
-            subtitle: metaEntry.carousel_subtitle || '',
-            icon: metaEntry.carousel_icon || '',
-            order: metaEntry.carousel_order,
-            enabled: metaEntry.carousel_enabled !== false
-          }
+          label: metaEntry.carousel_label || h1 || '',
+          subtitle: metaEntry.carousel_subtitle || '',
+          icon: metaEntry.carousel_icon || '',
+          order: metaEntry.carousel_order,
+          enabled: metaEntry.carousel_enabled !== false
+        }
         : null;
 
       const filled = {
@@ -1171,15 +1179,26 @@ function collectContentItems() {
 
       let paywallPreview = null;
       if (type === 'article') {
-        const segments = buildPaywallSegments(bodyWithoutH1, paywall);
-        const blocksInfo = extractBlocks(bodyWithoutH1);
-        const paragraphs = blocksInfo.blocks.filter(b => b.type === 'paragraph').map(b => b.html);
-        const useBlocks = paragraphs.length ? paragraphs : blocksInfo.blocks.map(b => b.html);
-        const totalCount = useBlocks.length;
-        const openCount = Math.min(segments.openBlocks || 0, totalCount);
-        const teaserCount = Math.min(segments.teaserBlocks || 0, Math.max(0, totalCount - openCount));
+        const previewBlocks = extractBlocksWithMarkers(bodyWithoutH1);
+        const countableBlocks = extractBlocks(bodyWithoutH1);
+        const useBlocks = previewBlocks.blocks.map(b => b.html);
+        const totalCount = countableBlocks.totalBlocks || useBlocks.length;
+        const dividerPos = Math.max(0, useBlocks.findIndex(html => html.includes('article-divider')) + 1);
+        const baseOpenFromSegments = Math.max(1, Math.min(paywallSegments?.openBlocks || 0, totalCount || 1));
+        // If divider exists, always split exactly at divider (divider included in free zone)
+        const defaultOpen = dividerPos ? dividerPos : baseOpenFromSegments;
+        const openCount = hasPaywallOverride
+          ? Math.max(1, Math.min(paywallOverride.openBlocks || 1, totalCount))
+          : defaultOpen;
+
+        const baseTeaserFromSegments = Math.max(0, paywallSegments?.teaserBlocks || 0);
+        const teaserCount = hasPaywallOverride && paywallOverride.teaserBlocks !== undefined
+          ? Math.max(0, Math.min(paywallOverride.teaserBlocks, Math.max(0, totalCount - openCount)))
+          : Math.min(baseTeaserFromSegments, Math.max(0, totalCount - openCount));
+
         const hiddenStart = openCount + teaserCount;
         paywallPreview = {
+          blocks: useBlocks,
           paragraphs: useBlocks,
           open: useBlocks.slice(0, openCount),
           teaser: useBlocks.slice(openCount, hiddenStart),
@@ -1188,6 +1207,13 @@ function collectContentItems() {
           openBlocks: openCount,
           teaserBlocks: teaserCount
         };
+
+        paywall = {
+          openBlocks: paywallPreview.openBlocks || openCount,
+          teaserBlocks: paywallPreview.teaserBlocks || teaserCount
+        };
+      } else {
+        paywall = null;
       }
 
       items.push({
@@ -1539,7 +1565,7 @@ function extractFrontmatter(content) {
       let value = line.slice(colonIdx + 1).trim();
       // Убираем кавычки
       if ((value.startsWith('"') && value.endsWith('"')) ||
-          (value.startsWith("'") && value.endsWith("'"))) {
+        (value.startsWith("'") && value.endsWith("'"))) {
         value = value.slice(1, -1);
       }
       frontmatter[key] = value;

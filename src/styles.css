@@ -461,6 +461,14 @@ a:hover {
   margin-bottom: 6px;
 }
 
+.pullquote-title {
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted-color);
+  margin-bottom: 6px;
+}
+
 /* Article card - generic white card with shadow */
 .article-card {
   border-radius: var(--radius-card);
@@ -597,6 +605,11 @@ a:hover {
   /* Slightly darker for current item if needed, or keep muted */
 }
 
+.article-breadcrumb .reading-time-inline {
+  color: #3eb489;
+  /* Мятный цвет */
+}
+
 body {
   display: flex;
   flex-direction: column;
@@ -643,6 +656,21 @@ html[data-lock="scroll"] {
 body[data-lock="scroll"] .site-menu {
   touch-action: pan-y;
   overscroll-behavior: contain;
+}
+
+/* Hide native scrollbars on internal scroll containers while keeping scroll */
+.site-menu,
+.dot-flyout,
+.modal-content {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.site-menu::-webkit-scrollbar,
+.dot-flyout::-webkit-scrollbar,
+.modal-content::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .main {
@@ -846,6 +874,7 @@ body[data-mode="mobile"] .header {
   right: 0;
   padding: 12px 16px;
   height: var(--header-height);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 
 .menu-rail {
@@ -959,9 +988,9 @@ body[data-mode="tablet"] .menu-handle__dots {
 .site-menu {
   grid-column: 1;
   grid-row: 1;
-  /* Top margin accounts for header height minus internal top padding to align actions with header bottom */
-  margin: calc(var(--header-height) - 16px) 16px 16px 16px;
-  padding: 16px 16px 120px 16px;
+  /* Make the "header gap" scroll with the menu content (so items can scroll up to the screen edge) */
+  margin: 0 16px 16px 16px;
+  padding: var(--header-height) 16px 120px 16px;
   min-width: 0;
   overflow: auto;
   pointer-events: auto;
@@ -2219,8 +2248,8 @@ body[data-mode="mobile"] .menu-rail {
   width: auto;
   left: 0;
   right: 0;
-  top: var(--header-height);
-  /* Начинается сразу под header */
+  top: 0;
+  /* Под header (для скролла пунктов меню под ним) */
   bottom: 0;
   margin: 0;
   border-radius: 0;
@@ -2271,6 +2300,7 @@ body[data-mode="mobile"] .menu-handle {
 body[data-mode="mobile"] .site-menu {
   flex: 1 1 auto;
   margin: 0 16px;
+  padding-top: calc(var(--header-height) + 16px);
 }
 
 body[data-mode="mobile"] .dock {
@@ -2704,12 +2734,16 @@ body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
 
 .paywall-cta-button {
   pointer-events: auto;
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 24px 48px;
+  width: 85%;
+  margin: 0 auto;
+  height: 150px;
+  padding: 16px 32px;
   border: none;
-  border-radius: 999px;
+  border-radius: 70%;
   background: #262728;
   color: #f5f5f5;
   font-weight: 700;
@@ -2718,6 +2752,78 @@ body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
   cursor: pointer;
   box-shadow: 0 30px 100px rgba(0, 0, 0, 0.5);
   transition: transform 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
+  overflow: hidden;
+}
+
+.paywall-cta-button__icon {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  height: 100%;
+  width: auto;
+  object-fit: contain;
+  z-index: 0;
+}
+
+/* Slot Machine Animation Container - iOS Picker Wheel Style */
+.paywall-cta-slot {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  z-index: 0;
+  /* iOS-style gradient mask for depth effect - 20% more fade */
+  mask-image: linear-gradient(to bottom,
+      transparent 0%,
+      rgba(0, 0, 0, 0.5) 25%,
+      black 40%,
+      black 60%,
+      rgba(0, 0, 0, 0.5) 75%,
+      transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom,
+      transparent 0%,
+      rgba(0, 0, 0, 0.5) 25%,
+      black 40%,
+      black 60%,
+      rgba(0, 0, 0, 0.5) 75%,
+      transparent 100%);
+}
+
+.paywall-cta-slot__track {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  will-change: transform;
+}
+
+.paywall-cta-slot__item {
+  width: 100%;
+  height: 150px;
+  /* Same as button height */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.paywall-cta-slot__item img {
+  height: 92%;
+  width: auto;
+  object-fit: contain;
+}
+
+.paywall-cta-button span {
+  position: relative;
+  z-index: 1;
+  padding: 4px 12px;
+  background: rgba(38, 39, 40, 0.3);
+  border-radius: 4px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .paywall-cta-button:hover {
@@ -3105,6 +3211,176 @@ body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
 }
 
 /* ============================================
+   MODAL — AIRY — iPhone SE (667px) optimized
+   ============================================ */
+
+.modal-content--airy {
+  padding: 28px 24px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8f8f8 100%);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12);
+  border: none;
+  border-radius: 20px;
+  max-width: 320px;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+/* ===== HOOKS SECTION ===== */
+.modal-content--airy .modal-hooks {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.modal-content--airy .modal-hook {
+  font-size: 14px;
+  font-weight: 500;
+  color: #222;
+  line-height: 1.4;
+  margin: 0;
+  padding: 6px 0;
+  position: relative;
+}
+
+.modal-content--airy .modal-hook:not(:last-child)::after {
+  content: "·";
+  display: block;
+  font-size: 18px;
+  color: #3eb489;
+  margin: 4px 0;
+}
+
+/* ===== PRICE SECTION ===== */
+.modal-content--airy .modal-price {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 16px;
+  gap: 14px;
+  padding: 12px 16px;
+  background: white;
+  border-radius: 14px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+}
+
+.modal-content--airy .price-old {
+  font-size: 22px;
+  font-weight: 700;
+  color: #999;
+  text-decoration: line-through;
+  text-decoration-color: #3eb489;
+  text-decoration-thickness: 2px;
+}
+
+.modal-content--airy .price-current {
+  font-size: 22px;
+  font-weight: 700;
+  color: #3eb489;
+}
+
+/* ===== FORM ELEMENTS ===== */
+.modal-content--airy .modal-input {
+  padding: 12px 14px;
+  font-size: 15px;
+  border-radius: 10px;
+  border: 1px solid #e5e5e5;
+  box-shadow: none;
+  background: white;
+  transition: border-color 0.15s;
+}
+
+.modal-content--airy .modal-input:focus {
+  border-color: #3eb489;
+  box-shadow: 0 0 0 2px rgba(62, 180, 137, 0.1);
+  outline: none;
+}
+
+.modal-content--airy .form-group {
+  margin-bottom: 10px;
+}
+
+.modal-content--airy .form-group-promo {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.modal-content--airy .form-group-promo .modal-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.modal-content--airy .promo-submit {
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 10px;
+  background: #f2f2f2;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.modal-content--airy .promo-submit:hover {
+  background: #e8e8e8;
+}
+
+/* ===== CHECKBOX ===== */
+.modal-content--airy .modal-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #666;
+  margin-bottom: 12px;
+  cursor: pointer;
+}
+
+.modal-content--airy .modal-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  flex-shrink: 0;
+  accent-color: #3eb489;
+}
+
+.modal-content--airy .modal-checkbox a {
+  color: #3eb489;
+}
+
+/* ===== SUBMIT BUTTON ===== */
+.modal-content--airy .modal-submit {
+  width: 100%;
+  padding: 14px;
+  font-size: 15px;
+  font-weight: 600;
+  color: white;
+  background: #111;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+  transition: all 0.15s;
+}
+
+.modal-content--airy .modal-submit:hover {
+  background: #000;
+  transform: translateY(-1px);
+  box-shadow: 0 5px 16px rgba(0, 0, 0, 0.14);
+}
+
+/* ===== SECURITY FOOTER ===== */
+.modal-content--airy .modal-security {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #999;
+  margin-top: 14px;
+}
+
+/* ============================================
    КНОПКИ НАВИГАЦИИ
    ============================================ */
 
@@ -3190,8 +3466,12 @@ body[data-mode="mobile"] .paywall-text {
 }
 
 body[data-mode="mobile"] .paywall-cta-button {
-  width: 80vw;
-  max-width: 100%;
+  width: 85%;
+  margin: 0 auto;
+  height: 20vw;
+  min-height: 72px;
+  max-height: 200px;
+  border-radius: 70%;
   justify-content: center;
 }
 
