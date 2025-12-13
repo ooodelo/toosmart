@@ -1,19 +1,25 @@
 <!-- МОДАЛЬНОЕ ОКНО НАСТРОЕК -->
 <div class="modal" id="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
     <div class="modal-overlay" onclick="closeSettingsModal()"></div>
-    <div class="modal-content">
-        <h2 id="settings-modal-title" class="modal-title">Настройки профиля</h2>
+    <div class="modal-content modal-content--airy" style="padding-bottom: 0 !important; position: relative;">
+        <!-- Logout button moved to top-right -->
+        <a href="/server/logout.php"
+            style="position: absolute; top: 24px; right: 24px; color: #ef5350; text-decoration: none; font-size: 14px; font-weight: 600;">
+            Выйти
+        </a>
 
-        <div class="settings-section" style="margin-bottom: 32px; padding-bottom: 32px; border-bottom: 1px solid #eee;">
-            <h3 style="font-size: 18px; margin-bottom: 12px; font-weight: 600;">Ваш аккаунт</h3>
+        <h2 id="settings-modal-title" class="modal-title" style="margin-bottom: 24px;">Настройки</h2>
+
+        <div class="settings-section" style="margin-bottom: 24px;">
             <div id="settings-email"
-                style="background: #f9f9f9; padding: 16px; border-radius: 12px; font-family: monospace; color: #333; font-size: 15px; border: 1px solid #eee;">
+                style="background: var(--page-bg); padding: 12px; border-radius: 12px; font-family: monospace; color: var(--gray-700); font-size: 15px; border: 1px solid rgba(0,0,0,0.05); text-align: center;">
                 Загрузка...
             </div>
         </div>
 
         <div class="settings-section">
-            <h3 style="font-size: 18px; margin-bottom: 20px; font-weight: 600;">Смена пароля</h3>
+            <h3 style="font-size: 16px; margin-bottom: 16px; font-weight: 600; color: var(--gray-700);">Смена пароля
+            </h3>
 
             <div id="settings-error"
                 style="display: none; color: #c62828; background: #ffebee; padding: 12px; border-radius: 10px; margin-bottom: 20px; font-size: 14px;">
@@ -23,27 +29,21 @@
             </div>
 
             <form id="settings-password-form">
-                <div class="form-group">
+                <div class="form-group" style="margin-bottom: 8px;">
                     <input type="password" name="current_password" class="modal-input" placeholder="Текущий пароль"
                         required autocomplete="current-password">
                 </div>
-                <div class="form-group">
-                    <input type="password" name="new_password" class="modal-input"
-                        placeholder="Новый пароль (мин. 6 символов)" required autocomplete="new-password">
+                <div class="form-group" style="margin-bottom: 8px;">
+                    <input type="password" name="new_password" class="modal-input" placeholder="Новый пароль" required
+                        autocomplete="new-password">
                 </div>
-                <div class="form-group">
-                    <input type="password" name="confirm_password" class="modal-input"
-                        placeholder="Подтвердите новый пароль" required autocomplete="new-password">
+                <div class="form-group" style="margin-bottom: 24px;">
+                    <input type="password" name="confirm_password" class="modal-input" placeholder="Подтвердить пароль"
+                        required autocomplete="new-password">
                 </div>
 
-                <button type="submit" class="modal-submit">Изменить пароль</button>
+                <button type="submit" class="modal-submit">Сохранить</button>
             </form>
-        </div>
-
-        <div style="text-align: center; margin-top: 32px; padding-top: 20px; border-top: 1px solid #eee;">
-            <a href="/server/logout.php"
-                style="color: #c62828; text-decoration: none; font-weight: 600; font-size: 15px;">Выйти из
-                аккаунта</a>
         </div>
     </div>
     <button class="modal-close" type="button" onclick="closeSettingsModal()" aria-label="Закрыть">×</button>

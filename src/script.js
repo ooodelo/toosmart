@@ -1990,19 +1990,27 @@ function setupContentBoundaryObserver() {
   }
 
   // Ищем контейнер контента
-  const contentBody = document.querySelector('.content-body') || document.querySelector('.text-box');
+  // Берём тот .content-body, который реально содержит section-label (основной текст),
+  // иначе — последний .content-body на странице, иначе — .text-box.
+  const allBodies = Array.from(document.querySelectorAll('.content-body'));
+  const bodyWithSections = allBodies.find(body => body.querySelector('.section-label'));
+  const contentBody = bodyWithSections || allBodies[allBodies.length - 1] || document.querySelector('.text-box');
   if (!contentBody) {
     return;
   }
 
   contentBoundaryObserver = new IntersectionObserver(
     ([entry]) => {
-      // Показываем dots если контент виден (>=10% в viewport)
-      dotsRail.classList.toggle('is-fading', !entry.isIntersecting);
+      if (!entry) return;
+      const viewportHeight = window.innerHeight || root.clientHeight || 0;
+      const bottom = entry.boundingClientRect.bottom;
+      // Гасим, когда низ контента поднялся выше 10px от низа экрана
+      const hide = bottom <= viewportHeight - 10;
+      dotsRail.classList.toggle('is-fading', hide);
     },
     {
       root: null,
-      threshold: 0.1 // 10% видимости достаточно
+      threshold: 0 // любое пересечение считаем видимостью
     }
   );
 

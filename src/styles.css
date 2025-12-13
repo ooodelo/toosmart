@@ -394,6 +394,8 @@ em {
   background: transparent;
   isolation: isolate;
   /* Create stacking context so ::before stays visible above parent bg */
+  text-align: center;
+  text-wrap: pretty;
 }
 
 .marker-highlight::before {
@@ -3211,174 +3213,247 @@ body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
 }
 
 /* ============================================
-   MODAL — AIRY — iPhone SE (667px) optimized
-   ============================================ */
-
-.modal-content--airy {
-  padding: 28px 24px;
-  background: linear-gradient(180deg, #ffffff 0%, #f8f8f8 100%);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12);
-  border: none;
-  border-radius: 20px;
-  max-width: 320px;
-  max-height: 85vh;
-  overflow-y: auto;
-}
-
-/* ===== HOOKS SECTION ===== */
-.modal-content--airy .modal-hooks {
-  text-align: center;
-  margin-bottom: 16px;
-}
-
-.modal-content--airy .modal-hook {
-  font-size: 14px;
-  font-weight: 500;
-  color: #222;
-  line-height: 1.4;
-  margin: 0;
-  padding: 6px 0;
-  position: relative;
-}
-
-.modal-content--airy .modal-hook:not(:last-child)::after {
-  content: "·";
-  display: block;
-  font-size: 18px;
-  color: #3eb489;
-  margin: 4px 0;
-}
-
-/* ===== PRICE SECTION ===== */
-.modal-content--airy .modal-price {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-bottom: 16px;
-  gap: 14px;
-  padding: 12px 16px;
-  background: white;
-  border-radius: 14px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
-}
-
-.modal-content--airy .price-old {
-  font-size: 22px;
-  font-weight: 700;
-  color: #999;
-  text-decoration: line-through;
-  text-decoration-color: #3eb489;
-  text-decoration-thickness: 2px;
-}
-
-.modal-content--airy .price-current {
-  font-size: 22px;
-  font-weight: 700;
   color: #3eb489;
 }
 
 /* ===== FORM ELEMENTS ===== */
-.modal-content--airy .modal-input {
-  padding: 12px 14px;
-  font-size: 15px;
-  border-radius: 10px;
-  border: 1px solid #e5e5e5;
-  box-shadow: none;
-  background: white;
-  transition: border-color 0.15s;
+/* === AIRY VARIANT (Selected) === */
+.modal-content--airy {
+  background: var(--accent-soft);
+  border-radius: 28px;
+  /* Fixed 28px as requested */
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.02);
+  /* Zero bottom padding so button hits the edge, reduced side padding for text width */
+  padding: 48px 48px 0 48px;
+  padding-bottom: 0 !important;
+  text-align: center;
+
+  /* Dimensions */
+  width: 90%;
+  max-width: 450px;
+  /* Reduced max-width as requested */
+  max-height: 85vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* Hide negative margin overflow */
+  overscroll-behavior: contain;
 }
 
-.modal-content--airy .modal-input:focus {
-  border-color: #3eb489;
-  box-shadow: 0 0 0 2px rgba(62, 180, 137, 0.1);
-  outline: none;
+.modal-content--airy .modal-hooks {
+  margin-top: 10px;
+  /* +5px requested */
+  margin-bottom: 20px;
+  /* Reduced spacing (-5px) */
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  /* Increased gap (+2px) */
+}
+
+.modal-content--airy .modal-hook {
+  font-family: var(--sans);
+  font-size: 19px;
+  line-height: 1.35;
+  font-weight: 500;
+  color: var(--gray-700);
+  margin-bottom: 0;
+  letter-spacing: 0.01em;
+  position: relative;
+}
+
+/* Explicitly remove any separators derived from base styles */
+.modal-content--airy .modal-hook::after {
+  content: none;
+  display: none;
+}
+
+.modal-content--airy .modal-hook:not(:last-child) {
+  margin-bottom: 0;
+}
+
+.modal-content--airy .modal-price {
+  margin-bottom: 12px;
+  font-family: var(--sans);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.modal-content--airy .price-old {
+  font-size: 34px;
+  text-decoration: line-through;
+  color: var(--gray-500);
+  font-weight: 700;
+  opacity: 0.6;
+}
+
+.modal-content--airy .price-current {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--text-color);
+  letter-spacing: -0.02em;
 }
 
 .modal-content--airy .form-group {
-  margin-bottom: 10px;
+  margin-bottom: 8px;
+  /* Super dense form spacing */
+}
+
+.modal-content--airy .modal-input {
+  width: 100%;
+  height: 56px;
+  padding: 0 24px;
+  font-size: 17px;
+  border-radius: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: var(--page-bg);
+  transition: all 0.2s ease;
+  font-family: var(--sans);
+}
+
+.modal-content--airy .modal-input:focus {
+  border-color: var(--gray-500);
+  background: var(--accent-soft);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  outline: none;
+}
+
+.modal-content--airy .modal-input::placeholder {
+  color: var(--gray-500);
+  opacity: 0.7;
+  font-weight: 400;
 }
 
 .modal-content--airy .form-group-promo {
+  position: relative;
   display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: 10px;
+  margin-bottom: 8px;
+  /* Super dense promo spacing */
 }
 
 .modal-content--airy .form-group-promo .modal-input {
-  flex: 1;
-  min-width: 0;
+  /* Promo input specific */
 }
 
 .modal-content--airy .promo-submit {
-  padding: 0 14px;
-  font-size: 13px;
-  font-weight: 500;
-  border-radius: 10px;
-  background: #f2f2f2;
+  height: 56px;
+  padding: 0 20px;
+  border-radius: 16px;
   border: none;
+  background: transparent;
+  color: var(--text-color);
+  font-weight: 600;
+  font-size: 15px;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: opacity 0.2s;
+  background: rgba(0, 0, 0, 0.03);
 }
 
 .modal-content--airy .promo-submit:hover {
-  background: #e8e8e8;
+  background: rgba(0, 0, 0, 0.06);
 }
 
-/* ===== CHECKBOX ===== */
 .modal-content--airy .modal-checkbox {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  font-size: 11px;
-  line-height: 1.4;
-  color: #666;
   margin-bottom: 12px;
-  cursor: pointer;
+  /* Reduced spacing before flush button */
+  font-size: 12px;
+  color: var(--gray-500);
+  line-height: 1.4;
+  justify-content: center;
+  max-width: 90%;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .modal-content--airy .modal-checkbox input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  margin: 0;
-  flex-shrink: 0;
-  accent-color: #3eb489;
+  width: 18px;
+  height: 18px;
+  margin-right: 10px;
+  border-radius: 5px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
 }
 
 .modal-content--airy .modal-checkbox a {
-  color: #3eb489;
+  color: var(--gray-700);
+  text-decoration-color: rgba(0, 0, 0, 0.2);
 }
 
-/* ===== SUBMIT BUTTON ===== */
 .modal-content--airy .modal-submit {
-  width: 100%;
-  padding: 14px;
-  font-size: 15px;
+  width: calc(100% + 96px);
+  /* Compensate padding (48*2) */
+  margin: 0 -48px -1px -48px;
+  /* Negative margin to hit edges, -1px to bury seam */
+  height: 64px;
+  /* Slightly taller for footer feel */
+  border-radius: 0 0 28px 28px;
+  /* Flush top, Rounded bottom to match container */
+  font-size: 19px;
   font-weight: 600;
-  color: white;
-  background: #111;
-  border: none;
-  border-radius: 12px;
-  cursor: pointer;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
-  transition: all 0.15s;
+  letter-spacing: 0.01em;
+  background: var(--accent);
+  color: var(--accent-soft);
+  box-shadow: none;
+  transition: background 0.2s;
 }
 
 .modal-content--airy .modal-submit:hover {
-  background: #000;
-  transform: translateY(-1px);
-  box-shadow: 0 5px 16px rgba(0, 0, 0, 0.14);
+  opacity: 0.95;
+  transform: none;
+  box-shadow: none;
 }
 
-/* ===== SECURITY FOOTER ===== */
 .modal-content--airy .modal-security {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  color: #999;
-  margin-top: 14px;
+  margin-top: 0;
+  margin-bottom: 24px;
+  /* Space between security and form */
+  font-size: 12px;
+  color: var(--gray-500);
+  opacity: 0.8;
+  letter-spacing: 0.02em;
 }
+
+/* Mobile Adaptation for Airy */
+@media (max-width: 600px) {
+  .modal-content--airy {
+    padding: 32px 24px 0 24px;
+    padding-bottom: 0 !important;
+    /* Use 24px side padding like desktop */
+    max-width: 92%;
+    border-radius: 28px !important;
+    max-height: 80vh;
+  }
+
+  /* Unify button behavior on mobile too */
+  .modal-content--airy .modal-submit {
+    width: calc(100% + 48px);
+    margin: 0 -24px -1px -24px;
+    border-radius: 0 0 28px 28px;
+  }
+
+  .modal-content--airy .modal-hook {
+    font-size: 17px;
+    margin-bottom: 12px;
+  }
+
+  .modal-content--airy .modal-hooks {
+    margin-bottom: 20px;
+  }
+
+  .modal-content--airy .price-current {
+    font-size: 32px;
+  }
+
+  .modal-content--airy .price-old {
+    font-size: 28px;
+  }
+}
+
+
 
 /* ============================================
    КНОПКИ НАВИГАЦИИ

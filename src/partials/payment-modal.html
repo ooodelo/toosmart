@@ -3,15 +3,19 @@
     <div class="modal-overlay" onclick="closeCTAModal()"></div>
     <div class="modal-content modal-content--airy">
         <header class="modal-hooks">
-            <p class="modal-hook" id="payment-modal-title">Забудьте всё, что вы знаете об уборке.</p>
-            <p class="modal-hook">Она станет в 2 раза быстрее и 10 раз дешевле.</p>
-            <p class="modal-hook">Вы узнаете все секреты клининга и сделаете в 100 раз лучше.</p>
+            <p class="modal-hook" id="payment-modal-title">Забудьте всё,<br>что вы знаете об уборке.</p>
+            <p class="modal-hook">Она станет в 2 раза быстрее<br>и 10 раз дешевле.</p>
+            <p class="modal-hook">Вы узнаете все секреты клининга<br>и сделаете в 100 раз лучше.</p>
         </header>
 
         <section class="modal-body">
             <p class="modal-price">
                 <span class="price-old">__PRICE_ORIGINAL__</span>
                 <span class="price-current">__PRICE_CURRENT__</span>
+            </p>
+
+            <p class="modal-security">
+                <span>🔒</span> Безопасная оплата через Robokassa
             </p>
 
             <div id="payment-error" style="display: none;" role="alert"></div>
@@ -23,11 +27,12 @@
                 </div>
 
                 <div class="form-group-promo">
-                    <input type="text" name="promo_code" id="promo-code-input" class="modal-input" placeholder="Промокод"
-                        aria-label="Промокод">
+                    <input type="text" name="promo_code" id="promo-code-input" class="modal-input"
+                        placeholder="Промокод" aria-label="Промокод">
                     <button type="button" class="promo-submit" id="promo-apply-btn">Применить</button>
                 </div>
-                <div id="promo-status" style="display:none; font-size: 13px; margin-top: -6px; margin-bottom: 10px;"></div>
+                <div id="promo-status" style="display:none; font-size: 13px; margin-top: -6px; margin-bottom: 10px;">
+                </div>
 
                 <label class="modal-checkbox">
                     <input type="checkbox" name="accept_offer" required>
@@ -44,11 +49,6 @@
                     Продолжить
                 </button>
             </form>
-        </section>
-
-        <p class="modal-security">
-            <span>🔒</span> Безопасная оплата через Robokassa
-        </p>
     </div>
     <button class="modal-close" type="button" onclick="closeCTAModal()" aria-label="Закрыть">×</button>
 </div>

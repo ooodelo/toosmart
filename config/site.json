@@ -6,10 +6,10 @@
     "currency": "RUB"
   },
   "ctaTexts": {
-    "enterFull": "Войти в полную версию",
-    "next": "Далее",
-    "goToCourse": "Перейти к курсу",
-    "openCourse": "Открыть курс"
+    "enterFull": "Войти в полную версию 1",
+    "next": "Далее 2",
+    "goToCourse": "Перейти к курсу 3",
+    "openCourse": "Открыть курс 4"
   },
   "footer": {
     "companyName": "ИП Константинова Софья Сергеевна",
