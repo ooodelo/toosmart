@@ -154,7 +154,7 @@ function buildPaywallSegments(markdown, override) {
 
   // 1) Если в meta задан openBlocks/teaserBlocks — приоритетно, даже если есть divider
   if (override && typeof override.openBlocks === 'number') {
-    const fullHtml = parseEnhancedMarkdown(cleanedMarkdown);
+    const fullHtml = parseEnhancedMarkdown(markdown);
     const blocks = extractHtmlBlocks(fullHtml);
     const teaserCount = override.teaserBlocks ?? DEFAULT_TEASER_BLOCKS;
     const split = splitHtmlBlocks(blocks, override.openBlocks, teaserCount);
@@ -171,8 +171,8 @@ function buildPaywallSegments(markdown, override) {
 
   // 2) Есть явный <!-- divider --> — режем по нему ДО рендера HTML
   const dividerRegex = /<!--\s*divider\s*-->/i;
-  if (dividerRegex.test(cleanedMarkdown)) {
-    const parts = cleanedMarkdown.split(dividerRegex);
+  if (dividerRegex.test(markdown)) {
+    const parts = markdown.split(dividerRegex);
     const openMd = (parts[0] || '') + '\n\n<!-- divider -->\n'; // divider в открытую часть
     const lockedMd = parts.slice(1).join('<!-- divider -->');
 
@@ -206,7 +206,7 @@ function buildPaywallSegments(markdown, override) {
   }
 
   // 3) Нет явного делителя и нет override — авто по первому divider в HTML или 20%
-  const fullHtml = parseEnhancedMarkdown(cleanedMarkdown);
+  const fullHtml = parseEnhancedMarkdown(markdown);
   const blocks = extractHtmlBlocks(fullHtml);
   const split = splitAtFirstDivider(blocks, DEFAULT_TEASER_BLOCKS);
 
@@ -229,7 +229,7 @@ function extractBlocks(markdown) {
   }
 
   const { cleanedMarkdown } = extractMeta(markdown);
-  const fullHtml = parseEnhancedMarkdown(cleanedMarkdown);
+  const fullHtml = parseEnhancedMarkdown(markdown);
   const htmlBlocks = extractHtmlBlocks(fullHtml);
 
   const blocks = [];
@@ -259,7 +259,7 @@ function extractBlocksWithMarkers(markdown) {
   }
 
   const { cleanedMarkdown } = extractMeta(markdown);
-  const fullHtml = parseEnhancedMarkdown(cleanedMarkdown);
+  const fullHtml = parseEnhancedMarkdown(markdown);
   const htmlBlocks = extractHtmlBlocks(fullHtml);
 
   const blocks = [];

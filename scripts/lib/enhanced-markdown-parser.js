@@ -97,6 +97,24 @@ function escapeHtml(text) {
     return text.replace(/[&<>"']/g, m => map[m]);
 }
 
+function renderInlineMarkdown(text) {
+    if (!text) return '';
+    const trimmed = String(text).trim();
+    if (!trimmed) return '';
+    if (typeof marked.parseInline === 'function') {
+        return marked.parseInline(trimmed);
+    }
+    // Fallback: remove outer <p> if parseInline отсутствует
+    return marked(trimmed).replace(/^<p>/, '').replace(/<\/p>\s*$/, '');
+}
+
+function renderBlockMarkdown(text) {
+    if (!text) return '';
+    const trimmed = String(text).trim();
+    if (!trimmed) return '';
+    return marked(trimmed);
+}
+
 /**
  * Processes HTML comment markers and converts them to proper HTML
  * @param {string} markdown - Markdown content
@@ -128,25 +146,40 @@ function processMarkers(markdown) {
                 if (!contentMatch) return match;
 
                 let innerContent = contentMatch[1];
+                const isInlineTag = config.tag === 'span';
 
                 // Special handling for highlight blocks - remove blockquote > marker
                 if (markerName === 'highlight') {
                     // Remove leading > from lines (blockquote syntax)
                     innerContent = innerContent.replace(/^\s*>\s*/gm, '');
-                    // Wrap in <p> if not already wrapped
-                    innerContent = innerContent.trim();
-                    if (!innerContent.startsWith('<p>')) {
-                        innerContent = `<p>${innerContent}</p>`;
-                    }
+                    innerContent = renderBlockMarkdown(innerContent);
+                    return `<${config.tag} class="${config.class}">${innerContent}</${config.tag}>`;
                 }
 
                 // Special handling for compare blocks - split by --- separator
                 if (markerName === 'compare') {
                     const parts = innerContent.split(/\n---\n/);
                     if (parts.length === 2) {
+                        const renderCompareCard = (raw) => {
+                            const lines = raw.trim().split(/\n+/);
+                            const title = lines.shift() || '';
+                            // Вторая строка — подзаголовок, если есть
+                            let heading = '';
+                            if (lines.length && lines[0].trim()) {
+                                heading = lines.shift();
+                            }
+                            const body = lines.join('\n').trim();
+
+                            return `<div class="compare-card article-card">` +
+                                (title ? `<div class="compare-card-title">${renderInlineMarkdown(title)}</div>` : '') +
+                                (heading ? `<div class="compare-card-heading">${renderInlineMarkdown(heading)}</div>` : '') +
+                                (body ? renderBlockMarkdown(body) : '') +
+                                `</div>`;
+                        };
+
                         return `<${config.tag} class="${config.class}">` +
-                            `<div class="compare-card">${parts[0].trim()}</div>` +
-                            `<div class="compare-card">${parts[1].trim()}</div>` +
+                            renderCompareCard(parts[0]) +
+                            renderCompareCard(parts[1]) +
                             `</${config.tag}>`;
                     }
                 }
@@ -158,18 +191,19 @@ function processMarkers(markdown) {
                     if (lines.length >= 2) {
                         // Extract label from first line (remove ** wrapper)
                         const labelMatch = lines[0].match(/^\*\*(.+?)\*\*$/);
-                        const label = labelMatch ? labelMatch[1] : lines[0];
+                        const label = renderInlineMarkdown(labelMatch ? labelMatch[1] : lines[0]);
 
                         // Extract value from second line (remove ** wrapper)
                         const valueMatch = lines[1].match(/^\*\*(.+?)\*\*$/);
-                        const value = valueMatch ? valueMatch[1] : lines[1];
+                        const value = renderInlineMarkdown(valueMatch ? valueMatch[1] : lines[1]);
 
                         // Rest is description text
-                        const description = lines.slice(2).join('\n\n').trim();
+                        const descriptionRaw = lines.slice(2).join('\n\n').trim();
+                        const description = descriptionRaw ? renderBlockMarkdown(descriptionRaw) : '';
 
                         return `<${config.tag} class="${config.class}">` +
-                            `<div class="number-callout-label">${escapeHtml(label)}</div>` +
-                            `<div class="number-callout-value">${escapeHtml(value)}</div>` +
+                            `<div class="number-callout-label">${label}</div>` +
+                            `<div class="number-callout-value">${value}</div>` +
                             (description ? `<div class="number-callout-text">${description}</div>` : '') +
                             `</${config.tag}>`;
                     }
@@ -183,7 +217,7 @@ function processMarkers(markdown) {
                     const titleMatch = content.match(/^\*\*(.+?)\*\*\s*\n\n?([\s\S]*)$/);
 
                     if (titleMatch) {
-                        const title = titleMatch[1];
+                        const title = renderInlineMarkdown(titleMatch[1]);
                         const listContent = titleMatch[2].trim();
 
                         // Parse list items (lines starting with * or -)
@@ -193,17 +227,45 @@ function processMarkers(markdown) {
                             .map(line => line.replace(/^\s*[\*\-]\s+/, '').trim());
 
                         if (items.length > 0) {
-                            const listHtml = '<ul>' + items.map(item => `<li>${item}</li>`).join('') + '</ul>';
+                            const listMarkdown = items.map(item => `- ${item}`).join('\n');
+                            const listHtml = renderBlockMarkdown(listMarkdown);
                             return `<${config.tag} class="${config.class}">` +
-                                `<div class="checklist-title">${escapeHtml(title)}</div>` +
+                                `<div class="checklist-title">${title}</div>` +
                                 listHtml +
-                                `</${config.tag}>`;
+                                `</${config.tag}>\n\n`;
                         }
                     }
                 }
 
+                // Special handling for lead: сохраняем абзацы как в эталоне
+                if (markerName === 'lead') {
+                    const body = renderBlockMarkdown(innerContent);
+                    return `<${config.tag} class="${config.class}">${body}</${config.tag}>`;
+                }
+
+                // Special handling for pullquote: извлекаем заголовок и тело без сырого markdown
+                if (markerName === 'pullquote') {
+                    // Уберем ведущие >
+                    const cleaned = innerContent.replace(/^\s*>\s?/gm, '').trim();
+                    const lines = cleaned.split(/\n+/).filter(Boolean);
+                    let heading = '';
+                    if (lines.length && /^\*\*(.+)\*\*$/.test(lines[0])) {
+                        heading = lines.shift().replace(/^\*\*(.+)\*\*$/, '$1');
+                    }
+                    const bodyText = lines.join('\n').trim();
+                    const body = bodyText ? renderBlockMarkdown(bodyText) : '';
+                    return `<${config.tag} class="${config.class}">` +
+                        (heading ? `<small>${escapeHtml(heading)}</small>` : '') +
+                        body +
+                        `</${config.tag}>`;
+                }
+
                 // Standard wrapping
-                return `<${config.tag} class="${config.class}">${innerContent}</${config.tag}>`;
+                const renderedContent = isInlineTag
+                    ? renderInlineMarkdown(innerContent)
+                    : renderBlockMarkdown(innerContent);
+
+                return `<${config.tag} class="${config.class}">${renderedContent}</${config.tag}>`;
             });
         }
     }

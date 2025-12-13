@@ -1093,7 +1093,7 @@ function extractBreadcrumb(html) {
 function injectReadingTimeIntoBreadcrumb(breadcrumbHtml, readingTimeMinutes) {
   if (!breadcrumbHtml || !readingTimeMinutes) return breadcrumbHtml;
 
-  const readingTimeSpan = `<span class="separator"> · </span><span class="reading-time-inline">~${readingTimeMinutes} минут чтения</span>`;
+  const readingTimeSpan = `<span class="separator"> · </span><span class="reading-time-inline">${readingTimeMinutes} минут чтения</span>`;
   return breadcrumbHtml.replace('</nav>', `${readingTimeSpan}</nav>`);
 }
 
@@ -1375,10 +1375,9 @@ function buildFreeCoursePage(item, menuHtml, config, template, legalMap = {}, lo
         <div class="text-box__intro content-shell">
           <div class="content-body">
             ${breadcrumbWithTime}
-            <header>
-              <h1>${item.seo_h1 || item.h1_md}</h1>
-              <p class="meta">${formatReadingTime(item.readingTimeMinutes)} чтения</p>
-            </header>
+              <header>
+                <h1>${item.seo_h1 || item.h1_md}</h1>
+              </header>
             ${htmlWithoutBreadcrumb}
           </div>
         </div>
@@ -1398,6 +1397,7 @@ function buildFreeCoursePage(item, menuHtml, config, template, legalMap = {}, lo
                 <div class="paywall-overlay__cta-inner">
                   <button class="paywall-cta-button cta-button" data-analytics="cta-premium" data-paywall-cta type="button">
                     <span>${escapeAttr(config.ctaTexts.enterFull)}</span>
+                    <img src="/assets/cloth.png" alt="" class="paywall-cta-button__icon" aria-hidden="true">
                   </button>
 
                   <div class="paywall-fab" data-paywall-fab>
