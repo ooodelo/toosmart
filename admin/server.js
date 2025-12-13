@@ -75,7 +75,8 @@ const DEFAULT_SITE_CONFIG = {
     enterFull: 'Получить полный доступ',
     next: 'Следующий раздел',
     goToCourse: 'Вернуться к курсу',
-    openCourse: 'Начать курс'
+    openCourse: 'Начать курс',
+    indexToFirstCourse: 'Начать обучение'
   },
   footer: {
     companyName: 'ООО \"Название компании\"',

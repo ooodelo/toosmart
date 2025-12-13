@@ -126,7 +126,8 @@ const DEFAULT_SITE_CONFIG = {
     enterFull: 'Получить полный доступ',
     next: 'Следующий раздел',
     goToCourse: 'Вернуться к курсу',
-    openCourse: 'Начать курс'
+    openCourse: 'Начать курс',
+    indexToFirstCourse: 'Начать обучение'
   },
   footer: {
     companyName: 'ООО "Название компании"',
@@ -391,7 +392,9 @@ async function buildFree() {
     // Определяем URL первой страницы курса для навигации с intro
     const firstCourse = content.course[0];
     const nextUrl = firstCourse ? `/course/${firstCourse.slug}.html` : '';
-    const page = buildIntroPage(intro, menuHtml, config, introTemplate, 'free', nextUrl, legalMap);
+    // Premium URL для авторизованных пользователей (проверка на клиенте)
+    const nextUrlPremium = firstCourse ? `/premium/course/${firstCourse.slug}.html` : '';
+    const page = buildIntroPage(intro, menuHtml, config, introTemplate, 'free', nextUrl, legalMap, nextUrlPremium);
     const targetPath = path.join(PATHS.dist.root, 'index.html');
     await fsp.writeFile(targetPath, page, 'utf8');
     break;
@@ -829,7 +832,7 @@ function injectTextBoxAttributes(html, { buttonText, nextPage }) {
   return html.replace(marker, `${marker} ${attrs.join(' ')}`);
 }
 
-function applyTemplate(template, { title, body, menu, meta = '', schema = '', seoTitle = '', features = {}, config = {}, legalMap = {}, buttonText = '', nextPage = '' }) {
+function applyTemplate(template, { title, body, menu, meta = '', schema = '', seoTitle = '', features = {}, config = {}, legalMap = {}, buttonText = '', nextPage = '', nextPagePremium = '' }) {
   // Используем SEO title если задан, иначе обычный title
   const finalTitle = seoTitle || title;
 
@@ -859,6 +862,10 @@ function applyTemplate(template, { title, body, menu, meta = '', schema = '', se
   result = injectTextBoxAttributes(result, { buttonText, nextPage });
   if (nextPage && !/data-next-page=/.test(result)) {
     result = result.replace('<body', `<body data-next-page="${escapeAttr(nextPage)}"`);
+  }
+  // Для index-страницы: добавляем оба URL (free и premium) для проверки авторизации на клиенте
+  if (nextPagePremium) {
+    result = result.replace('<body', `<body data-next-page-premium="${escapeAttr(nextPagePremium)}"`);
   }
 
   // Подстановка цен и футера из конфига
@@ -1342,8 +1349,9 @@ async function writeLockedContentFiles(items = []) {
   }
 }
 
-function buildIntroPage(item, menuHtml, config, template, mode, nextUrl = '', legalMap = {}) {
-  const buttonText = mode === 'premium' ? config.ctaTexts.next : config.ctaTexts.enterFull;
+function buildIntroPage(item, menuHtml, config, template, mode, nextUrl = '', legalMap = {}, nextUrlPremium = '') {
+  // Для intro-страницы используем indexToFirstCourse если есть, иначе fallback на next/enterFull
+  const buttonText = config.ctaTexts.indexToFirstCourse || (mode === 'premium' ? config.ctaTexts.next : config.ctaTexts.enterFull);
   const pageType = mode === 'premium' ? 'intro-premium' : 'intro-free';
 
   const { breadcrumb, htmlWithoutBreadcrumb } = extractBreadcrumb(item.fullHtml);
@@ -1360,6 +1368,7 @@ function buildIntroPage(item, menuHtml, config, template, mode, nextUrl = '', le
     pageType,
     buttonText,
     nextPage: nextUrl,
+    nextPagePremium: nextUrlPremium, // URL для авторизованных пользователей
     features: config.features,
     config,
     legalMap

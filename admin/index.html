@@ -1264,6 +1264,8 @@
                 class="form-input" id="ctaGoToCourse"></div>
             <div class="form-group"><label class="form-label">Рекомендации → Старт</label><input type="text"
                 class="form-input" id="ctaOpenCourse"></div>
+            <div class="form-group"><label class="form-label">Индекс → 1-я страница курса</label><input type="text"
+                class="form-input" id="ctaIndexToFirstCourse"></div>
           </div>
         </div>
 
@@ -2449,6 +2451,7 @@
       qs('#ctaNext').value = cta.next || '';
       qs('#ctaGoToCourse').value = cta.goToCourse || '';
       qs('#ctaOpenCourse').value = cta.openCourse || '';
+      qs('#ctaIndexToFirstCourse').value = cta.indexToFirstCourse || '';
 
       qs('#companyName').value = footer.companyName || '';
       qs('#inn').value = footer.inn || '';
@@ -2491,7 +2494,8 @@
           enterFull: qs('#ctaEnterFull').value,
           next: qs('#ctaNext').value,
           goToCourse: qs('#ctaGoToCourse').value,
-          openCourse: qs('#ctaOpenCourse').value
+          openCourse: qs('#ctaOpenCourse').value,
+          indexToFirstCourse: qs('#ctaIndexToFirstCourse').value
         },
         footer: {
           companyName: qs('#companyName').value,

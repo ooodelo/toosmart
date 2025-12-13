@@ -1999,22 +1999,25 @@ function setupContentBoundaryObserver() {
     return;
   }
 
+  const updateDotsFade = () => {
+    if (!contentBody || !dotsRail) return;
+    const viewportHeight = window.innerHeight || root.clientHeight || 0;
+    const rect = contentBody.getBoundingClientRect();
+    const hide = rect.bottom <= viewportHeight - 10; // низ контента выше на 10px от низа вьюпорта
+    dotsRail.classList.toggle('is-fading', hide);
+  };
+
   contentBoundaryObserver = new IntersectionObserver(
-    ([entry]) => {
-      if (!entry) return;
-      const viewportHeight = window.innerHeight || root.clientHeight || 0;
-      const bottom = entry.boundingClientRect.bottom;
-      // Гасим, когда низ контента поднялся выше 10px от низа экрана
-      const hide = bottom <= viewportHeight - 10;
-      dotsRail.classList.toggle('is-fading', hide);
-    },
+    () => updateDotsFade(),
     {
       root: null,
-      threshold: 0 // любое пересечение считаем видимостью
+      rootMargin: '0px 0px -10px 0px', // линия сдвинута на 10px от низа
+      threshold: 0
     }
   );
 
   contentBoundaryObserver.observe(contentBody);
+  updateDotsFade();
 
   registerLifecycleDisposer(() => {
     if (contentBoundaryObserver) {
@@ -3791,7 +3794,16 @@ function initProgressWidget() {
   }
 
   // 4. Определение URL следующей страницы
+  // Для index-страницы: проверяем авторизацию и используем premium URL если залогинен
   function detectNextUrl() {
+    // ПРИОРИТЕТ 0: Проверка авторизации для index-страницы
+    // Если есть data-next-page-premium, сначала проверяем логин
+    const premiumUrl = document.body.dataset.nextPagePremium;
+    if (premiumUrl) {
+      // Асинхронная проверка делается через checkAuthAndRedirect
+      // Здесь возвращаем free URL, а реальный редирект идёт через checkAuthAndRedirect
+    }
+
     // ПРИОРИТЕТ 1: data-next-page из article
     const article = document.querySelector('.text-box');
     const explicit = article?.dataset.nextPage ||
@@ -3820,6 +3832,33 @@ function initProgressWidget() {
     return '#';
   }
 
+  // Асинхронная проверка авторизации для index-страницы
+  async function checkAuthAndGetNextUrl() {
+    const premiumUrl = document.body.dataset.nextPagePremium;
+    const freeUrl = document.body.dataset.nextPage;
+
+    if (!premiumUrl) {
+      return freeUrl || detectNextUrl();
+    }
+
+    try {
+      const response = await fetch('/server/api/user-info.php', {
+        method: 'GET',
+        credentials: 'include'
+      });
+      const data = await response.json();
+      if (data.status === 'success' && data.email) {
+        // Пользователь залогинен → premium URL
+        return premiumUrl;
+      }
+    } catch (e) {
+      console.warn('[ProgressWidget] Auth check failed, using free URL:', e);
+    }
+
+    // Не залогинен → free URL
+    return freeUrl || detectNextUrl();
+  }
+
   const NEXT_URL = detectNextUrl();
 
   // Задача 2: Определяем тип страницы из data-атрибута
@@ -3830,6 +3869,7 @@ function initProgressWidget() {
   const isFreeVersion = pageType === 'free' || pageType === 'intro-free';
   const isRecommendation = pageType === 'recommendation';
   const isPremium = pageType === 'premium' || pageType === 'intro-premium';
+  const isIntroPage = pageType === 'intro-free' || pageType === 'intro-premium'; // Для проверки авторизации на index
 
   if (isFreeVersion) {
     root.setAttribute('data-free-version', 'true');
@@ -4272,13 +4312,31 @@ function initProgressWidget() {
   }
 
   // 7. Клик
-  trackEvent(root, 'click', (e) => {
+  trackEvent(root, 'click', async (e) => {
     if (doneState) {
       // При 100%: проверяем тип версии
-      if (isFreeVersion && typeof window.openPaymentModal === 'function') {
-        // FREE версия - открываем модальное окно покупки
+      if (isFreeVersion && typeof window.openPaymentModal === 'function' && !isIntroPage) {
+        // FREE версия (не intro) - открываем модальное окно покупки
         e.preventDefault();
         window.openPaymentModal();
+      } else if (isIntroPage) {
+        // INTRO-страница - проверяем авторизацию и перенаправляем на первую страницу курса
+        e.preventDefault();
+        try {
+          const targetUrl = await checkAuthAndGetNextUrl();
+          if (targetUrl && targetUrl !== '#') {
+            saveLastPosition();
+            window.location.href = targetUrl;
+          } else {
+            console.warn('Progress Widget: следующая страница не найдена');
+          }
+        } catch (err) {
+          console.warn('[ProgressWidget] Auth check error, using free URL:', err);
+          const fallbackUrl = document.body.dataset.nextPage || NEXT_URL;
+          if (fallbackUrl && fallbackUrl !== '#') {
+            window.location.href = fallbackUrl;
+          }
+        }
       } else {
         // PREMIUM или рекомендации - переход на следующую страницу
         const targetUrl = getSmartNextUrl();

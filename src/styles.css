@@ -2828,6 +2828,13 @@ body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
   -webkit-backdrop-filter: blur(8px);
 }
 
+/* Mobile: убираем blur-подложку у текста CTA (только текст, картинку не трогаем) */
+body[data-mode="mobile"] .paywall-cta-button span {
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
 .paywall-cta-button:hover {
   background: #262728;
   transform: scale(1.05);
