@@ -44,22 +44,53 @@ function isNonCountableBlock(html) {
  * Extract blocks from rendered HTML
  * Splits HTML by top-level block elements (p, h1-h6, div, blockquote, ul, ol, etc.)
  * Returns array of { html, isCountable, isDivider }
+ * 
+ * IMPORTANT: Uses iterative parsing to correctly handle nested elements
  */
 function extractHtmlBlocks(html) {
   const blocks = [];
+  const blockTags = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'div', 'blockquote', 'ul', 'ol', 'section', 'article', 'header', 'footer', 'nav', 'table', 'pre'];
 
-  // Match paired block tags and hr
-  const blockPattern = /<(p|h[1-6]|div|blockquote|ul|ol|section|article|header|footer|nav|table|pre)(\s[^>]*)?>[\s\S]*?<\/\1>|<hr[^>]*\/?>(?=(?:[^<]|<[^/])*$)/gi;
+  // Create pattern for opening tags
+  const openTagPattern = new RegExp(`<(${blockTags.join('|')})(\\s[^>]*)?>`, 'gi');
 
+  let lastIndex = 0;
   let match;
-  while ((match = blockPattern.exec(html)) !== null) {
-    const blockHtml = (match[0] || '').trim();
-    if (blockHtml) {
-      blocks.push({
-        html: blockHtml,
-        isCountable: !isNonCountableBlock(blockHtml),
-        isDivider: isDividerBlock(blockHtml)
-      });
+
+  while ((match = openTagPattern.exec(html)) !== null) {
+    const tagName = match[1].toLowerCase();
+    const startPos = match.index;
+
+    // Find the corresponding closing tag, handling nesting
+    let depth = 1;
+    let pos = match.index + match[0].length;
+
+    const closeTagRegex = new RegExp(`<(/?)${tagName}(\\s[^>]*)?>`, 'gi');
+    closeTagRegex.lastIndex = pos;
+
+    let closeMatch;
+    while (depth > 0 && (closeMatch = closeTagRegex.exec(html)) !== null) {
+      if (closeMatch[1] === '/') {
+        depth--;
+      } else {
+        depth++;
+      }
+    }
+
+    if (depth === 0 && closeMatch) {
+      const endPos = closeMatch.index + closeMatch[0].length;
+      const blockHtml = html.substring(startPos, endPos).trim();
+
+      if (blockHtml) {
+        blocks.push({
+          html: blockHtml,
+          isCountable: !isNonCountableBlock(blockHtml),
+          isDivider: isDividerBlock(blockHtml)
+        });
+      }
+
+      // Skip past this block for the next iteration
+      openTagPattern.lastIndex = endPos;
     }
   }
 

@@ -24,6 +24,45 @@ const MARKER_MAP = {
     'product-list': { tag: 'div', class: 'product-list', selfClosing: false }
 };
 
+// Inline-only markers (span wrappers) should not break surrounding text flow
+// These are processed BEFORE marked() to prevent paragraph breaks
+const INLINE_MARKERS = new Set(['marker', 'emphasized']);
+
+/**
+ * Pre-processes inline markers before markdown parsing.
+ * Converts <!-- emphasized -->text<!-- /emphasized --> to <span class="emphasized-word">text</span>
+ * This must happen BEFORE marked() to prevent paragraph breaks.
+ * @param {string} markdown - Raw markdown with inline markers
+ * @returns {string} Markdown with inline markers converted to HTML spans
+ */
+function preprocessInlineMarkers(markdown) {
+    if (!markdown || typeof markdown !== 'string') {
+        return markdown;
+    }
+
+    let result = markdown;
+
+    for (const markerName of INLINE_MARKERS) {
+        const config = MARKER_MAP[markerName];
+        if (!config) continue;
+
+        // Match <!-- markerName -->content<!-- /markerName -->
+        // Use non-greedy match and handle multiline content
+        const regex = new RegExp(
+            `<!--\\s*${markerName}\\s*-->([\\s\\S]*?)<!--\\s*/${markerName}\\s*-->`,
+            'g'
+        );
+
+        result = result.replace(regex, (match, content) => {
+            // Trim leading/trailing whitespace but preserve internal structure
+            const trimmed = content.trim();
+            return `<${config.tag} class="${config.class}">${trimmed}</${config.tag}>`;
+        });
+    }
+
+    return result;
+}
+
 /**
  * Extracts meta content (breadcrumb) from markdown
  * @param {string} markdown - The markdown content
@@ -115,20 +154,215 @@ function renderBlockMarkdown(text) {
     return marked(trimmed);
 }
 
-/**
- * Processes HTML comment markers and converts them to proper HTML
- * @param {string} markdown - Markdown content
- * @returns {string} Processed markdown with markers replaced
- */
-function processMarkers(markdown) {
-    let processed = markdown;
+function escapeForRegex(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
-    // Process each marker type
-    for (const [markerName, config] of Object.entries(MARKER_MAP)) {
+function replacePlaceholdersWithHtml(html, blocks) {
+    let output = html;
+    let iterations = 0;
+    let replaced = true;
+
+    // Replace in a couple of passes in case block HTML still contains placeholders
+    while (replaced && iterations < 3) {
+        replaced = false;
+        iterations += 1;
+
+        blocks.forEach(({ placeholder, html: blockHtml }) => {
+            const escaped = escapeForRegex(placeholder);
+            const withP = new RegExp(`<p>${escaped}<\\/p>`, 'g');
+            const plain = new RegExp(escaped, 'g');
+
+            const next = output
+                .replace(withP, blockHtml)
+                .replace(plain, blockHtml);
+
+            if (next !== output) {
+                replaced = true;
+                output = next;
+            }
+        });
+    }
+
+    return output;
+}
+
+function renderWithNestedBlocks(text, { inline = false } = {}) {
+    // Step 1: Pre-process inline markers (before markdown parsing)
+    const withInline = preprocessInlineMarkers(text);
+
+    // Step 2: Process block markers to placeholders
+    // Skip self-closing markers (like divider) in nested blocks - they should only be processed at top level
+    const { processed, blocks } = processMarkersToPlaceholders(withInline, { skipSelfClosing: true });
+
+    // Step 3: Render markdown
+    let html = inline ? renderInlineMarkdown(processed) : renderBlockMarkdown(processed);
+
+    // Step 4: Replace placeholders with rendered blocks
+    html = replacePlaceholdersWithHtml(html, blocks);
+
+    return html;
+}
+
+/**
+ * Renders content of a marker to finalized HTML block
+ */
+function renderMarkerBlock(markerName, innerContent, config) {
+    const isInlineTag = config.tag === 'span';
+
+    // Special handling for highlight blocks - remove blockquote > marker
+    if (markerName === 'highlight') {
+        const cleaned = innerContent.replace(/^\s*>\s*/gm, '');
+        const body = renderWithNestedBlocks(cleaned, { inline: false });
+        return `<${config.tag} class="${config.class}">${body}</${config.tag}>`;
+    }
+
+    if (markerName === 'compare') {
+        const parts = innerContent.split(/\n---\n/);
+        const renderCompareCard = (raw) => {
+            const lines = raw.trim().split(/\n+/);
+            const title = lines.shift() || '';
+            let heading = '';
+            if (lines.length && lines[0].trim()) {
+                heading = lines.shift();
+            }
+            const body = lines.join('\n').trim();
+
+            return `<div class="compare-card article-card">` +
+                (title ? `<div class="compare-card-title">${renderInlineMarkdown(title)}</div>` : '') +
+                (heading ? `<div class="compare-card-heading">${renderInlineMarkdown(heading)}</div>` : '') +
+                (body ? renderWithNestedBlocks(body, { inline: false }) : '') +
+                `</div>`;
+        };
+
+        if (parts.length === 2) {
+            return `<${config.tag} class="${config.class}">` +
+                renderCompareCard(parts[0]) +
+                renderCompareCard(parts[1]) +
+                `</${config.tag}>`;
+        }
+    }
+
+    if (markerName === 'callout') {
+        const lines = innerContent.trim().split(/\n\n+/);
+        if (lines.length >= 2) {
+            const labelMatch = lines[0].match(/^\*\*(.+?)\*\*$/);
+            const label = renderInlineMarkdown(labelMatch ? labelMatch[1] : lines[0]);
+
+            const valueMatch = lines[1].match(/^\*\*(.+?)\*\*$/);
+            const value = renderInlineMarkdown(valueMatch ? valueMatch[1] : lines[1]);
+
+            const descriptionRaw = lines.slice(2).join('\n\n').trim();
+            const description = descriptionRaw ? renderWithNestedBlocks(descriptionRaw, { inline: false }) : '';
+
+            return `<${config.tag} class="${config.class}">` +
+                `<div class="number-callout-label">${label}</div>` +
+                `<div class="number-callout-value">${value}</div>` +
+                (description ? `<div class="number-callout-text">${description}</div>` : '') +
+                `</${config.tag}>`;
+        }
+    }
+
+    if (markerName === 'checklist') {
+        const content = innerContent.trim();
+        const titleMatch = content.match(/^\*\*(.+?)\*\*\s*\n\n?([\s\S]*)$/);
+
+        if (titleMatch) {
+            const title = renderInlineMarkdown(titleMatch[1]);
+            const listContent = titleMatch[2].trim();
+
+            const items = listContent
+                .split(/\n/)
+                .filter(line => /^\s*[\*\-]\s+/.test(line))
+                .map(line => line.replace(/^\s*[\*\-]\s+/, '').trim());
+
+            if (items.length > 0) {
+                const listMarkdown = items.map(item => `- ${item}`).join('\n');
+                const listHtml = renderWithNestedBlocks(listMarkdown, { inline: false });
+                return `<${config.tag} class="${config.class}">` +
+                    `<div class="checklist-title">${title}</div>` +
+                    listHtml +
+                    `</${config.tag}>`;
+            }
+        }
+    }
+
+    if (markerName === 'lead') {
+        const body = renderWithNestedBlocks(innerContent, { inline: false });
+        return `<${config.tag} class="${config.class}">${body}</${config.tag}>`;
+    }
+
+    // Section label should be rendered as inline (no <p> tags)
+    if (markerName === 'section') {
+        const body = renderInlineMarkdown(innerContent);
+        return `<${config.tag} class="${config.class}">${body}</${config.tag}>`;
+    }
+
+    if (markerName === 'pullquote') {
+        const cleaned = innerContent.replace(/^\s*>\s?/gm, '').trim();
+        const lines = cleaned.split(/\n+/).filter(Boolean);
+        let heading = '';
+        if (lines.length && /^\*\*(.+)\*\*$/.test(lines[0])) {
+            heading = lines.shift().replace(/^\*\*(.+)\*\*$/, '$1');
+        }
+        const bodyText = lines.join('\n').trim();
+        const body = bodyText ? renderWithNestedBlocks(bodyText, { inline: false }) : '';
+        return `<${config.tag} class="${config.class}">` +
+            (heading ? `<small>${escapeHtml(heading)}</small>` : '') +
+            body +
+            `</${config.tag}>`;
+    }
+
+    const useInline = isInlineTag || config.tag === 'p';
+    const renderedContent = useInline
+        ? renderWithNestedBlocks(innerContent, { inline: true })
+        : renderWithNestedBlocks(innerContent, { inline: false });
+
+    return `<${config.tag} class="${config.class}">${renderedContent}</${config.tag}>`;
+}
+
+/**
+ * Processes HTML comment markers to placeholders and returns blocks map
+ * @param {string} markdown - Markdown content
+ * @param {Object} options - Processing options
+ * @param {boolean} options.skipSelfClosing - If true, skip self-closing markers (for nested block processing)
+ * @returns {{ processed: string, blocks: Array<{placeholder: string, html: string}> }}
+ */
+function processMarkersToPlaceholders(markdown, options = {}) {
+    const { skipSelfClosing = false } = options;
+    let processed = markdown;
+    const blocks = [];
+    let counter = 0;
+
+    const orderedEntries = [
+        // Block-level first so nested inline markers are handled inside their block render
+        ...Object.entries(MARKER_MAP).filter(([name]) => !INLINE_MARKERS.has(name)),
+        // Inline markers last to avoid breaking surrounding markdown structures
+        ...Object.entries(MARKER_MAP).filter(([name]) => INLINE_MARKERS.has(name))
+    ];
+
+    // Process each marker type (skip inline markers - they're handled by preprocessInlineMarkers)
+    for (const [markerName, config] of orderedEntries) {
+        // Skip inline markers - they are pre-processed before marked()
+        if (INLINE_MARKERS.has(markerName)) {
+            continue;
+        }
+        const spacer = '\n\n';
+
+        // Skip self-closing markers if requested (for nested block processing)
+        if (config.selfClosing && skipSelfClosing) {
+            continue;
+        }
+
         if (config.selfClosing) {
             // Self-closing markers like <!-- divider -->
             const regex = new RegExp(`<!--\\s*${markerName}\\s*-->`, 'g');
-            processed = processed.replace(regex, `<${config.tag} class="${config.class}"></${config.tag}>`);
+            processed = processed.replace(regex, () => {
+                const html = `<${config.tag} class="${config.class}"></${config.tag}>`;
+                const placeholder = `@@BLOCK_${counter++}@@`;
+                blocks.push({ placeholder, html });
+                return `${spacer}${placeholder}${spacer}`;
+            });
         } else {
             // Paired markers like <!-- highlight -->...<!-- /highlight -->
             const regex = new RegExp(
@@ -137,7 +371,6 @@ function processMarkers(markdown) {
             );
 
             processed = processed.replace(regex, (match) => {
-                // Extract content between opening and closing markers
                 const contentRegex = new RegExp(
                     `<!--\\s*${markerName}\\s*-->\\s*([\\s\\S]*?)\\s*<!--\\s*\\/${markerName}\\s*-->`
                 );
@@ -145,132 +378,16 @@ function processMarkers(markdown) {
 
                 if (!contentMatch) return match;
 
-                let innerContent = contentMatch[1];
-                const isInlineTag = config.tag === 'span';
-
-                // Special handling for highlight blocks - remove blockquote > marker
-                if (markerName === 'highlight') {
-                    // Remove leading > from lines (blockquote syntax)
-                    innerContent = innerContent.replace(/^\s*>\s*/gm, '');
-                    innerContent = renderBlockMarkdown(innerContent);
-                    return `<${config.tag} class="${config.class}">${innerContent}</${config.tag}>`;
-                }
-
-                // Special handling for compare blocks - split by --- separator
-                if (markerName === 'compare') {
-                    const parts = innerContent.split(/\n---\n/);
-                    if (parts.length === 2) {
-                        const renderCompareCard = (raw) => {
-                            const lines = raw.trim().split(/\n+/);
-                            const title = lines.shift() || '';
-                            // Вторая строка — подзаголовок, если есть
-                            let heading = '';
-                            if (lines.length && lines[0].trim()) {
-                                heading = lines.shift();
-                            }
-                            const body = lines.join('\n').trim();
-
-                            return `<div class="compare-card article-card">` +
-                                (title ? `<div class="compare-card-title">${renderInlineMarkdown(title)}</div>` : '') +
-                                (heading ? `<div class="compare-card-heading">${renderInlineMarkdown(heading)}</div>` : '') +
-                                (body ? renderBlockMarkdown(body) : '') +
-                                `</div>`;
-                        };
-
-                        return `<${config.tag} class="${config.class}">` +
-                            renderCompareCard(parts[0]) +
-                            renderCompareCard(parts[1]) +
-                            `</${config.tag}>`;
-                    }
-                }
-
-                // Special handling for callout blocks
-                // Format: **Label**\n\n**Value**\n\nDescription
-                if (markerName === 'callout') {
-                    const lines = innerContent.trim().split(/\n\n+/);
-                    if (lines.length >= 2) {
-                        // Extract label from first line (remove ** wrapper)
-                        const labelMatch = lines[0].match(/^\*\*(.+?)\*\*$/);
-                        const label = renderInlineMarkdown(labelMatch ? labelMatch[1] : lines[0]);
-
-                        // Extract value from second line (remove ** wrapper)
-                        const valueMatch = lines[1].match(/^\*\*(.+?)\*\*$/);
-                        const value = renderInlineMarkdown(valueMatch ? valueMatch[1] : lines[1]);
-
-                        // Rest is description text
-                        const descriptionRaw = lines.slice(2).join('\n\n').trim();
-                        const description = descriptionRaw ? renderBlockMarkdown(descriptionRaw) : '';
-
-                        return `<${config.tag} class="${config.class}">` +
-                            `<div class="number-callout-label">${label}</div>` +
-                            `<div class="number-callout-value">${value}</div>` +
-                            (description ? `<div class="number-callout-text">${description}</div>` : '') +
-                            `</${config.tag}>`;
-                    }
-                }
-
-                // Special handling for checklist blocks
-                // Format: **Title**\n\n* item\n* item
-                if (markerName === 'checklist') {
-                    const content = innerContent.trim();
-                    // Split into title (first ** block) and list items
-                    const titleMatch = content.match(/^\*\*(.+?)\*\*\s*\n\n?([\s\S]*)$/);
-
-                    if (titleMatch) {
-                        const title = renderInlineMarkdown(titleMatch[1]);
-                        const listContent = titleMatch[2].trim();
-
-                        // Parse list items (lines starting with * or -)
-                        const items = listContent
-                            .split(/\n/)
-                            .filter(line => /^\s*[\*\-]\s+/.test(line))
-                            .map(line => line.replace(/^\s*[\*\-]\s+/, '').trim());
-
-                        if (items.length > 0) {
-                            const listMarkdown = items.map(item => `- ${item}`).join('\n');
-                            const listHtml = renderBlockMarkdown(listMarkdown);
-                            return `<${config.tag} class="${config.class}">` +
-                                `<div class="checklist-title">${title}</div>` +
-                                listHtml +
-                                `</${config.tag}>\n\n`;
-                        }
-                    }
-                }
-
-                // Special handling for lead: сохраняем абзацы как в эталоне
-                if (markerName === 'lead') {
-                    const body = renderBlockMarkdown(innerContent);
-                    return `<${config.tag} class="${config.class}">${body}</${config.tag}>`;
-                }
-
-                // Special handling for pullquote: извлекаем заголовок и тело без сырого markdown
-                if (markerName === 'pullquote') {
-                    // Уберем ведущие >
-                    const cleaned = innerContent.replace(/^\s*>\s?/gm, '').trim();
-                    const lines = cleaned.split(/\n+/).filter(Boolean);
-                    let heading = '';
-                    if (lines.length && /^\*\*(.+)\*\*$/.test(lines[0])) {
-                        heading = lines.shift().replace(/^\*\*(.+)\*\*$/, '$1');
-                    }
-                    const bodyText = lines.join('\n').trim();
-                    const body = bodyText ? renderBlockMarkdown(bodyText) : '';
-                    return `<${config.tag} class="${config.class}">` +
-                        (heading ? `<small>${escapeHtml(heading)}</small>` : '') +
-                        body +
-                        `</${config.tag}>`;
-                }
-
-                // Standard wrapping
-                const renderedContent = isInlineTag
-                    ? renderInlineMarkdown(innerContent)
-                    : renderBlockMarkdown(innerContent);
-
-                return `<${config.tag} class="${config.class}">${renderedContent}</${config.tag}>`;
+                const innerContent = contentMatch[1];
+                const html = renderMarkerBlock(markerName, innerContent, config);
+                const placeholder = `@@BLOCK_${counter++}@@`;
+                blocks.push({ placeholder, html });
+                return `${spacer}${placeholder}${spacer}`;
             });
         }
     }
 
-    return processed;
+    return { processed, blocks };
 }
 
 /**
@@ -286,11 +403,17 @@ function parseEnhancedMarkdown(markdown) {
     // Step 1: Extract breadcrumb meta
     const { meta, cleanedMarkdown } = extractMeta(markdown);
 
-    // Step 2: Process HTML comment markers to proper HTML
-    const processedMarkdown = processMarkers(cleanedMarkdown);
+    // Step 2: Pre-process inline markers (BEFORE marked to prevent paragraph breaks)
+    const withInlineProcessed = preprocessInlineMarkers(cleanedMarkdown);
 
-    // Step 3: Run standard marked() on the processed markdown
+    // Step 3: Process block markers to placeholders
+    const { processed: processedMarkdown, blocks } = processMarkersToPlaceholders(withInlineProcessed);
+
+    // Step 4: Run standard marked() on the processed markdown (placeholders remain as text)
     let html = marked(processedMarkdown);
+
+    // Step 4: Replace placeholders with rendered blocks (strip <p> wrappers if any)
+    html = replacePlaceholdersWithHtml(html, blocks);
 
     // Step 4: Insert breadcrumb 
     const breadcrumbHtml = renderBreadcrumb(meta);
@@ -324,5 +447,5 @@ module.exports = {
     hasEnhancedMarkers,
     extractMeta,
     renderBreadcrumb,
-    processMarkers
+    processMarkers: processMarkersToPlaceholders
 };
