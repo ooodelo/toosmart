@@ -2007,6 +2007,17 @@ function setupContentBoundaryObserver() {
     dotsRail.classList.toggle('is-fading', hide);
   };
 
+  // rAF-троттлинг для scroll/resize
+  let fadeScheduled = false;
+  const scheduleFadeUpdate = () => {
+    if (fadeScheduled) return;
+    fadeScheduled = true;
+    requestAnimationFrame(() => {
+      fadeScheduled = false;
+      updateDotsFade();
+    });
+  };
+
   contentBoundaryObserver = new IntersectionObserver(
     () => updateDotsFade(),
     {
@@ -2018,6 +2029,10 @@ function setupContentBoundaryObserver() {
 
   contentBoundaryObserver.observe(contentBody);
   updateDotsFade();
+
+  // Следим за скроллом/resize, чтобы состояние обновлялось постоянно
+  trackEvent(window, 'scroll', scheduleFadeUpdate, { passive: true }, { module: 'dotsRail', target: 'window' });
+  trackEvent(window, 'resize', scheduleFadeUpdate, { passive: true }, { module: 'dotsRail', target: 'window' });
 
   registerLifecycleDisposer(() => {
     if (contentBoundaryObserver) {
