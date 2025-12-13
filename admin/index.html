@@ -1806,7 +1806,7 @@
         row.innerHTML = `
           <div class="form-group" style="flex:1;">
             <label class="form-label">Код</label>
-            <input type="text" class="form-input" data-promo-field="code" data-idx="${idx}" value="${promo.code || ''}">
+            <input type="text" class="form-input" data-promo-field="code" data-idx="${idx}" value="${promo.code || ''}" style="text-transform: uppercase;">
           </div>
           <div class="form-group" style="width:120px;">
             <label class="form-label">Тип</label>
@@ -1876,7 +1876,7 @@
     async function savePromos() {
       try {
         const cleaned = (state.promos || []).map(p => ({
-          code: (p.code || '').trim(),
+          code: (p.code || '').trim().toUpperCase(),
           type: p.type === 'fixed' ? 'fixed' : 'percent',
           value: p.value === '' ? '' : Number(p.value),
           starts_at: p.starts_at || '',

@@ -11,5 +11,5 @@ Config::load();
 Security::initSession();
 
 // Redirect to premium index with success flag
-header('Location: /premium/?payment=success');
+header('Location: /server/?payment=success');
 exit;

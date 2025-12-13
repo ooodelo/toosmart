@@ -180,7 +180,7 @@ async function applyPromo() {
   const priceCurrent = modal.querySelector('.price-current');
   if (!promoInput || !statusEl || !priceCurrent) return;
 
-  const code = promoInput.value.trim();
+  const code = promoInput.value.trim().toUpperCase();
   if (!code) {
     statusEl.style.display = 'block';
     statusEl.style.color = '#d32f2f';
@@ -299,7 +299,7 @@ async function handlePayment(event) {
   const promoInput = form.querySelector('input[name="promo_code"]');
 
   // Проверка наличия обязательных полей формы
-  const promoCode = promoInput ? promoInput.value.trim() : '';
+  const promoCode = promoInput ? promoInput.value.trim().toUpperCase() : '';
 
   if (!emailField) {
     showError(errorDiv, 'Ошибка формы: поле email не найдено');
@@ -408,8 +408,8 @@ async function handlePayment(event) {
           input.type = 'hidden';
           input.name = key;
           input.value = value;
-      paymentForm.appendChild(input);
-    }
+          paymentForm.appendChild(input);
+        }
       }
 
       document.body.appendChild(paymentForm);

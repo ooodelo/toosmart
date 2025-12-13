@@ -363,9 +363,13 @@
     "menu_subtitle": "",
     "carousel_label": "ЭКО-РАЗВОД",
     "carousel_subtitle": "Главный маркетинговый обман столетия",
-    "carousel_icon": "🤡",
+    "carousel_icon": "🤥",
     "carousel_order": 0,
-    "carousel_enabled": true
+    "carousel_enabled": true,
+    "paywall": {
+      "openBlocks": 3,
+      "teaserBlocks": 2
+    }
   },
   "recommendations/gubka-longread-enhanced.md": {
     "slug": "gubka-eto-zlo",
@@ -374,11 +378,15 @@
     "meta_description": "Самое грязное место в квартире — это губка, которой моют посуду. Но даже новая губка — инструмент с фундаментальными недостатками, которые делают её худшим выбором для уборки.",
     "menu_label": "",
     "menu_subtitle": "",
-    "carousel_label": "Хотите избавиться от грязи в квартире? Начните с губки",
-    "carousel_subtitle": "Как губка плодит бактерии не только внутри, но и вокруг себя",
+    "carousel_label": "Хотите избавиться от грязи в квартире?",
+    "carousel_subtitle": "Начните с губки!!!",
     "carousel_icon": "🧽",
     "carousel_order": 0,
-    "carousel_enabled": true
+    "carousel_enabled": true,
+    "paywall": {
+      "openBlocks": 3,
+      "teaserBlocks": 2
+    }
   },
   "recommendations/odin-flakon-dvadtsat-nazvaniy-enhanced.md": {
     "slug": "odin-flakon-dvadcat-nazvaniy",

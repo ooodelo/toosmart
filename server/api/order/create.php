@@ -6,8 +6,10 @@ require_once __DIR__ . '/../../src/promo.php';
 $cfg = require __DIR__ . '/../../src/config_loader.php';
 $data = json_body();
 $email = trim($data['email'] ?? '');
-if (!$email) json_out(['error' => 'email_required'], 400);
-if (!filter_var($email, FILTER_VALIDATE_EMAIL)) json_out(['error' => 'email_invalid'], 400);
+if (!$email)
+  json_out(['error' => 'email_required'], 400);
+if (!filter_var($email, FILTER_VALIDATE_EMAIL))
+  json_out(['error' => 'email_invalid'], 400);
 
 // product_code comes from request OR settings
 $product_code = $data['product_code'] ?? ($cfg['robokassa']['product_code'] ?? 'premium_course');
@@ -25,7 +27,7 @@ if (!isset($products[$product_code])) {
 $product = $products[$product_code];
 
 // server-side price is the source of truth
-$amount_server = (float)$product['price'];
+$amount_server = (float) $product['price'];
 $promoCode = trim($data['promo_code'] ?? '');
 $usage = promo_load_usage();
 $promos = promo_load_all();
@@ -45,14 +47,16 @@ $outSum = rk_format_outsum($finalAmount);
 // build receipt
 $receipt = [
   'sno' => $cfg['robokassa']['default_sno'] ?? null,
-  'items' => [[
-    'name' => $product['name'],
-    'quantity' => 1,
-    'sum' => $outSum,
-    'tax' => $product['tax'] ?? ($cfg['robokassa']['default_tax'] ?? 'none'),
-    'payment_method' => $product['payment_method'] ?? 'full_payment',
-    'payment_object' => $product['payment_object'] ?? 'service',
-  ]]
+  'items' => [
+    [
+      'name' => $product['name'],
+      'quantity' => 1,
+      'sum' => $outSum,
+      'tax' => $product['tax'] ?? ($cfg['robokassa']['default_tax'] ?? 'none'),
+      'payment_method' => $product['payment_method'] ?? 'full_payment',
+      'payment_object' => $product['payment_object'] ?? 'service',
+    ]
+  ]
 ];
 $receipt_json = json_encode($receipt, JSON_UNESCAPED_UNICODE);
 $receipt_urlenc = rawurlencode($receipt_json);
@@ -66,7 +70,7 @@ do {
   $exists = $stmt->fetch();
 } while ($exists);
 
-$stmt = $pdo->prepare("INSERT INTO orders (inv_id,email,amount,promo_code,promo_amount,status,receipt_json) VALUES (?,?,?,?,?,?,?)");
+$stmt = $pdo->prepare("INSERT INTO orders (inv_id,email,amount,promo_code,promo_discount,status,receipt_json) VALUES (?,?,?,?,?,?,?)");
 $stmt->execute([$invId, $email, $outSum, $promo ? $promo['code'] : null, $promo ? $outSum : null, 'pending', $receipt_json]);
 
 $shp = ['Shp_email' => $email, 'Shp_product' => $product_code];

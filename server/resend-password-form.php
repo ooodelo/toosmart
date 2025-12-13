@@ -102,7 +102,7 @@ switch ($error) {
 
         <div class="help-text">
             Уже есть пароль? <a href="index.php">Войти</a><br>
-            Забыли пароль? <a href="forgot-password.html">Восстановить</a>
+            Забыли пароль? <a href="forgot-password-form.php">Восстановить</a>
         </div>
     </div>
 

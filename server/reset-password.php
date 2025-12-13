@@ -13,6 +13,8 @@
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/security.php';
 require_once __DIR__ . '/Database.php';
+require_once __DIR__ . '/src/password_history.php';
+require_once __DIR__ . '/src/mailer.php';
 
 Config::load();
 Security::initSession();
@@ -34,7 +36,7 @@ if (!Security::validateCSRFToken($csrf_token)) {
     Security::secureLog('WARNING', 'CSRF validation failed in reset password', [
         'ip' => Security::getClientIP()
     ]);
-    header('Location: reset-password-form.html?token=' . urlencode($token) . '&error=csrf');
+    header('Location: reset-password-form.php?token=' . urlencode($token) . '&error=csrf');
     exit;
 }
 
@@ -49,13 +51,13 @@ if (strlen($token) !== 64 || !ctype_xdigit($token)) {
 
 // 3. VALIDATE PASSWORD
 if (strlen($new_password) < 6 || strlen($new_password) > 128) {
-    header('Location: reset-password-form.html?token=' . urlencode($token) . '&error=invalid_password');
+    header('Location: reset-password-form.php?token=' . urlencode($token) . '&error=invalid_password');
     exit;
 }
 
 // 4. CHECK PASSWORD MATCH
 if ($new_password !== $confirm_password) {
-    header('Location: reset-password-form.html?token=' . urlencode($token) . '&error=password_mismatch');
+    header('Location: reset-password-form.php?token=' . urlencode($token) . '&error=password_mismatch');
     exit;
 }
 
@@ -100,7 +102,17 @@ try {
 
     $user_id = $token_data['user_id'];
 
-    // 6. UPDATE PASSWORD
+    // Получаем текущий хеш пароля и email для истории
+    $stmt = $pdo->prepare("SELECT email, password_hash FROM users WHERE id = :user_id LIMIT 1");
+    $stmt->execute([':user_id' => $user_id]);
+    $user_data = $stmt->fetch();
+    $old_password_hash = $user_data['password_hash'] ?? null;
+    $user_email = $user_data['email'] ?? '';
+
+    // 6. Сохраняем старый пароль в историю
+    save_password_history($user_id, $old_password_hash, Security::getClientIP());
+
+    // 7. UPDATE PASSWORD
     $password_hash = password_hash($new_password, PASSWORD_DEFAULT);
 
     $stmt = $pdo->prepare("UPDATE users SET password_hash = :password_hash WHERE id = :user_id");
@@ -109,11 +121,31 @@ try {
         ':user_id' => $user_id
     ]);
 
-    // 7. MARK TOKEN AS CONSUMED
+    // 8. MARK TOKEN AS CONSUMED
     $stmt = $pdo->prepare("UPDATE password_reset_tokens SET consumed_at = NOW() WHERE token = :token");
     $stmt->execute([':token' => $token]);
 
     $pdo->commit();
+
+    // 9. Отправляем email о смене пароля
+    $cfg = require __DIR__ . '/src/config_loader.php';
+    $site_url = $cfg['site']['base_url'] ?? 'https://toosmart.ru';
+
+    $subject = 'Пароль изменён - TooSmart';
+    $message = "
+Здравствуйте!
+
+Ваш пароль для доступа к курсу «Clean - Теория правильной уборки» был успешно изменён.
+
+Если вы не меняли пароль, срочно свяжитесь с нами!
+
+Ссылка для входа: $site_url/server/
+
+С уважением,
+Команда TooSmart
+";
+
+    send_mail($user_email, $subject, $message, null, 'password_changed', $user_id);
 
     Security::secureLog('INFO', 'Password successfully reset', [
         'user_id' => $user_id
@@ -128,7 +160,7 @@ try {
         $pdo->rollBack();
     }
     Security::secureLog('ERROR', 'Database error in reset password', ['error' => $e->getMessage()]);
-    header('Location: reset-password-form.html?token=' . urlencode($token) . '&error=system');
+    header('Location: reset-password-form.php?token=' . urlencode($token) . '&error=system');
     exit;
 }
 ?>

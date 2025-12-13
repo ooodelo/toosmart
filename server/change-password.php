@@ -7,6 +7,8 @@
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/security.php';
 require_once __DIR__ . '/Database.php';
+require_once __DIR__ . '/src/password_history.php';
+require_once __DIR__ . '/src/mailer.php';
 
 Config::load();
 Security::initSession();
@@ -68,9 +70,30 @@ try {
         exit;
     }
 
+    // Сохраняем старый пароль в историю
+    save_password_history((int) $user['id'], $user['password_hash'], Security::getClientIP());
+
     $new_hash = password_hash($new_password, PASSWORD_DEFAULT);
     $stmt = $pdo->prepare("UPDATE users SET password_hash = :password_hash WHERE id = :user_id");
     $stmt->execute([':password_hash' => $new_hash, ':user_id' => $user['id']]);
+
+    // Отправляем email уведомление
+    $cfg = require __DIR__ . '/src/config_loader.php';
+    $site_url = $cfg['site']['base_url'] ?? 'https://toosmart.ru';
+
+    $subject = 'Пароль изменён - TooSmart';
+    $message = "
+Здравствуйте!
+
+Ваш пароль для доступа к курсу был успешно изменён.
+
+Если вы не меняли пароль, срочно свяжитесь с нами!
+
+С уважением,
+Команда TooSmart
+";
+
+    send_mail($user_email, $subject, $message, null, 'password_changed', (int) $user['id']);
 
     echo json_encode(['status' => 'success', 'message' => 'Пароль успешно изменен']);
 

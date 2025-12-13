@@ -15,20 +15,21 @@ require_once __DIR__ . '/security.php';
 Config::load();
 Security::initSession();
 
-function resolvePremiumHome(): string {
+function resolvePremiumHome(): string
+{
     // 1) Пытаемся взять из собранного списка курса
-    $menuPath = __DIR__ . '/../dist/shared/menu.json';
+    $menuPath = __DIR__ . '/../shared/menu.json';
     if (file_exists($menuPath)) {
         $json = @file_get_contents($menuPath);
         if ($json) {
             $data = json_decode($json, true);
             if (is_array($data)) {
-                $courseItems = array_values(array_filter($data, function($item) {
+                $courseItems = array_values(array_filter($data, function ($item) {
                     return isset($item['type']) && $item['type'] === 'course' && !empty($item['url']);
                 }));
                 if (!empty($courseItems)) {
                     // Сортировка по order, если задан
-                    usort($courseItems, function($a, $b) {
+                    usort($courseItems, function ($a, $b) {
                         $oa = $a['order'] ?? 0;
                         $ob = $b['order'] ?? 0;
                         return $oa <=> $ob;
@@ -43,9 +44,9 @@ function resolvePremiumHome(): string {
     }
 
     // 2) Фолбэк на первую страницу курса по маске
-    $courseDir = __DIR__ . '/../dist/premium/course';
+    $courseDir = __DIR__ . '/../premium/course';
     if (is_dir($courseDir)) {
-        $files = array_values(array_filter(scandir($courseDir), function($f) {
+        $files = array_values(array_filter(scandir($courseDir), function ($f) {
             return preg_match('/^p-\\d+-.*\\.html$/', $f);
         }));
         sort($files, SORT_NATURAL);
@@ -137,16 +138,18 @@ if ($success === 'password_reset') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <!-- Yandex.Metrika counter -->
     <script type="text/javascript">
-        (function(m,e,t,r,i,k,a){
-            m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
-            m[i].l=1*new Date();
+        (function (m, e, t, r, i, k, a) {
+            m[i] = m[i] || function () { (m[i].a = m[i].a || []).push(arguments) };
+            m[i].l = 1 * new Date();
             for (var j = 0; j < document.scripts.length; j++) { if (document.scripts[j].src === r) { return; } }
-            k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
-        })(window, document,'script','https://mc.yandex.ru/metrika/tag.js?id=105634847', 'ym');
+            k = e.createElement(t), a = e.getElementsByTagName(t)[0], k.async = 1, k.src = r, a.parentNode.insertBefore(k, a)
+        })(window, document, 'script', 'https://mc.yandex.ru/metrika/tag.js?id=105634847', 'ym');
 
-        ym(105634847, 'init', {ssr:true, webvisor:true, clickmap:true, ecommerce:"dataLayer", accurateTrackBounce:true, trackLinks:true});
+        ym(105634847, 'init', { ssr: true, webvisor: true, clickmap: true, ecommerce: "dataLayer", accurateTrackBounce: true, trackLinks: true });
     </script>
-    <noscript><div><img src="https://mc.yandex.ru/watch/105634847" style="position:absolute; left:-9999px;" alt=""></div></noscript>
+    <noscript>
+        <div><img src="https://mc.yandex.ru/watch/105634847" style="position:absolute; left:-9999px;" alt=""></div>
+    </noscript>
     <!-- /Yandex.Metrika counter -->
     <title>Вход в закрытую версию курса</title>
     <link rel="stylesheet" href="/assets/styles.css">
@@ -184,7 +187,7 @@ if ($success === 'password_reset') {
         </form>
 
         <div class="help-text">
-            Забыли пароль? <a href="forgot-password.html">Восстановить</a><br>
+            Забыли пароль? <a href="forgot-password-form.php">Восстановить</a><br>
             Еще нет доступа? <a href="/">Вернуться к бесплатной версии</a><br>
             Проблемы со входом? <a
                 href="mailto:<?= htmlspecialchars(Config::get('MAIL_REPLY_TO', 'support@toosmart.ru'), ENT_QUOTES, 'UTF-8') ?>">Напишите

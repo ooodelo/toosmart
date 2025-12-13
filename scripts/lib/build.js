@@ -29,7 +29,9 @@ const PATHS = {
     contentAssets: path.resolve(__dirname, '../../dist/assets/content'),
     // Новая логичная структура - free контент в корне
     course: path.resolve(__dirname, '../../dist/course'),
-    legal: path.resolve(__dirname, '../../dist/legal')
+    legal: path.resolve(__dirname, '../../dist/legal'),
+    // Серверные файлы (PHP API)
+    server: path.resolve(__dirname, '../../dist/server')
   },
   config: {
     site: path.resolve(__dirname, '../../config/site.json'),
@@ -49,16 +51,26 @@ const PATHS = {
       'fail.php',
       '.htaccess',
       'users.json.example',
-      'health.php'
+      'health.php',
+      // Password reset flow
+      'forgot-password.php',
+      'forgot-password-form.php',
+      'reset-password.php',
+      'reset-password-form.php',
+      'change-password.php',
+      'resend-password.php',
+      'resend-password-form.php',
+      // Settings
+      'settings.php'
     ],
     // Новая модульная структура
     directories: [
       'api',
       'src',
-      'robokassa',
       'sql',
       'storage',
-      'assets'
+      'assets',
+      'config'
     ],
     // Старые файлы для обратной совместимости (deprecated)
     legacyFiles: [
@@ -293,6 +305,11 @@ async function buildAll() {
   await buildFree();
   await buildPremium();
   await buildRecommendations();
+  // Копируем серверные файлы в dist/server для API-эндпоинтов
+  await copyServerFiles(PATHS.dist.server);
+  console.log('✅ Серверные файлы скопированы в dist/server/');
+  // Копируем страницы ошибок из public
+  await copyErrorPages();
 }
 
 async function cleanTargetsForAll() {
@@ -2143,6 +2160,9 @@ async function copyContentAssets(assets) {
 }
 
 async function copyServerFiles(dest) {
+  // Создаём директорию если не существует
+  await ensureDir(dest);
+
   // Копируем отдельные файлы
   for (const file of PATHS.server.files) {
     const src = path.join(PATHS.server.root, file);
@@ -2190,6 +2210,27 @@ async function copyDirectory(src, dest) {
     } else {
       await fsp.copyFile(srcPath, destPath);
     }
+  }
+}
+
+/**
+ * Копирует страницы ошибок из public в dist
+ */
+async function copyErrorPages() {
+  const publicDir = path.resolve(__dirname, '../../public');
+  const errorPages = ['403.html', '404.html', '500.html', '503.html'];
+  let copied = 0;
+
+  for (const page of errorPages) {
+    const src = path.join(publicDir, page);
+    if (fs.existsSync(src)) {
+      await fsp.copyFile(src, path.join(PATHS.dist.root, page));
+      copied++;
+    }
+  }
+
+  if (copied > 0) {
+    console.log(`✅ Страницы ошибок скопированы: ${errorPages.slice(0, copied).join(', ')}`);
   }
 }
 

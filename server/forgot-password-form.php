@@ -49,16 +49,18 @@ switch ($error) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <!-- Yandex.Metrika counter -->
     <script type="text/javascript">
-        (function(m,e,t,r,i,k,a){
-            m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
-            m[i].l=1*new Date();
+        (function (m, e, t, r, i, k, a) {
+            m[i] = m[i] || function () { (m[i].a = m[i].a || []).push(arguments) };
+            m[i].l = 1 * new Date();
             for (var j = 0; j < document.scripts.length; j++) { if (document.scripts[j].src === r) { return; } }
-            k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
-        })(window, document,'script','https://mc.yandex.ru/metrika/tag.js?id=105634847', 'ym');
+            k = e.createElement(t), a = e.getElementsByTagName(t)[0], k.async = 1, k.src = r, a.parentNode.insertBefore(k, a)
+        })(window, document, 'script', 'https://mc.yandex.ru/metrika/tag.js?id=105634847', 'ym');
 
-        ym(105634847, 'init', {ssr:true, webvisor:true, clickmap:true, ecommerce:"dataLayer", accurateTrackBounce:true, trackLinks:true});
+        ym(105634847, 'init', { ssr: true, webvisor: true, clickmap: true, ecommerce: "dataLayer", accurateTrackBounce: true, trackLinks: true });
     </script>
-    <noscript><div><img src="https://mc.yandex.ru/watch/105634847" style="position:absolute; left:-9999px;" alt=""></div></noscript>
+    <noscript>
+        <div><img src="https://mc.yandex.ru/watch/105634847" style="position:absolute; left:-9999px;" alt=""></div>
+    </noscript>
     <!-- /Yandex.Metrika counter -->
     <title>Восстановление пароля</title>
     <link rel="stylesheet" href="/assets/styles.css">
@@ -73,17 +75,17 @@ switch ($error) {
         <p>Введите email, и мы отправим вам ссылку для восстановления</p>
 
         <?php if ($successMessage): ?>
-        <div
-            style="background: #e8f5e9; color: #2e7d32; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; text-align: center; border-left: 4px solid #4caf50;">
-            ✅
-            <?= htmlspecialchars($successMessage, ENT_QUOTES, 'UTF-8') ?>
-        </div>
+            <div
+                style="background: #e8f5e9; color: #2e7d32; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; text-align: center; border-left: 4px solid #4caf50;">
+                ✅
+                <?= htmlspecialchars($successMessage, ENT_QUOTES, 'UTF-8') ?>
+            </div>
         <?php endif; ?>
 
         <?php if ($errorMessage): ?>
-        <div class="error" role="alert">⚠️
-            <?= htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8') ?>
-        </div>
+            <div class="error" role="alert">⚠️
+                <?= htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8') ?>
+            </div>
         <?php endif; ?>
 
         <form action="forgot-password.php" method="POST" class="auth-form">
@@ -97,7 +99,7 @@ switch ($error) {
 
         <div class="help-text">
             Вспомнили пароль? <a href="index.php">Войти</a><br>
-            Не получали пароль после оплаты? <a href="resend-password.html">Отправить заново</a>
+            Не получали пароль после оплаты? <a href="resend-password-form.php">Отправить заново</a>
         </div>
     </div>
 

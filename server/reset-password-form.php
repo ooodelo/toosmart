@@ -47,16 +47,18 @@ switch ($error) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <!-- Yandex.Metrika counter -->
     <script type="text/javascript">
-        (function(m,e,t,r,i,k,a){
-            m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
-            m[i].l=1*new Date();
+        (function (m, e, t, r, i, k, a) {
+            m[i] = m[i] || function () { (m[i].a = m[i].a || []).push(arguments) };
+            m[i].l = 1 * new Date();
             for (var j = 0; j < document.scripts.length; j++) { if (document.scripts[j].src === r) { return; } }
-            k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
-        })(window, document,'script','https://mc.yandex.ru/metrika/tag.js?id=105634847', 'ym');
+            k = e.createElement(t), a = e.getElementsByTagName(t)[0], k.async = 1, k.src = r, a.parentNode.insertBefore(k, a)
+        })(window, document, 'script', 'https://mc.yandex.ru/metrika/tag.js?id=105634847', 'ym');
 
-        ym(105634847, 'init', {ssr:true, webvisor:true, clickmap:true, ecommerce:"dataLayer", accurateTrackBounce:true, trackLinks:true});
+        ym(105634847, 'init', { ssr: true, webvisor: true, clickmap: true, ecommerce: "dataLayer", accurateTrackBounce: true, trackLinks: true });
     </script>
-    <noscript><div><img src="https://mc.yandex.ru/watch/105634847" style="position:absolute; left:-9999px;" alt=""></div></noscript>
+    <noscript>
+        <div><img src="https://mc.yandex.ru/watch/105634847" style="position:absolute; left:-9999px;" alt=""></div>
+    </noscript>
     <!-- /Yandex.Metrika counter -->
     <title>Установка нового пароля</title>
     <link rel="stylesheet" href="/assets/styles.css">
@@ -89,48 +91,48 @@ switch ($error) {
         <img src="/assets/CleanLogo.svg" alt="Clean" class="auth-logo">
 
         <?php if (!$validToken): ?>
-        <h1>Недействительная ссылка</h1>
-        <p style="color: #c62828; margin-bottom: 24px;">❌ Ссылка для восстановления пароля недействительна или устарела.
-        </p>
+            <h1>Недействительная ссылка</h1>
+            <p style="color: #c62828; margin-bottom: 24px;">❌ Ссылка для восстановления пароля недействительна или устарела.
+            </p>
 
-        <div class="help-text" style="border-top: none; padding-top: 0;">
-            <a href="forgot-password.html"
-                style="display: inline-block; padding: 12px 24px; background: #667eea; color: white; text-decoration: none; border-radius: 8px;">Запросить
-                новую ссылку</a>
-            <br><br>
-            <a href="index.php">Вернуться к входу</a>
-        </div>
-        <?php else: ?>
-        <h1>Установите новый пароль</h1>
-        <p>Введите новый пароль для вашего аккаунта</p>
-
-        <?php if ($errorMessage): ?>
-        <div class="error" role="alert">⚠️
-            <?= htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8') ?>
-        </div>
-        <?php endif; ?>
-
-        <form action="reset-password.php" method="POST" class="auth-form" id="resetForm">
-            <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token, ENT_QUOTES, 'UTF-8') ?>">
-            <input type="hidden" name="token" value="<?= htmlspecialchars($token, ENT_QUOTES, 'UTF-8') ?>">
-
-            <input type="password" name="new_password" id="newPassword" placeholder="Новый пароль" required autofocus
-                autocomplete="new-password" minlength="6" maxlength="128">
-            <div class="password-hint">Минимум 6 символов</div>
-
-            <input type="password" name="confirm_password" id="confirmPassword" placeholder="Подтвердите пароль"
-                required autocomplete="new-password" minlength="6" maxlength="128">
-
-            <div class="toggle-password" onclick="togglePasswords()">
-                <span id="toggleText">👁️ Показать пароли</span>
+            <div class="help-text" style="border-top: none; padding-top: 0;">
+                <a href="forgot-password-form.php"
+                    style="display: inline-block; padding: 12px 24px; background: #667eea; color: white; text-decoration: none; border-radius: 8px;">Запросить
+                    новую ссылку</a>
+                <br><br>
+                <a href="index.php">Вернуться к входу</a>
             </div>
+        <?php else: ?>
+            <h1>Установите новый пароль</h1>
+            <p>Введите новый пароль для вашего аккаунта</p>
 
-            <button type="submit">Установить новый пароль</button>
-        </form>
+            <?php if ($errorMessage): ?>
+                <div class="error" role="alert">⚠️
+                    <?= htmlspecialchars($errorMessage, ENT_QUOTES, 'UTF-8') ?>
+                </div>
+            <?php endif; ?>
 
-        <div class="help-text">
-            <a href="index.php">Вернуться к входу</a>
-        </div>
+            <form action="reset-password.php" method="POST" class="auth-form" id="resetForm">
+                <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token, ENT_QUOTES, 'UTF-8') ?>">
+                <input type="hidden" name="token" value="<?= htmlspecialchars($token, ENT_QUOTES, 'UTF-8') ?>">
+
+                <input type="password" name="new_password" id="newPassword" placeholder="Новый пароль" required autofocus
+                    autocomplete="new-password" minlength="6" maxlength="128">
+                <div class="password-hint">Минимум 6 символов</div>
+
+                <input type="password" name="confirm_password" id="confirmPassword" placeholder="Подтвердите пароль"
+                    required autocomplete="new-password" minlength="6" maxlength="128">
+
+                <div class="toggle-password" onclick="togglePasswords()">
+                    <span id="toggleText">👁️ Показать пароли</span>
+                </div>
+
+                <button type="submit">Установить новый пароль</button>
+            </form>
+
+            <div class="help-text">
+                <a href="index.php">Вернуться к входу</a>
+            </div>
         <?php endif; ?>
     </div>
 
