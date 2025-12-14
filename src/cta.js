@@ -214,12 +214,16 @@ async function applyPromo() {
     }
     appliedPromo = { code: data.code, amount: data.amount, base: data.base_amount };
     priceCurrent.textContent = formatCurrency(data.amount);
-    statusEl.style.display = 'block';
-    statusEl.style.color = '#2e7d32';
-    statusEl.textContent = `Промокод применён. Итог: ${formatCurrency(data.amount)}`;
+    // Мятный цвет поля — без подписи
+    statusEl.style.display = 'none';
+    promoInput.style.borderColor = '#4CAF50';
+    promoInput.style.backgroundColor = '#e8f5e9';
   } catch (error) {
     appliedPromo = null;
     priceCurrent.textContent = priceCurrent.dataset.basePrice || priceCurrent.textContent;
+    // Сброс стилей при ошибке
+    promoInput.style.borderColor = '';
+    promoInput.style.backgroundColor = '';
     statusEl.style.display = 'block';
     statusEl.style.color = '#d32f2f';
     statusEl.textContent = error.message || 'Промокод не принят';

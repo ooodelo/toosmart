@@ -102,7 +102,7 @@ try {
     $cfg = require __DIR__ . '/src/config_loader.php';
     $site_url = $cfg['site']['base_url'] ?? 'https://toosmart.ru';
 
-    $reset_link = "$site_url/server/reset-password-form.html?token=$token";
+    $reset_link = "$site_url/server/reset-password-form.php?token=$token";
 
     $subject = 'Восстановление пароля - Clean';
     $message = "

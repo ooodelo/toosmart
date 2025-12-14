@@ -75,7 +75,6 @@ const PATHS = {
     // Старые файлы для обратной совместимости (deprecated)
     legacyFiles: [
       'robokassa-callback.php',
-      'create-invoice.php',
       'Database.php',
       'config.php',
       'security.php'
@@ -2227,6 +2226,13 @@ async function copyErrorPages() {
       await fsp.copyFile(src, path.join(PATHS.dist.root, page));
       copied++;
     }
+  }
+
+  // Копируем .htaccess из public в корень dist
+  const htaccessSrc = path.join(publicDir, '.htaccess');
+  if (fs.existsSync(htaccessSrc)) {
+    await fsp.copyFile(htaccessSrc, path.join(PATHS.dist.root, '.htaccess'));
+    console.log('✅ .htaccess скопирован в корень dist');
   }
 
   if (copied > 0) {

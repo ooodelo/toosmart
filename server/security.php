@@ -24,7 +24,10 @@ class Security
         ini_set('session.use_strict_mode', '1');
         ini_set('session.use_only_cookies', '1');
 
-        $sessionName = Config::get('SESSION_NAME', 'TOOSMART_SESSION');
+        // Получаем session_name: сначала из settings.json, потом fallback на .env
+        $settingsConfig = @include __DIR__ . '/src/config_loader.php';
+        $sessionName = $settingsConfig['security']['session_name']
+            ?? Config::get('SESSION_NAME', 'toosmart_cabinet');
         session_name($sessionName);
         session_start();
 

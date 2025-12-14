@@ -6,9 +6,9 @@ import { JSDOM } from 'jsdom';
 export default defineConfig({
   // Корень dev‑сервера — исходники в src
   root: 'src',
-  // Явно фиксируем base=/ для dev и preview,
-  // чтобы Vite не пытался работать с базой /assets/
-  base: '/',
+  // Base path для production build — все ассеты в /assets/
+  // Это гарантирует что динамические импорты используют правильные пути
+  base: '/assets/',
   publicDir: 'public',  // Serves src/public as root for /shared/recommendations.json
 
   // Dev server configuration
