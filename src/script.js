@@ -4299,8 +4299,7 @@ function initProgressWidget() {
 
   // 6. Обновление на скролл
   function onScroll() {
-    // На intro-странице пропускаем обновление прогресса — кнопка всегда активна
-    if (isIntroPage) return;
+    // На intro-странице НЕ пропускаем скролл — нужно обновлять docking
     if (ticking) return;
     ticking = true;
     requestAnimationFrame(update);
@@ -4319,6 +4318,8 @@ function initProgressWidget() {
         root.setAttribute('aria-disabled', 'false');
         root.setAttribute('aria-label', 'Кнопка: Далее');
       }
+      // Intro-страницы тоже должны обновлять docking
+      updateDockingState();
       return;
     }
 

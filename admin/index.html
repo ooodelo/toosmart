@@ -509,6 +509,50 @@
       cursor: pointer;
     }
 
+    .order-controls {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      margin-right: 4px;
+    }
+
+    .order-btn {
+      width: 22px;
+      height: 22px;
+      border: 1px solid var(--border-light);
+      background: var(--bg-primary);
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      transition: all 0.15s;
+    }
+
+    .order-btn:hover {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    .order-input-inline {
+      width: 36px;
+      height: 22px;
+      text-align: center;
+      border: 1px solid var(--border-light);
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 0 2px;
+    }
+
+    .order-input-inline:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
     .content-card-header:hover {
       background: var(--bg-hover);
     }
@@ -1964,7 +2008,21 @@
 
     function renderContentList() {
       const list = qs('#contentList');
-      const items = filteredItems();
+      let items = filteredItems();
+
+      // Сортировка: article/appendix по order, остальные как есть
+      items = items.sort((a, b) => {
+        // Сначала группируем по типу, внутри группы — по order
+        const typeOrder = { intro: 0, article: 1, appendix: 2, recommendation: 3, legal: 4 };
+        const ta = typeOrder[a.type] ?? 5;
+        const tb = typeOrder[b.type] ?? 5;
+        if (ta !== tb) return ta - tb;
+        // Внутри группы — по order
+        const oa = a.order ?? 999;
+        const ob = b.order ?? 999;
+        return oa - ob;
+      });
+
       if (!items.length) {
         list.innerHTML = '<div class="card"><div class="card-body">Нет элементов</div></div>';
         return;
@@ -1973,7 +2031,11 @@
       list.innerHTML = items.map(renderCard).join('');
 
       list.querySelectorAll('.content-card-header').forEach(header => {
-        header.addEventListener('click', () => header.parentElement.classList.toggle('expanded'));
+        header.addEventListener('click', (e) => {
+          // Не раскрывать при клике на order controls
+          if (e.target.closest('.order-controls')) return;
+          header.parentElement.classList.toggle('expanded');
+        });
       });
 
       list.querySelectorAll('[data-action="save"]').forEach(btn => {
@@ -1991,6 +2053,27 @@
           updatePaywallPreview(editor);
         });
       });
+
+      // Обработчик стрелок и inline input для order
+      list.querySelectorAll('[data-order-action]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const pathKey = btn.dataset.path;
+          const action = btn.dataset.orderAction;
+          changeOrder(pathKey, action);
+        });
+      });
+
+      list.querySelectorAll('.order-input-inline').forEach(input => {
+        input.addEventListener('change', (e) => {
+          e.stopPropagation();
+          const pathKey = input.dataset.orderPath;
+          const value = parseInt(input.value, 10);
+          if (Number.isFinite(value)) {
+            updateOrderDirect(pathKey, value);
+          }
+        });
+      });
     }
 
     function renderCard(item) {
@@ -2004,9 +2087,20 @@
       const carouselBlock = item.type === 'recommendation' ? renderCarousel(item) : '';
       const slugField = (item.type === 'intro' || item.type === 'legal') ? '' : renderSlugFields(item);
 
+      // Order controls для article/appendix
+      const showOrderControls = item.type === 'article' || item.type === 'appendix';
+      const orderDisplay = showOrderControls ? `
+        <div class="order-controls" onclick="event.stopPropagation()">
+          <button class="order-btn" data-order-action="up" data-path="${item.pathKey}" title="Переместить выше">▲</button>
+          <input type="number" class="order-input-inline" value="${item.order ?? ''}" data-order-path="${item.pathKey}" title="Порядок в меню">
+          <button class="order-btn" data-order-action="down" data-path="${item.pathKey}" title="Переместить ниже">▼</button>
+        </div>
+      ` : '';
+
       return `
-        <article class="content-card" data-type="${item.type}" data-path="${item.pathKey}">
+        <article class="content-card" data-type="${item.type}" data-path="${item.pathKey}" data-order="${item.order ?? 999}">
           <div class="content-card-header">
+            ${orderDisplay}
             <div class="content-card-icon ${typeClass}">${icon}</div>
             <div class="content-card-info">
             <div class="content-card-title">${item.file}</div>
@@ -2068,6 +2162,11 @@
             <div class="form-group">
               <label class="form-label">Подпись в меню</label>
               <input type="text" class="form-input" data-field="menu_subtitle" value="${item.menu_subtitle || ''}">
+            </div>
+            <div class="form-group" style="width: 100px; flex-shrink: 0;">
+              <label class="form-label">Порядок</label>
+              <input type="number" class="form-input" data-field="order" value="${item.order ?? ''}">
+              <div class="form-hint">Сортировка</div>
             </div>
           </div>
         </div>
@@ -2339,7 +2438,7 @@
       const data = {};
       card.querySelectorAll('[data-field]').forEach(input => {
         const key = input.dataset.field;
-        if (key === 'openBlocks' || key === 'teaserBlocks' || key === 'carousel_order') {
+        if (key === 'openBlocks' || key === 'teaserBlocks' || key === 'carousel_order' || key === 'order') {
           data[key] = Number(input.value);
         } else if (key === 'carousel_enabled') {
           data[key] = input.checked;
@@ -2391,6 +2490,33 @@
       }
     }
 
+    // Обновить order через стрелки
+    async function changeOrder(pathKey, direction) {
+      const item = state.items.find(i => i.pathKey === pathKey);
+      if (!item) return;
+
+      const currentOrder = item.order ?? 999;
+      const newOrder = direction === 'up' ? currentOrder - 1 : currentOrder + 1;
+      if (newOrder < 1) return;
+
+      await updateOrderDirect(pathKey, newOrder);
+    }
+
+    // Сохранить order напрямую
+    async function updateOrderDirect(pathKey, order) {
+      try {
+        await fetch('/api/content', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pathKey, data: { order } })
+        });
+        showToast(`Порядок: ${order}`);
+        await loadContent();
+      } catch (e) {
+        showToast('Ошибка сохранения order', 'error');
+      }
+    }
+
     function renderMenuPreview() {
       const courseColumn = qs('#menuPreview').children[0];
       const appendixColumn = qs('#menuPreview').children[1];
@@ -2399,13 +2525,19 @@
       appendixColumn.innerHTML = '<div class="menu-preview-title">Приложения</div>';
       recColumn.innerHTML = '<div class="menu-preview-title">Рекомендации</div>';
 
-      state.items.filter(i => i.type === 'article').forEach(item => {
+      // Сортировка по order
+      const articles = state.items.filter(i => i.type === 'article').sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+      const appendixes = state.items.filter(i => i.type === 'appendix').sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+      const recommendations = state.items.filter(i => i.type === 'recommendation' && (!i.carousel || i.carousel.enabled !== false))
+        .sort((a, b) => (a.carousel?.order ?? 999) - (b.carousel?.order ?? 999));
+
+      articles.forEach(item => {
         courseColumn.innerHTML += `<div class="menu-item"><div class="menu-item-label">${item.menu_label || item.h1_md}</div><div class="menu-item-subtitle">${item.menu_subtitle || ''}</div></div>`;
       });
-      state.items.filter(i => i.type === 'appendix').forEach(item => {
+      appendixes.forEach(item => {
         appendixColumn.innerHTML += `<div class="menu-item"><div class="menu-item-label">${item.menu_label || item.h1_md}</div><div class="menu-item-subtitle">${item.menu_subtitle || ''}</div></div>`;
       });
-      state.items.filter(i => i.type === 'recommendation' && (!i.carousel || i.carousel.enabled !== false)).forEach(item => {
+      recommendations.forEach(item => {
         const icon = item.carousel?.icon || '';
         const label = item.carousel?.label || item.h1_md;
         const subtitle = item.carousel?.subtitle || '';

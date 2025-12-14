@@ -122,6 +122,7 @@ const DEFAULT_META = {
   meta_description: '',
   menu_label: '',
   menu_subtitle: '',
+  order: null,
   slug: '',
   paywall: {
     openBlocks: 3,
@@ -557,6 +558,7 @@ async function handleSaveContentMeta(req, res) {
         meta_description: data.meta_description ?? existing.meta_description ?? '',
         menu_label: data.menu_label ?? existing.menu_label ?? '',
         menu_subtitle: data.menu_subtitle ?? existing.menu_subtitle ?? '',
+        order: Number.isFinite(Number(data.order)) ? Number(data.order) : (Number.isFinite(existing.order) ? existing.order : null),
         paywall: {
           openBlocks: Number.isFinite(Number(paywall.openBlocks || data.openBlocks)) ? Number(paywall.openBlocks || data.openBlocks) : DEFAULT_META.paywall.openBlocks,
           teaserBlocks: Number.isFinite(Number(paywall.teaserBlocks || data.teaserBlocks)) ? Number(paywall.teaserBlocks || data.teaserBlocks) : DEFAULT_META.paywall.teaserBlocks
@@ -1170,6 +1172,7 @@ function collectContentItems() {
         meta_description: !!rawMetaEntry.meta_description,
         menu_label: !!rawMetaEntry.menu_label,
         menu_subtitle: !!rawMetaEntry.menu_subtitle,
+        order: rawMetaEntry.order !== null && rawMetaEntry.order !== undefined,
         paywall_open: type === 'article' && rawMetaEntry.paywall && rawMetaEntry.paywall.openBlocks !== undefined,
         paywall_teaser: type === 'article' && rawMetaEntry.paywall && rawMetaEntry.paywall.teaserBlocks !== undefined,
         carousel_label: !!rawMetaEntry.carousel_label,
@@ -1229,6 +1232,7 @@ function collectContentItems() {
         meta_description,
         menu_label,
         menu_subtitle,
+        order: metaEntry.order,
         paywall,
         carousel,
         readingTimeMinutes: estimateReadingTime(bodyWithoutH1, loadSiteConfig().build.wordsPerMinute),

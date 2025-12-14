@@ -4,7 +4,7 @@
     <div class="modal-content modal-content--airy">
         <header class="modal-hooks">
             <p class="modal-hook" id="payment-modal-title">Забудьте всё,<br>что вы знаете об уборке.</p>
-            <p class="modal-hook">Она станет в 2 раза быстрее<br>и 10 раз дешевле.</p>
+            <p class="modal-hook">Она станет в 2 раза быстрее<br>и в 10 раз дешевле.</p>
             <p class="modal-hook">Вы узнаете все секреты клининга<br>и сделаете в 100 раз лучше.</p>
         </header>
 
@@ -22,27 +22,22 @@
 
             <form id="payment-form">
                 <div class="form-group">
-                    <input type="email" name="email" class="modal-input" placeholder="Введите ваш email" required
-                        autocomplete="email" aria-label="Email для доступа к курсу">
+                    <input type="email" name="email" class="modal-input" placeholder="Введите ваш email" required="" autocomplete="email" aria-label="Email для доступа к курсу">
                 </div>
 
                 <div class="form-group-promo">
-                    <input type="text" name="promo_code" id="promo-code-input" class="modal-input"
-                        placeholder="Промокод" aria-label="Промокод" autocomplete="off" autocorrect="off"
-                        autocapitalize="characters" spellcheck="false" style="text-transform: uppercase;">
+                    <input type="text" name="promo_code" id="promo-code-input" class="modal-input" placeholder="Промокод" aria-label="Промокод" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" style="text-transform: uppercase;">
                     <button type="button" class="promo-submit" id="promo-apply-btn">Применить</button>
                 </div>
                 <div id="promo-status" style="display:none; font-size: 13px; margin-top: -6px; margin-bottom: 10px;">
                 </div>
 
                 <label class="modal-checkbox">
-                    <input type="checkbox" name="accept_offer" required>
+                    <input type="checkbox" name="accept_offer" required="">
                     <span>
                         Согласен с
-                        <a href="/shared/legal/publichnaya-oferta-na-okazanie-informacionnyh-uslug.html"
-                            onclick="openLegalModal('offer'); return false;">публичной офертой</a> и
-                        <a href="/shared/legal/politika-konfidencial-nosti.html"
-                            onclick="openLegalModal('privacy'); return false;">политикой конфиденциальности</a>
+                        <a href="/shared/legal/publichnaya-oferta-na-okazanie-informacionnyh-uslug.html" onclick="openLegalModal('offer'); return false;">публичной офертой</a> и
+                        <a href="/shared/legal/politika-konfidencial-nosti.html" onclick="openLegalModal('privacy'); return false;">политикой конфиденциальности</a>
                     </span>
                 </label>
 
@@ -50,6 +45,6 @@
                     Продолжить
                 </button>
             </form>
-    </div>
+    </section></div>
     <button class="modal-close" type="button" onclick="closeCTAModal()" aria-label="Закрыть">×</button>
 </div>
