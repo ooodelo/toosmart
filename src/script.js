@@ -4299,6 +4299,8 @@ function initProgressWidget() {
 
   // 6. Обновление на скролл
   function onScroll() {
+    // На intro-странице пропускаем обновление прогресса — кнопка всегда активна
+    if (isIntroPage) return;
     if (ticking) return;
     ticking = true;
     requestAnimationFrame(update);
@@ -4307,6 +4309,18 @@ function initProgressWidget() {
   function update() {
     ticking = false;
     ensureMobilePositioning();
+
+    // На intro-странице виджет всегда в состоянии "кнопка"
+    if (isIntroPage) {
+      if (!doneState) {
+        doneState = true;
+        setVisualState(true);
+        root.classList.add('is-done');
+        root.setAttribute('aria-disabled', 'false');
+        root.setAttribute('aria-label', 'Кнопка: Далее');
+      }
+      return;
+    }
 
     const p = measureProgress();
     const perc = Math.round(p * 100);
@@ -4402,10 +4416,23 @@ function initProgressWidget() {
   }
 
   // 10. Инициализация
-  dot.style.opacity = '1';
-  pill.style.opacity = '0';
-  pill.style.transform = 'translate(-50%,-50%) scaleX(0.001)';
-  setVisualState(false);
+  if (isIntroPage) {
+    // На главной странице (intro) — сразу показываем кнопку без прогресса
+    dot.style.opacity = '0';
+    pill.style.opacity = '1';
+    pill.style.transform = 'translate(-50%,-50%) scaleX(1)';
+    doneState = true;
+    setVisualState(true);
+    root.classList.add('is-done');
+    root.setAttribute('aria-disabled', 'false');
+    root.setAttribute('aria-label', 'Кнопка: Далее');
+  } else {
+    // Обычные страницы — начинаем с прогресса
+    dot.style.opacity = '1';
+    pill.style.opacity = '0';
+    pill.style.transform = 'translate(-50%,-50%) scaleX(0.001)';
+    setVisualState(false);
+  }
   updateProgressWidgetFloatingAnchors(root);
   update();
 

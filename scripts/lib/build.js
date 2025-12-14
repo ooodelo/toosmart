@@ -269,6 +269,50 @@ function loadViteManifest() {
   }
 }
 
+/**
+ * Исправляет пути в Vite preload helper для динамических импортов.
+ * Vite генерирует: return"/"+e — что даёт /script.js вместо /assets/script.js
+ * Эта функция заменяет на: return"/assets/"+e
+ */
+async function fixVitePreloadPaths() {
+  const assetsDir = PATHS.dist.assets;
+  if (!fs.existsSync(assetsDir)) {
+    return;
+  }
+
+  const jsFiles = fs.readdirSync(assetsDir).filter(f => f.endsWith('.js'));
+  let fixedCount = 0;
+
+  for (const file of jsFiles) {
+    const filePath = path.join(assetsDir, file);
+    let content = fs.readFileSync(filePath, 'utf8');
+
+    // Паттерн 1: return"/"+e (minified)
+    // Паттерн 2: return "/" + e (unminified)
+    const patterns = [
+      { find: /return"\/"(\s*)\+(\s*)e/g, replace: 'return"/assets/"$1+$2e' },
+      { find: /return '\/'\s*\+\s*e/g, replace: "return '/assets/' + e" }
+    ];
+
+    let modified = false;
+    for (const { find, replace } of patterns) {
+      if (find.test(content)) {
+        content = content.replace(find, replace);
+        modified = true;
+      }
+    }
+
+    if (modified) {
+      fs.writeFileSync(filePath, content, 'utf8');
+      fixedCount++;
+    }
+  }
+
+  if (fixedCount > 0) {
+    console.log(`✅ Исправлены пути в ${fixedCount} JS файлах (Vite preload)`);
+  }
+}
+
 const sanitize = (() => {
   const { window } = new JSDOM('');
   return createDOMPurify(window);
@@ -301,6 +345,8 @@ async function build({ target } = {}) {
 async function buildAll() {
   await cleanTargetsForAll();
   await ensureViteAssets();
+  // Исправляем пути в Vite preload helper (динамические импорты)
+  await fixVitePreloadPaths();
   await buildFree();
   await buildPremium();
   await buildRecommendations();
@@ -309,6 +355,10 @@ async function buildAll() {
   console.log('✅ Серверные файлы скопированы в dist/server/');
   // Копируем страницы ошибок из public
   await copyErrorPages();
+  // Копируем .env в корень dist
+  await copyEnvFile();
+  // Создаём .htaccess для premium директории
+  await createPremiumHtaccess();
 }
 
 async function cleanTargetsForAll() {
@@ -2238,6 +2288,52 @@ async function copyErrorPages() {
   if (copied > 0) {
     console.log(`✅ Страницы ошибок скопированы: ${errorPages.slice(0, copied).join(', ')}`);
   }
+}
+
+/**
+ * Копирует .env файл в корень dist для production
+ */
+async function copyEnvFile() {
+  const envSrc = path.resolve(__dirname, '../../.env');
+  const envDest = path.join(PATHS.dist.root, '.env');
+
+  if (fs.existsSync(envSrc)) {
+    await fsp.copyFile(envSrc, envDest);
+    console.log('✅ .env скопирован в корень dist');
+  } else {
+    // Создаём минимальный .env если его нет
+    const minimalEnv = `# TooSmart Environment
+# Настройки в server/storage/settings.json
+SESSION_NAME=toosmart_cabinet
+DEBUG_MODE=false
+`;
+    await fsp.writeFile(envDest, minimalEnv, 'utf8');
+    console.log('✅ .env создан в корне dist (минимальный)');
+  }
+}
+
+/**
+ * Создаёт .htaccess в premium директории для разрешения доступа
+ */
+async function createPremiumHtaccess() {
+  const premiumDir = PATHS.dist.premium;
+  await ensureDir(premiumDir);
+
+  const htaccessContent = `# Premium directory access
+# Разрешает доступ к premium контенту (защита через PHP сессии)
+
+<IfModule mod_authz_core.c>
+  Require all granted
+</IfModule>
+
+<IfModule !mod_authz_core.c>
+  Order allow,deny
+  Allow from all
+</IfModule>
+`;
+
+  await fsp.writeFile(path.join(premiumDir, '.htaccess'), htaccessContent, 'utf8');
+  console.log('✅ premium/.htaccess создан (Require all granted)');
 }
 
 async function generateRobotsTxt(dest, config) {
