@@ -3975,9 +3975,14 @@ function initProgressWidget() {
   //        Undock when slot's Y > floating button's Y
 
   function getFloatingBottomOffset() {
-    // Default floating position from bottom of viewport
-    const parsed = parseFloat(root.style.getPropertyValue('--pw-float-bottom')) || 0;
-    return parsed > 0 ? parsed : 45; // fallback to 45px
+    // Desktop/Tablet: CSS задаёт bottom: 24px
+    // Mobile: используется --pw-float-bottom или fallback 45px
+    const mode = body.dataset.mode;
+    if (mode === 'mobile') {
+      const parsed = parseFloat(root.style.getPropertyValue('--pw-float-bottom')) || 0;
+      return parsed > 0 ? parsed : 45;
+    }
+    return 24; // Desktop/Tablet
   }
 
   function getFloatingY() {

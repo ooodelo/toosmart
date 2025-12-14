@@ -2551,6 +2551,13 @@ body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
   /* NO transition - instant snap */
 }
 
+/* Повышаем специфичность чтобы transform применился поверх режимов */
+body[data-mode="desktop"] #pw-root.is-docked,
+body[data-mode="desktop-wide"] #pw-root.is-docked,
+body[data-mode="tablet"] #pw-root.is-docked {
+  transform: translate(-50%, -50%);
+}
+
 /* Отключение анимаций для prefers-reduced-motion */
 @media (prefers-reduced-motion: reduce) {
   body[data-mode="mobile"] #pw-root {

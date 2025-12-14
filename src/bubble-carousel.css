@@ -113,8 +113,7 @@ body[data-mode="tablet"] .bubble-carousel {
     width: 100%;
     flex-direction: column;
     margin-top: 0;
-    padding: 10px 0 0;
-    /* Minimal top padding */
+    padding: 0;
 }
 
 /* Dots: Natural DOM (First) */

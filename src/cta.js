@@ -352,7 +352,6 @@ async function handlePayment(event) {
 
   const originalText = submitButton.textContent;
   submitButton.disabled = true;
-  submitButton.textContent = 'Создание счёта...';
 
   if (errorDiv) {
     errorDiv.style.display = 'none';
