@@ -3549,13 +3549,20 @@ body[data-mode="mobile"] .paywall-text {
 }
 
 body[data-mode="mobile"] .paywall-cta-button {
-  width: 85%;
+  width: 95%;
   margin: 0 auto;
   height: 20vw;
   min-height: 72px;
   max-height: 200px;
-  border-radius: 70%;
+  border-radius: 5px;
   justify-content: center;
+}
+
+/* Mobile: sync slot item height with button height */
+body[data-mode="mobile"] .paywall-cta-slot__item {
+  height: 20vw;
+  min-height: 72px;
+  max-height: 200px;
 }
 
 body[data-mode="tablet"] .premium-teaser {

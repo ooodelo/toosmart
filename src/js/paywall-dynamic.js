@@ -532,10 +532,15 @@ function initCtaIconAnimation() {
   });
 
   let currentIndex = 0;
-  const itemHeight = 150; // Same as CSS .paywall-cta-slot__item height
+
+  function getItemHeight() {
+    const firstItem = slotTrack.querySelector('.paywall-cta-slot__item');
+    return firstItem ? firstItem.offsetHeight : 150;
+  }
 
   function animateToNext() {
     currentIndex++;
+    const itemHeight = getItemHeight();
 
     // Enable smooth transition
     slotTrack.style.transition = 'transform 0.8s cubic-bezier(0.33, 1, 0.68, 1)';

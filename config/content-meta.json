@@ -370,8 +370,8 @@
     "carousel_enabled": true,
     "order": 9,
     "paywall": {
-      "openBlocks": 3,
-      "teaserBlocks": 7
+      "openBlocks": 2,
+      "teaserBlocks": 6
     }
   },
   "intro/00_вводная_часть.md": {
