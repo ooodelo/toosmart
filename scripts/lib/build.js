@@ -331,12 +331,9 @@ const sanitize = (() => {
 })();
 
 async function build({ target } = {}) {
-  if (!target) {
-    await buildAll();
-    return;
-  }
+  const buildTarget = target || 'all';
 
-  switch (target) {
+  switch (buildTarget) {
     case 'free':
       await buildFree();
       break;
@@ -352,6 +349,11 @@ async function build({ target } = {}) {
     default:
       throw new Error(`Неизвестный target: ${target}`);
   }
+
+  // Запускаем глобальную оптимизацию ассетов и обновление HTML
+  // (для всех целей, так как index.html и shared ресурсы могут обновиться)
+  console.log('\n🌍 Запуск глобальной оптимизации изображений (Vite assets + templates)...');
+  await processGlobalAssets();
 }
 
 async function buildAll() {
@@ -1951,11 +1953,34 @@ function rewriteContentMedia(html, dirPath, assetRegistry) {
       if (imgId) attrsStr += ` id="${imgId}"`;
       if (imgStyle) attrsStr += ` style="${imgStyle}"`;
 
-      const pictureHtml = `<picture>
+      const pictureHtml = (() => {
+        // If we have detailed variants from image processor
+        const assetInfo = assetRegistry.get(resolvedPath);
+        if (assetInfo && assetInfo.variants) {
+          const buildSrcset = (format) => {
+            return Object.entries(assetInfo.variants)
+              .map(([width, formats]) => {
+                const filename = path.basename(formats[format]);
+                return `/assets/content/${filename} ${width}w`;
+              })
+              .join(', ');
+          };
+
+          return `<picture>
+<source srcset="${buildSrcset('avif')}" type="image/avif" sizes="(max-width: 768px) 100vw, 800px">
+<source srcset="${buildSrcset('webp')}" type="image/webp" sizes="(max-width: 768px) 100vw, 800px">
+<img src="${webPathBase}-1600w${fallbackExt}" alt="${escapeAttr(alt)}"${attrsStr} loading="lazy">
+</picture>`;
+        } else {
+          // Fallback for missing info (should rarely happen for processed images)
+          // Or partial implementation for old assets
+          return `<picture>
 <source srcset="${webPathBase}.avif" type="image/avif">
 <source srcset="${webPathBase}.webp" type="image/webp">
 <img src="${webPathBase}${fallbackExt}" alt="${escapeAttr(alt)}"${attrsStr}>
 </picture>`;
+        }
+      })();
 
       const pictureFragment = JSDOM.fragment(pictureHtml);
       img.replaceWith(pictureFragment);
@@ -2286,13 +2311,17 @@ async function copyContentAssets(assets) {
           processedCount++;
           // Store format info in assetInfo for later <picture> generation
           assetInfo.imageFormats = result.formats;
+          assetInfo.variants = result.variants; // Store all size variants
+          assetInfo.breakpoints = result.breakpoints;
           assetInfo.fallbackExt = result.fallbackExt;
           assetInfo.hasAlpha = result.hasAlpha;
+          assetInfo.isSvg = result.isSvg;
 
           if (result.isSvg) {
             console.log(`  🎨 ${path.basename(sourcePath)}: Optimized SVG`);
           } else {
-            console.log(`  📐 ${path.basename(sourcePath)}: ${result.originalWidth}→${result.targetWidth}px (AVIF+WebP+${result.fallbackExt})`);
+            const sizes = result.breakpoints.join(', ');
+            console.log(`  📐 ${path.basename(sourcePath)}: Generated sizes [${sizes}] (AVIF+WebP+${result.fallbackExt})`);
           }
         } else {
           copiedCount++;
@@ -2620,6 +2649,149 @@ function resolveLocalAssetPath(inputPath) {
   }
 
   return null;
+}
+
+
+/**
+ * Глобальная оптимизация ассетов после билда
+ * Сканирует dist/assets, оптимизирует картинки и обновляет HTML
+ */
+async function processGlobalAssets() {
+  const assetsDir = PATHS.dist.assets;
+  if (!fs.existsSync(assetsDir)) return;
+
+  // 1. Рекурсивный поиск файлов
+  async function getFiles(dir) {
+    const dirents = await fsp.readdir(dir, { withFileTypes: true });
+    const files = await Promise.all(dirents.map((dirent) => {
+      const res = path.resolve(dir, dirent.name);
+      if (dirent.isDirectory()) {
+        // Пропускаем content assets, они уже обработаны
+        if (path.basename(res) === 'content' && path.dirname(res) === PATHS.dist.assets) return [];
+        return getFiles(res);
+      } else {
+        return res;
+      }
+    }));
+    return files.flat();
+  }
+
+  const allFiles = await getFiles(assetsDir);
+  const images = allFiles.filter(f => {
+    const ext = path.extname(f).toLowerCase();
+    // Пропускаем уже сгенерированные варианты (эвристика по суффиксу)
+    if (f.includes('-400w.') || f.includes('-800w.') || f.includes('-1600w.')) return false;
+    return IMAGE_EXTENSIONS.includes(ext);
+  });
+
+  const globalRegistry = new Map();
+
+  // 2. Оптимизация изображений
+  for (const imgPath of images) {
+    const dir = path.dirname(imgPath);
+    const filename = path.basename(imgPath);
+    const ext = path.extname(filename);
+    const baseName = path.basename(filename, ext);
+
+    // console.log(`Processing global asset: ${filename}`);
+    const result = await processContentImage(imgPath, dir, baseName);
+
+    if (result.processed && !result.isSvg) {
+      // Сохраняем результат для обновления HTML
+      globalRegistry.set(filename, result);
+    }
+  }
+
+  if (globalRegistry.size > 0) {
+    console.log(`✅ Глобально оптимизировано ${globalRegistry.size} растровых изображений`);
+  }
+
+  // 3. Обновление HTML файлов
+  async function getHtmlFiles(dir) {
+    if (!fs.existsSync(dir)) return [];
+    const dirents = await fsp.readdir(dir, { withFileTypes: true });
+    const files = await Promise.all(dirents.map((dirent) => {
+      const res = path.resolve(dir, dirent.name);
+      if (dirent.isDirectory()) return getHtmlFiles(res);
+      return res.endsWith('.html') ? res : [];
+    }));
+    return files.flat();
+  }
+
+  const htmlFiles = await getHtmlFiles(PATHS.dist.root);
+  let updatedHtmlCount = 0;
+
+  for (const htmlPath of htmlFiles) {
+    let content = await fsp.readFile(htmlPath, 'utf8');
+    const dom = new JSDOM(content);
+    const doc = dom.window.document;
+    let modified = false;
+
+    const imgs = doc.querySelectorAll('img');
+    imgs.forEach(img => {
+      const src = img.getAttribute('src');
+      if (!src) return;
+
+      // Имя файла из пути
+      const filename = path.basename(src);
+
+      if (globalRegistry.has(filename)) {
+        if (img.closest('picture')) return; // Уже обернуто
+
+        const assetInfo = globalRegistry.get(filename);
+        if (!assetInfo.variants) return;
+
+        const buildSrcset = (format) => {
+          return Object.entries(assetInfo.variants)
+            .map(([width, formats]) => {
+              const variantFilename = path.basename(formats[format]);
+              // Сохраняем относительный путь директории
+              const dirUrl = src.substring(0, src.lastIndexOf('/') + 1);
+              return `${dirUrl}${variantFilename} ${width}w`;
+            })
+            .join(', ');
+        };
+
+        // Используем largest fallback
+        const fallbackFilename = path.basename(assetInfo.original);
+        const dirUrl = src.substring(0, src.lastIndexOf('/') + 1);
+        const newSrc = `${dirUrl}${fallbackFilename}`;
+
+        const picture = doc.createElement('picture');
+
+        const sourceAvif = doc.createElement('source');
+        sourceAvif.setAttribute('srcset', buildSrcset('avif'));
+        sourceAvif.setAttribute('type', 'image/avif');
+        sourceAvif.setAttribute('sizes', img.getAttribute('sizes') || '100vw');
+
+        const sourceWebp = doc.createElement('source');
+        sourceWebp.setAttribute('srcset', buildSrcset('webp'));
+        sourceWebp.setAttribute('type', 'image/webp');
+        sourceWebp.setAttribute('sizes', img.getAttribute('sizes') || '100vw');
+
+        const newImg = img.cloneNode(true);
+        newImg.setAttribute('src', newSrc);
+
+        picture.appendChild(sourceAvif);
+        picture.appendChild(sourceWebp);
+        picture.appendChild(newImg);
+
+        img.replaceWith(picture);
+        modified = true;
+      }
+    });
+
+    if (modified) {
+      // Сохраняем (serialize возвращает полный HTML)
+      const newHtml = dom.serialize();
+      await fsp.writeFile(htmlPath, newHtml, 'utf8');
+      updatedHtmlCount++;
+    }
+  }
+
+  if (updatedHtmlCount > 0) {
+    console.log(`✅ Обновлен HTML в ${updatedHtmlCount} файлах (srcset/picture)`);
+  }
 }
 
 module.exports = { build };
