@@ -111,6 +111,7 @@ $endpoint = "https://auth.robokassa.ru/Merchant/Index.aspx";
 $params = [
   'MerchantLogin' => $cfg['robokassa']['merchant_login'],
   'OutSum' => $outSum,
+  'OutSumCurrency' => 'RUB',
   'InvId' => $invId,
   'Description' => $product['name'],
   'SignatureValue' => $sign,
