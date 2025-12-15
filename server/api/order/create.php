@@ -133,6 +133,20 @@ if ($promo) {
 // remove nulls
 $params = array_filter($params, fn($v) => $v !== null && $v !== '');
 
+// DEBUG: Log parameters for troubleshooting
+$debug_info = [
+  'endpoint' => $endpoint,
+  'params' => $params,
+  'debug' => [
+    'isTest' => $isTest,
+    'merchant_login' => $cfg['robokassa']['merchant_login'],
+    'amount' => $outSum,
+    'invId' => $invId,
+    'signature' => $sign,
+    'receipt_length' => strlen($receipt_urlenc)
+  ]
+];
+
 json_out([
   'endpoint' => $endpoint,
   'params' => $params
