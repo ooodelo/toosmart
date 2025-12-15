@@ -352,7 +352,7 @@
     "carousel_enabled": true,
     "order": 8,
     "paywall": {
-      "openBlocks": 3,
+      "openBlocks": 2,
       "teaserBlocks": 6
     }
   },
