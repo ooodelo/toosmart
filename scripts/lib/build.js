@@ -2757,19 +2757,40 @@ async function processGlobalAssets() {
   const globalRegistry = new Map();
 
   // 2. Оптимизация изображений
-  for (const imgPath of images) {
+  console.log(`📸 Найдено ${images.length} изображений для оптимизации...`);
+
+  // Параллельная обработка с ограничением concurrency
+  const CONCURRENCY = 5; // Обрабатываем 5 изображений одновременно
+
+  // Функция для обработки одного изображения
+  const processImage = async (imgPath, index) => {
     const dir = path.dirname(imgPath);
     const filename = path.basename(imgPath);
     const ext = path.extname(filename);
     const baseName = path.basename(filename, ext);
 
-    // console.log(`Processing global asset: ${filename}`);
+    console.log(`[${index + 1}/${images.length}] Обработка: ${filename}`);
     const result = await processContentImage(imgPath, dir, baseName);
 
     if (result.processed && !result.isSvg) {
-      // Сохраняем результат для обновления HTML
-      globalRegistry.set(filename, result);
+      return { filename, result };
     }
+    return null;
+  };
+
+  // Обработка батчами для контроля памяти
+  for (let i = 0; i < images.length; i += CONCURRENCY) {
+    const batch = images.slice(i, i + CONCURRENCY);
+    const batchResults = await Promise.all(
+      batch.map((imgPath, batchIndex) => processImage(imgPath, i + batchIndex))
+    );
+
+    // Сохраняем результаты в registry
+    batchResults.forEach(item => {
+      if (item) {
+        globalRegistry.set(item.filename, item.result);
+      }
+    });
   }
 
   if (globalRegistry.size > 0) {
