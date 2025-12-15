@@ -87,9 +87,7 @@ async function processContentImage(sourcePath, destDir, baseName, options = {}) 
                 path: sourcePath,
                 multipass: true,
                 plugins: [
-                    'preset-default',
-                    'removeDimensions',
-                    'removeXMLNS'
+                    'preset-default'
                 ]
             });
 
