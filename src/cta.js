@@ -182,9 +182,10 @@ async function applyPromo() {
 
   const code = promoInput.value.trim().toUpperCase();
   if (!code) {
-    statusEl.style.display = 'block';
-    statusEl.style.color = '#d32f2f';
-    statusEl.textContent = 'Введите промокод';
+    // Сброс стилей если поле пустое
+    promoInput.style.borderColor = '';
+    promoInput.style.backgroundColor = '';
+    statusEl.style.display = 'none';
     return;
   }
 
@@ -221,12 +222,10 @@ async function applyPromo() {
   } catch (error) {
     appliedPromo = null;
     priceCurrent.textContent = priceCurrent.dataset.basePrice || priceCurrent.textContent;
-    // Сброс стилей при ошибке
-    promoInput.style.borderColor = '';
-    promoInput.style.backgroundColor = '';
-    statusEl.style.display = 'block';
-    statusEl.style.color = '#d32f2f';
-    statusEl.textContent = error.message || 'Промокод не принят';
+    // Красная подсветка при ошибке - без текста
+    promoInput.style.borderColor = '#d32f2f';
+    promoInput.style.backgroundColor = '#ffebee';
+    statusEl.style.display = 'none';
   }
 }
 

@@ -166,8 +166,13 @@ $message = "
 
 Ваши данные для входа в закрытую версию:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Email: $validated_email
-Пароль: $password
+
+Email:
+$validated_email
+
+Пароль:
+$password
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Ссылка для входа: $site_url/server/
