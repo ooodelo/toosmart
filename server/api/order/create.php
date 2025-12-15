@@ -111,11 +111,12 @@ $endpoint = "https://auth.robokassa.ru/Merchant/Index.aspx";
 $params = [
   'MerchantLogin' => $cfg['robokassa']['merchant_login'],
   'OutSum' => $outSum,
+  'OutSumCurrency' => 'RUB',
   'InvId' => $invId,
   'Description' => $product['name'],
   'SignatureValue' => $sign,
   'Email' => $email,
-  'Receipt' => $receipt_urlenc,
+  'Receipt' => $receipt_urlenc, // Параметр Receipt для Робочеков (фискализация через Robokassa)
   'Shp_email' => $email,
   'Shp_product' => $product_code,
   'Culture' => 'ru',
@@ -131,6 +132,21 @@ if ($promo) {
 }
 // remove nulls
 $params = array_filter($params, fn($v) => $v !== null && $v !== '');
+
+// DEBUG: Log parameters for troubleshooting
+$debug_info = [
+  'endpoint' => $endpoint,
+  'params' => $params,
+  'debug' => [
+    'isTest' => $isTest,
+    'merchant_login' => $cfg['robokassa']['merchant_login'],
+    'amount' => $outSum,
+    'invId' => $invId,
+    'signature' => $sign,
+    'receipt_sent' => true, // чек отправляется в Robokassa для фискализации (Робочеки)
+    'receipt_length' => strlen($receipt_urlenc)
+  ]
+];
 
 json_out([
   'endpoint' => $endpoint,
