@@ -11,6 +11,13 @@ const csso = require('csso');
 const { buildPaywallSegments } = require('./paywall');
 const { execSync } = require('child_process');
 const { processContentImage, buildPictureElement, getBaseName, IMAGE_EXTENSIONS } = require('./image-processor');
+const {
+  isAbsoluteFilesystemPath,
+  shouldSkipPath,
+  resolveImagePath,
+  sanitizeFilename,
+  registerImageAsset
+} = require('./image-resolver');
 
 let cachedHeadScriptsPartial = null;
 const PROJECT_ROOT = path.resolve(__dirname, '../..');
@@ -362,6 +369,12 @@ const sanitize = (() => {
 async function build({ target } = {}) {
   const buildTarget = target || 'all';
 
+  // Копируем статические ассеты ОДИН РАЗ в начале (favicon, CTA иконки)
+  await ensureDir(PATHS.dist.root);
+  await ensureDir(PATHS.dist.assets);
+  await copyFaviconAssets();
+  await copyCtaIcons();
+
   switch (buildTarget) {
     case 'free':
       await buildFree();
@@ -390,6 +403,8 @@ async function buildAll() {
   await ensureViteAssets();
   // Исправляем пути в Vite preload helper (динамические импорты)
   await fixVitePreloadPaths();
+  // NOTE: copyFaviconAssets и copyCtaIcons вызываются в build() перед switch
+
   await buildFree();
   await buildPremium();
   await buildRecommendations();
@@ -1721,15 +1736,16 @@ function extractLogicalIntro(markdown) {
 }
 
 
+/**
+ * Preprocess markdown images to resolve paths and register assets
+ * Uses centralized image-resolver for path resolution logic
+ */
 function preprocessMarkdownMedia(markdown, dirPath, assetRegistry) {
   if (!markdown || !markdown.trim()) {
     return markdown;
   }
 
-  // Match markdown image syntax: ![alt](path)
   const imageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
-
-  // Collect all replacements to avoid mutating while iterating
   const replacements = [];
   let match;
 
@@ -1739,99 +1755,22 @@ function preprocessMarkdownMedia(markdown, dirPath, assetRegistry) {
     const altText = match[1];
     const imagePath = match[2];
 
-    // Skip external URLs
-    if (/^(https?:)?\/\//.test(imagePath)) continue;
+    // Skip paths that shouldn't be processed
+    if (shouldSkipPath(imagePath)) continue;
 
-    // Skip data URLs
-    if (imagePath.startsWith('data:')) continue;
+    // Use centralized resolver
+    const resolved = resolveImagePath(imagePath, dirPath);
+    if (!resolved) continue;
 
-    // Skip already processed assets paths
-    if (imagePath.startsWith('/assets/content/')) continue;
+    // Register asset and get web paths
+    const assetInfo = registerImageAsset(resolved, assetRegistry, PATHS.dist.contentAssets);
+    if (!assetInfo) continue;
 
-    let resolvedPath = null;
-
-    // Case 1: Absolute filesystem path (e.g., /Users/..., /home/..., C:\\...)
-    if (isAbsoluteFilesystemPath(imagePath)) {
-      if (fs.existsSync(imagePath)) {
-        resolvedPath = imagePath;
-      } else {
-        console.warn(`⚠️  Image not found in markdown: ${imagePath}`);
-        continue;
-      }
-    }
-    // Case 2: Project-relative path (e.g., /content/images/...)
-    else if (imagePath.startsWith('/content/')) {
-      const projectRoot = path.resolve(__dirname, '../..');
-      resolvedPath = path.join(projectRoot, imagePath.substring(1));
-      if (!fs.existsSync(resolvedPath)) {
-        console.warn(`⚠️  Image not found in markdown: ${resolvedPath}`);
-        continue;
-      }
-    }
-    // Case 3: Relative path (e.g., ../images/..., ./images/..., images/...)
-    else if (!imagePath.startsWith('/')) {
-      resolvedPath = path.resolve(dirPath, imagePath);
-    }
-
-    // Smart Lookup: If not found, try to find in content/images/
-    if (!resolvedPath) {
-      // Check if it's a path starting with /images/ (explicit alias)
-      if (imagePath.startsWith('/images/')) {
-        const candidate = path.join(path.resolve(__dirname, '../..'), 'content', imagePath.substring(1));
-        if (fs.existsSync(candidate)) {
-          resolvedPath = candidate;
-        }
-      }
-
-      // Fallback: Check by filename in content/images/
-      if (!resolvedPath) {
-        const filename = path.basename(imagePath);
-        const candidate = path.join(path.resolve(__dirname, '../..'), 'content/images', filename);
-        if (fs.existsSync(candidate)) {
-          resolvedPath = candidate;
-        }
-      }
-    }
-
-    if (!resolvedPath) {
-      // If still not found, warn
-      if (isAbsoluteFilesystemPath(imagePath) || imagePath.startsWith('/content/') || !imagePath.startsWith('/')) {
-        console.warn(`⚠️  Image not found in markdown: ${imagePath}`);
-      }
-      continue;
-    }
-
-    // If we resolved a path, prepare the replacement
-    if (resolvedPath) {
-      const originalFilename = path.basename(resolvedPath);
-      const originalExt = path.extname(originalFilename).toLowerCase();
-      const baseName = getBaseName(sanitizeFilename(originalFilename));
-      const webPathBase = `/assets/content/${baseName}`;
-
-      // Determine fallback extension: PNG keeps transparency, others become JPEG
-      const fallbackExt = originalExt === '.svg' ? '.svg' : (originalExt === '.png' ? '.png' : '.jpg');
-
-      // Register the asset for later processing
-      if (!assetRegistry.has(resolvedPath)) {
-        assetRegistry.set(resolvedPath, {
-          source: resolvedPath,
-          destination: `${baseName}${originalExt}`,
-          url: `${webPathBase}${fallbackExt}`,
-          destDir: PATHS.dist.contentAssets,
-          baseName: baseName,
-          originalExt: originalExt,
-          fallbackExt: fallbackExt
-        });
-      }
-
-      // Store the replacement - use fallback path for markdown img
-      // The <picture> element will be generated later when HTML is processed
-      replacements.push({
-        index: matchIndex,
-        length: fullMatch.length,
-        newText: `![${altText}](${webPathBase}${fallbackExt})`
-      });
-    }
+    replacements.push({
+      index: matchIndex,
+      length: fullMatch.length,
+      newText: `![${altText}](${assetInfo.webPathBase}${assetInfo.fallbackExt})`
+    });
   }
 
   // Apply replacements in reverse order to maintain correct indices
@@ -1857,6 +1796,10 @@ function renderMarkdown(markdown) {
 }
 
 
+/**
+ * Rewrite HTML img tags to resolve paths, register assets, and create <picture> elements
+ * Uses centralized image-resolver for path resolution logic
+ */
 function rewriteContentMedia(html, dirPath, assetRegistry) {
   if (!html || !html.trim()) {
     return html;
@@ -1870,101 +1813,34 @@ function rewriteContentMedia(html, dirPath, assetRegistry) {
     const src = img.getAttribute('src');
     if (!src) return;
 
-    // Skip external URLs (http://, https://, //)
-    if (/^(https?:)?\/\//.test(src)) return;
-
-    // Skip data URLs
-    if (src.startsWith('data:')) return;
-
     // Skip images already in a picture element
     if (img.parentElement && img.parentElement.tagName.toLowerCase() === 'picture') return;
 
     let webPathBase = null;
     let fallbackExt = null;
+    let resolvedPath = null;
 
     // Handle already preprocessed paths from markdown (/assets/content/...)
     if (src.startsWith('/assets/content/')) {
-      // Extract base name and extension from preprocessed path
       const filename = path.basename(src);
       const ext = path.extname(filename).toLowerCase();
       const baseName = getBaseName(filename);
       webPathBase = `/assets/content/${baseName}`;
-      // Determine fallback from current extension
       fallbackExt = ext === '.svg' ? '.svg' : (ext === '.png' ? '.png' : '.jpg');
     } else {
-      // Resolve new paths
-      let resolvedPath = null;
+      // Skip paths that shouldn't be processed
+      if (shouldSkipPath(src)) return;
 
-      // Case 1: Absolute filesystem path (e.g., /Users/..., /home/..., C:\...)
-      if (isAbsoluteFilesystemPath(src)) {
-        if (fs.existsSync(src)) {
-          resolvedPath = src;
-        } else {
-          console.warn(`⚠️  Image not found: ${src}`);
-          return;
-        }
-      }
-      // Case 2: Project-relative path (e.g., /content/images/...)
-      else if (src.startsWith('/content/')) {
-        const projectRoot = path.resolve(__dirname, '../..');
-        resolvedPath = path.join(projectRoot, src.substring(1)); // Remove leading /
-        if (!fs.existsSync(resolvedPath)) {
-          console.warn(`⚠️  Image not found: ${resolvedPath}`);
-          return;
-        }
-      }
-      // Case 3: Relative path (e.g., ../images/..., ./images/..., images/...)
-      else if (!src.startsWith('/')) {
-        resolvedPath = path.resolve(dirPath, src);
-      }
+      // Use centralized resolver
+      resolvedPath = resolveImagePath(src, dirPath);
+      if (!resolvedPath) return;
 
-      // Smart Lookup: If not found, try to find in content/images/
-      if (!resolvedPath) {
-        // Check if it's a path starting with /images/ (explicit alias)
-        if (src.startsWith('/images/')) {
-          const candidate = path.join(path.resolve(__dirname, '../..'), 'content', src.substring(1));
-          if (fs.existsSync(candidate)) {
-            resolvedPath = candidate;
-          }
-        }
+      // Register asset and get web paths
+      const assetInfo = registerImageAsset(resolvedPath, assetRegistry, PATHS.dist.contentAssets);
+      if (!assetInfo) return;
 
-        // Fallback: Check by filename in content/images/
-        if (!resolvedPath) {
-          const filename = path.basename(src);
-          const candidate = path.join(path.resolve(__dirname, '../..'), 'content/images', filename);
-          if (fs.existsSync(candidate)) {
-            resolvedPath = candidate;
-          }
-        }
-      }
-
-      if (!resolvedPath) {
-        // If still not found, warn
-        if (isAbsoluteFilesystemPath(src) || src.startsWith('/content/') || !src.startsWith('/')) {
-          console.warn(`⚠️  Image not found: ${src}`);
-        }
-        return;
-      }
-
-      // Get info from resolved path
-      const originalFilename = path.basename(resolvedPath);
-      const originalExt = path.extname(originalFilename).toLowerCase();
-      const baseName = getBaseName(sanitizeFilename(originalFilename));
-      webPathBase = `/assets/content/${baseName}`;
-      fallbackExt = originalExt === '.svg' ? '.svg' : (originalExt === '.png' ? '.png' : '.jpg');
-
-      // Register the asset for later processing
-      if (!assetRegistry.has(resolvedPath)) {
-        assetRegistry.set(resolvedPath, {
-          source: resolvedPath,
-          destination: `${baseName}${originalExt}`,
-          url: `${webPathBase}${fallbackExt}`,
-          destDir: PATHS.dist.contentAssets,
-          baseName: baseName,
-          originalExt: originalExt,
-          fallbackExt: fallbackExt
-        });
-      }
+      webPathBase = assetInfo.webPathBase;
+      fallbackExt = assetInfo.fallbackExt;
     }
 
     // Create <picture> element with AVIF, WebP, and fallback
@@ -1987,7 +1863,7 @@ function rewriteContentMedia(html, dirPath, assetRegistry) {
 
       const pictureHtml = (() => {
         // If we have detailed variants from image processor
-        const assetInfo = assetRegistry.get(resolvedPath);
+        const assetInfo = resolvedPath ? assetRegistry.get(resolvedPath) : null;
         if (assetInfo && assetInfo.variants) {
           const buildSrcset = (format) => {
             return Object.entries(assetInfo.variants)
@@ -2004,8 +1880,7 @@ function rewriteContentMedia(html, dirPath, assetRegistry) {
 <img src="${webPathBase}-1600w${fallbackExt}" alt="${escapeAttr(alt)}"${attrsStr} loading="lazy">
 </picture>`;
         } else {
-          // Fallback for missing info (should rarely happen for processed images)
-          // Or partial implementation for old assets
+          // Fallback for missing info or preprocessed paths
           return `<picture>
 <source srcset="${webPathBase}.avif" type="image/avif">
 <source srcset="${webPathBase}.webp" type="image/webp">
@@ -2019,40 +1894,11 @@ function rewriteContentMedia(html, dirPath, assetRegistry) {
     }
   });
 
-
   return dom.window.document.body.innerHTML;
 }
 
 
-function isAbsoluteFilesystemPath(filepath) {
-  // Unix-like absolute paths: /Users/..., /home/..., /root/...
-  if (filepath.startsWith('/') && !filepath.startsWith('//')) {
-    // Check if it looks like a filesystem path by checking for common root directories
-    const unixRoots = ['/Users/', '/home/', '/root/', '/var/', '/tmp/', '/opt/'];
-    if (unixRoots.some(root => filepath.startsWith(root))) {
-      return true;
-    }
-  }
-  // Windows absolute paths: C:\..., D:\...
-  if (/^[a-zA-Z]:\\/.test(filepath)) {
-    return true;
-  }
-  return false;
-}
-
-function sanitizeFilename(filename) {
-  // Replace spaces with underscores
-  let sanitized = filename.replace(/\s+/g, '_');
-
-  // Remove or replace other potentially problematic characters
-  // Keep alphanumeric, dots, hyphens, and underscores
-  sanitized = sanitized.replace(/[^a-zA-Z0-9._-]/g, '_');
-
-  // Remove multiple consecutive underscores
-  sanitized = sanitized.replace(/_+/g, '_');
-
-  return sanitized;
-}
+// NOTE: isAbsoluteFilesystemPath и sanitizeFilename импортированы из image-resolver.js
 
 function buildTeaser(html) {
   // Simple teaser: first few paragraphs
@@ -2200,13 +2046,6 @@ async function cleanDir(dir) {
   }
 }
 
-async function copyStaticAssets(mode) {
-  // Static assets are handled by Vite mostly now.
-  // But if we have specific assets in src/assets that are not imported in JS/CSS,
-  // we might need to copy them.
-  // For now, assume Vite handles it.
-}
-
 // CTA иконки для paywall анимации
 const CTA_ICON_NAMES = [
   'cloth.png',
@@ -2338,11 +2177,8 @@ async function copyFaviconAssets() {
 
 
 async function copyContentAssets(assets) {
-  // Копируем favicon
-  await copyFaviconAssets();
-
-  // Копируем CTA иконки для paywall анимации
-  await copyCtaIcons();
+  // NOTE: copyFaviconAssets и copyCtaIcons теперь вызываются только в buildAll
+  // для избежания многократного копирования
 
   if (!assets || assets.size === 0) {
     return;
