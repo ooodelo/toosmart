@@ -282,6 +282,30 @@ function loadViteManifest() {
 }
 
 /**
+ * Получает путь к ассету из Vite manifest
+ * @param {Object|null} manifest - Vite manifest
+ * @param {string} srcPath - Исходный путь (например, "assets/cloth.png")
+ * @returns {string} - Хешированный путь или исходный путь если не найден
+ */
+function getViteAssetPath(manifest, srcPath) {
+  if (!manifest || !srcPath) return srcPath;
+
+  const entry = manifest[srcPath];
+  if (entry && entry.file) {
+    return entry.file;
+  }
+
+  // Fallback: если srcPath уже содержит "/assets/", убираем его для поиска
+  const cleanPath = srcPath.replace(/^\/assets\//, 'assets/');
+  const cleanEntry = manifest[cleanPath];
+  if (cleanEntry && cleanEntry.file) {
+    return cleanEntry.file;
+  }
+
+  return srcPath;
+}
+
+/**
  * Исправляет пути в Vite preload helper для динамических импортов.
  * Vite генерирует: return"/"+e — что даёт /script.js вместо /assets/script.js
  * Эта функция заменяет на: return"/assets/"+e
@@ -482,7 +506,7 @@ async function buildFree() {
 
   for (const course of content.course) {
     const lockedSrc = await writeLockedContentFile(course);
-    const page = buildFreeCoursePage(course, menuHtml, config, template, legalMap, lockedSrc);
+    const page = buildFreeCoursePage(course, menuHtml, config, template, legalMap, lockedSrc, manifest);
     const targetPath = path.join(PATHS.dist.course, `${course.slug}.html`);
     await ensureDir(path.dirname(targetPath));
     await fsp.writeFile(targetPath, page, 'utf8');
@@ -1455,10 +1479,13 @@ function buildIntroPage(item, menuHtml, config, template, mode, nextUrl = '', le
   });
 }
 
-function buildFreeCoursePage(item, menuHtml, config, template, legalMap = {}, lockedSrc = '') {
+function buildFreeCoursePage(item, menuHtml, config, template, legalMap = {}, lockedSrc = '', manifest = null) {
   const paywallSource = lockedSrc || '';
   const { breadcrumb, htmlWithoutBreadcrumb } = extractBreadcrumb(item.paywallOpenHtml);
   const breadcrumbWithTime = injectReadingTimeIntoBreadcrumb(breadcrumb, item.readingTimeMinutes);
+
+  // Получаем правильный путь к cloth.png из Vite manifest
+  const clothPath = getViteAssetPath(manifest, 'assets/cloth.png');
 
   const body = `
         <div class="text-box__intro content-shell">
@@ -1486,7 +1513,7 @@ function buildFreeCoursePage(item, menuHtml, config, template, legalMap = {}, lo
                 <div class="paywall-overlay__cta-inner">
                   <button class="paywall-cta-button cta-button" data-analytics="cta-premium" data-paywall-cta type="button">
                     <span>${escapeAttr(config.ctaTexts.enterFull)}</span>
-                    <img src="/assets/cloth.png" alt="" class="paywall-cta-button__icon" aria-hidden="true">
+                    <img src="/assets/${clothPath}" alt="" class="paywall-cta-button__icon" aria-hidden="true">
                   </button>
 
                   <div class="paywall-fab" data-paywall-fab>
@@ -2175,6 +2202,46 @@ async function copyStaticAssets(mode) {
   // For now, assume Vite handles it.
 }
 
+// CTA иконки для paywall анимации
+const CTA_ICON_NAMES = [
+  'cloth.png',
+  'glove.png',
+  'pump_bottle.png',
+  'rect_brush.png',
+  'round_brush.png',
+  'toilet_brush.png',
+  'trigger_spray.png'
+];
+
+async function copyCtaIcons() {
+  try {
+    await ensureDir(PATHS.dist.assets);
+    let copied = 0;
+
+    for (const iconName of CTA_ICON_NAMES) {
+      const src = path.join(PATHS.srcAssets, iconName);
+      if (fs.existsSync(src)) {
+        // Copy without hash, будет обработано в processGlobalAssets
+        const dest = path.join(PATHS.dist.assets, iconName);
+        // Проверяем, не скопирован ли уже файл с хешем от Vite
+        const files = fs.readdirSync(PATHS.dist.assets);
+        const viteHashed = files.find(f => f.startsWith(path.basename(iconName, '.png')) && f.endsWith('.png') && f !== iconName);
+
+        if (!viteHashed) {
+          await fsp.copyFile(src, dest);
+          copied++;
+        }
+      }
+    }
+
+    if (copied > 0) {
+      console.log(`✅ Скопировано ${copied} CTA иконок для дальнейшей оптимизации`);
+    }
+  } catch (error) {
+    console.warn('⚠️  Ошибка копирования CTA иконок:', error.message);
+  }
+}
+
 async function copyFaviconAssets() {
   const config = loadFaviconConfig();
   const manifest = getFaviconManifest();
@@ -2268,6 +2335,9 @@ async function copyFaviconAssets() {
 async function copyContentAssets(assets) {
   // Копируем favicon
   await copyFaviconAssets();
+
+  // Копируем CTA иконки для paywall анимации
+  await copyCtaIcons();
 
   if (!assets || assets.size === 0) {
     return;
