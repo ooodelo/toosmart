@@ -4001,8 +4001,8 @@ function initProgressWidget() {
   function syncToSlotPosition() {
     if (!slot) return;
     const rect = slot.getBoundingClientRect();
-    const centerY = rect.top + rect.height / 2;
-    root.style.setProperty('--pw-dock-top', `${Math.round(centerY)}px`);
+    // Используем top слота, а не center — чтобы translateY(0) работал без конфликтов
+    root.style.setProperty('--pw-dock-top', `${Math.round(rect.top)}px`);
   }
 
   function updateDockingState() {
@@ -4031,6 +4031,7 @@ function initProgressWidget() {
     if (slotY <= floatingY) {
       syncToSlotPosition();
       if (!isSlotDocked) {
+        root.classList.remove('is-floating'); // Убираем чтобы не конфликтовал с is-docked
         root.classList.add('is-docked');
         isSlotDocked = true;
       }
@@ -4038,6 +4039,7 @@ function initProgressWidget() {
       // Undock: slot is BELOW floating position
       if (isSlotDocked) {
         root.classList.remove('is-docked');
+        root.classList.add('is-floating'); // Возвращаем для floating режима
         root.style.removeProperty('--pw-dock-top');
         isSlotDocked = false;
       }

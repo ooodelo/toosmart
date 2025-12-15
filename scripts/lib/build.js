@@ -93,7 +93,15 @@ const REQUIRED_FAVICON_FILES = [
   'favicon-32x32.png',
   'apple-touch-icon.png',
   'android-chrome-192x192.png',
-  'android-chrome-512x512.png'
+  'android-chrome-512x512.png',
+  'web-app-manifest-192x192.png',
+  'web-app-manifest-512x512.png'
+];
+
+// Files that should also be copied to dist root for legacy browser compatibility
+const ROOT_FAVICON_FILES = [
+  'favicon.ico',
+  'apple-touch-icon.png'
 ];
 const DEFAULT_MANIFEST = {
   name: 'Site',
@@ -103,8 +111,10 @@ const DEFAULT_MANIFEST = {
   background_color: '#ffffff',
   theme_color: '#ffffff',
   icons: [
-    { src: '/assets/android-chrome-192x192.png', sizes: '192x192', type: 'image/png' },
-    { src: '/assets/android-chrome-512x512.png', sizes: '512x512', type: 'image/png' }
+    { src: '/assets/web-app-manifest-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+    { src: '/assets/web-app-manifest-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+    { src: '/assets/android-chrome-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+    { src: '/assets/android-chrome-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any' }
   ]
 };
 
@@ -2118,6 +2128,20 @@ async function copyFaviconAssets() {
       }
     }
 
+    // Copy critical favicon files to dist root for legacy browser compatibility
+    // Browsers request /favicon.ico and /apple-touch-icon.png from root by default
+    const rootCopied = [];
+    for (const name of ROOT_FAVICON_FILES) {
+      const src = path.join(PATHS.srcAssets, name);
+      if (fs.existsSync(src)) {
+        await fsp.copyFile(src, path.join(PATHS.dist.root, name));
+        rootCopied.push(name);
+      }
+    }
+    if (rootCopied.length > 0) {
+      console.log(`✅ Favicon в корне dist: ${rootCopied.join(', ')}`);
+    }
+
     if (copied.length > 0) {
       console.log(`✅ Favicon ассеты скопированы: ${copied.join(', ')}`);
     } else {
@@ -2138,7 +2162,8 @@ async function copyFaviconAssets() {
         return {
           src: icon.src.startsWith('/') ? icon.src : `/${icon.src}`,
           sizes: icon.sizes,
-          type: icon.type
+          type: icon.type,
+          ...(icon.purpose ? { purpose: icon.purpose } : {})
         };
       })
       .filter(Boolean);
@@ -2157,6 +2182,7 @@ async function copyFaviconAssets() {
     console.warn('⚠️  Ошибка копирования favicon:', error.message);
   }
 }
+
 
 async function copyContentAssets(assets) {
   // Копируем favicon

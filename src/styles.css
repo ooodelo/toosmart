@@ -1929,7 +1929,7 @@ body[data-mode="desktop"] {
 body[data-mode="desktop"] .main {
   display: flex;
   flex-direction: column;
-  padding: calc(var(--header-height) + var(--content-top-gap)) var(--gap-page) calc(var(--gap-page) + var(--pw-footprint) + var(--mobile-dock-footprint)) var(--gap-page);
+  padding: calc(var(--header-height) + var(--content-top-gap)) var(--gap-page) 0 var(--gap-page);
   width: 100%;
   max-width: 100%;
   align-items: center;
@@ -2165,7 +2165,7 @@ body[data-mode="tablet"] .stack__image-container img {
 body[data-mode="mobile"] .main {
   display: flex;
   flex-direction: column;
-  padding: calc(var(--header-height) + var(--content-top-gap)) 0 calc(var(--gap-page) + var(--pw-footprint) + var(--mobile-dock-footprint)) 0;
+  padding: calc(var(--header-height) + var(--content-top-gap)) 0 0 0;
   width: 100%;
   max-width: 100%;
 }
@@ -2372,7 +2372,7 @@ body[data-mode="mobile"].menu-open .backdrop {
   align-items: center;
   justify-content: center;
   min-height: var(--pw-pill-height);
-  margin: 0 auto;
+  margin: 0 auto 25px auto;
   padding: 0;
   width: 100%;
   max-width: var(--text-box-width, 640px);
@@ -2546,7 +2546,7 @@ body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
   left: 50% !important;
   top: var(--pw-dock-top) !important;
   bottom: auto !important;
-  transform: translate(-50%, -50%);
+  transform: translateX(-50%);
   z-index: 150;
   /* NO transition - instant snap */
 }
@@ -2554,8 +2554,9 @@ body[data-mode="mobile"] #pw-root.is-menu-covered.is-floating {
 /* Повышаем специфичность чтобы transform применился поверх режимов */
 body[data-mode="desktop"] #pw-root.is-docked,
 body[data-mode="desktop-wide"] #pw-root.is-docked,
-body[data-mode="tablet"] #pw-root.is-docked {
-  transform: translate(-50%, -50%);
+body[data-mode="tablet"] #pw-root.is-docked,
+body[data-mode="mobile"] #pw-root.is-docked {
+  transform: translateX(-50%);
 }
 
 /* Отключение анимаций для prefers-reduced-motion */
