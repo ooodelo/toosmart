@@ -1007,7 +1007,7 @@ function buildFaviconHtmlSnippetForTemplate(status) {
     lines.push('<link rel="alternate icon" href="/assets/favicon-16x16.png" sizes="16x16">');
   }
   if (files['apple-touch-icon.png']?.exists) {
-    lines.push('<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">');
+    lines.push('<link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">');
   }
 
   if (manifest) {

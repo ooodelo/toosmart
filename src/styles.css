@@ -717,9 +717,9 @@ body[data-mode="tablet"] .main::before {
 }
 
 /* Move shadow when menu opens, matching header behavior */
-body[data-mode="desktop"][data-input="pointer"].is-slid .main::before,
-body[data-mode="desktop-wide"][data-input="pointer"].is-slid .main::before,
-body[data-mode="tablet"][data-input="pointer"].is-slid .main::before,
+body[data-mode="desktop"].is-slid .main::before,
+body[data-mode="desktop-wide"].is-slid .main::before,
+body[data-mode="tablet"].is-slid .main::before,
 body[data-mode="desktop"].menu-open .main::before,
 body[data-mode="desktop-wide"].menu-open .main::before,
 body[data-mode="tablet"].menu-open .main::before {
@@ -1889,9 +1889,9 @@ body[data-mode="tablet"] .backdrop {
 }
 
 /* Desktop/tablet: сдвиг header при открытии меню или is-slid */
-body[data-mode="desktop"][data-input="pointer"].is-slid .header,
-body[data-mode="desktop-wide"][data-input="pointer"].is-slid .header,
-body[data-mode="tablet"][data-input="pointer"].is-slid .header,
+body[data-mode="desktop"].is-slid .header,
+body[data-mode="desktop-wide"].is-slid .header,
+body[data-mode="tablet"].is-slid .header,
 body[data-mode="desktop"].menu-open .header,
 body[data-mode="desktop-wide"].menu-open .header,
 body[data-mode="tablet"].menu-open .header {
@@ -1899,11 +1899,15 @@ body[data-mode="tablet"].menu-open .header {
 }
 
 body.menu-open .menu-handle,
-body[data-input="pointer"].is-slid .menu-handle {
+body[data-mode="desktop"].is-slid .menu-handle,
+body[data-mode="desktop-wide"].is-slid .menu-handle,
+body[data-mode="tablet"].is-slid .menu-handle {
   pointer-events: auto;
 }
 
-body[data-input="pointer"].is-slid .backdrop {
+body[data-mode="desktop"].is-slid .backdrop,
+body[data-mode="desktop-wide"].is-slid .backdrop,
+body[data-mode="tablet"].is-slid .backdrop {
   opacity: 0;
   visibility: hidden;
 }
@@ -2498,6 +2502,7 @@ body[data-mode="tablet"] #pw-root {
   bottom: calc(24px + env(safe-area-inset-bottom, 0px));
   margin: 0;
   order: 2;
+  width: min(var(--pw-pill-width), 90%); /* Fix: явная ширина для iPad */
 }
 
 /* Mobile: fixed слева пока < 100%, потом переезжает в центр */
