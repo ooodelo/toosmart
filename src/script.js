@@ -2545,22 +2545,26 @@ function initMenuInteractions() {
     });
 
     trackEvent(menuRail, 'mouseenter', () => {
-      if (currentInput !== 'pointer') return;
+      // Разрешаем hover в desktop/tablet режимах даже на touch-устройствах (iPad)
+      if (currentMode === 'mobile') return;
       body.classList.add('is-slid');
     }, undefined, { module: 'menu.interactions', target: describeTarget(menuRail) });
 
     trackEvent(menuRail, 'mouseleave', () => {
-      if (currentInput !== 'pointer') return;
+      // Разрешаем hover в desktop/tablet режимах даже на touch-устройствах (iPad)
+      if (currentMode === 'mobile') return;
       body.classList.remove('is-slid');
     }, undefined, { module: 'menu.interactions', target: describeTarget(menuRail) });
 
     trackEvent(menuRail, 'focusin', () => {
-      if (currentInput !== 'pointer') return;
+      // Разрешаем keyboard navigation в desktop/tablet режимах
+      if (currentMode === 'mobile') return;
       body.classList.add('is-slid');
     }, undefined, { module: 'menu.interactions', target: describeTarget(menuRail) });
 
     trackEvent(menuRail, 'focusout', (event) => {
-      if (currentInput !== 'pointer') return;
+      // Разрешаем keyboard navigation в desktop/tablet режимах
+      if (currentMode === 'mobile') return;
       if (body.classList.contains('menu-open')) return;
       const next = event.relatedTarget;
       if (next && menuRail.contains(next)) return;
@@ -2571,12 +2575,14 @@ function initMenuInteractions() {
   if (panel) {
     const panelTarget = describeTarget(panel);
     trackEvent(panel, 'mouseenter', () => {
-      if (currentInput !== 'pointer') return;
+      // Убираем hover подсветку меню когда курсор над контентом
+      if (currentMode === 'mobile') return;
       body.classList.remove('is-slid');
     }, undefined, { module: 'menu.interactions', target: panelTarget });
 
     trackEvent(panel, 'focusin', () => {
-      if (currentInput !== 'pointer') return;
+      // Убираем hover подсветку меню когда фокус на контенте
+      if (currentMode === 'mobile') return;
       body.classList.remove('is-slid');
     }, undefined, { module: 'menu.interactions', target: panelTarget });
   }
