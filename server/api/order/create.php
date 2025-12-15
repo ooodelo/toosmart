@@ -108,10 +108,11 @@ $sign = rk_make_signature_start(
 
 $endpoint = "https://auth.robokassa.ru/Merchant/Index.aspx";
 
+// Формируем параметры согласно документации Robokassa
+// https://docs.robokassa.ru/script-parameters/
 $params = [
   'MerchantLogin' => $cfg['robokassa']['merchant_login'],
-  'OutSum' => $outSum,
-  'OutSumCurrency' => 'RUB',
+  'OutSum' => $outSum,  // Формат: число с точкой, 2 знака после запятой (например, 5490.00)
   'InvId' => $invId,
   'Description' => $product['name'],
   'SignatureValue' => $sign,
@@ -121,8 +122,7 @@ $params = [
   'Shp_product' => $product_code,
   'Culture' => 'ru',
   'Encoding' => 'utf-8',
-  'SuccessURL' => $cfg['robokassa']['success_url'] ?? null,
-  'FailURL' => $cfg['robokassa']['fail_url'] ?? null,
+  // SuccessURL и FailURL берутся из настроек ЛК Robokassa, не передаются в запросе
 ];
 if ($isTest) {
   $params['IsTest'] = 1;
@@ -130,8 +130,6 @@ if ($isTest) {
 if ($promo) {
   $params['Shp_promo'] = $promo['code'];
 }
-// remove nulls
-$params = array_filter($params, fn($v) => $v !== null && $v !== '');
 
 // DEBUG: Log parameters for troubleshooting
 $debug_info = [
