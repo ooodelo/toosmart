@@ -8,6 +8,7 @@ const { minify: minifyJS } = require('terser');
 const csso = require('csso');
 const { buildPaywallSegments } = require('./paywall');
 const { execSync } = require('child_process');
+const { processContentImage, buildPictureElement, getBaseName, IMAGE_EXTENSIONS } = require('./image-processor');
 
 let cachedHeadScriptsPartial = null;
 const PROJECT_ROOT = path.resolve(__dirname, '../..');
@@ -1768,24 +1769,33 @@ function preprocessMarkdownMedia(markdown, dirPath, assetRegistry) {
 
     // If we resolved a path, prepare the replacement
     if (resolvedPath) {
-      const filename = sanitizeFilename(path.basename(resolvedPath));
-      const webPath = `/assets/content/${filename}`;
+      const originalFilename = path.basename(resolvedPath);
+      const originalExt = path.extname(originalFilename).toLowerCase();
+      const baseName = getBaseName(sanitizeFilename(originalFilename));
+      const webPathBase = `/assets/content/${baseName}`;
 
-      // Register the asset for later copying
+      // Determine fallback extension: PNG keeps transparency, others become JPEG
+      const fallbackExt = originalExt === '.png' ? '.png' : '.jpg';
+
+      // Register the asset for later processing
       if (!assetRegistry.has(resolvedPath)) {
         assetRegistry.set(resolvedPath, {
           source: resolvedPath,
-          destination: filename,
-          url: webPath,
-          destDir: PATHS.dist.contentAssets
+          destination: `${baseName}${originalExt}`,
+          url: `${webPathBase}${fallbackExt}`,
+          destDir: PATHS.dist.contentAssets,
+          baseName: baseName,
+          originalExt: originalExt,
+          fallbackExt: fallbackExt
         });
       }
 
-      // Store the replacement
+      // Store the replacement - use fallback path for markdown img
+      // The <picture> element will be generated later when HTML is processed
       replacements.push({
         index: matchIndex,
         length: fullMatch.length,
-        newText: `![${altText}](${webPath})`
+        newText: `![${altText}](${webPathBase}${fallbackExt})`
       });
     }
   }
@@ -1799,6 +1809,7 @@ function preprocessMarkdownMedia(markdown, dirPath, assetRegistry) {
 
   return processed;
 }
+
 
 function renderMarkdown(markdown) {
   // Check if markdown contains enhanced markers (HTML comments)
@@ -1831,85 +1842,124 @@ function rewriteContentMedia(html, dirPath, assetRegistry) {
     // Skip data URLs
     if (src.startsWith('data:')) return;
 
-    // Skip already processed assets paths
-    if (src.startsWith('/assets/content/')) return;
+    // Skip images already in a picture element
+    if (img.parentElement && img.parentElement.tagName.toLowerCase() === 'picture') return;
 
-    let resolvedPath = null;
+    let webPathBase = null;
+    let fallbackExt = null;
 
-    // Case 1: Absolute filesystem path (e.g., /Users/..., /home/..., C:\...)
-    if (isAbsoluteFilesystemPath(src)) {
-      if (fs.existsSync(src)) {
-        resolvedPath = src;
-      } else {
-        console.warn(`⚠️  Image not found: ${src}`);
-        return;
-      }
-    }
-    // Case 2: Project-relative path (e.g., /content/images/...)
-    else if (src.startsWith('/content/')) {
-      const projectRoot = path.resolve(__dirname, '../..');
-      resolvedPath = path.join(projectRoot, src.substring(1)); // Remove leading /
-      if (!fs.existsSync(resolvedPath)) {
-        console.warn(`⚠️  Image not found: ${resolvedPath}`);
-        return;
-      }
-    }
-    // Case 3: Relative path (e.g., ../images/..., ./images/..., images/...)
-    // Case 3: Relative path (e.g., ../images/..., ./images/..., images/...)
-    else if (!src.startsWith('/')) {
-      resolvedPath = path.resolve(dirPath, src);
-    }
+    // Handle already preprocessed paths from markdown (/assets/content/...)
+    if (src.startsWith('/assets/content/')) {
+      // Extract base name and extension from preprocessed path
+      const filename = path.basename(src);
+      const ext = path.extname(filename).toLowerCase();
+      const baseName = getBaseName(filename);
+      webPathBase = `/assets/content/${baseName}`;
+      // Determine fallback from current extension
+      fallbackExt = ext === '.png' ? '.png' : '.jpg';
+    } else {
+      // Resolve new paths
+      let resolvedPath = null;
 
-    // Smart Lookup: If not found, try to find in content/images/
-    if (!resolvedPath) {
-      // Check if it's a path starting with /images/ (explicit alias)
-      if (src.startsWith('/images/')) {
-        const candidate = path.join(path.resolve(__dirname, '../..'), 'content', src.substring(1));
-        if (fs.existsSync(candidate)) {
-          resolvedPath = candidate;
+      // Case 1: Absolute filesystem path (e.g., /Users/..., /home/..., C:\...)
+      if (isAbsoluteFilesystemPath(src)) {
+        if (fs.existsSync(src)) {
+          resolvedPath = src;
+        } else {
+          console.warn(`⚠️  Image not found: ${src}`);
+          return;
         }
       }
+      // Case 2: Project-relative path (e.g., /content/images/...)
+      else if (src.startsWith('/content/')) {
+        const projectRoot = path.resolve(__dirname, '../..');
+        resolvedPath = path.join(projectRoot, src.substring(1)); // Remove leading /
+        if (!fs.existsSync(resolvedPath)) {
+          console.warn(`⚠️  Image not found: ${resolvedPath}`);
+          return;
+        }
+      }
+      // Case 3: Relative path (e.g., ../images/..., ./images/..., images/...)
+      else if (!src.startsWith('/')) {
+        resolvedPath = path.resolve(dirPath, src);
+      }
 
-      // Fallback: Check by filename in content/images/
+      // Smart Lookup: If not found, try to find in content/images/
       if (!resolvedPath) {
-        const filename = path.basename(src);
-        const candidate = path.join(path.resolve(__dirname, '../..'), 'content/images', filename);
-        if (fs.existsSync(candidate)) {
-          resolvedPath = candidate;
+        // Check if it's a path starting with /images/ (explicit alias)
+        if (src.startsWith('/images/')) {
+          const candidate = path.join(path.resolve(__dirname, '../..'), 'content', src.substring(1));
+          if (fs.existsSync(candidate)) {
+            resolvedPath = candidate;
+          }
+        }
+
+        // Fallback: Check by filename in content/images/
+        if (!resolvedPath) {
+          const filename = path.basename(src);
+          const candidate = path.join(path.resolve(__dirname, '../..'), 'content/images', filename);
+          if (fs.existsSync(candidate)) {
+            resolvedPath = candidate;
+          }
         }
       }
-    }
 
-    if (!resolvedPath) {
-      // If still not found, warn
-      if (isAbsoluteFilesystemPath(src) || src.startsWith('/content/') || !src.startsWith('/')) {
-        console.warn(`⚠️  Image not found: ${src}`);
+      if (!resolvedPath) {
+        // If still not found, warn
+        if (isAbsoluteFilesystemPath(src) || src.startsWith('/content/') || !src.startsWith('/')) {
+          console.warn(`⚠️  Image not found: ${src}`);
+        }
+        return;
       }
-      return;
-    }
 
-    // If we resolved a path, register it and rewrite the URL
-    if (resolvedPath) {
-      const filename = sanitizeFilename(path.basename(resolvedPath));
-      const webPath = `/assets/content/${filename}`;
+      // Get info from resolved path
+      const originalFilename = path.basename(resolvedPath);
+      const originalExt = path.extname(originalFilename).toLowerCase();
+      const baseName = getBaseName(sanitizeFilename(originalFilename));
+      webPathBase = `/assets/content/${baseName}`;
+      fallbackExt = originalExt === '.png' ? '.png' : '.jpg';
 
-      // Register the asset for later copying
+      // Register the asset for later processing
       if (!assetRegistry.has(resolvedPath)) {
         assetRegistry.set(resolvedPath, {
           source: resolvedPath,
-          destination: filename,
-          url: webPath,
-          destDir: PATHS.dist.contentAssets
+          destination: `${baseName}${originalExt}`,
+          url: `${webPathBase}${fallbackExt}`,
+          destDir: PATHS.dist.contentAssets,
+          baseName: baseName,
+          originalExt: originalExt,
+          fallbackExt: fallbackExt
         });
       }
+    }
 
-      // Update the img src attribute
-      img.setAttribute('src', webPath);
+    // Create <picture> element with AVIF, WebP, and fallback
+    if (webPathBase && fallbackExt) {
+      const alt = img.getAttribute('alt') || '';
+      const imgClass = img.getAttribute('class') || '';
+      const imgId = img.getAttribute('id') || '';
+      const imgStyle = img.getAttribute('style') || '';
+
+      let attrsStr = '';
+      if (imgClass) attrsStr += ` class="${imgClass}"`;
+      if (imgId) attrsStr += ` id="${imgId}"`;
+      if (imgStyle) attrsStr += ` style="${imgStyle}"`;
+
+      const pictureHtml = `<picture>
+<source srcset="${webPathBase}.avif" type="image/avif">
+<source srcset="${webPathBase}.webp" type="image/webp">
+<img src="${webPathBase}${fallbackExt}" alt="${escapeAttr(alt)}"${attrsStr}>
+</picture>`;
+
+      const pictureFragment = JSDOM.fragment(pictureHtml);
+      img.replaceWith(pictureFragment);
     }
   });
 
+
   return dom.window.document.body.innerHTML;
 }
+
 
 function isAbsoluteFilesystemPath(filepath) {
   // Unix-like absolute paths: /Users/..., /home/..., /root/...
@@ -2204,6 +2254,7 @@ async function copyContentAssets(assets) {
     }
   }
 
+  let processedCount = 0;
   let copiedCount = 0;
   let errorCount = 0;
 
@@ -2211,7 +2262,6 @@ async function copyContentAssets(assets) {
     try {
       const destDir = assetInfo.destDir || PATHS.dist.contentAssets;
       await ensureDir(destDir);
-      const destPath = path.join(destDir, assetInfo.destination);
 
       if (!fs.existsSync(sourcePath)) {
         console.warn(`⚠️  Source file not found: ${sourcePath}`);
@@ -2219,19 +2269,43 @@ async function copyContentAssets(assets) {
         continue;
       }
 
-      await fsp.copyFile(sourcePath, destPath);
-      copiedCount++;
+      const ext = path.extname(sourcePath).toLowerCase();
+      const baseName = getBaseName(assetInfo.destination);
+
+      // Check if this is an image that should be processed
+      if (IMAGE_EXTENSIONS.includes(ext)) {
+        const result = await processContentImage(sourcePath, destDir, baseName);
+
+        if (result.processed) {
+          processedCount++;
+          // Store format info in assetInfo for later <picture> generation
+          assetInfo.imageFormats = result.formats;
+          assetInfo.fallbackExt = result.fallbackExt;
+          assetInfo.hasAlpha = result.hasAlpha;
+          console.log(`  📐 ${path.basename(sourcePath)}: ${result.originalWidth}→${result.targetWidth}px (AVIF+WebP+${result.fallbackExt})`);
+        } else {
+          copiedCount++;
+        }
+      } else {
+        // Non-image files: just copy
+        const destPath = path.join(destDir, assetInfo.destination);
+        await fsp.copyFile(sourcePath, destPath);
+        copiedCount++;
+      }
     } catch (error) {
-      console.error(`❌ Error copying asset ${sourcePath}:`, error.message);
+      console.error(`❌ Error processing asset ${sourcePath}:`, error.message);
       errorCount++;
     }
   }
 
+  if (processedCount > 0) {
+    console.log(`✅ Processed ${processedCount} image(s) → AVIF + WebP + fallback`);
+  }
   if (copiedCount > 0) {
     console.log(`✅ Copied ${copiedCount} asset(s)`);
   }
   if (errorCount > 0) {
-    console.warn(`⚠️  ${errorCount} asset(s) failed to copy`);
+    console.warn(`⚠️  ${errorCount} asset(s) failed`);
   }
 }
 
