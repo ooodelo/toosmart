@@ -1,0 +1,103 @@
+<script>
+  (function () {
+    // Спрятать модалки/баннер, если попали в DOM без атрибута hidden
+    function ensureHidden() {
+      document.querySelectorAll('.modal:not([hidden]), .cookie-banner:not([hidden])')
+        .forEach(el => el.setAttribute('hidden', ''));
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', ensureHidden);
+    } else {
+      ensureHidden();
+    }
+
+    // Фолбэки для legal модалок
+    if (typeof window.openLegalModal !== 'function') {
+      window.openLegalModal = function (type) {
+        const modalId = 'legal-' + type + '-modal';
+        const modal = document.getElementById(modalId);
+        if (modal) {
+          modal.removeAttribute('hidden');
+          document.body.style.overflow = 'hidden';
+        }
+      };
+    }
+
+    if (typeof window.closeLegalModal !== 'function') {
+      window.closeLegalModal = function (type) {
+        const modalId = 'legal-' + type + '-modal';
+        const modal = document.getElementById(modalId);
+        if (modal) {
+          modal.setAttribute('hidden', '');
+          document.body.style.overflow = '';
+        }
+      };
+    }
+
+    // Фолбэки для cookie баннера
+    if (typeof window.closeCookieBanner !== 'function') {
+      window.closeCookieBanner = function () {
+        const banner = document.getElementById('cookie-banner');
+        if (banner) {
+          banner.setAttribute('hidden', '');
+        }
+      };
+    }
+
+    if (typeof window.openCookieBanner !== 'function') {
+      window.openCookieBanner = function () {
+        const banner = document.getElementById('cookie-banner');
+        if (banner) {
+          banner.removeAttribute('hidden');
+        }
+      };
+    }
+
+    if (typeof window.acceptCookies !== 'function') {
+      window.acceptCookies = function () {
+        try { localStorage.setItem('cookieConsent', 'accepted'); } catch (e) { }
+        window.closeCookieBanner();
+      };
+    }
+
+    if (typeof window.declineCookies !== 'function') {
+      window.declineCookies = function () {
+        try { localStorage.setItem('cookieConsent', 'declined'); } catch (e) { }
+        window.closeCookieBanner();
+      };
+    }
+
+    // Фолбэк биндинг на кнопки баннера
+    function bindCookieFallbackOnce() {
+      const banner = document.getElementById('cookie-banner');
+      if (!banner || banner.dataset.bound) return;
+      banner.dataset.bound = 'true';
+      banner.addEventListener('click', function (event) {
+        const target = event.target.closest('[data-cookie-action]');
+        if (!target) return;
+        const action = target.getAttribute('data-cookie-action');
+        if (action === 'accept') {
+          window.acceptCookies();
+        } else if (action === 'decline') {
+          window.declineCookies();
+        } else if (action === 'close') {
+          window.closeCookieBanner();
+        }
+      });
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', bindCookieFallbackOnce);
+    } else {
+      bindCookieFallbackOnce();
+    }
+
+    // Закрытие всех модалок по Escape (только если функции определены)
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') {
+        ['terms', 'offer', 'privacy', 'refund', 'contacts'].forEach(closeLegalModal);
+        if (typeof closeLoginModal === 'function') closeLoginModal();
+        if (typeof closeCookieBanner === 'function') closeCookieBanner();
+      }
+    });
+  })();
+</script>

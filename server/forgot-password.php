@@ -13,13 +13,14 @@
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/security.php';
 require_once __DIR__ . '/Database.php';
+require_once __DIR__ . '/src/mailer.php';
 
 Config::load();
 Security::initSession();
 
 // Only allow POST requests
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    header('Location: forgot-password.html?error=invalid_method');
+    header('Location: forgot-password-form.php?error=invalid_method');
     exit;
 }
 
@@ -33,7 +34,7 @@ if (!Security::validateCSRFToken($csrf_token)) {
         'email' => $email,
         'ip' => Security::getClientIP()
     ]);
-    header('Location: forgot-password.html?error=csrf');
+    header('Location: forgot-password-form.php?error=csrf');
     exit;
 }
 
@@ -41,7 +42,7 @@ if (!Security::validateCSRFToken($csrf_token)) {
 $validated_email = Security::validateEmail($email);
 if (!$validated_email) {
     Security::secureLog('WARNING', 'Invalid email format in forgot password', ['email' => $email]);
-    header('Location: forgot-password.html?error=invalid_email');
+    header('Location: forgot-password-form.php?error=invalid_email');
     exit;
 }
 
@@ -52,7 +53,7 @@ if (!Security::checkRateLimit('forgot_password_' . $validated_email, 3, 900)) {
         'email' => $validated_email,
         'time_remaining' => $timeRemaining
     ]);
-    header("Location: forgot-password.html?error=rate_limit&time=$timeRemaining");
+    header("Location: forgot-password-form.php?error=rate_limit&time=$timeRemaining");
     exit;
 }
 
@@ -70,7 +71,7 @@ try {
             'email_hash' => md5($validated_email)
         ]);
         // Still show success message to prevent email enumeration
-        header('Location: forgot-password.html?success=1');
+        header('Location: forgot-password-form.php?success=1');
         exit;
     }
 
@@ -97,12 +98,11 @@ try {
 
     $pdo->commit();
 
-    // 7. SEND EMAIL WITH RESET LINK
-    $site_url = Config::get('SITE_URL', 'https://toosmart.com');
-    $mail_from = Config::get('MAIL_FROM', 'noreply@toosmart.com');
-    $mail_reply_to = Config::get('MAIL_REPLY_TO', 'support@toosmart.com');
+    // 7. SEND EMAIL WITH RESET LINK via SMTP
+    $cfg = require __DIR__ . '/src/config_loader.php';
+    $site_url = $cfg['site']['base_url'] ?? 'https://toosmart.ru';
 
-    $reset_link = "$site_url/premium/reset-password-form.html?token=$token";
+    $reset_link = "$site_url/server/reset-password-form.php?token=$token";
 
     $subject = 'Восстановление пароля - Clean';
     $message = "
@@ -121,14 +121,8 @@ $reset_link
 Команда TooSmart
 ";
 
-    $headers = [];
-    $headers[] = "From: $mail_from";
-    $headers[] = "Reply-To: $mail_reply_to";
-    $headers[] = "Content-Type: text/plain; charset=UTF-8";
-    $headers[] = "X-Mailer: PHP/" . phpversion();
-
-    if (mail($validated_email, $subject, $message, implode("\r\n", $headers))) {
-        Security::secureLog('INFO', 'Password reset email sent', [
+    if (send_mail($validated_email, $subject, $message, null, 'password_reset', $user_id)) {
+        Security::secureLog('INFO', 'Password reset email sent via SMTP', [
             'email_hash' => md5($validated_email),
             'user_id' => $user_id
         ]);
@@ -140,7 +134,7 @@ $reset_link
     }
 
     // Always show success to prevent email enumeration
-    header('Location: forgot-password.html?success=1');
+    header('Location: forgot-password-form.php?success=1');
     exit;
 
 } catch (Exception $e) {
@@ -148,7 +142,7 @@ $reset_link
         $pdo->rollBack();
     }
     Security::secureLog('ERROR', 'Database error in forgot password', ['error' => $e->getMessage()]);
-    header('Location: forgot-password.html?error=system');
+    header('Location: forgot-password-form.php?error=system');
     exit;
 }
 ?>

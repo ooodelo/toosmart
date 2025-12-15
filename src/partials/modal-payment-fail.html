@@ -1,22 +1,22 @@
 <!-- МОДАЛЬНОЕ ОКНО ОШИБКИ ОПЛАТЫ -->
 <div class="modal" id="payment-fail-modal" role="dialog" aria-modal="true" aria-labelledby="payment-fail-title">
     <div class="modal-overlay" onclick="closePaymentFailModal()"></div>
-    <div class="modal-content">
+    <div class="modal-content modal-content--airy" style="padding-bottom: 0 !important;">
         <div style="text-align: center;">
             <div style="font-size: 64px; color: #ff6b6b; margin-bottom: 16px;">✕</div>
-            <h2 id="payment-fail-title" class="modal-title">Оплата не прошла</h2>
-            <p style="color: #666; margin-bottom: 24px;">
+            <h2 id="payment-fail-title" class="modal-title" style="margin-bottom: 12px;">Оплата не прошла</h2>
+            <p style="color: var(--gray-700); margin-bottom: 24px; font-family: var(--sans);">
                 К сожалению, при обработке платежа произошла ошибка.
             </p>
         </div>
 
+        <p style="text-align: center; margin-bottom: 24px; font-size: 14px; color: var(--gray-500);">
+            Нужна помощь? <a href="mailto:support@toosmart.ru" style="color: var(--text-color);">Напишите нам</a>
+        </p>
+
         <button type="button" class="modal-submit" onclick="closePaymentFailModal(); openCTAModal();">
             Попробовать снова
         </button>
-
-        <p style="text-align: center; margin-top: 16px; font-size: 14px; color: #999;">
-            Нужна помощь? <a href="mailto:support@toosmart.ru">Напишите нам</a>
-        </p>
     </div>
     <button class="modal-close" type="button" onclick="closePaymentFailModal()" aria-label="Закрыть">×</button>
 </div>

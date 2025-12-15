@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 /**
- * После сборки поднимает live-server на dist/assets и открывает Safari
- * с двумя вкладками: template.html и template-paywall.html.
+ * После сборки поднимает live-server на dist/assets.
  */
 const { spawn } = require('child_process');
 const { networkInterfaces } = require('os');
@@ -48,16 +47,6 @@ function startServer() {
   child.unref();
 }
 
-function openSafari(urls = []) {
-  if (process.platform !== 'darwin') {
-    console.warn('⚠️  Автооткрытие Safari пропущено: не macOS. URL:', urls.join(' '));
-    return;
-  }
-  if (!urls.length) return;
-  const args = ['-na', 'Safari', ...urls];
-  spawn('open', args, { stdio: 'ignore', detached: true }).unref();
-}
-
 const host = getLanIp();
 startServer();
 
@@ -66,8 +55,7 @@ const baseUrl = `http://${host}:${PORT}`;
 const urls = [`${baseUrl}/index.html`, `${baseUrl}/premium/index.html`];
 
 setTimeout(() => {
-  openSafari(urls);
-  console.log('✅ Build preview server started at:');
+  console.log('✅ Build preview server started. Open manually if needed:');
   console.log(`   ${urls[0]}`);
   console.log(`   ${urls[1]}`);
 }, 1500);

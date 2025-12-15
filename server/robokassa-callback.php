@@ -1,7 +1,7 @@
 <?php
 /**
  * Robokassa Result URL - обработка успешной оплаты
- * URL в настройках Robokassa: https://toosmart.com/premium/robokassa-callback.php
+ * URL в настройках Robokassa: https://toosmart.ru/server/robokassa-callback.php
  *
  * SECURITY IMPROVEMENTS:
  * - Passwords are NOT logged
@@ -13,6 +13,11 @@
 
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/security.php';
+require_once __DIR__ . '/src/promo.php';
+require_once __DIR__ . '/src/robokassa/helpers.php';
+require_once __DIR__ . '/src/utils.php';
+require_once __DIR__ . '/src/config_loader.php';
+require_once __DIR__ . '/src/mailer.php';
 
 // Загрузить конфигурацию
 Config::load();
@@ -22,6 +27,7 @@ $out_sum = $_POST['OutSum'] ?? '';
 $inv_id = $_POST['InvId'] ?? '';
 $shp_email = $_POST['Shp_email'] ?? '';
 $signature = $_POST['SignatureValue'] ?? '';
+$shp_promo = $_POST['Shp_promo'] ?? '';
 
 // Логирование входящего запроса (БЕЗ чувствительных данных)
 Security::secureLog('INFO', 'Robokassa callback received', [
@@ -30,17 +36,20 @@ Security::secureLog('INFO', 'Robokassa callback received', [
     'email_hash' => md5($shp_email)
 ]);
 
-// Получение конфигурации Robokassa из переменных окружения
-try {
-    $merchant_password2 = Config::require('ROBOKASSA_PASSWORD2');
-} catch (RuntimeException $e) {
-    Security::secureLog('ERROR', 'Robokassa configuration missing', ['error' => $e->getMessage()]);
+$cfg = require __DIR__ . '/src/config_loader.php';
+$isTest = !empty($cfg['robokassa']['is_test']);
+$merchant_password2 = $isTest
+    ? ($cfg['robokassa']['test_password2'] ?? $cfg['robokassa']['pass2'] ?? null)
+    : ($cfg['robokassa']['pass2'] ?? null);
+if (!$merchant_password2) {
+    Security::secureLog('ERROR', 'Robokassa configuration missing', ['error' => 'pass2 not set']);
     http_response_code(500);
     die('Configuration error');
 }
 
 // 1. ПРОВЕРКА ПОДПИСИ (КРИТИЧЕСКИ ВАЖНО!)
-$expected_signature = strtoupper(md5("$out_sum:$inv_id:$merchant_password2:Shp_email=$shp_email"));
+$shp = rk_extract_shp($_POST);
+$expected_signature = strtoupper(rk_make_signature_result($out_sum, $inv_id, $merchant_password2, $shp, $cfg['robokassa']['signature_alg'] ?? 'md5'));
 
 if (!hash_equals(strtoupper($signature), $expected_signature)) {
     Security::secureLog('ERROR', 'Invalid Robokassa signature', [
@@ -103,13 +112,11 @@ try {
         ]);
     } else {
         // Добавить нового пользователя
-        $stmt = $pdo->prepare("INSERT INTO users (email, password_hash, created_at, invoice_id, amount) VALUES (:email, :password_hash, :created_at, :invoice_id, :amount)");
+        $stmt = $pdo->prepare("INSERT INTO users (email, password_hash, created_at) VALUES (:email, :password_hash, :created_at)");
         $stmt->execute([
             ':email' => $validated_email,
             ':password_hash' => $password_hash,
-            ':created_at' => date('Y-m-d H:i:s'),
-            ':invoice_id' => $inv_id,
-            ':amount' => $out_sum
+            ':created_at' => date('Y-m-d H:i:s')
         ]);
 
         Security::secureLog('INFO', 'New user created', [
@@ -119,6 +126,11 @@ try {
     }
 
     $pdo->commit();
+
+    // Промокоды: фиксируем использование после успешной оплаты
+    if (!empty($shp_promo) && !empty($validated_email)) {
+        promo_increment_usage($shp_promo, $validated_email);
+    }
 
     // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Сохранить пароль в сессии для показа на success.php
     Security::initSession();
@@ -142,16 +154,12 @@ try {
     die('Internal error');
 }
 
-// 5. ОТПРАВКА EMAIL С ПАРОЛЕМ (для всех пользователей - новых и существующих)
-// При дублирующем платеже пользователь получит новый пароль
-if (true) { // Всегда отправляем email
-    $site_url = Config::get('SITE_URL', 'https://toosmart.com');
-    $mail_from = Config::get('MAIL_FROM', 'noreply@toosmart.com');
-    $mail_reply_to = Config::get('MAIL_REPLY_TO', 'support@toosmart.com');
+// 5. ОТПРАВКА EMAIL С ПАРОЛЕМ через SMTP
+$site_url = $cfg['site']['base_url'] ?? 'https://toosmart.ru';
+$mail_reply_to = $cfg['emails']['reply_to'] ?? 'reply@toosmart.ru';
 
-    $to = $validated_email;
-    $subject = 'Ваш доступ к курсу Clean - Теория правильной уборки';
-    $message = "
+$subject = 'Ваш доступ к курсу Clean - Теория правильной уборки';
+$message = "
 Здравствуйте!
 
 Спасибо за покупку курса «Clean - Теория правильной уборки».
@@ -162,7 +170,7 @@ Email: $validated_email
 Пароль: $password
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Ссылка для входа: $site_url/premium/
+Ссылка для входа: $site_url/server/
 
 ⚠️ ВАЖНО: Сохраните это письмо - пароль больше нигде не отображается.
 
@@ -172,25 +180,19 @@ Email: $validated_email
 Команда TooSmart
 ";
 
-    // Безопасные заголовки email (защита от injection)
-    $headers = [];
-    $headers[] = "From: $mail_from";
-    $headers[] = "Reply-To: $mail_reply_to";
-    $headers[] = "Content-Type: text/plain; charset=UTF-8";
-    $headers[] = "X-Mailer: PHP/" . phpversion();
-    $headers[] = "X-Invoice-ID: $inv_id"; // Для трекинга
+// Получаем user_id для логирования
+$user_id = get_user_id_by_email($validated_email);
 
-    if (mail($to, $subject, $message, implode("\r\n", $headers))) {
-        Security::secureLog('INFO', 'Password email sent', [
-            'email' => $validated_email,
-            'invoice_id' => $inv_id
-        ]);
-    } else {
-        Security::secureLog('ERROR', 'Failed to send password email', [
-            'email' => $validated_email,
-            'invoice_id' => $inv_id
-        ]);
-    }
+if (send_mail($validated_email, $subject, $message, null, 'welcome', $user_id)) {
+    Security::secureLog('INFO', 'Password email sent via SMTP', [
+        'email' => $validated_email,
+        'invoice_id' => $inv_id
+    ]);
+} else {
+    Security::secureLog('ERROR', 'Failed to send password email', [
+        'email' => $validated_email,
+        'invoice_id' => $inv_id
+    ]);
 }
 
 // 6. ОТВЕТ ROBOKASSA (ОБЯЗАТЕЛЬНО!)

@@ -1,54 +1,82 @@
 <?php
 /**
  * Database Connection Wrapper
- * Handles SQLite connection and schema initialization
+ * MySQL connection using settings from config_loader
  */
 
-require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/src/config_loader.php';
 
 class Database
 {
     private static $pdo = null;
 
+    /**
+     * Get PDO connection to MySQL
+     */
     public static function getConnection()
     {
         if (self::$pdo === null) {
+            $config = require __DIR__ . '/src/config_loader.php';
+
+            $dsn = $config['db']['dsn'] ?? 'mysql:host=localhost;dbname=toosmart;charset=utf8mb4';
+            $user = $config['db']['user'] ?? '';
+            $pass = $config['db']['pass'] ?? '';
+
             try {
-                $dbPath = Config::getPath('db');
-                $dir = dirname($dbPath);
-
-                if (!is_dir($dir)) {
-                    mkdir($dir, 0755, true);
-                }
-
-                self::$pdo = new PDO("sqlite:$dbPath");
-                self::$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-                self::$pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
-
-                // Initialize schema if needed
-                self::initSchema();
+                self::$pdo = new PDO($dsn, $user, $pass, [
+                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                    PDO::ATTR_EMULATE_PREPARES => false,
+                    PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4"
+                ]);
 
             } catch (PDOException $e) {
                 error_log("Database connection error: " . $e->getMessage());
-                throw new Exception("Database error");
+                throw new Exception("Database connection failed");
             }
         }
         return self::$pdo;
     }
 
-    private static function initSchema()
+    /**
+     * Initialize database schema
+     */
+    public static function initSchema()
     {
-        $sql = "CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            email TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            invoice_id TEXT,
-            amount REAL
-        );
-        
-        CREATE INDEX IF NOT EXISTS idx_email ON users(email);";
+        $pdo = self::getConnection();
+        $schemaFile = __DIR__ . '/sql/schema.sql';
 
-        self::$pdo->exec($sql);
+        if (file_exists($schemaFile)) {
+            $sql = file_get_contents($schemaFile);
+            // Split by semicolon to execute multiple statements
+            $statements = array_filter(array_map('trim', explode(';', $sql)));
+
+            foreach ($statements as $statement) {
+                if (!empty($statement) && !str_starts_with($statement, '--')) {
+                    try {
+                        $pdo->exec($statement);
+                    } catch (PDOException $e) {
+                        // Ignore "table already exists" errors
+                        if (strpos($e->getMessage(), 'already exists') === false) {
+                            error_log("Schema init error: " . $e->getMessage());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Check if connection is alive
+     */
+    public static function isConnected(): bool
+    {
+        try {
+            $pdo = self::getConnection();
+            $pdo->query("SELECT 1");
+            return true;
+        } catch (Exception $e) {
+            return false;
+        }
     }
 }

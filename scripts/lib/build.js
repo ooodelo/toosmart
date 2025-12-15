@@ -6,7 +6,7 @@ const createDOMPurify = require('dompurify');
 const { JSDOM } = require('jsdom');
 const { minify: minifyJS } = require('terser');
 const csso = require('csso');
-const { buildPaywallSegments, extractBlocks } = require('./paywall');
+const { buildPaywallSegments } = require('./paywall');
 const { execSync } = require('child_process');
 
 let cachedHeadScriptsPartial = null;
@@ -29,7 +29,9 @@ const PATHS = {
     contentAssets: path.resolve(__dirname, '../../dist/assets/content'),
     // Новая логичная структура - free контент в корне
     course: path.resolve(__dirname, '../../dist/course'),
-    legal: path.resolve(__dirname, '../../dist/legal')
+    legal: path.resolve(__dirname, '../../dist/legal'),
+    // Серверные файлы (PHP API)
+    server: path.resolve(__dirname, '../../dist/server')
   },
   config: {
     site: path.resolve(__dirname, '../../config/site.json'),
@@ -49,21 +51,30 @@ const PATHS = {
       'fail.php',
       '.htaccess',
       'users.json.example',
-      'health.php'
+      'health.php',
+      // Password reset flow
+      'forgot-password.php',
+      'forgot-password-form.php',
+      'reset-password.php',
+      'reset-password-form.php',
+      'change-password.php',
+      'resend-password.php',
+      'resend-password-form.php',
+      // Settings
+      'settings.php'
     ],
     // Новая модульная структура
     directories: [
       'api',
       'src',
-      'robokassa',
       'sql',
       'storage',
-      'assets'
+      'assets',
+      'config'
     ],
     // Старые файлы для обратной совместимости (deprecated)
     legacyFiles: [
       'robokassa-callback.php',
-      'create-invoice.php',
       'Database.php',
       'config.php',
       'security.php'
@@ -76,12 +87,21 @@ const PATHS = {
 let cachedFaviconConfig = null;
 const REQUIRED_FAVICON_FILES = [
   'favicon.svg',
+  'favicon-dark.svg',
   'favicon.ico',
   'favicon-16x16.png',
   'favicon-32x32.png',
   'apple-touch-icon.png',
   'android-chrome-192x192.png',
-  'android-chrome-512x512.png'
+  'android-chrome-512x512.png',
+  'web-app-manifest-192x192.png',
+  'web-app-manifest-512x512.png'
+];
+
+// Files that should also be copied to dist root for legacy browser compatibility
+const ROOT_FAVICON_FILES = [
+  'favicon.ico',
+  'apple-touch-icon.png'
 ];
 const DEFAULT_MANIFEST = {
   name: 'Site',
@@ -91,8 +111,10 @@ const DEFAULT_MANIFEST = {
   background_color: '#ffffff',
   theme_color: '#ffffff',
   icons: [
-    { src: '/assets/android-chrome-192x192.png', sizes: '192x192', type: 'image/png' },
-    { src: '/assets/android-chrome-512x512.png', sizes: '512x512', type: 'image/png' }
+    { src: '/assets/web-app-manifest-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+    { src: '/assets/web-app-manifest-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+    { src: '/assets/android-chrome-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+    { src: '/assets/android-chrome-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any' }
   ]
 };
 
@@ -102,16 +124,18 @@ const DEFAULT_META = {
   meta_description: '',
   menu_label: '',
   menu_subtitle: '',
-  paywall: {
-    openBlocks: 3,
-    teaserBlocks: 2
-  },
+  order: null,
   carousel_label: '',
   carousel_subtitle: '',
   carousel_icon: '',
   carousel_order: null,
   carousel_enabled: true
 };
+
+function hasExplicitPaywall(meta = {}) {
+  const pw = meta.paywall || {};
+  return pw.openBlocks !== undefined || pw.teaserBlocks !== undefined;
+}
 
 const DEFAULT_SITE_CONFIG = {
   domain: 'example.com',
@@ -124,7 +148,8 @@ const DEFAULT_SITE_CONFIG = {
     enterFull: 'Получить полный доступ',
     next: 'Следующий раздел',
     goToCourse: 'Вернуться к курсу',
-    openCourse: 'Начать курс'
+    openCourse: 'Начать курс',
+    indexToFirstCourse: 'Начать обучение'
   },
   footer: {
     companyName: 'ООО "Название компании"',
@@ -255,6 +280,50 @@ function loadViteManifest() {
   }
 }
 
+/**
+ * Исправляет пути в Vite preload helper для динамических импортов.
+ * Vite генерирует: return"/"+e — что даёт /script.js вместо /assets/script.js
+ * Эта функция заменяет на: return"/assets/"+e
+ */
+async function fixVitePreloadPaths() {
+  const assetsDir = PATHS.dist.assets;
+  if (!fs.existsSync(assetsDir)) {
+    return;
+  }
+
+  const jsFiles = fs.readdirSync(assetsDir).filter(f => f.endsWith('.js'));
+  let fixedCount = 0;
+
+  for (const file of jsFiles) {
+    const filePath = path.join(assetsDir, file);
+    let content = fs.readFileSync(filePath, 'utf8');
+
+    // Паттерн 1: return"/"+e (minified)
+    // Паттерн 2: return "/" + e (unminified)
+    const patterns = [
+      { find: /return"\/"(\s*)\+(\s*)e/g, replace: 'return"/assets/"$1+$2e' },
+      { find: /return '\/'\s*\+\s*e/g, replace: "return '/assets/' + e" }
+    ];
+
+    let modified = false;
+    for (const { find, replace } of patterns) {
+      if (find.test(content)) {
+        content = content.replace(find, replace);
+        modified = true;
+      }
+    }
+
+    if (modified) {
+      fs.writeFileSync(filePath, content, 'utf8');
+      fixedCount++;
+    }
+  }
+
+  if (fixedCount > 0) {
+    console.log(`✅ Исправлены пути в ${fixedCount} JS файлах (Vite preload)`);
+  }
+}
+
 const sanitize = (() => {
   const { window } = new JSDOM('');
   return createDOMPurify(window);
@@ -287,9 +356,20 @@ async function build({ target } = {}) {
 async function buildAll() {
   await cleanTargetsForAll();
   await ensureViteAssets();
+  // Исправляем пути в Vite preload helper (динамические импорты)
+  await fixVitePreloadPaths();
   await buildFree();
   await buildPremium();
   await buildRecommendations();
+  // Копируем серверные файлы в dist/server для API-эндпоинтов
+  await copyServerFiles(PATHS.dist.server);
+  console.log('✅ Серверные файлы скопированы в dist/server/');
+  // Копируем страницы ошибок из public
+  await copyErrorPages();
+  // Копируем .env в корень dist
+  await copyEnvFile();
+  // Создаём .htaccess для premium директории
+  await createPremiumHtaccess();
 }
 
 async function cleanTargetsForAll() {
@@ -389,7 +469,9 @@ async function buildFree() {
     // Определяем URL первой страницы курса для навигации с intro
     const firstCourse = content.course[0];
     const nextUrl = firstCourse ? `/course/${firstCourse.slug}.html` : '';
-    const page = buildIntroPage(intro, menuHtml, config, introTemplate, 'free', nextUrl, legalMap);
+    // Premium URL для авторизованных пользователей (проверка на клиенте)
+    const nextUrlPremium = firstCourse ? `/premium/course/${firstCourse.slug}.html` : '';
+    const page = buildIntroPage(intro, menuHtml, config, introTemplate, 'free', nextUrl, legalMap, nextUrlPremium);
     const targetPath = path.join(PATHS.dist.root, 'index.html');
     await fsp.writeFile(targetPath, page, 'utf8');
     break;
@@ -544,17 +626,37 @@ async function buildRecommendations() {
   );
 }
 
+function cloneConfig(obj) {
+  return JSON.parse(JSON.stringify(obj || {}));
+}
+
+function normalizePricing(pricing = {}, fallback = DEFAULT_SITE_CONFIG.pricing) {
+  const safeFallback = fallback || { originalAmount: 0, currentAmount: 0, currency: 'RUB' };
+  const toNumber = (value, defaultValue) => {
+    const num = Number(value);
+    return Number.isFinite(num) ? num : defaultValue;
+  };
+
+  return {
+    originalAmount: toNumber(pricing.originalAmount, safeFallback.originalAmount),
+    currentAmount: toNumber(pricing.currentAmount, safeFallback.currentAmount),
+    currency: (pricing.currency || safeFallback.currency || 'RUB').trim() || safeFallback.currency || 'RUB'
+  };
+}
+
 async function loadSiteConfig() {
   if (!fs.existsSync(PATHS.config.site)) {
-    return DEFAULT_SITE_CONFIG;
+    return cloneConfig(DEFAULT_SITE_CONFIG);
   }
   try {
     const raw = await fsp.readFile(PATHS.config.site, 'utf8');
     const parsed = JSON.parse(raw);
-    return deepMerge(DEFAULT_SITE_CONFIG, parsed);
+    const merged = deepMerge(cloneConfig(DEFAULT_SITE_CONFIG), parsed);
+    merged.pricing = normalizePricing(merged.pricing, DEFAULT_SITE_CONFIG.pricing);
+    return merged;
   } catch (error) {
     console.warn('⚠️  Ошибка чтения site.json, используется конфиг по умолчанию:', error.message);
-    return DEFAULT_SITE_CONFIG;
+    return cloneConfig(DEFAULT_SITE_CONFIG);
   }
 }
 
@@ -807,7 +909,7 @@ function injectTextBoxAttributes(html, { buttonText, nextPage }) {
   return html.replace(marker, `${marker} ${attrs.join(' ')}`);
 }
 
-function applyTemplate(template, { title, body, menu, meta = '', schema = '', seoTitle = '', features = {}, config = {}, legalMap = {}, buttonText = '', nextPage = '' }) {
+function applyTemplate(template, { title, body, menu, meta = '', schema = '', seoTitle = '', features = {}, config = {}, legalMap = {}, buttonText = '', nextPage = '', nextPagePremium = '' }) {
   // Используем SEO title если задан, иначе обычный title
   const finalTitle = seoTitle || title;
 
@@ -837,6 +939,10 @@ function applyTemplate(template, { title, body, menu, meta = '', schema = '', se
   result = injectTextBoxAttributes(result, { buttonText, nextPage });
   if (nextPage && !/data-next-page=/.test(result)) {
     result = result.replace('<body', `<body data-next-page="${escapeAttr(nextPage)}"`);
+  }
+  // Для index-страницы: добавляем оба URL (free и premium) для проверки авторизации на клиенте
+  if (nextPagePremium) {
+    result = result.replace('<body', `<body data-next-page-premium="${escapeAttr(nextPagePremium)}"`);
   }
 
   // Подстановка цен и футера из конфига
@@ -889,6 +995,10 @@ function buildFaviconHtmlSnippetForTemplate(status) {
   const type = ext === '.svg' ? 'image/svg+xml' : ext === '.ico' ? 'image/x-icon' : 'image/png';
 
   lines.push(`<link rel="icon" type="${type}" href="/assets/${primary}">`);
+
+  if (files['favicon-dark.svg']?.exists) {
+    lines.push('<link rel="icon" type="image/svg+xml" href="/assets/favicon-dark.svg" media="(prefers-color-scheme: dark)">');
+  }
 
   if (files['favicon-32x32.png']?.exists) {
     lines.push('<link rel="alternate icon" href="/assets/favicon-32x32.png" sizes="32x32">');
@@ -1005,13 +1115,17 @@ function resolveTypeByBranch(branch) {
 function normalizeMeta(meta) {
   const merged = {
     ...DEFAULT_META,
-    ...meta,
-    paywall: { ...DEFAULT_META.paywall, ...(meta?.paywall || {}) }
+    ...meta
   };
 
-  if (merged.paywall) {
-    merged.paywall.openBlocks = Number.isFinite(merged.paywall.openBlocks) ? Number(merged.paywall.openBlocks) : DEFAULT_META.paywall.openBlocks;
-    merged.paywall.teaserBlocks = Number.isFinite(merged.paywall.teaserBlocks) ? Number(merged.paywall.teaserBlocks) : DEFAULT_META.paywall.teaserBlocks;
+  if (meta && typeof meta === 'object' && meta.paywall) {
+    const pw = meta.paywall || {};
+    merged.paywall = {
+      openBlocks: Number.isFinite(Number(pw.openBlocks)) ? Number(pw.openBlocks) : pw.openBlocks,
+      teaserBlocks: Number.isFinite(Number(pw.teaserBlocks)) ? Number(pw.teaserBlocks) : pw.teaserBlocks
+    };
+  } else {
+    delete merged.paywall;
   }
 
   if (merged.carousel_order != null) {
@@ -1034,6 +1148,37 @@ function stripHtml(html) {
     .replace(/<[^>]+>/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+/**
+ * Extracts article-breadcrumb from HTML and returns it separately
+ * Used to reposition breadcrumb before h1
+ */
+function extractBreadcrumb(html) {
+  if (!html) return { breadcrumb: '', htmlWithoutBreadcrumb: html };
+
+  const breadcrumbRegex = /(<nav class="article-breadcrumb"[^>]*>[\s\S]*?<\/nav>)\s*/;
+  const match = html.match(breadcrumbRegex);
+
+  if (match) {
+    return {
+      breadcrumb: match[1],
+      htmlWithoutBreadcrumb: html.replace(breadcrumbRegex, '')
+    };
+  }
+
+  return { breadcrumb: '', htmlWithoutBreadcrumb: html };
+}
+
+/**
+ * Injects reading time into breadcrumb HTML
+ * Adds mint-colored reading time span before closing </nav>
+ */
+function injectReadingTimeIntoBreadcrumb(breadcrumbHtml, readingTimeMinutes) {
+  if (!breadcrumbHtml || !readingTimeMinutes) return breadcrumbHtml;
+
+  const readingTimeSpan = `<span class="separator"> · </span><span class="reading-time-inline">${readingTimeMinutes} минут чтения</span>`;
+  return breadcrumbHtml.replace('</nav>', `${readingTimeSpan}</nav>`);
 }
 
 function extractAndStripH1(markdown) {
@@ -1131,7 +1276,8 @@ async function loadMarkdownBranch(dirPath, branch, config, assetRegistry = new M
 
     const frontMatter = normalizeFrontMatterMedia(data, dirPath, assetRegistry);
     const pathKey = `${branch}/${file}`;
-    const meta = normalizeMeta(contentMeta[pathKey] || {});
+    const rawMetaEntry = contentMeta[pathKey] || {};
+    const meta = normalizeMeta(rawMetaEntry);
     const type = meta.type || resolveTypeByBranch(branch);
     const slugBase = meta.slug || (meta.seo_h1 || h1 || '');
     const slug = type === 'intro'
@@ -1141,10 +1287,10 @@ async function loadMarkdownBranch(dirPath, branch, config, assetRegistry = new M
     const readingTimeMinutes = calculateReadingTime(bodyWithoutH1, config.build.wordsPerMinute);
 
     const fullHtml = rewriteContentMedia(renderMarkdown(bodyWithoutH1), dirPath, assetRegistry);
-    const paywallOverride = type === 'article' ? meta.paywall : null;
+    const paywallOverride = type === 'article' && hasExplicitPaywall(rawMetaEntry) ? meta.paywall : null;
     const paywall = type === 'article'
       ? buildPaywallSegments(bodyWithoutH1, paywallOverride)
-      : { openHtml: '', teaserHtml: '', openBlocks: 0, teaserBlocks: 0, totalBlocks: 0 };
+      : { openHtml: '', teaserHtml: '', openBlocks: 0, teaserBlocks: 0, totalBlocks: 0, lockedBlocks: [] };
 
     const seo_h1 = meta.seo_h1 || h1 || '';
     const title = meta.title || buildTitleFromSeo(seo_h1 || h1, config.seo.titleSuffix);
@@ -1158,25 +1304,24 @@ async function loadMarkdownBranch(dirPath, branch, config, assetRegistry = new M
 
     const carousel = type === 'recommendation'
       ? {
-          label: meta.carousel_label || h1 || '',
-          subtitle: meta.carousel_subtitle || '',
-          icon: meta.carousel_icon || '',
-          order: Number.isFinite(meta.carousel_order) ? meta.carousel_order : parseOrder(file),
-          enabled: typeof meta.carousel_enabled === 'boolean' ? meta.carousel_enabled : true
-        }
+        label: meta.carousel_label || h1 || '',
+        subtitle: meta.carousel_subtitle || '',
+        icon: meta.carousel_icon || '',
+        order: Number.isFinite(meta.carousel_order) ? meta.carousel_order : parseOrder(file),
+        enabled: typeof meta.carousel_enabled === 'boolean' ? meta.carousel_enabled : true
+      }
       : null;
 
     const teaserHtml = paywall.teaserHtml || buildTeaser(fullHtml);
     const excerpt = frontMatter.excerpt || stripHtml(teaserHtml);
-    const { blocks } = extractBlocks(bodyWithoutH1);
-    const lockedBlocks = blocks.filter(b => b.index > paywall.openBlocks).map(b => b.html);
+    const lockedBlocks = Array.isArray(paywall.lockedBlocks) ? paywall.lockedBlocks : [];
 
     items.push({
       file,
       pathKey,
       branch,
       type,
-      order: parseOrder(file),
+      order: typeof meta.order === 'number' ? meta.order : parseOrder(file),
       slug,
       h1_md: h1 || '',
       seo_h1,
@@ -1281,11 +1426,13 @@ async function writeLockedContentFiles(items = []) {
   }
 }
 
-function buildIntroPage(item, menuHtml, config, template, mode, nextUrl = '', legalMap = {}) {
-  const buttonText = mode === 'premium' ? config.ctaTexts.next : config.ctaTexts.enterFull;
+function buildIntroPage(item, menuHtml, config, template, mode, nextUrl = '', legalMap = {}, nextUrlPremium = '') {
+  // Для intro-страницы используем indexToFirstCourse если есть, иначе fallback на next/enterFull
+  const buttonText = config.ctaTexts.indexToFirstCourse || (mode === 'premium' ? config.ctaTexts.next : config.ctaTexts.enterFull);
   const pageType = mode === 'premium' ? 'intro-premium' : 'intro-free';
 
-  const body = wrapAsSection(`<h1>${escapeAttr(item.h1_md)}</h1>${item.fullHtml}`);
+  const { breadcrumb, htmlWithoutBreadcrumb } = extractBreadcrumb(item.fullHtml);
+  const body = wrapAsSection(`${breadcrumb}<h1>${escapeAttr(item.h1_md)}</h1>${htmlWithoutBreadcrumb}`);
 
   return applyTemplate(template, {
     title: item.title || buildTitleFromSeo(item.seo_h1 || item.h1_md, config.seo.titleSuffix),
@@ -1298,6 +1445,7 @@ function buildIntroPage(item, menuHtml, config, template, mode, nextUrl = '', le
     pageType,
     buttonText,
     nextPage: nextUrl,
+    nextPagePremium: nextUrlPremium, // URL для авторизованных пользователей
     features: config.features,
     config,
     legalMap
@@ -1306,20 +1454,27 @@ function buildIntroPage(item, menuHtml, config, template, mode, nextUrl = '', le
 
 function buildFreeCoursePage(item, menuHtml, config, template, legalMap = {}, lockedSrc = '') {
   const paywallSource = lockedSrc || '';
+  const { breadcrumb, htmlWithoutBreadcrumb } = extractBreadcrumb(item.paywallOpenHtml);
+  const breadcrumbWithTime = injectReadingTimeIntoBreadcrumb(breadcrumb, item.readingTimeMinutes);
 
   const body = `
-        <div class="text-box__intro">
-          <header>
-            <h1>${item.seo_h1 || item.h1_md}</h1>
-            <p class="meta">${formatReadingTime(item.readingTimeMinutes)} чтения</p>
-          </header>
-          ${item.paywallOpenHtml}
+        <div class="text-box__intro content-shell">
+          <div class="content-body">
+            ${breadcrumbWithTime}
+              <header>
+                <h1>${item.seo_h1 || item.h1_md}</h1>
+              </header>
+            ${htmlWithoutBreadcrumb}
+          </div>
         </div>
 
         <div id="article-content">
           <div class="paywall-block" data-paywall-root data-locked-src="${escapeAttr(paywallSource)}">
-            <section class="text-section paywall-text" data-locked-body>
-              <p class="paywall-text__hint">Нажмите «Добавить абзац», чтобы подгрузить следующую часть статьи.</p>
+            <section class="text-section paywall-text content-shell">
+              <div class="content-body" data-locked-body>
+                ${item.paywallTeaserHtml}
+                <p class="paywall-text__hint">Нажмите «Добавить абзац», чтобы подгрузить следующую часть статьи.</p>
+              </div>
             </section>
 
             <div class="paywall-overlay" aria-hidden="true">
@@ -1327,26 +1482,20 @@ function buildFreeCoursePage(item, menuHtml, config, template, legalMap = {}, lo
               <div class="paywall-overlay__cta">
                 <div class="paywall-overlay__cta-inner">
                   <button class="paywall-cta-button cta-button" data-analytics="cta-premium" data-paywall-cta type="button">
-                    <span class="paywall-cta-button__icon" aria-hidden="true">
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M17 11V8a5 5 0 10-10 0v3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        <rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        <circle cx="12" cy="16" r="1.5" fill="currentColor"/>
-                      </svg>
-                    </span>
                     <span>${escapeAttr(config.ctaTexts.enterFull)}</span>
+                    <img src="/assets/cloth.png" alt="" class="paywall-cta-button__icon" aria-hidden="true">
                   </button>
+
+                  <div class="paywall-fab" data-paywall-fab>
+                    <button class="paywall-fab__btn" data-paywall-add type="button">
+                      <span class="paywall-fab__icon" aria-hidden="true">+</span>
+                      <span data-paywall-add-label>Добавить абзац</span>
+                    </button>
+                    <div class="paywall-fab__timer" data-paywall-timer hidden></div>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-
-          <div class="paywall-fab" data-paywall-fab>
-            <button class="paywall-fab__btn" data-paywall-add type="button">
-              <span class="paywall-fab__icon" aria-hidden="true">+</span>
-              <span data-paywall-add-label>Добавить абзац</span>
-            </button>
-            <div class="paywall-fab__timer" data-paywall-timer hidden></div>
           </div>
         </div>
   `;
@@ -1368,7 +1517,8 @@ function buildFreeCoursePage(item, menuHtml, config, template, legalMap = {}, lo
 }
 
 function buildPremiumPage(item, menuHtml, config, template, { prevUrl, nextUrl }, legalMap = {}) {
-  const body = wrapAsSection(`<h1>${item.h1_md}</h1>${item.fullHtml}`);
+  const { breadcrumb, htmlWithoutBreadcrumb } = extractBreadcrumb(item.fullHtml);
+  const body = wrapAsSection(`${breadcrumb}<h1>${item.h1_md}</h1>${htmlWithoutBreadcrumb}`);
 
   const pageType = item.branch === 'intro' ? 'intro' : (item.branch === 'appendix' ? 'appendix' : 'course');
   const progressButtonText = item.branch === 'appendix'
@@ -1394,7 +1544,9 @@ function buildPremiumPage(item, menuHtml, config, template, { prevUrl, nextUrl }
 function buildRecommendationPage(item, menuHtml, config, template, mode, legalMap = {}) {
   const introUrl = mode === 'premium' ? '/premium/' : '/';
 
-  const body = wrapAsSection(`<h1>${item.h1_md}</h1>${item.fullHtml}`);
+  // Extract breadcrumb from fullHtml and place it before h1
+  const { breadcrumb, htmlWithoutBreadcrumb } = extractBreadcrumb(item.fullHtml);
+  const body = wrapAsSection(`${breadcrumb}<h1>${item.h1_md}</h1>${htmlWithoutBreadcrumb}`);
 
   return applyTemplate(template, {
     title: item.title || buildTitleFromSeo(item.seo_h1 || item.h1_md, config.seo.titleSuffix),
@@ -1521,7 +1673,7 @@ function formatReadingTime(minutes) {
 function wrapAsSection(html, { id = '', dataSection = '' } = {}) {
   const idAttr = id ? ` id="${id}"` : '';
   const dataSectionAttr = dataSection ? ` data-section="${dataSection}"` : '';
-  return `<section class="text-section"${idAttr}${dataSectionAttr}>${html}</section>`;
+  return `<section class="text-section content-shell"${idAttr}${dataSectionAttr}><div class="content-body">${html}</div></section>`;
 }
 
 function extractLogicalIntro(markdown) {
@@ -1649,8 +1801,16 @@ function preprocessMarkdownMedia(markdown, dirPath, assetRegistry) {
 }
 
 function renderMarkdown(markdown) {
+  // Check if markdown contains enhanced markers (HTML comments)
+  if (markdown && typeof markdown === 'string' && /<!--\s*[a-z-]+\s*-->/.test(markdown)) {
+    const { parseEnhancedMarkdown } = require('./enhanced-markdown-parser');
+    return parseEnhancedMarkdown(markdown);
+  }
+
+  // Fallback to standard marked for compatibility
   return marked(markdown);
 }
+
 
 function rewriteContentMedia(html, dirPath, assetRegistry) {
   if (!html || !html.trim()) {
@@ -1968,6 +2128,20 @@ async function copyFaviconAssets() {
       }
     }
 
+    // Copy critical favicon files to dist root for legacy browser compatibility
+    // Browsers request /favicon.ico and /apple-touch-icon.png from root by default
+    const rootCopied = [];
+    for (const name of ROOT_FAVICON_FILES) {
+      const src = path.join(PATHS.srcAssets, name);
+      if (fs.existsSync(src)) {
+        await fsp.copyFile(src, path.join(PATHS.dist.root, name));
+        rootCopied.push(name);
+      }
+    }
+    if (rootCopied.length > 0) {
+      console.log(`✅ Favicon в корне dist: ${rootCopied.join(', ')}`);
+    }
+
     if (copied.length > 0) {
       console.log(`✅ Favicon ассеты скопированы: ${copied.join(', ')}`);
     } else {
@@ -1988,7 +2162,8 @@ async function copyFaviconAssets() {
         return {
           src: icon.src.startsWith('/') ? icon.src : `/${icon.src}`,
           sizes: icon.sizes,
-          type: icon.type
+          type: icon.type,
+          ...(icon.purpose ? { purpose: icon.purpose } : {})
         };
       })
       .filter(Boolean);
@@ -2007,6 +2182,7 @@ async function copyFaviconAssets() {
     console.warn('⚠️  Ошибка копирования favicon:', error.message);
   }
 }
+
 
 async function copyContentAssets(assets) {
   // Копируем favicon
@@ -2060,6 +2236,9 @@ async function copyContentAssets(assets) {
 }
 
 async function copyServerFiles(dest) {
+  // Создаём директорию если не существует
+  await ensureDir(dest);
+
   // Копируем отдельные файлы
   for (const file of PATHS.server.files) {
     const src = path.join(PATHS.server.root, file);
@@ -2108,6 +2287,80 @@ async function copyDirectory(src, dest) {
       await fsp.copyFile(srcPath, destPath);
     }
   }
+}
+
+/**
+ * Копирует страницы ошибок из public в dist
+ */
+async function copyErrorPages() {
+  const publicDir = path.resolve(__dirname, '../../public');
+  const errorPages = ['403.html', '404.html', '500.html', '503.html'];
+  let copied = 0;
+
+  for (const page of errorPages) {
+    const src = path.join(publicDir, page);
+    if (fs.existsSync(src)) {
+      await fsp.copyFile(src, path.join(PATHS.dist.root, page));
+      copied++;
+    }
+  }
+
+  // Копируем .htaccess из public в корень dist
+  const htaccessSrc = path.join(publicDir, '.htaccess');
+  if (fs.existsSync(htaccessSrc)) {
+    await fsp.copyFile(htaccessSrc, path.join(PATHS.dist.root, '.htaccess'));
+    console.log('✅ .htaccess скопирован в корень dist');
+  }
+
+  if (copied > 0) {
+    console.log(`✅ Страницы ошибок скопированы: ${errorPages.slice(0, copied).join(', ')}`);
+  }
+}
+
+/**
+ * Копирует .env файл в корень dist для production
+ */
+async function copyEnvFile() {
+  const envSrc = path.resolve(__dirname, '../../.env');
+  const envDest = path.join(PATHS.dist.root, '.env');
+
+  if (fs.existsSync(envSrc)) {
+    await fsp.copyFile(envSrc, envDest);
+    console.log('✅ .env скопирован в корень dist');
+  } else {
+    // Создаём минимальный .env если его нет
+    const minimalEnv = `# TooSmart Environment
+# Настройки в server/storage/settings.json
+SESSION_NAME=toosmart_cabinet
+DEBUG_MODE=false
+`;
+    await fsp.writeFile(envDest, minimalEnv, 'utf8');
+    console.log('✅ .env создан в корне dist (минимальный)');
+  }
+}
+
+/**
+ * Создаёт .htaccess в premium директории для разрешения доступа
+ */
+async function createPremiumHtaccess() {
+  const premiumDir = PATHS.dist.premium;
+  await ensureDir(premiumDir);
+
+  const htaccessContent = `# Premium directory access
+# Разрешает доступ к premium контенту (защита через PHP сессии)
+
+<IfModule mod_authz_core.c>
+  Require all granted
+</IfModule>
+
+<IfModule !mod_authz_core.c>
+  Order allow,deny
+  Allow from all
+</IfModule>
+`;
+
+  await fsp.writeFile(path.join(premiumDir, '.htaccess'), htaccessContent, 'utf8');
+  console.log('✅ premium/.htaccess создан (Require all granted)');
 }
 
 async function generateRobotsTxt(dest, config) {

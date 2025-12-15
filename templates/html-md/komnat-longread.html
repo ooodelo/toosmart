@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Уборка жилых комнат: деликатность и точность</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --page-bg: #f5f5f5;
+      --text-color: #202124;
+      --muted-color: #6b7280;
+      --accent-color: #111111;
+      --accent-soft: #ffffff;
+      --border-color: rgba(0, 0, 0, 0.08);
+      --marker-color: rgba(250, 148, 80, 0.4);
+
+      --radius-article: 32px;
+      --radius-card: 24px;
+      --radius-pill: 999px;
+      --shadow-soft: 0 20px 60px rgba(213, 216, 232, 1);
+
+      --article-max-width: 720px;
+      --article-padding-x-mobile: 20px;
+      --article-padding-x-desktop: 40px;
+      --article-padding-top-mobile: 32px;
+      --article-padding-bottom-mobile: 40px;
+      --article-padding-top-desktop: 40px;
+      --article-padding-bottom-desktop: 48px;
+
+      --font-size-base: 17px;
+      --line-height-base: 1.8;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      background-color: var(--page-bg);
+      color: var(--text-color);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
+        system-ui, -system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    .page {
+      padding: 64px 16px 80px;
+    }
+
+    @media (min-width: 768px) {
+      .page {
+        padding: 80px 24px 96px;
+      }
+    }
+
+    .article {
+      max-width: var(--article-max-width);
+      margin: 0 auto;
+      background-color: transparent;
+      border-radius: var(--radius-article);
+      padding: var(--article-padding-top-mobile) var(--article-padding-x-mobile) var(--article-padding-bottom-mobile);
+      position: relative;
+    }
+
+    @media (min-width: 900px) {
+      .article {
+        padding: var(--article-padding-top-desktop) var(--article-padding-x-desktop) var(--article-padding-bottom-desktop);
+      }
+    }
+
+    .article-meta {
+      font-size: 13px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted-color);
+      margin-bottom: 12px;
+    }
+
+    .article h1 {
+      font-size: clamp(30px, 4vw, 40px);
+      line-height: 1.12;
+      letter-spacing: -0.03em;
+      margin: 0 0 16px;
+    }
+
+    .article-subtitle {
+      font-size: 18px;
+      line-height: 1.6;
+      color: var(--muted-color);
+      margin-bottom: 28px;
+      max-width: 44rem;
+    }
+
+    .article-lead {
+      font-size: 18px;
+      line-height: 1.8;
+      margin-bottom: 28px;
+    }
+
+    .article-lead p {
+      margin: 0 0 14px;
+    }
+
+    .article-divider {
+      height: 1px;
+      width: 100%;
+      background: radial-gradient(circle at center, rgba(15, 23, 42, 0.25), rgba(15, 23, 42, 0.02));
+      margin: 24px 0 32px;
+      border-radius: 999px;
+    }
+
+    .article h2 {
+      font-size: clamp(22px, 2.4vw, 26px);
+      line-height: 1.3;
+      margin: 40px 0 16px;
+      letter-spacing: -0.02em;
+    }
+
+    .section-label {
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted-color);
+      margin-bottom: 8px;
+    }
+
+    .article h3 {
+      font-size: 19px;
+      line-height: 1.4;
+      margin: 28px 0 10px;
+      letter-spacing: -0.01em;
+    }
+
+    .article h4 {
+      font-size: 17px;
+      line-height: 1.4;
+      margin: 22px 0 8px;
+      font-weight: 600;
+    }
+
+    .article p {
+      margin: 0 0 14px;
+      font-size: var(--font-size-base);
+      line-height: var(--line-height-base);
+    }
+
+    .muted {
+      color: var(--muted-color);
+    }
+
+    .article strong {
+      font-weight: 600;
+    }
+
+    .article em {
+      font-style: italic;
+      color: var(--muted-color);
+    }
+
+    .marker-highlight {
+      position: relative;
+      display: inline-block;
+      padding: 0 0.12em;
+      border-radius: 0.6em;
+      background: transparent;
+    }
+
+    .marker-highlight::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      transform: scale(1.06, 1.25);
+      background-color: #D5D8E8;
+      filter: blur(6px);
+      z-index: -1;
+    }
+
+    .emphasized-word {
+      font-weight: 700;
+      text-decoration: underline;
+      text-decoration-color: #ffffff;
+      text-decoration-thickness: 6px;
+      text-underline-offset: 5px;
+      letter-spacing: 0.02em;
+    }
+
+    .article ul,
+    .article ol {
+      margin: 0 0 16px 1.4em;
+      padding: 0;
+      font-size: 17px;
+      line-height: 1.75;
+    }
+
+    .article li + li {
+      margin-top: 4px;
+    }
+
+    .article blockquote {
+      position: relative;
+      margin: 24px 0;
+      padding: 16px 20px;
+      text-align: center;
+      border: none;
+      background: transparent;
+      border-radius: var(--radius-pill);
+      font-size: 20px;
+      line-height: 1.6;
+      font-weight: 600;
+    }
+
+    .article blockquote p:last-child {
+      margin-bottom: 0;
+    }
+
+    .composition-highlight {
+      position: relative;
+      text-align: center;
+      border-left: none;
+      background: transparent;
+      padding: 16px 20px;
+    }
+
+    .composition-highlight p {
+      font-size: 20px;
+      font-weight: 600;
+      line-height: 1.6;
+    }
+
+    .article-card {
+      border-radius: var(--radius-card);
+      background: var(--accent-soft);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .pullquote {
+      margin: 28px 0;
+      padding: 18px 20px;
+      border-radius: 24px;
+      background: #ffffff;
+      color: #111111;
+      font-size: 18px;
+      line-height: 1.7;
+      font-weight: 500;
+      box-shadow: 0 20px 60px rgba(213, 216, 232, 1);
+    }
+
+    .pullquote small {
+      display: block;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      opacity: 0.5;
+      margin-bottom: 6px;
+    }
+
+    .number-callout {
+      margin: 28px 0 24px;
+      padding: 22px 20px 20px;
+      border-radius: 24px;
+      background: var(--accent-soft);
+      box-shadow: 0 20px 60px rgba(213, 216, 232, 1);
+    }
+
+    .number-callout-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--muted-color);
+      margin-bottom: 6px;
+    }
+
+    .number-callout-value {
+      font-size: 32px;
+      line-height: 1.1;
+      letter-spacing: -0.04em;
+      margin-bottom: 4px;
+    }
+
+    .number-callout-text {
+      font-size: 15px;
+      line-height: 1.7;
+      color: var(--muted-color);
+    }
+
+    .two-column-compare {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 12px;
+      margin: 16px 0 20px;
+    }
+
+    @media (min-width: 768px) {
+      .two-column-compare {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+    }
+
+    .compare-card {
+      border-radius: 24px;
+      padding: 14px 14px 14px;
+      background: var(--accent-soft);
+      box-shadow: 0 20px 60px rgba(213, 216, 232, 1);
+    }
+
+    .compare-card-title {
+      font-size: 13px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted-color);
+      margin-bottom: 6px;
+    }
+
+    .compare-card-heading {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .compare-card ul {
+      margin: 0 0 0 1.1em;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    .compare-card li + li {
+      margin-top: 2px;
+    }
+
+    .checklist {
+      margin: 14px 0 18px;
+      padding: 14px 16px 10px;
+      border-radius: 24px;
+      background: var(--accent-soft);
+      box-shadow: 0 20px 60px rgba(213, 216, 232, 1);
+    }
+
+    .checklist-title {
+      font-size: 13px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted-color);
+      margin-bottom: 6px;
+    }
+
+    .checklist ul {
+      margin: 0 0 0 1.1em;
+      font-size: 15px;
+      line-height: 1.7;
+    }
+
+    .checklist li + li {
+      margin-top: 2px;
+    }
+
+    .article-footer {
+      border-top: 1px solid var(--border-color);
+      margin-top: 28px;
+      padding-top: 18px;
+      font-size: 13px;
+      color: var(--muted-color);
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <article class="article">
+      <div class="article-meta">Клининг · Обучение</div>
+      <h1>Уборка жилых комнат: деликатность и точность</h1>
+      <p class="article-subtitle">
+        Где нет жира и налётов, но есть максимум разнообразия материалов и поверхностей.
+      </p>
+
+      <div class="article-lead">
+        <p>
+          Жилые комнаты — это территория деликатности. Здесь нет агрессивных жировых наслоений, как на кухне, и минеральных отложений, как в ванной. Зато здесь максимальное разнообразие материалов и поверхностей, каждая из которых требует индивидуального подхода.
+        </p>
+        <p>
+          Обои с разной текстурой, кожаная мебель, окрашенные батареи, полы из ламината или паркета, пластиковые элементы, текстиль — все эти материалы чувствительны к агрессивной химии. Ошибка здесь обходится дорого: неправильное средство может оставить несмываемые пятна, изменить цвет, разрушить защитное покрытие или создать матовые участки на глянце.
+        </p>
+        <p>
+          Главная задача в жилых комнатах — не сила воздействия, а <span class="emphasized-word">точность выбора</span>. Здесь работают универсальные средства с хелаторами, мягкая механика и понимание природы каждой поверхности.
+        </p>
+      </div>
+
+      <div class="article-divider"></div>
+
+      <section>
+        <div class="section-label">Маршрут</div>
+        <h2>Общий алгоритм работы по комнате</h2>
+
+        <p>
+          Независимо от типа помещения, базовая последовательность остаётся неизменной. Правильный маршрут позволяет не возвращаться к уже очищенным зонам и не переносить грязь с загрязнённых поверхностей на чистые.
+        </p>
+
+        <div class="checklist article-card">
+          <div class="checklist-title">Последовательность уборки жилой комнаты</div>
+          <ul>
+            <li>Сухая пыль сверху вниз: верх шкафов, карнизы, верх дверей, стены (если по регламенту), горизонтальные поверхности мебели и декор;</li>
+            <li>Локальная грязь: пятна на стенах, дверях, ручках, выключателях, подоконниках;</li>
+            <li>Пол: обеспыливание пылесосом или сухой насадкой, затем влажная уборка;</li>
+            <li>Контроль разводов: стекло, глянец, лакированные поверхности — точечная коррекция при необходимости.</li>
+          </ul>
+        </div>
+
+        <p>
+          Этот маршрут универсален и работает независимо от размера помещения. Единственное, что меняется — интенсивность работы на каждом этапе.
+        </p>
+      </section>
+
+      <section>
+        <div class="section-label">Пыль</div>
+        <h2>Как собирать пыль, а не размазывать её</h2>
+
+        <p>
+          Пыль в комнате — это в основном сухие частицы, волосы, шерсть. Наша задача — <strong>снять</strong> её, а не размазать. И здесь критичен выбор инструмента.
+        </p>
+
+        <h3>Выбор фибры</h3>
+
+        <div class="two-column-compare">
+          <div class="compare-card article-card">
+            <div class="compare-card-title">Тип инструмента</div>
+            <div class="compare-card-heading">Плюшевая фибра (длинный ворс)</div>
+            <ul>
+              <li>больше впитывает;</li>
+              <li>удобна на рельефных поверхностях;</li>
+              <li>хороша для декоративных элементов и мелких предметов;</li>
+              <li>подходит для «обнимания» предметов интерьера.</li>
+            </ul>
+          </div>
+          <div class="compare-card article-card">
+            <div class="compare-card-title">Тип инструмента</div>
+            <div class="compare-card-heading">Фибра с коротким ворсом</div>
+            <ul>
+              <li>проще складывается и гибче по размерам;</li>
+              <li>удобнее на больших гладких плоскостях;</li>
+              <li>подходит для столешниц, дверц шкафов;</li>
+              <li>удобна для техники складывания буквой W.</li>
+            </ul>
+          </div>
+        </div>
+
+        <h3>Техника работы сверху вниз</h3>
+
+        <p>
+          Начинаем с верхних зон — верх шкафов, карнизы, верх дверей. Работаем мягко, без подметания — задача не сбить пыль в воздух, а собрать. Затем переходим к стенам (если это предусмотрено регламентом) строго сухой фиброй, используя швабру с подвижной платформой.
+        </p>
+
+        <p>
+          Горизонтальные поверхности мебели и подоконники обрабатываем той же сухой фиброй. Мелкие предметы удобно протирать плюшевой фиброй, обхватывая их. Длинные поверхности — коротким ворсом, сложенным буквой W.
+        </p>
+
+        <blockquote class="composition-highlight">
+          <p>
+            <span class="marker-highlight">Ни в коем случае</span> <span class="marker-highlight">не смачивайте фибру водой.</span> <span class="marker-highlight">Влага приводит к тому,</span> <span class="marker-highlight">что пыль скатывается</span> <span class="marker-highlight">в комочки</span> <span class="marker-highlight">и размазывается</span> <span class="marker-highlight">по поверхности.</span>
+          </p>
+        </blockquote>
+
+        <p>
+          Сухая фибра работает за счёт статики и собирает пыль надёжнее, при этом не размазывая её. Если фибра начала переносить пыль и заменить её не на что — пропылесосьте её и продолжайте работу.
+        </p>
+      </section>
+
+      <section>
+        <div class="section-label">Стены и обои</div>
+        <h2>Химия против микрорельефа</h2>
+
+        <h3>Природа загрязнений</h3>
+
+        <p>
+          Стены в жилых комнатах — это не зона активных загрязнений. Основные источники грязи: пыль (мелкие твёрдые частицы), кожное сало с рук при касании, отпечатки пальцев (смесь кожного жира, пота и минеральных солей), случайные брызги от напитков и пищи.
+        </p>
+
+        <p>
+          Эти загрязнения кажутся несерьёзными, но они создают устойчивую связь с поверхностью через два механизма: физическое застревание в микрорельефе и солевые мостики — ионы металлов из пота служат химическими якорями, связывающими грязь с поверхностью.
+        </p>
+
+        <h3>Роль хелаторов</h3>
+
+        <p>
+          Хелаторы — это органические молекулы, способные захватывать ионы металлов. Их можно представить как клешни краба, которые обхватывают добычу со всех сторон.
+        </p>
+
+        <div class="pullquote article-card">
+          <small>Механизм действия</small>
+          <p>
+            Хелатор подходит к иону металла и захватывает его сразу несколькими функциональными группами, формируя прочный растворимый комплекс. Когда ион металла связан хелатором, солевой мостик разрушается — грязь теряет связь с поверхностью и легко смывается.
+          </p>
+        </div>
+
+        <p>
+          На микрорельефной поверхности (обои, фактурная краска, текстурированный пластик) частицы грязи застревают в порах и бороздках. Механическая очистка малоэффективна — вы не достанете грязь из микроуглублений. Хелаторы же работают на химическом уровне: проникают в микрорельеф вместе с водой, разрушают солевые связи и вытаскивают загрязнения из пор.
+        </p>
+
+        <h3>Выбор инструмента</h3>
+
+        <p>
+          Главное правило при работе с обоями и окрашенными стенами — не повредить поверхность.
+        </p>
+
+        <p>
+          <strong>Для матовых и фактурных обоев:</strong> меламиновая губка плюс универсальное средство с хелаторами. Меламин работает как абразивный полимер — его микрорёбра срезают загрязнения из микрорельефа, усиливая действие химии.
+        </p>
+
+        <p>
+          <strong>Для глянцевых и гладких поверхностей:</strong> только мягкая фибра. Меламин оставит матовые царапины на глянце.
+        </p>
+
+        <p>
+          <strong>Для виниловых обоев:</strong> универсальное средство безопасно, но избегайте длительной экспозиции и не используйте горячую воду — винил может деформироваться.
+        </p>
+      </section>
+
+      <section>
+        <div class="section-label">Полы</div>
+        <h2>Обеспыливание, разводы и техника керлинг</h2>
+
+        <h3>Предварительное обеспыливание</h3>
+
+        <p>
+          Перед влажной уборкой пола всегда необходимо провести предварительное сухое обеспыливание, иначе пыль начнёт скатываться в комочки и размазываться по поверхности.
+        </p>
+
+        <div class="two-column-compare">
+          <div class="compare-card article-card">
+            <div class="compare-card-title">Метод 1</div>
+            <div class="compare-card-heading">Пылесос</div>
+            <ul>
+              <li>стандартное решение для большинства случаев;</li>
+              <li>эффективно при достаточной мощности;</li>
+              <li>универсально для всех типов полов.</li>
+            </ul>
+          </div>
+          <div class="compare-card article-card">
+            <div class="compare-card-title">Метод 2</div>
+            <div class="compare-card-heading">Швабра с сухой фиброй</div>
+            <ul>
+              <li>эффективнее слабых пылесосов;</li>
+              <li>отлично работает с шерстью животных;</li>
+              <li>собирает пыль за счёт электростатики.</li>
+            </ul>
+          </div>
+        </div>
+
+        <h3>Проблема разводов</h3>
+
+        <p>
+          Разводы на полу — это не следы грязи, а остатки моющего средства или минералы из воды. Когда вода испаряется, нелетучие компоненты остаются на поверхности в виде тонкой плёнки, которая рассеивает свет.
+        </p>
+
+        <blockquote class="composition-highlight">
+          <p>
+            <span class="marker-highlight">ПАВы в моющих средствах</span> <span class="marker-highlight">при высыхании</span> <span class="marker-highlight">образуют мицеллярные структуры</span> <span class="marker-highlight">на поверхности.</span> <span class="marker-highlight">Это липкая плёнка,</span> <span class="marker-highlight">которая притягивает</span> <span class="marker-highlight">новую грязь.</span>
+          </p>
+        </blockquote>
+
+        <div class="checklist article-card">
+          <div class="checklist-title">Три способа борьбы с разводами</div>
+          <ul>
+            <li>Снижение концентрации — начните с половины рекомендованной дозы и экспериментируйте;</li>
+            <li>Техника двух швабр — первая влажная с средством, вторая сухая идёт следом и вытирает насухо;</li>
+            <li>Средства без разводов — специализированные составы с быстроиспаряющимися компонентами.</li>
+          </ul>
+        </div>
+
+        <h3>Техника керлинг</h3>
+
+        <p>
+          Техника керлинг названа в честь зимнего вида спорта, где игроки полируют лёд. В клининге это быстрые возвратно-поступательные движения шваброй при вытирании пола насухо.
+        </p>
+
+        <div class="pullquote article-card">
+          <small>Физика процесса</small>
+          <p>
+            Когда вы двигаете тряпку вперёд-назад с высокой частотой, создаётся интенсивное трение между волокнами фибры и поверхностью пола. Это трение активирует капиллярные силы — жидкость затягивается вглубь ткани значительно эффективнее, чем при медленном протирании.
+          </p>
+        </div>
+
+        <p>
+          Последовательность: помойте пол влажной шваброй с моющим средством, сразу за первой шваброй идите со второй сухой, делайте 5-7 быстрых движений вперёд-назад на участке 0,5 метра, переходите к следующему участку. Результат — пол полностью сухой, никаких разводов.
+        </p>
+      </section>
+
+      <section>
+        <div class="section-label">Сложные элементы</div>
+        <h2>Трубы, батареи и труднодоступные зоны</h2>
+
+        <h3>Перекрашенные поверхности</h3>
+
+        <p>
+          Трубы, батареи, различные металлические элементы часто перекрашивают эмалью или масляной краской. Проблема в том, что краска может быть нанесена неравномерно — есть наплывы, неровности, шероховатости. Грязь застревает в этих неровностях.
+        </p>
+
+        <blockquote class="composition-highlight">
+          <p>
+            <span class="marker-highlight">Короткие волокна фибры</span> <span class="marker-highlight">скользят по поверхности.</span> <span class="marker-highlight">Длинные волокна</span> <span class="marker-highlight">изгибаются,</span> <span class="marker-highlight">следуют за рельефом,</span> <span class="marker-highlight">проникают в углубления.</span>
+          </p>
+        </blockquote>
+
+        <p>
+          Фибра с длинным ворсом плюс универсальное средство — это универсальный инструмент для любых неровных поверхностей. Обматываете тряпку вокруг трубы, делаете возвратно-поступательные движения, промокаете чистой влажной тряпкой, вытираете насухо.
+        </p>
+
+        <h3>Батареи отопления</h3>
+
+        <p>
+          Батареи — это конструкция со сложной геометрией: рёбра, внутренние каналы, зазоры между секциями. Пыль скапливается внутри, где обычная тряпка не достаёт. При включении отопления пыль нагревается, спекается, образуя устойчивый налёт.
+        </p>
+
+        <div class="checklist article-card">
+          <div class="checklist-title">Алгоритм очистки батарей</div>
+          <ul>
+            <li>Сухая очистка: сначала удалите пыль пылесосом или сухой щёткой;</li>
+            <li>Влажная очистка: смочите фибру в растворе универсального средства, обработайте доступные поверхности;</li>
+            <li>Внутренние каналы: используйте специализированную щётку для батарей с изогнутой ручкой;</li>
+            <li>Удаление остатков: протрите чистой влажной тряпкой и вытрите насухо.</li>
+          </ul>
+        </div>
+
+        <p>
+          Регулярная сухая очистка пылесосом раз в месяц предотвращает накопление спёкшихся загрязнений. Свежую пыль удалить в десятки раз проще, чем спёкшийся налёт.
+        </p>
+      </section>
+
+      <section>
+        <div class="section-label">Итог</div>
+        <h2>Главное о жилых комнатах</h2>
+
+        <div class="pullquote article-card">
+          <small>Ключевой принцип</small>
+          <p>
+            В жилых комнатах главное — не сила воздействия, а точность выбора. Правильный инструмент и правильное средство для каждой поверхности важнее, чем количество усилий или концентрация химии.
+          </p>
+        </div>
+
+        <p>
+          Сухая фибра для пыли, хелаторы для микрорельефных поверхностей, контроль концентрации для предотвращения разводов, длинный ворс для неровностей — это базовый набор правил, который работает независимо от типа помещения.
+        </p>
+
+        <p>
+          Главная ошибка — попытка ускорить процесс за счёт более агрессивной химии или более жёсткой механики. В деликатных зонах это приводит к повреждениям, которые невозможно исправить. Лучше потратить больше времени на правильный выбор, чем потом объяснять клиенту, почему его обои покрылись пятнами.
+        </p>
+      </section>
+
+      <footer class="article-footer">
+        Образовательный лонгрид о профессиональной уборке жилых комнат: правильный выбор инструментов, понимание химии процессов и техники работы с деликатными поверхностями.
+      </footer>
+    </article>
+  </main>
+</body>
+</html>

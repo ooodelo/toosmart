@@ -118,14 +118,12 @@ class Config
     }
 
     /**
-     * Centralized File Paths
+     * Centralized File Paths (legacy, не используется для БД)
      */
     public static function getPath($key)
     {
         $root = realpath(__DIR__ . '/../..');
         $paths = [
-            'db' => $root . '/private/database.sqlite',
-            'users_json' => $root . '/private/users.json', // Legacy
             'logs' => $root . '/logs',
         ];
         return $paths[$key] ?? null;

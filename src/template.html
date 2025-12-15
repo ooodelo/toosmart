@@ -4,88 +4,158 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  {{> yandex-metrika }}
   <meta http-equiv="Content-Security-Policy"
-    content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';" />
-  <title>UI-каркас</title>
+    content="default-src 'self'; script-src 'self' 'unsafe-inline' https://mc.yandex.ru; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https://mc.yandex.ru; connect-src 'self' https://mc.yandex.ru; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://auth.robokassa.ru;" />
+  <title>Демонстрация стилей • Слишком Умная Уборка</title>
   {{> head-scripts }}
+  <link rel="stylesheet" href="./progress-widget.css">
   <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./bubble-carousel.css">
 </head>
 
 <body>
+  {{> yandex-metrika-noscript }}
   {{> header }}
 
   {{> menu }}
-  <!-- Mock Menu Content for Dev -->
-  <script>
-    (function () {
-      function initMenu() {
-        const menuList = document.querySelector('[data-build-slot="menu"]');
-        if (menuList && menuList.children.length <= 1) { // Check if empty or just has "loading"
-          menuList.innerHTML = `
-            <li><a href="./template-index.html">1. Intro (Index)</a></li>
-            <li><a href="./template-paywall.html">2. Free Article (Paywall)</a></li>
-            <li><a href="./template-paywall.html">3. Another Free Article</a></li>
-            <li><a href="./template.html">4. Premium Article (Full)</a></li>
-            <li><a href="./template.html">5. Deep Cleaning</a></li>
-            <li><a href="./template.html">6. Kitchen Chemistry</a></li>
-            <li><a href="./template.html">7. Bathroom Science</a></li>
-            <li><a href="./template.html">8. Floor Care</a></li>
-            <li><a href="./template-recommendations.html">9. Recommendation Example</a></li>
-            <li><a href="./template.html">10. Safe Storage</a></li>
-          `;
-        }
-      }
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initMenu);
-      } else {
-        initMenu();
-      }
-    })();
-  </script>
+  <script type="module" src="./js/dev-menu.js"></script>
 
   <div class="backdrop" aria-hidden="true"></div>
 
   <main class="main">
     <section class="panel" data-lazy="dots-nav progress-widget">
       <article class="text-box" aria-label="Основной материал" data-build-slot="body" data-page-type="premium">
-        <section class="text-section">
-          <h1>Наука чистоты: Почему мы убираем неправильно?</h1>
-          <p class="meta">~5 минут чтения</p>
-          <p>Уборка — это не просто рутина, а сложный химический процесс. Большинство из нас использует средства,
-            которые
-            нейтрализуют друг друга, или применяет техники, размазывающие грязь вместо её удаления.</p>
-        </section>
+        <div class="content-body">
+          <section class="text-section content-shell">
+            <nav class="article-breadcrumb"><a href="#">Курс</a><span class="separator"> · </span><span
+                class="current">Демонстрация стилей</span><span class="separator"> · </span><span
+                class="reading-time-inline">~5 мин</span></nav>
 
-        <section class="text-section">
-          <h2>Миф об универсальном средстве</h2>
-          <p>Маркетологи убедили нас, что одна бутылка может отмыть всё: от жира на плите до известкового налета в
-            ванной. Но с точки зрения химии это невозможно. Жир — это органика, требующая щелочной среды (pH > 7).
-            Известковый налет — это минеральные отложения, которые растворяются только кислотой (pH &lt; 7).</p>
-          <p>Используя "универсальное" средство с нейтральным pH, вы просто механически стираете грязь, прилагая лишние
-            усилия. Профессиональный клининг всегда начинается с определения типа загрязнения и подбора
-            соответствующего реагента.</p>
-        </section>
+            <h1>Полная демонстрация Enhanced Markdown</h1>
 
-        <section class="text-section">
-          <h3>Три правила безопасной химии</h3>
-          <ul>
-            <li><strong>Никогда не смешивайте:</strong> Хлор и кислота при смешивании выделяют ядовитый газ. Используйте
-              средства по очереди, смывая водой.</li>
-            <li><strong>Дайте средству поработать:</strong> Любой химии нужно время реакции (контактное время). Нанесите
-              и подождите 5-10 минут — грязь отойдет сама.</li>
-            <li><strong>Работайте сверху вниз:</strong> Гравитация — ваш друг. Начинайте с верхних полок, чтобы пыль не
-              падала на уже чистый пол.</li>
-          </ul>
-          <p>Помните: чистота — это отсутствие грязи, а не наличие запаха "морозной свежести". Правильно подобранные
-            средства не требуют ароматизаторов, чтобы замаскировать результат.</p>
-        </section>
+            <p class="article-subtitle">Все элементы разметки на одной странице для проверки визуального соответствия
+            </p>
+
+            <div class="article-lead">
+              <p>Эта страница демонстрирует все элементы enhanced markdown: breadcrumbs, subtitles, leads, dividers,
+                section labels, marker highlights, composition highlights, pullquotes, callouts, checklists и compare
+                blocks.</p>
+              <p>Используется для проверки визуального соответствия с референсным дизайном gubka-longread.html.</p>
+            </div>
+          </section>
+
+          <div class="article-divider"></div>
+
+          <section class="text-section content-shell">
+            <div class="section-label">Базовая типографика</div>
+
+            <h2>Обычная типографика</h2>
+            <p>Это обычный текст параграфа размером 17px с межстрочным интервалом 1.8, использующий шрифт SF Pro /
+              system-ui. Обратите внимание на улучшенную читаемость с правильными отступами.</p>
+
+            <h3>Подзаголовок третьего уровня</h3>
+            <p><strong>Жирный текст для акцента</strong> и <em>курсив для примечаний</em>. Всё выровнено по референсному
+              дизайну gubka-longread.html.</p>
+
+            <h4>Подзаголовок четвертого уровня</h4>
+            <ul>
+              <li>Элемент списка с отступом 4px</li>
+              <li>Второй элемент демонстрирует правильное форматирование списка</li>
+              <li>Третий элемент с консистентным межстрочным интервалом 1.75</li>
+            </ul>
+
+            <blockquote class="composition-highlight">
+              <p><span class="marker-highlight">Выделенный текст</span> <span class="marker-highlight">с эффектом
+                  blur</span> <span class="marker-highlight">как в референсе</span></p>
+            </blockquote>
+
+            <p>Обратите внимание на <strong>жирное выделение</strong> в тексте параграфа.</p>
+
+            <p>А это <span class="emphasized-word">жирное подчёркивание с белой линией</span> — используется для
+              ключевых
+              слов, как в референсе gubka-longread.html.</p>
+          </section>
+
+          <div class="article-divider"></div>
+
+          <section class="text-section content-shell">
+            <div class="section-label">Карточки и компоненты</div>
+
+            <h2>Числовые вызовы и чеклисты</h2>
+
+            <div class="number-callout article-card">
+              <div class="number-callout-label">Важное число</div>
+              <div class="number-callout-value">1 неделя</div>
+              <div class="number-callout-text">Максимальный срок службы кухонной губки до бактериальной перегрузки</div>
+            </div>
+
+            <div class="checklist article-card">
+              <div class="checklist-title">Системные требования</div>
+              <ul>
+                <li>Понимание структуры загрязнений</li>
+                <li>Знание физики инструментов</li>
+                <li>Выбор химических средств</li>
+                <li>Проектирование эффективных алгоритмов</li>
+              </ul>
+            </div>
+
+            <div class="pullquote article-card">
+              <small>Ключевая мысль</small>
+              <p>Настоящая чистота начинается с понимания системы, а не с покупки чудо-средств из рекламы.</p>
+            </div>
+          </section>
+
+          <div class="article-divider"></div>
+
+          <section class="text-section content-shell">
+            <div class="section-label">Блоки сравнения</div>
+
+            <h2>Двухколоночное сравнение</h2>
+
+            <div class="two-column-compare">
+              <div class="compare-card">
+                <div class="compare-card-title">Неправильный подход</div>
+                <div class="compare-card-heading">Универсальные средства</div>
+                <ul>
+                  <li>Заявляют, что моют всё</li>
+                  <li>Нейтральный pH = неэффективно</li>
+                  <li>Требуют чрезмерных усилий</li>
+                </ul>
+              </div>
+              <div class="compare-card">
+                <div class="compare-card-title">Правильный подход</div>
+                <div class="compare-card-heading">Целевая химия</div>
+                <ul>
+                  <li>Щелочь для жиров (pH &gt;7)</li>
+                  <li>Кислота для минералов (pH&lt;7)</li>
+                  <li>Эффективно с минимальными усилиями</li>
+                </ul>
+              </div>
+            </div>
+
+            <p>После сравнения видно преимущество системного подхода над универсальными решениями.</p>
+
+            <blockquote class="composition-highlight">
+              <p><span class="marker-highlight">Профессиональный клининг</span> <span class="marker-highlight">всегда
+                  начинается</span> <span class="marker-highlight">с определения типа загрязнения</span> <span
+                  class="marker-highlight">и подбора</span> <span class="marker-highlight">соответствующего
+                  реагента.</span></p>
+            </blockquote>
+          </section>
+        </div>
       </article>
       <nav class="dots-rail" aria-label="Навигация по разделам" data-lazy="dots-nav"></nav>
       <div class="dot-flyout is-hidden" hidden role="navigation" aria-label="Оглавление разделов"></div>
     </section>
 
-    {{> stack-widget }}
   </main>
+
+  <!-- Progress Widget docking slot - BEFORE carousel -->
+  <div class="pw-slot"></div>
+
+  <!-- Carousel outside main for unrestricted shadow -->
+  {{> bubble-carousel }}
 
   <div class="dock" role="presentation">
     <button class="dock-handle" type="button" aria-controls="site-menu" aria-expanded="false">
@@ -95,8 +165,15 @@
 
   {{> footer }}
 
-  {{> modals }}
+  {{> legal-modals }}
+  {{> login-modal }}
+  {{> cookie-banner }}
+  {{> modal-payment-success }}
+  {{> modal-payment-fail }}
+  {{> modal-settings }}
+  {{> modal-fallbacks }}
 
+  <script type="module" src="./js/bubble-carousel.js"></script>
   <script type="module" src="./entries/premium.js"></script>
 </body>
 

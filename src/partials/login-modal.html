@@ -1,0 +1,178 @@
+<!-- МОДАЛЬНОЕ ОКНО ВХОДА В ЛК -->
+<div class="modal" id="login-modal" role="dialog" aria-modal="true" aria-labelledby="login-modal-title" hidden>
+  <div class="modal-overlay" onclick="closeLoginModal()"></div>
+  <div class="modal-content modal-content--airy" style="padding-bottom: 0 !important;">
+    <h2 id="login-modal-title" class="modal-title" style="margin-bottom: 12px;">Войти в личный кабинет</h2>
+
+    <p class="modal-security" style="margin-bottom: 24px;">
+      <span>🔒</span> Ваши данные надежно защищены
+    </p>
+
+    <div id="login-error" style="display: none;" role="alert"></div>
+
+    <form id="login-form" style="display: flex; flex-direction: column; height: 100%;">
+      <div class="form-group" style="margin-bottom: 8px;">
+        <input type="email" name="email" class="modal-input" placeholder="Введите ваш email" required
+          autocomplete="email" aria-label="Email для входа">
+      </div>
+
+      <div class="form-group" style="margin-bottom: 8px;">
+        <input type="password" name="password" class="modal-input" placeholder="Введите пароль" required
+          autocomplete="current-password" aria-label="Пароль">
+      </div>
+
+      <div style="text-align: center; margin-bottom: 24px; margin-top: 8px;">
+        <a href="/server/forgot-password-form.php"
+          style="color: var(--gray-500); text-decoration: none; font-size: 14px; font-weight: 500;">
+          Забыли пароль?
+        </a>
+      </div>
+
+      <button type="submit" class="modal-submit">
+        Войти
+      </button>
+    </form>
+  </div>
+  <button class="modal-close" type="button" onclick="closeLoginModal()" aria-label="Закрыть">×</button>
+</div>
+
+<script>
+  function isDevHost(hostname) {
+    return ['localhost', '127.0.0.1', '::1', '0.0.0.0'].includes(hostname)
+      || /^10\./.test(hostname)
+      || /^192\.168\./.test(hostname)
+      || /^172\.(1[6-9]|2[0-9]|3[01])\./.test(hostname)
+      || /\.local$/i.test(hostname);
+  }
+
+  function openLoginModal() {
+    const modal = document.getElementById('login-modal');
+    if (modal) {
+      modal.removeAttribute('hidden');
+      document.body.style.overflow = 'hidden';
+
+      const emailInput = modal.querySelector('input[name="email"]');
+      if (emailInput) {
+        setTimeout(() => emailInput.focus(), 100);
+      }
+    }
+  }
+
+  function closeLoginModal() {
+    const modal = document.getElementById('login-modal');
+    if (modal) {
+      modal.setAttribute('hidden', '');
+      document.body.style.overflow = '';
+
+      const errorDiv = document.getElementById('login-error');
+      if (errorDiv) {
+        errorDiv.style.display = 'none';
+        errorDiv.textContent = '';
+      }
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    const loginForm = document.getElementById('login-form');
+    if (loginForm) {
+      const inputs = loginForm.querySelectorAll('input[required], input[type="email"]');
+      inputs.forEach(input => {
+        input.addEventListener('invalid', function (e) {
+          e.preventDefault();
+          this.classList.add('invalid');
+          if (this.validity.valueMissing) {
+            if (this.type === 'email') {
+              this.setCustomValidity('Пожалуйста, введите email');
+            } else if (this.type === 'password') {
+              this.setCustomValidity('Пожалуйста, введите пароль');
+            } else {
+              this.setCustomValidity('Пожалуйста, заполните это поле');
+            }
+          } else if (this.validity.typeMismatch && this.type === 'email') {
+            this.setCustomValidity('Некорректный формат email');
+          } else {
+            this.setCustomValidity('');
+            this.classList.remove('invalid');
+          }
+        });
+        input.addEventListener('input', function () {
+          this.setCustomValidity('');
+          this.classList.remove('invalid');
+        });
+      });
+
+      loginForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        const email = this.email.value.trim();
+        const password = this.password.value;
+        const errorDiv = document.getElementById('login-error');
+        const submitBtn = this.querySelector('button[type="submit"]');
+
+        if (!email || !password) {
+          if (errorDiv) {
+            errorDiv.textContent = 'Пожалуйста, заполните все поля';
+            errorDiv.style.display = 'block';
+            errorDiv.style.background = '#fff5f5';
+            errorDiv.style.color = '#c62828';
+            errorDiv.style.padding = '12px 16px';
+            errorDiv.style.borderRadius = '10px';
+            errorDiv.style.fontSize = '14px';
+            errorDiv.style.marginBottom = '16px';
+            errorDiv.style.borderLeft = '3px solid #e53935';
+          }
+          return;
+        }
+
+        const isDev = (typeof window.__DEV_LOGIN_BYPASS__ === 'boolean')
+          ? window.__DEV_LOGIN_BYPASS__
+          : isDevHost(window.location.hostname);
+
+        const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+
+        if (!emailRegex.test(email)) {
+          if (errorDiv) {
+            errorDiv.textContent = 'Некорректный формат email';
+            errorDiv.style.display = 'block';
+            errorDiv.style.background = '#fff5f5';
+            errorDiv.style.color = '#c62828';
+            errorDiv.style.padding = '12px 16px';
+            errorDiv.style.borderRadius = '10px';
+            errorDiv.style.fontSize = '14px';
+            errorDiv.style.marginBottom = '16px';
+            errorDiv.style.borderLeft = '3px solid #e53935';
+          }
+          return;
+        }
+
+        if (isDev) {
+          console.log('Dev Mode: Login bypassed');
+          window.location.href = '/template.html';
+          return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Вход...';
+
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/premium/';
+
+        const emailField = document.createElement('input');
+        emailField.type = 'hidden';
+        emailField.name = 'email';
+        emailField.value = email;
+        form.appendChild(emailField);
+
+        const passwordField = document.createElement('input');
+        passwordField.type = 'hidden';
+        passwordField.name = 'password';
+        passwordField.value = password;
+        form.appendChild(passwordField);
+
+        document.body.appendChild(form);
+        form.submit();
+      });
+    }
+  });
+</script>

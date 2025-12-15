@@ -18,16 +18,51 @@ const path = require('path');
 const { execSync, spawn } = require('child_process');
 const { networkInterfaces } = require('os');
 const fsp = fs.promises;
-const { buildPaywallSegments, extractBlocks } = require('../scripts/lib/paywall');
+const { buildPaywallSegments, extractBlocks, extractBlocksWithMarkers } = require('../scripts/lib/paywall');
 
 const PORT = process.env.PORT || 3001;
 const CONFIG_PATH = path.join(__dirname, '..', 'config', 'site.json');
 const CONTENT_META_PATH = path.join(__dirname, '..', 'config', 'content-meta.json');
+const IMAGES_META_PATH = path.join(__dirname, '..', 'config', 'images-meta.json');
 const LEGAL_CONFIG_PATH = path.join(__dirname, '..', 'config', 'legal.json');
 const ADMIN_DIR = __dirname;
 const PROJECT_ROOT = path.join(__dirname, '..');
 const PREVIEW_DEFAULT_PORT = process.env.BUILD_PREVIEW_PORT || process.env.PREVIEW_PORT || 4040;
+
+function getLanIp() {
+  const nets = networkInterfaces();
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name] || []) {
+      if (net.family === 'IPv4' && !net.internal) {
+        return net.address;
+      }
+    }
+  }
+  return 'localhost';
+}
 let previewProcess = null;
+
+function readJsonSafe(filePath, fallback = {}) {
+  try {
+    if (!fs.existsSync(filePath)) return fallback;
+    const raw = fs.readFileSync(filePath, 'utf8');
+    return JSON.parse(raw);
+  } catch (error) {
+    console.warn(`⚠️  Ошибка чтения ${filePath}:`, error.message);
+    return fallback;
+  }
+}
+
+function writeJsonSafe(filePath, data) {
+  try {
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+    return true;
+  } catch (error) {
+    console.warn(`⚠️  Ошибка записи ${filePath}:`, error.message);
+    return false;
+  }
+}
 
 const DEFAULT_SITE_CONFIG = {
   domain: 'example.com',
@@ -40,7 +75,8 @@ const DEFAULT_SITE_CONFIG = {
     enterFull: 'Получить полный доступ',
     next: 'Следующий раздел',
     goToCourse: 'Вернуться к курсу',
-    openCourse: 'Начать курс'
+    openCourse: 'Начать курс',
+    indexToFirstCourse: 'Начать обучение'
   },
   footer: {
     companyName: 'ООО \"Название компании\"',
@@ -86,6 +122,7 @@ const DEFAULT_META = {
   meta_description: '',
   menu_label: '',
   menu_subtitle: '',
+  order: null,
   slug: '',
   paywall: {
     openBlocks: 3,
@@ -104,21 +141,41 @@ const HTML_BLOCKS = {
     label: 'Модальное окно оплаты',
     path: path.join(PROJECT_ROOT, 'src', 'partials', 'payment-modal.html')
   },
-  modals: {
-    label: 'Все модалки и cookie',
-    path: path.join(PROJECT_ROOT, 'src', 'partials', 'modals.html')
-  },
-  cookieBanner: {
-    label: 'Баннер cookies',
-    path: path.join(PROJECT_ROOT, 'src', 'partials', 'modals.html')
+  legalModals: {
+    label: 'Legal-модалки (terms/offer/privacy/contacts)',
+    path: path.join(PROJECT_ROOT, 'src', 'partials', 'legal-modals.html')
   },
   loginModal: {
     label: 'Модалка логина / личный кабинет',
-    path: path.join(PROJECT_ROOT, 'src', 'partials', 'modals.html')
+    path: path.join(PROJECT_ROOT, 'src', 'partials', 'login-modal.html')
+  },
+  cookieBanner: {
+    label: 'Баннер cookies',
+    path: path.join(PROJECT_ROOT, 'src', 'partials', 'cookie-banner.html')
+  },
+  modalFallbacks: {
+    label: 'Скрипты фолбэков модалок/cookie',
+    path: path.join(PROJECT_ROOT, 'src', 'partials', 'modal-fallbacks.html')
   },
   templateFull: {
     label: 'Базовый шаблон (free)',
     path: path.join(PROJECT_ROOT, 'src', 'template-full.html')
+  },
+  error404: {
+    label: 'Страница 404 (404.html)',
+    path: path.join(PROJECT_ROOT, 'public', '404.html')
+  },
+  error403: {
+    label: 'Страница 403 (403.html)',
+    path: path.join(PROJECT_ROOT, 'public', '403.html')
+  },
+  error500: {
+    label: 'Страница 500 (500.html)',
+    path: path.join(PROJECT_ROOT, 'public', '500.html')
+  },
+  error503: {
+    label: 'Страница 503 (503.html)',
+    path: path.join(PROJECT_ROOT, 'public', '503.html')
   }
 };
 
@@ -133,6 +190,120 @@ const MIME_TYPES = {
   '.svg': 'image/svg+xml'
 };
 
+const IMAGE_EXTS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg']);
+
+function walkFiles(dir, exts = null, acc = []) {
+  if (!fs.existsSync(dir)) return acc;
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      walkFiles(full, exts, acc);
+    } else if (!exts || exts.has(path.extname(entry.name).toLowerCase())) {
+      acc.push(full);
+    }
+  }
+  return acc;
+}
+
+function parseMarkdownImages(md) {
+  const results = [];
+  const imageMd = /!\[[^\]]*\]\(([^)]+)\)/g;
+  const imageHtml = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
+  let m;
+  while ((m = imageMd.exec(md)) !== null) {
+    results.push(m[1]);
+  }
+  while ((m = imageHtml.exec(md)) !== null) {
+    results.push(m[1]);
+  }
+  return results;
+}
+
+function normalizeWebPath(p) {
+  if (!p) return '';
+  return p.replace(/\\/g, '/');
+}
+
+function loadImagesMeta() {
+  return readJsonSafe(IMAGES_META_PATH, {});
+}
+
+function saveImagesMeta(meta) {
+  return writeJsonSafe(IMAGES_META_PATH, meta);
+}
+
+async function buildImagesIndex() {
+  const meta = loadImagesMeta();
+  const imagesMap = new Map();
+
+  const addImage = (filePath, source) => {
+    const rel = normalizeWebPath(path.relative(PROJECT_ROOT, filePath));
+    const webPath = '/' + rel.replace(/^\/+/, '');
+    const key = webPath;
+    const stat = fs.existsSync(filePath) ? fs.statSync(filePath) : null;
+    if (!stat) return;
+    const entry = imagesMap.get(key) || {
+      id: key,
+      path: key,
+      filename: path.basename(filePath),
+      size: stat.size,
+      sources: new Set(),
+      inUse: [],
+      alt: meta[key]?.alt || '',
+      description: meta[key]?.description || '',
+      caption: meta[key]?.caption || ''
+    };
+    entry.sources.add(source);
+    imagesMap.set(key, entry);
+  };
+
+  // Static dirs
+  const staticDirs = [
+    { dir: path.join(PROJECT_ROOT, 'content', 'images'), source: 'static' },
+    { dir: path.join(PROJECT_ROOT, 'content', 'uploads'), source: 'upload' },
+    { dir: path.join(PROJECT_ROOT, 'public', 'assets'), source: 'static' },
+    { dir: path.join(PROJECT_ROOT, 'src', 'assets'), source: 'static' }
+  ];
+  for (const { dir, source } of staticDirs) {
+    walkFiles(dir, IMAGE_EXTS).forEach(f => addImage(f, source));
+  }
+
+  // Markdown references
+  const mdFiles = walkFiles(path.join(PROJECT_ROOT, 'content'), null).filter(f => f.endsWith('.md'));
+  for (const mdPath of mdFiles) {
+    const raw = fs.readFileSync(mdPath, 'utf8');
+    const images = parseMarkdownImages(raw);
+    images.forEach(imgPath => {
+      const key = normalizeWebPath(imgPath.startsWith('/') ? imgPath : '/' + imgPath.replace(/^\.?\//, ''));
+      const entry = imagesMap.get(key) || {
+        id: key,
+        path: key,
+        filename: path.basename(key),
+        size: null,
+        sources: new Set(),
+        inUse: [],
+        alt: meta[key]?.alt || '',
+        description: meta[key]?.description || '',
+        caption: meta[key]?.caption || ''
+      };
+      entry.sources.add('markdown');
+      entry.inUse.push({ file: normalizeWebPath(path.relative(PROJECT_ROOT, mdPath)), type: 'markdown' });
+      imagesMap.set(key, entry);
+    });
+  }
+
+  const list = Array.from(imagesMap.values()).map(item => ({
+    ...item,
+    sources: Array.from(item.sources),
+    status: {
+      missingAlt: !item.alt
+    }
+  }));
+
+  return list.sort((a, b) => a.path.localeCompare(b.path));
+}
+
 // Создание HTTP сервера
 const server = http.createServer(async (req, res) => {
   // CORS заголовки - только для localhost
@@ -140,7 +311,7 @@ const server = http.createServer(async (req, res) => {
   if (origin) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   }
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
 
@@ -178,6 +349,21 @@ const server = http.createServer(async (req, res) => {
 
     if (pathname === '/api/files' && req.method === 'POST') {
       await handleFileUpload(req, res);
+      return;
+    }
+
+    if (pathname === '/api/images' && req.method === 'GET') {
+      await handleGetImages(req, res);
+      return;
+    }
+
+    if (pathname.startsWith('/api/images/') && req.method === 'PATCH') {
+      await handlePatchImage(req, res, pathname.replace('/api/images/', ''));
+      return;
+    }
+
+    if (pathname === '/api/upload-image' && req.method === 'POST') {
+      await handleUploadImage(req, res);
       return;
     }
 
@@ -223,11 +409,11 @@ const server = http.createServer(async (req, res) => {
     }
 
     // Favicon API endpoints
-  if (pathname === '/api/favicon') {
-    if (req.method === 'GET') {
-      await handleGetFavicon(req, res);
-    } else if (req.method === 'POST') {
-      await handleUploadFavicon(req, res);
+    if (pathname === '/api/favicon') {
+      if (req.method === 'GET') {
+        await handleGetFavicon(req, res);
+      } else if (req.method === 'POST') {
+        await handleUploadFavicon(req, res);
       }
       return;
     }
@@ -239,16 +425,26 @@ const server = http.createServer(async (req, res) => {
 
     if (pathname === '/api/favicon/reset' && req.method === 'POST') {
       await handleResetFavicon(req, res);
-    return;
-  }
+      return;
+    }
 
-  if (pathname === '/api/upload-asset' && req.method === 'POST') {
-    await handleUploadAsset(req, res);
-    return;
-  }
+    if (pathname === '/api/promo' && req.method === 'GET') {
+      await handleGetPromos(req, res);
+      return;
+    }
 
-  // Статические файлы
-  await serveStatic(req, res, pathname);
+    if (pathname === '/api/promo' && req.method === 'POST') {
+      await handleSavePromos(req, res);
+      return;
+    }
+
+    if (pathname === '/api/upload-asset' && req.method === 'POST') {
+      await handleUploadAsset(req, res);
+      return;
+    }
+
+    // Статические файлы
+    await serveStatic(req, res, pathname);
 
   } catch (error) {
     console.error('Server error:', error);
@@ -362,6 +558,7 @@ async function handleSaveContentMeta(req, res) {
         meta_description: data.meta_description ?? existing.meta_description ?? '',
         menu_label: data.menu_label ?? existing.menu_label ?? '',
         menu_subtitle: data.menu_subtitle ?? existing.menu_subtitle ?? '',
+        order: Number.isFinite(Number(data.order)) ? Number(data.order) : (Number.isFinite(existing.order) ? existing.order : null),
         paywall: {
           openBlocks: Number.isFinite(Number(paywall.openBlocks || data.openBlocks)) ? Number(paywall.openBlocks || data.openBlocks) : DEFAULT_META.paywall.openBlocks,
           teaserBlocks: Number.isFinite(Number(paywall.teaserBlocks || data.teaserBlocks)) ? Number(paywall.teaserBlocks || data.teaserBlocks) : DEFAULT_META.paywall.teaserBlocks
@@ -601,6 +798,101 @@ async function handleFileUpload(req, res) {
   });
 }
 
+async function handleGetImages(req, res) {
+  try {
+    const images = await buildImagesIndex();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(images));
+  } catch (error) {
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: error.message }));
+  }
+}
+
+async function handlePatchImage(req, res, id) {
+  try {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    await new Promise(resolve => req.on('end', resolve));
+    const data = JSON.parse(body || '{}');
+    const meta = loadImagesMeta();
+    const key = id.startsWith('/') ? id : `/${id}`;
+    meta[key] = {
+      alt: data.alt || '',
+      description: data.description || '',
+      caption: data.caption || ''
+    };
+    saveImagesMeta(meta);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true }));
+  } catch (error) {
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: error.message }));
+  }
+}
+
+async function handleUploadImage(req, res) {
+  // Обёртка над upload-asset: сохраняем в content/uploads и возвращаем путь, регистрируем в meta
+  if (req.method !== 'POST') {
+    res.writeHead(405);
+    res.end();
+    return;
+  }
+
+  const boundary = req.headers['content-type']?.split('boundary=')[1];
+  if (!boundary) {
+    res.writeHead(400, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'No boundary' }));
+    return;
+  }
+
+  // Простая разбивка multipart (для небольших файлов)
+  const chunks = [];
+  req.on('data', (c) => chunks.push(c));
+  req.on('end', async () => {
+    try {
+      const buffer = Buffer.concat(chunks);
+      const parts = buffer.toString('binary').split(`--${boundary}`);
+      let fileName = null;
+      let fileData = null;
+      for (const part of parts) {
+        if (part.includes('Content-Disposition') && part.includes('filename=')) {
+          const matchName = part.match(/filename="([^"]+)"/);
+          if (matchName) fileName = path.basename(matchName[1]);
+          const idx = part.indexOf('\r\n\r\n');
+          if (idx !== -1) {
+            const bin = part.substring(idx + 4, part.lastIndexOf('\r\n'));
+            fileData = Buffer.from(bin, 'binary');
+            break;
+          }
+        }
+      }
+      if (!fileName || !fileData) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'No file' }));
+        return;
+      }
+
+      const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const uploadDir = path.join(PROJECT_ROOT, 'content', 'uploads');
+      fs.mkdirSync(uploadDir, { recursive: true });
+      const filePath = path.join(uploadDir, safeName);
+      fs.writeFileSync(filePath, fileData);
+
+      const webPath = `/content/uploads/${safeName}`;
+      const meta = loadImagesMeta();
+      meta[webPath] = meta[webPath] || { alt: '', description: '', caption: '' };
+      saveImagesMeta(meta);
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ url: webPath }));
+    } catch (error) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: error.message }));
+    }
+  });
+}
+
 // Парсер multipart/form-data
 function parseMultipart(buffer, boundary) {
   const parts = [];
@@ -752,6 +1044,11 @@ function resolveTypeByBranch(branch) {
   }
 }
 
+function hasExplicitPaywall(meta = {}) {
+  const pw = meta.paywall || {};
+  return pw.openBlocks !== undefined || pw.teaserBlocks !== undefined;
+}
+
 function normalizeMeta(meta) {
   const merged = {
     ...DEFAULT_META,
@@ -854,15 +1151,18 @@ function collectContentItems() {
       const meta_description = metaEntry.meta_description || '';
       const menu_label = (type === 'article' || type === 'appendix') ? (metaEntry.menu_label || h1 || '') : '';
       const menu_subtitle = (type === 'article' || type === 'appendix') ? (metaEntry.menu_subtitle || '') : '';
-      const paywall = type === 'article' ? metaEntry.paywall : null;
+      const hasPaywallOverride = type === 'article' && hasExplicitPaywall(rawMetaEntry);
+      const paywallOverride = hasPaywallOverride ? metaEntry.paywall : null;
+      const paywallSegments = type === 'article' ? buildPaywallSegments(bodyWithoutH1, paywallOverride) : null;
+      let paywall = null;
       const carousel = type === 'recommendation'
         ? {
-            label: metaEntry.carousel_label || h1 || '',
-            subtitle: metaEntry.carousel_subtitle || '',
-            icon: metaEntry.carousel_icon || '',
-            order: metaEntry.carousel_order,
-            enabled: metaEntry.carousel_enabled !== false
-          }
+          label: metaEntry.carousel_label || h1 || '',
+          subtitle: metaEntry.carousel_subtitle || '',
+          icon: metaEntry.carousel_icon || '',
+          order: metaEntry.carousel_order,
+          enabled: metaEntry.carousel_enabled !== false
+        }
         : null;
 
       const filled = {
@@ -872,6 +1172,7 @@ function collectContentItems() {
         meta_description: !!rawMetaEntry.meta_description,
         menu_label: !!rawMetaEntry.menu_label,
         menu_subtitle: !!rawMetaEntry.menu_subtitle,
+        order: rawMetaEntry.order !== null && rawMetaEntry.order !== undefined,
         paywall_open: type === 'article' && rawMetaEntry.paywall && rawMetaEntry.paywall.openBlocks !== undefined,
         paywall_teaser: type === 'article' && rawMetaEntry.paywall && rawMetaEntry.paywall.teaserBlocks !== undefined,
         carousel_label: !!rawMetaEntry.carousel_label,
@@ -882,15 +1183,26 @@ function collectContentItems() {
 
       let paywallPreview = null;
       if (type === 'article') {
-        const segments = buildPaywallSegments(bodyWithoutH1, paywall);
-        const blocksInfo = extractBlocks(bodyWithoutH1);
-        const paragraphs = blocksInfo.blocks.filter(b => b.type === 'paragraph').map(b => b.html);
-        const useBlocks = paragraphs.length ? paragraphs : blocksInfo.blocks.map(b => b.html);
-        const totalCount = useBlocks.length;
-        const openCount = Math.min(segments.openBlocks || 0, totalCount);
-        const teaserCount = Math.min(segments.teaserBlocks || 0, Math.max(0, totalCount - openCount));
+        const previewBlocks = extractBlocksWithMarkers(bodyWithoutH1);
+        const countableBlocks = extractBlocks(bodyWithoutH1);
+        const useBlocks = previewBlocks.blocks.map(b => b.html);
+        const totalCount = countableBlocks.totalBlocks || useBlocks.length;
+        const dividerPos = Math.max(0, useBlocks.findIndex(html => html.includes('article-divider')) + 1);
+        const baseOpenFromSegments = Math.max(1, Math.min(paywallSegments?.openBlocks || 0, totalCount || 1));
+        // If divider exists, always split exactly at divider (divider included in free zone)
+        const defaultOpen = dividerPos ? dividerPos : baseOpenFromSegments;
+        const openCount = hasPaywallOverride
+          ? Math.max(1, Math.min(paywallOverride.openBlocks || 1, totalCount))
+          : defaultOpen;
+
+        const baseTeaserFromSegments = Math.max(0, paywallSegments?.teaserBlocks || 0);
+        const teaserCount = hasPaywallOverride && paywallOverride.teaserBlocks !== undefined
+          ? Math.max(0, Math.min(paywallOverride.teaserBlocks, Math.max(0, totalCount - openCount)))
+          : Math.min(baseTeaserFromSegments, Math.max(0, totalCount - openCount));
+
         const hiddenStart = openCount + teaserCount;
         paywallPreview = {
+          blocks: useBlocks,
           paragraphs: useBlocks,
           open: useBlocks.slice(0, openCount),
           teaser: useBlocks.slice(openCount, hiddenStart),
@@ -899,6 +1211,13 @@ function collectContentItems() {
           openBlocks: openCount,
           teaserBlocks: teaserCount
         };
+
+        paywall = {
+          openBlocks: paywallPreview.openBlocks || openCount,
+          teaserBlocks: paywallPreview.teaserBlocks || teaserCount
+        };
+      } else {
+        paywall = null;
       }
 
       items.push({
@@ -913,6 +1232,7 @@ function collectContentItems() {
         meta_description,
         menu_label,
         menu_subtitle,
+        order: metaEntry.order,
         paywall,
         carousel,
         readingTimeMinutes: estimateReadingTime(bodyWithoutH1, loadSiteConfig().build.wordsPerMinute),
@@ -1073,6 +1393,34 @@ async function handleListHtmlBlocks(req, res) {
   }
 }
 
+async function handleGetPromos(req, res) {
+  try {
+    const promos = loadPromoConfig();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(promos));
+  } catch (error) {
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Ошибка чтения промокодов: ' + error.message }));
+  }
+}
+
+async function handleSavePromos(req, res) {
+  let body = '';
+  req.on('data', chunk => body += chunk.toString());
+  req.on('end', () => {
+    try {
+      const parsed = JSON.parse(body || '[]');
+      if (!Array.isArray(parsed)) throw new Error('Неверный формат данных');
+      savePromoConfig(parsed);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true }));
+    } catch (error) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Ошибка сохранения промокодов: ' + error.message }));
+    }
+  });
+}
+
 // SEO данные - путь к файлу хранения
 const SEO_DATA_PATH = path.join(PROJECT_ROOT, 'config', 'seo-data.json');
 
@@ -1222,7 +1570,7 @@ function extractFrontmatter(content) {
       let value = line.slice(colonIdx + 1).trim();
       // Убираем кавычки
       if ((value.startsWith('"') && value.endsWith('"')) ||
-          (value.startsWith("'") && value.endsWith("'"))) {
+        (value.startsWith("'") && value.endsWith("'"))) {
         value = value.slice(1, -1);
       }
       frontmatter[key] = value;
@@ -1308,14 +1656,18 @@ const FAVICON_DIR = path.join(ADMIN_DIR, 'assets');
 const DEFAULT_FAVICON = 'favicon.svg';
 const REQUIRED_FAVICON_FILES = [
   'favicon.svg',
+  'favicon-dark.svg',
   'favicon.ico',
   'favicon-16x16.png',
   'favicon-32x32.png',
   'apple-touch-icon.png',
   'android-chrome-192x192.png',
-  'android-chrome-512x512.png'
+  'android-chrome-512x512.png',
+  'web-app-manifest-192x192.png',
+  'web-app-manifest-512x512.png'
 ];
 const ASSET_UPLOAD_DIR = path.join(PROJECT_ROOT, 'dist', 'assets', 'uploaded');
+const PROMO_CONFIG_PATH = path.join(PROJECT_ROOT, 'config', 'promo.json');
 async function ensureDir(dir) {
   await fsp.mkdir(dir, { recursive: true });
 }
@@ -1422,6 +1774,9 @@ function saveFaviconConfig(config) {
 
 function normalizeFaviconTarget(originalName) {
   const lower = (originalName || '').toLowerCase();
+  if (lower.includes('web-app-manifest-192')) return 'web-app-manifest-192x192.png';
+  if (lower.includes('web-app-manifest-512')) return 'web-app-manifest-512x512.png';
+  if (lower.includes('dark')) return 'favicon-dark.svg';
   if (lower.includes('apple-touch')) return 'apple-touch-icon.png';
   if (lower.includes('512')) return 'android-chrome-512x512.png';
   if (lower.includes('192')) return 'android-chrome-192x192.png';
@@ -1444,6 +1799,23 @@ function copyFaviconFile(targetName, buffer) {
   ensureDirSync(path.join(PROJECT_ROOT, 'src', 'assets'));
   fs.writeFileSync(path.join(FAVICON_DIR, targetName), buffer);
   fs.writeFileSync(path.join(PROJECT_ROOT, 'src', 'assets', targetName), buffer);
+}
+
+function loadPromoConfig() {
+  try {
+    if (fs.existsSync(PROMO_CONFIG_PATH)) {
+      const parsed = JSON.parse(fs.readFileSync(PROMO_CONFIG_PATH, 'utf8'));
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (error) {
+    console.warn('⚠️  Ошибка чтения promo.json:', error.message);
+  }
+  return [];
+}
+
+function savePromoConfig(promos) {
+  const safeArray = Array.isArray(promos) ? promos : [];
+  fs.writeFileSync(PROMO_CONFIG_PATH, JSON.stringify(safeArray, null, 2), 'utf8');
 }
 
 function collectFaviconStatus() {
@@ -1716,6 +2088,16 @@ async function serveStatic(req, res, pathname) {
     }
   }
 
+  // Отдаём ассеты из src/assets (favicon и прочее)
+  if (pathname.startsWith('/assets/')) {
+    const safePath = pathname.replace(/^\/+/, '');
+    const assetPath = path.join(PROJECT_ROOT, 'src', 'assets', safePath.replace(/^assets[\\/]/, ''));
+    const assetsRoot = path.join(PROJECT_ROOT, 'src', 'assets');
+    if (assetPath.startsWith(assetsRoot)) {
+      return streamStatic(assetPath, res);
+    }
+  }
+
   const filePath = path.join(ADMIN_DIR, pathname);
 
   // Проверка безопасности пути
@@ -1767,10 +2149,13 @@ function startServer(port, attempt = 0) {
   server.removeAllListeners('listening');
   server.once('error', onError);
   server.once('listening', () => {
+    const lan = getLanIp();
+    const portUsed = server.address().port;
     console.log('═'.repeat(50));
     console.log('  🚀 Админ-панель запущена');
     console.log('═'.repeat(50));
-    console.log(`  URL: http://localhost:${server.address().port}`);
+    console.log(`  Local:   http://localhost:${portUsed}`);
+    console.log(`  Network: http://${lan}:${portUsed}`);
     console.log(`  Конфиг: ${CONFIG_PATH}`);
     console.log('═'.repeat(50));
     console.log('  Для остановки нажмите Ctrl+C');

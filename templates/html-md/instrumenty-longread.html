@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Инструменты — физика и применение</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --page-bg: #f5f5f5;
+      --text-color: #202124;
+      --muted-color: #6b7280;
+      --accent-color: #111111;
+      --accent-soft: #ffffff;
+      --border-color: rgba(0, 0, 0, 0.08);
+      --marker-color: rgba(250, 148, 80, 0.4);
+
+      --radius-article: 32px;
+      --radius-card: 24px;
+      --radius-pill: 999px;
+      --shadow-soft: 0 20px 60px rgba(213, 216, 232, 1);
+
+      --article-max-width: 720px;
+      --article-padding-x-mobile: 20px;
+      --article-padding-x-desktop: 40px;
+      --article-padding-top-mobile: 32px;
+      --article-padding-bottom-mobile: 40px;
+      --article-padding-top-desktop: 40px;
+      --article-padding-bottom-desktop: 48px;
+
+      --font-size-base: 17px;
+      --line-height-base: 1.8;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      background-color: var(--page-bg);
+      color: var(--text-color);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
+        system-ui, -system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    .page {
+      padding: 64px 16px 80px;
+    }
+
+    @media (min-width: 768px) {
+      .page {
+        padding: 80px 24px 96px;
+      }
+    }
+
+    .article {
+      max-width: var(--article-max-width);
+      margin: 0 auto;
+      background-color: transparent;
+      border-radius: var(--radius-article);
+      padding: var(--article-padding-top-mobile) var(--article-padding-x-mobile) var(--article-padding-bottom-mobile);
+      position: relative;
+    }
+
+    @media (min-width: 900px) {
+      .article {
+        padding: var(--article-padding-top-desktop) var(--article-padding-x-desktop) var(--article-padding-bottom-desktop);
+      }
+    }
+
+    .article-meta {
+      font-size: 13px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted-color);
+      margin-bottom: 12px;
+    }
+
+    .article h1 {
+      font-size: clamp(30px, 4vw, 40px);
+      line-height: 1.12;
+      letter-spacing: -0.03em;
+      margin: 0 0 16px;
+    }
+
+    .article-subtitle {
+      font-size: 18px;
+      line-height: 1.6;
+      color: var(--muted-color);
+      margin-bottom: 28px;
+      max-width: 44rem;
+    }
+
+    .article-lead {
+      font-size: 18px;
+      line-height: 1.8;
+      margin-bottom: 28px;
+    }
+
+    .article-lead p {
+      margin: 0 0 14px;
+    }
+
+    .article-divider {
+      height: 1px;
+      width: 100%;
+      background: radial-gradient(circle at center, rgba(15, 23, 42, 0.25), rgba(15, 23, 42, 0.02));
+      margin: 24px 0 32px;
+      border-radius: 999px;
+    }
+
+    .article h2 {
+      font-size: clamp(22px, 2.4vw, 26px);
+      line-height: 1.3;
+      margin: 40px 0 16px;
+      letter-spacing: -0.02em;
+    }
+
+    .section-label {
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted-color);
+      margin-bottom: 8px;
+    }
+
+    .article h3 {
+      font-size: 19px;
+      line-height: 1.4;
+      margin: 28px 0 10px;
+      letter-spacing: -0.01em;
+    }
+
+    .article h4 {
+      font-size: 17px;
+      line-height: 1.4;
+      margin: 22px 0 8px;
+      font-weight: 600;
+    }
+
+    .article p {
+      margin: 0 0 14px;
+      font-size: var(--font-size-base);
+      line-height: var(--line-height-base);
+    }
+
+    .muted {
+      color: var(--muted-color);
+    }
+
+    .article strong {
+      font-weight: 600;
+    }
+
+    .article em {
+      font-style: italic;
+      color: var(--muted-color);
+    }
+
+    .marker-highlight {
+      position: relative;
+      display: inline-block;
+      padding: 0 0.12em;
+      border-radius: 0.6em;
+      background: transparent;
+    }
+
+    .marker-highlight::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      transform: scale(1.06, 1.25);
+      background-color: #D5D8E8;
+      filter: blur(6px);
+      z-index: -1;
+    }
+
+    .emphasized-word {
+      font-weight: 700;
+      text-decoration: underline;
+      text-decoration-color: #ffffff;
+      text-decoration-thickness: 6px;
+      text-underline-offset: 5px;
+      letter-spacing: 0.02em;
+    }
+
+    .article ul,
+    .article ol {
+      margin: 0 0 16px 1.4em;
+      padding: 0;
+      font-size: 17px;
+      line-height: 1.75;
+    }
+
+    .article li + li {
+      margin-top: 4px;
+    }
+
+    .article blockquote {
+      position: relative;
+      margin: 24px 0;
+      padding: 16px 20px;
+      text-align: center;
+      border: none;
+      background: transparent;
+      border-radius: var(--radius-pill);
+      font-size: 20px;
+      line-height: 1.6;
+      font-weight: 600;
+    }
+
+    .article blockquote p:last-child {
+      margin-bottom: 0;
+    }
+
+    .composition-highlight {
+      position: relative;
+      text-align: center;
+      border-left: none;
+      background: transparent;
+      padding: 16px 20px;
+    }
+
+    .composition-highlight p {
+      font-size: 20px;
+      font-weight: 600;
+      line-height: 1.6;
+    }
+
+    .article-card {
+      border-radius: var(--radius-card);
+      background: var(--accent-soft);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .pullquote {
+      margin: 28px 0;
+      padding: 18px 20px;
+      border-radius: 24px;
+      background: #ffffff;
+      color: #111111;
+      font-size: 18px;
+      line-height: 1.7;
+      font-weight: 500;
+      box-shadow: 0 20px 60px rgba(213, 216, 232, 1);
+    }
+
+    .pullquote small {
+      display: block;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      opacity: 0.5;
+      margin-bottom: 6px;
+    }
+
+    .number-callout {
+      margin: 28px 0 24px;
+      padding: 22px 20px 20px;
+      border-radius: 24px;
+      background: var(--accent-soft);
+      box-shadow: 0 20px 60px rgba(213, 216, 232, 1);
+    }
+
+    .number-callout-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--muted-color);
+      margin-bottom: 6px;
+    }
+
+    .number-callout-value {
+      font-size: 32px;
+      line-height: 1.1;
+      letter-spacing: -0.04em;
+      margin-bottom: 4px;
+    }
+
+    .number-callout-text {
+      font-size: 15px;
+      line-height: 1.7;
+      color: var(--muted-color);
+    }
+
+    .two-column-compare {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 12px;
+      margin: 16px 0 20px;
+    }
+
+    @media (min-width: 768px) {
+      .two-column-compare {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+    }
+
+    .compare-card {
+      border-radius: 24px;
+      padding: 14px 14px 14px;
+      background: var(--accent-soft);
+      box-shadow: 0 20px 60px rgba(213, 216, 232, 1);
+    }
+
+    .compare-card-title {
+      font-size: 13px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted-color);
+      margin-bottom: 6px;
+    }
+
+    .compare-card-heading {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .compare-card ul {
+      margin: 0 0 0 1.1em;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    .compare-card li + li {
+      margin-top: 2px;
+    }
+
+    .checklist {
+      margin: 14px 0 18px;
+      padding: 14px 16px 10px;
+      border-radius: 24px;
+      background: var(--accent-soft);
+      box-shadow: 0 20px 60px rgba(213, 216, 232, 1);
+    }
+
+    .checklist-title {
+      font-size: 13px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted-color);
+      margin-bottom: 6px;
+    }
+
+    .checklist ul {
+      margin: 0 0 0 1.1em;
+      font-size: 15px;
+      line-height: 1.7;
+    }
+
+    .checklist li + li {
+      margin-top: 2px;
+    }
+
+    .article-footer {
+      border-top: 1px solid var(--border-color);
+      margin-top: 28px;
+      padding-top: 18px;
+      font-size: 13px;
+      color: var(--muted-color);
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <article class="article">
+      <div class="article-meta">Клининг · Инструменты</div>
+      <h1>Инструменты — физика и применение</h1>
+      <p class="article-subtitle">
+        Правильный инструмент преобразует усилие в результат. Неподходящий — создает избыточную нагрузку и риск повреждений.
+      </p>
+
+      <div class="article-lead">
+        <p>
+          Ключ к эффективности — понимание преимуществ и недостатков, обусловленных физическими особенностями инструмента.
+        </p>
+        <p>
+          Здесь мы разберем не просто «чем вытирать», а принцип работы разных инструментов на уровне их структуры. Это знание позволит выбирать оптимальную технологию для каждой задачи, избегая типичных ошибок.
+        </p>
+      </div>
+
+      <div class="article-divider"></div>
+
+      <section>
+        <div class="section-label">Часть 1</div>
+        <h2>Тряпки и фибра: принципы впитывания и работы с поверхностью</h2>
+
+        <p>
+          Эффективность ткани определяется её физическими свойствами. Микрофибра работает не просто как «губка», а как система капилляров, использующих физические законы для удержания жидкости.
+        </p>
+
+        <h3>Принцип капиллярного впитывания</h3>
+
+        <blockquote class="composition-highlight">
+          <p>
+            <span class="marker-highlight">Сухая фибра</span> <span class="marker-highlight">впитывает лучше</span> <span class="marker-highlight">мокрой.</span>
+          </p>
+        </blockquote>
+
+        <p>
+          Между микроволокнами фибры существуют тысячи микроскопических пустот. Эти пустоты работают как система капилляров — узких трубочек, в которых жидкость поднимается вопреки гравитации.
+        </p>
+
+        <p>
+          Молекулы воды сильнее притягиваются к стенкам капилляра, чем друг к другу — чем тоньше капилляр, тем сильнее эффект. Когда фибра сухая, все микроканалы пусты и готовы активно втягивать жидкость. Капиллярные силы работают на полную мощность, буквально высасывая влагу с поверхности.
+        </p>
+
+        <p>
+          <strong>Но как только фибра насыщается водой, пустоты заполняются — впитывающая способность падает почти до нуля.</strong> Мокрая фибра перестаёт быть инструментом для удаления влаги и превращается в инструмент для её размазывания.
+        </p>
+
+        <div class="pullquote article-card">
+          <small>Правило</small>
+          <p>
+            Для эффективного удаления влаги и разводов всегда используйте сухую фибру. На финальном этапе уборки — идеально сухую, без единой капли воды в структуре.
+          </p>
+        </div>
+
+        <h3>Принцип электростатического притяжения</h3>
+
+        <p>
+          Синтетические волокна микрофибры при трении о поверхность создают электростатический заряд. Этот заряд действует на частицы пыли как магнит — они притягиваются и прочно удерживаются внутри ворса.
+        </p>
+
+        <blockquote class="composition-highlight">
+          <p>
+            <span class="marker-highlight">Сухая фибра</span> <span class="marker-highlight">собирает пыль лучше</span> <span class="marker-highlight">мокрой —</span> <span class="marker-highlight">за счёт статического</span> <span class="marker-highlight">электричества.</span>
+          </p>
+        </blockquote>
+
+        <p>
+          Важная деталь: частицы не разлетаются во время уборки, а «прилипают» к ткани. Это принципиально отличается от работы обычной хлопковой тряпкой, которая просто сдвигает пыль с места на место или поднимает её в воздух.
+        </p>
+
+        <h3>Классификация по типу поверхности и задачи</h3>
+
+        <p>
+          Разные задачи требуют разной структуры волокна. Это не маркетинг производителей — это физика.
+        </p>
+
+        <p>
+          <strong>Обычная микрофибра (с коротким ворсом)</strong> — базовый универсальный инструмент. Синтетическое полотно из полиэстера и полиамида с расщеплёнными волокнами. Подходит для большинства задач: сбор пыли с гладких поверхностей, впитывание жидкости и остатков средств, иногда может служить как ультраделикатный абразив. <span class="emphasized-word">Это универсальный и доступный инструмент, который всегда должен быть в вашем арсенале.</span>
+        </p>
+
+        <p>
+          <strong>Фибра с длинным ворсом</strong> («плюшевая») — длинные рассечённые волокна образуют объёмный «ковёр» с огромной площадью поверхности. Особенно хороша для двух задач: сбор пыли с кривых, текстурированных, рельефных поверхностей и идеальное впитывание воды там, где нужно не только сухо, но и быстро.
+        </p>
+
+        <p>
+          <strong>PVA-тряпка</strong> — микрофибровое полотно с пропиткой из поливинилового спирта. Лучший и универсальный вариант от разводов: идеально полирует и отлично впитывает.
+        </p>
+
+        <p>
+          <strong>Микрофибра для стёкол и глянца</strong> — плотное гладкое полотно с мелким рассечением волокон. Создана для бесполосного удаления разводов с глянцевых поверхностей. Чисто полировочный инструмент, PVA-тряпка предпочтительнее.
+        </p>
+
+        <p>
+          <strong>Микроспан</strong> («умная корейская салфетка») — нетканое полотно из ультратонких волокон. Еще один вариант для глянца. Работает только в смоченном состоянии. Качественно убирает, но быстро засоряется и при этом плохо поддается стирке — сразу теряет товарный вид.
+        </p>
+
+        <h3>Практические правила применения</h3>
+
+        <div class="checklist article-card">
+          <div class="checklist-title">Основные правила работы с микрофиброй</div>
+          <ul>
+            <li><strong>Чистота инструмента:</strong> грязная фибра не работает. Она не впитывает (капилляры забиты), переносит грязь между поверхностями, оставляет разводы от накопленных ПАВов. Используйте только чистые тряпки.</li>
+            <li><strong>Последовательность:</strong> сначала сухая фибра удаляет пыль (если она есть), затем влажный инструмент производит мытьё, наконец снова сухая делает финишную полировку.</li>
+            <li><strong>Складывание (W):</strong> сложите тряпку пополам, затем сделайте еще 3 изгиба поперек первого, так чтобы получился зигзаг в форме буквы W. Работайте одной стороной, а когда она загрязняется, просто отворачивайте угол.</li>
+            <li><strong>Зона ответственности:</strong> одна тряпка — один тип поверхности. Это предотвращение переноса загрязнений.</li>
+            <li><strong>Стирка:</strong> стирайте микрофибру регулярно при температуре 40-60°C без кондиционера. Кондиционер создаёт гидрофобную плёнку на волокнах, которая блокирует впитывание.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-label">Часть 2</div>
+        <h2>Скраберы, сетки и скребки: работа с твёрдыми загрязнениями</h2>
+
+        <h3>Нейлоновые сетки</h3>
+
+        <p>
+          Переплетение толстой гладкой нейлоновой нити в крупную сетку. Нить сама по себе гладкая, не шкурка, не содержит абразивных зёрен. Жёсткость даёт объём и форма ячеек, а не режущие края.
+        </p>
+
+        <p>
+          Когда вы ведёте сеткой по поверхности, загрязнение входит в ячейки, и края ячеек <strong>поддевают и подрывают</strong> налёт, не шлифуя материал снизу. За счёт этого сетка хорошо срывает плотные загрязнения, оставаясь относительно мягкой к основе.
+        </p>
+
+        <p>
+          Предназначены для твёрдых загрязнений, с которыми не справляются тряпки и мягкие скраберы: стойкие жировые загрязнения, водный камень и мыльно-известковые слои на устойчивых поверхностях, пригоревшие остатки на металле и керамике.
+        </p>
+
+        <div class="pullquote article-card">
+          <small>Критично</small>
+          <p>
+            На мягких лаках, пластике, soft-touch и полированном акриле сетка при сильном нажатии + твёрдых частицах грязи может оставить риски. Всегда сначала смывайте песок и твёрдые частицы, работайте средней плоскостью, а не углом.
+          </p>
+        </div>
+
+        <p>
+          <strong>Идеальное применение:</strong> нержавеющая сталь (кастрюли, решётки, мойки), керамическая плитка и устойчивые кухонные поверхности, духовки и противни, закалённое стекло (варочные панели — только по инструкции производителя и после теста на малозаметном участке).
+        </p>
+
+        <h3>Мягкие скраберы</h3>
+
+        <p>
+          Дают достаточное механическое воздействие <strong>без риска царапин</strong> на деликатных поверхностях при нормальном давлении.
+        </p>
+
+        <p>
+          <strong>Двусторонние салфетки из микроволокна</strong> — одна сторона гладкая для впитывания, другая с более жёстким, текстурным переплетением (укороченные петли, утолщённый ворс). Материал мягче сетки, но цепче обычной гладкой микрофибры: текстура даёт лёгкий зацеп за загрязнение, не превращаясь в абразив.
+        </p>
+
+        <p>
+          <strong>Сетчатые скраберы из нейлона/полиэстера</strong> — переплетение мягких синтетических нитей в рыхлую сетчатую мочалку без металла и абразивных зёрен. Создают объёмную, упругую, но мягкую к поверхности очищающую структуру: нити обтекают рельеф, поднимая грязь, а не стачивая материал.
+        </p>
+
+        <div class="pullquote article-card">
+          <small>Совет</small>
+          <p>
+            Если сомневаетесь в выборе инструмента — начните с мягкого скрабера. В большинстве случаев он даст достаточное воздействие и не повредит поверхность. Если не справился — уже есть смысл переходить к сетке или более жёстким инструментам.
+          </p>
+        </div>
+
+        <p>
+          <strong>Особенно эффективны на деликатных поверхностях:</strong> глянцевые кухонные фасады, акриловые ванны и поддоны, стекло и зеркала, хромированные смесители, пластиковые элементы. Везде, где сетка может быть избыточной, а обычная тряпка — слишком мягкой и неэффективной.
+        </p>
+
+        <h3>Стальные и пластиковые скребки</h3>
+
+        <p>
+          Стальной скребок — лезвие из нержавеющей с ручкой, иногда под углом. Пластиковые варианты — более деликатная альтернатива.
+        </p>
+
+        <blockquote class="composition-highlight">
+          <p>
+            <span class="marker-highlight">Лезвие скользит</span> <span class="marker-highlight">под углом 30-45°,</span> <span class="marker-highlight">срезая загрязнение</span> <span class="marker-highlight">тонким слоем.</span> <span class="marker-highlight">Работает угол</span> <span class="marker-highlight">и острота лезвия,</span> <span class="marker-highlight">а не сила давления.</span>
+          </p>
+        </blockquote>
+
+        <p>
+          Стальной скребок идеален для варочных панелей, керамической плитки, стекла. Пластиковый — для деликатных и окрашенных поверхностей, акриловых ванн, глянцевых фасадов. Оба работают только на гладких плоскостях — на рельефе бесполезны.
+        </p>
+      </section>
+
+      <section>
+        <div class="section-label">Часть 3</div>
+        <h2>Меламиновая губка: высокоэффективный микроабразив</h2>
+
+        <h3>Принцип работы</h3>
+
+        <p>
+          Меламиновая губка — это твёрдая пористая пена из меламиновой смолы. Внутри неё — система тонких, но жёстких пластинок и рёбер. На микроуровне эти рёбра работают как ультратонкая наждачная бумага, срезая загрязнение слой за слоем.
+        </p>
+
+        <blockquote class="composition-highlight">
+          <p>
+            <span class="marker-highlight">Губка счищает</span> <span class="marker-highlight">не только грязь,</span> <span class="marker-highlight">но и тончайший</span> <span class="marker-highlight">слой поверхности.</span>
+          </p>
+        </blockquote>
+
+        <p>
+          При правильном использовании (лёгкий нажим, смоченное состояние) этот слой настолько тонкий, что остаётся незаметным на матовых или устойчивых материалах. Но на глянце или мягких покрытиях эффект станет необратимым: матовые пятна, помутнение, изменение текстуры.
+        </p>
+
+        <h3>Область целевого применения</h3>
+
+        <p>
+          Меламин эффективен для тонкослойных загрязнений: налёта, жировых плёнок, поверхностных пигментов. Везде, где допустимо микроскопическое истирание.
+        </p>
+
+        <div class="checklist article-card">
+          <div class="checklist-title">Идеальные задачи для меламина</div>
+          <ul>
+            <li>Жировые следы на матовых и сатиновых поверхностях (единственный эффективный инструмент, но требует осторожности);</li>
+            <li>Обои и крашеные стены — отпечатки пальцев и пятна без повреждения покрытия;</li>
+            <li>Старые ванны с изношенным шершавым покрытием — меламин вычищает загрязнения из микрорельефа;</li>
+            <li>ПВХ-рамы и крашеные оконные рамы — желтизна и въевшаяся грязь удаляются за несколько движений;</li>
+            <li>Розетки и выключатели — въевшиеся следы за секунды;</li>
+            <li>Пластиковые подоконники, старые батареи;</li>
+            <li>Известковый и ржавый налёт на стекле и некоторых видах керамики, плитки.</li>
+          </ul>
+        </div>
+
+        <h3>Ограничения и риски</h3>
+
+        <div class="pullquote article-card">
+          <small>Критично</small>
+          <p>
+            При сильном нажиме или использовании сухой губки — необратимые повреждения: матирование глянца, мутные пятна на прозрачных материалах, микроцарапины.
+          </p>
+        </div>
+
+        <p>
+          <strong>Запрещённые поверхности:</strong> весь глянец (кроме стекла и керамики), глянцевые акриловые ванны и душевые поддоны, глянцевые эмалированные ванны, полированная нержавеющая сталь, лакированная деревянная мебель, мягкие металлы (алюминий, медь, латунь), антипригарные покрытия.
+        </p>
+
+        <h3>Правила безопасного использования</h3>
+
+        <div class="checklist article-card">
+          <div class="checklist-title">Основные правила работы с меламином</div>
+          <ul>
+            <li><strong>Смачивание:</strong> применение только во влажном состоянии (средство либо вода). Смачивание уменьшает трение, снижая абразивность и давая контроль над процессом.</li>
+            <li><strong>Предварительная проверка:</strong> обязательно тестируйте на незаметном участке. Попробуйте под раковиной, в углу, на обратной стороне.</li>
+            <li><strong>Минимальное усилие:</strong> начинайте без нажима, увеличивайте только при необходимости. Пусть губка работает за счёт своей структуры, а не вашей силы.</li>
+            <li><strong>Работа с химией:</strong> для сложных загрязнений меламин эффективен вместе со средством. Смочите губку в средстве — она станет переносчиком активных веществ.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-label">Часть 4</div>
+        <h2>Губка для посуды: ограниченная специализация</h2>
+
+        <p>
+          Губка для посуды — не враг, но у неё узкая специализация. Она действительно нужна только там, где необходимо вспенивание средства, а не для универсального клининга. <span class="emphasized-word">Использование её везде — системная ошибка.</span>
+        </p>
+
+        <h3>Фундаментальные недостатки</h3>
+
+        <p>
+          <strong>Проблема с абразивом:</strong> абразивная сторона создана для мытья тарелок, где загрязнения свежие и мягкие. На твёрдых загрязнениях (пригар, налёт, засохшие брызги) она работает слабо. Приходится давить сильнее — и в какой-то момент вы царапаете поверхность, а не грязь.
+        </p>
+
+        <p>
+          <strong>Проблема с впитыванием:</strong> пористая структура поролона работает как насос — она втягивает моющее средство внутрь себя. Концентрация активных веществ на поверхности падает, эффективность стремится к нулю. Вы наносите достаточно средства, но большая часть застревает в порах губки, не работая с загрязнением.
+        </p>
+
+        <p>
+          <strong>Хуже того:</strong> губка вбирает грязь в свою структуру. При следующем движении эта грязь частично выходит обратно, втираясь в поверхность. Происходит не очистка, а загрязнение на микроуровне.
+        </p>
+
+        <blockquote class="composition-highlight">
+          <p>
+            <span class="marker-highlight">Средство впитывается —</span> <span class="marker-highlight">эффективность падает.</span> <span class="marker-highlight">Грязь не смягчается —</span> <span class="marker-highlight">не отмывается.</span> <span class="marker-highlight">Вы давите сильнее —</span> <span class="marker-highlight">абразив царапает</span> <span class="marker-highlight">поверхность.</span>
+          </p>
+        </blockquote>
+
+        <h3>Чем заменить</h3>
+
+        <div class="two-column-compare">
+          <div class="compare-card article-card">
+            <div class="compare-card-title">Вместо поролона</div>
+            <div class="compare-card-heading">Для нанесения средства</div>
+            <ul>
+              <li>Пульверизатор (равномерное распределение);</li>
+              <li>Рука в перчатке (прямой контакт, средство не впитывается);</li>
+              <li>Мягкий скрабер (наносит и сразу обрабатывает).</li>
+            </ul>
+          </div>
+          <div class="compare-card article-card">
+            <div class="compare-card-title">Вместо абразива</div>
+            <div class="compare-card-heading">Для удаления загрязнений</div>
+            <ul>
+              <li>Мягкий скрабер (для деликатных поверхностей);</li>
+              <li>Металлическая сетка (для устойчивых поверхностей);</li>
+              <li>Меламиновая губка (на подходящих материалах).</li>
+            </ul>
+          </div>
+        </div>
+
+        <p>
+          Каждый из этих инструментов превосходит губку для посуды в своей области. Они специализированы — в этом их сила.
+        </p>
+
+        <h3>Где губка уместна</h3>
+
+        <p>
+          <strong>Вспенивание и распределение пены</strong> — прямое назначение. Наносите гелевое средство, губка вспенивает и распределяет пену по раковинам, ваннам, унитазам. Пена увеличивает время контакта средства с загрязнением.
+        </p>
+
+        <p>
+          <strong>Мытьё посуды</strong> — для этого губка и создавалась. На тарелках, чашках, кастрюлях она идеальна: вспенивает средство, мягко удаляет свежие пищевые загрязнения, не царапает керамику и стекло.
+        </p>
+
+        <p>
+          Вне этих двух областей губка уступает специализированным инструментам.
+        </p>
+      </section>
+
+      <section>
+        <div class="section-label">Часть 5</div>
+        <h2>Щётки для труднодоступных мест</h2>
+
+        <p>
+          Щётки — категория инструментов для мест, куда плоская тряпка или губка не доберутся физически. Углы, вентиляционные решётки, резьба на смесителях, швы между плиткой, пространство между секциями батарей.
+        </p>
+
+        <blockquote class="composition-highlight">
+          <p>
+            <span class="marker-highlight">Щетинки проникают</span> <span class="marker-highlight">в углубления и зазоры,</span> <span class="marker-highlight">достигая дна</span> <span class="marker-highlight">и механически</span> <span class="marker-highlight">выметая грязь.</span>
+          </p>
+        </blockquote>
+
+        <h3>Классификация по параметрам</h3>
+
+        <p>
+          <strong>По размеру:</strong> узкие (швы, зазоры, щели — концентрируют усилие) и широкие (большие площади — решётки вытяжки).
+        </p>
+
+        <p>
+          <strong>По жёсткости:</strong> жёсткие из нейлона или металла (стойкие поверхности, твёрдые загрязнения) и мягкие с натуральной щетиной (деликатные поверхности).
+        </p>
+
+        <p>
+          <strong>По форме:</strong> прямые (универсальные), угловые (углы в рамах окон, щели), специальные (для батарей, для вентиляционных решеток).
+        </p>
+
+        <div class="pullquote article-card">
+          <small>Совет</small>
+          <p>
+            Имейте набор из двух щёток — двустороннюю для вентиляционных решеток и широкую средней жёсткости. Они закроют вам 90% задач.
+          </p>
+        </div>
+
+        <p>
+          <strong>Правило работы:</strong> средство наносится на поверхность или на щётку, щетина втирает его в загрязнение, проникая в углубления. После химического воздействия та же щётка выметает размягчённую грязь. Для смыва — влажная тряпка или направленный поток воды.
+        </p>
+      </section>
+
+      <section>
+        <h2>Заключение</h2>
+
+        <p>
+          Каждый инструмент создан для определённых задач и работает по своим физическим принципам.
+        </p>
+
+        <blockquote class="composition-highlight">
+          <p>
+            <span class="marker-highlight">Понимание принципов</span> <span class="marker-highlight">работы каждого</span> <span class="marker-highlight">позволяет осознанно</span> <span class="marker-highlight">выбирать инструмент,</span> <span class="marker-highlight">избегать повреждений</span> <span class="marker-highlight">и достигать результата</span> <span class="marker-highlight">при минимальных усилиях.</span>
+          </p>
+        </blockquote>
+      </section>
+
+      <footer class="article-footer">
+        Лонгрид создан на основе образовательного контента о системном подходе к клинингу. Следующий раздел: Химия — средства и их целевое применение.
+      </footer>
+    </article>
+  </main>
+</body>
+</html>

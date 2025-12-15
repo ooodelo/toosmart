@@ -1,5 +1,7 @@
 const COOLDOWN_SECONDS = 15;
 const TIMER_SEGMENTS = 8;
+const MAX_FPS = 16;
+const FRAME_INTERVAL = 1000 / MAX_FPS;
 const DEV_SAMPLE_PARAGRAPH = `Представьте себе мир, где мысли текут как жидкость, заполняя любые формы, предложенные обстоятельствами. В отличие от кристаллизованного знания, которое остается твердым и неизменным, подвижный интеллект — это река, прокладывающая новые русла через породу неизвестного. Это способность видеть взаимосвязи независимо от предыдущего опыта или инструкций. Недавние исследования нейропластичности подсказывают, что это когнитивное состояние — не просто метафора, а физиологическая реальность. Синаптические пути в мозге, когда они заняты решением новых задач, демонстрируют поведение, удивительно похожее на турбулентные потоки в природе.`;
 
 const VERTEX_SHADER = `
@@ -49,7 +51,8 @@ const FRAGMENT_SHADER = `
 
   void main() {
       vec2 screenPos = vec2(gl_FragCoord.x, u_resolution.y - gl_FragCoord.y);
-      vec2 uv = screenPos / 360.0;
+      // Более частая сетка для плотного покрытия
+      vec2 uv = screenPos / 300.0;
       
       float t = u_time * 0.35;
       
@@ -79,27 +82,30 @@ const FRAGMENT_SHADER = `
               for(int i = 0; i < 4; i++) {
                   float fi = float(i);
                   
-                  float angle = t * (0.5 + r.x * 0.5) + fi * 2.5;
-                  float radius = 0.15 + 0.1 * sin(t + fi * 10.0 + r.y * 5.0);
+                  float angle = t * (0.55 + r.x * 0.45) + fi * 2.3;
+                  float radius = 0.18 + 0.1 * sin(t + fi * 7.0 + r.y * 5.0);
                   
                   vec2 blobOffset = vec2(cos(angle), sin(angle)) * radius;
                   
                   float d = length(gridUv - (center + blobOffset));
-                  float blobSize = 0.5 + 0.2 * sin(fi * 4.0 + t * 2.0 + r.x * 10.0);
+                  float blobSize = 0.55 + 0.25 * sin(fi * 4.0 + t * 2.0 + r.x * 10.0);
                   
-                  v += blobSize / (d * d * 16.0 + 0.5);
+                  v += blobSize / (d * d * 10.0 + 0.45);
               }
           }
       }
       
-      v *= 1.1;
+      // Базовая плотность, чтобы избежать провалов в полную прозрачность
+      v = max(v, 0.06);
+      v *= 1.0;
       
       float edgeNoise = snoise(uv * 3.0 - t * 1.0);
       
-      float alpha = smoothstep(0.8 + 0.1 * edgeNoise, 2.2, v);
-      float splash = smoothstep(0.2, 1.0, v) * 0.5;
+      // Порог под 30% видимой площади (≈70% скрыто)
+      float alpha = smoothstep(1.0 + 0.1 * edgeNoise, 2.6, v);
+      float splash = smoothstep(0.3, 1.2, v) * 0.45;
       float finalAlpha = alpha + splash * (1.0 - alpha);
-      float glow = smoothstep(0.05, 0.5, v) * 0.1;
+      float glow = smoothstep(0.06, 0.55, v) * 0.1;
       finalAlpha += glow * (1.0 - finalAlpha);
       finalAlpha = clamp(finalAlpha, 0.0, 1.0);
       
@@ -203,18 +209,26 @@ function initFluidOverlay(container) {
 
   let rafId = null;
   let start = performance.now();
+  let lastFrameTime = 0;
+  let pausedAt = null;
+  let playing = true;
 
+  let resizeRaf = null;
   const resize = () => {
-    const rect = container.getBoundingClientRect();
-    // OPTIMIZATION: Force dpr = 1 to reduce shader load on Retina screens
-    const dpr = 1;
-    const width = Math.max(1, Math.floor(rect.width * dpr));
-    const height = Math.max(1, Math.floor(rect.height * dpr));
-    canvas.width = width;
-    canvas.height = height;
-    canvas.style.width = `${rect.width}px`;
-    canvas.style.height = `${rect.height}px`;
-    gl.viewport(0, 0, width, height);
+    if (resizeRaf) return;
+    resizeRaf = requestAnimationFrame(() => {
+      resizeRaf = null;
+      const rect = container.getBoundingClientRect();
+      // OPTIMIZATION: Force dpr = 1 to reduce shader load on Retina screens
+      const dpr = 1;
+      const width = Math.max(1, Math.floor(rect.width * dpr));
+      const height = Math.max(1, Math.floor(rect.height * dpr));
+      canvas.width = width;
+      canvas.height = height;
+      canvas.style.width = `${rect.width}px`;
+      canvas.style.height = `${rect.height}px`;
+      gl.viewport(0, 0, width, height);
+    });
   };
 
   if (typeof ResizeObserver === 'undefined') {
@@ -228,7 +242,14 @@ function initFluidOverlay(container) {
   resize();
 
   const render = () => {
-    const currentTime = (performance.now() - start) / 1000;
+    if (!playing) return;
+    const now = performance.now();
+    if (now - lastFrameTime < FRAME_INTERVAL) {
+      rafId = requestAnimationFrame(render);
+      return;
+    }
+    lastFrameTime = now;
+    const currentTime = (now - start) / 1000;
     gl.useProgram(program);
     gl.uniform1f(uTime, currentTime);
     gl.uniform2f(uResolution, canvas.width, canvas.height);
@@ -238,10 +259,34 @@ function initFluidOverlay(container) {
     rafId = requestAnimationFrame(render);
   };
 
+  const handleVisibility = () => {
+    if (document.hidden) {
+      playing = false;
+      pausedAt = performance.now();
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = null;
+      return;
+    }
+    if (pausedAt) {
+      const pauseDelta = performance.now() - pausedAt;
+      start += pauseDelta;
+      pausedAt = null;
+    }
+    if (!playing) {
+      playing = true;
+    }
+    if (!rafId) {
+      rafId = requestAnimationFrame(render);
+    }
+  };
+
+  document.addEventListener('visibilitychange', handleVisibility);
+
   render();
 
   return () => {
     if (rafId) cancelAnimationFrame(rafId);
+    document.removeEventListener('visibilitychange', handleVisibility);
     resizeObserver.disconnect();
     gl.deleteBuffer(buffer);
     gl.deleteProgram(program);
@@ -323,9 +368,10 @@ function initSinglePaywall(root) {
 
   const appendBlock = (html) => {
     if (!body) return;
-    const block = document.createElement('p');
-    block.innerHTML = html;
-    body.appendChild(block);
+    // Используем template для корректной вставки блочных элементов (h2, div, blockquote и т.д.)
+    const temp = document.createElement('template');
+    temp.innerHTML = html;
+    body.appendChild(temp.content);
     if (hint) hint.remove();
   };
 
@@ -434,4 +480,84 @@ export function initDynamicPaywall() {
   const roots = document.querySelectorAll('[data-paywall-root]');
   if (!roots.length) return;
   initSinglePaywall(roots[0]);
+  initCtaIconAnimation();
+}
+
+/**
+ * CTA Icon Animation - cycles through cleaning tool images
+ */
+const CTA_ICONS = [
+  '/assets/cloth.png',
+  '/assets/glove.png',
+  '/assets/pump_bottle.png',
+  '/assets/rect_brush.png',
+  '/assets/round_brush.png',
+  '/assets/toilet_brush.png',
+  '/assets/trigger_spray.png'
+];
+
+function initCtaIconAnimation() {
+  const button = document.querySelector('.paywall-cta-button');
+  const existingIcon = button?.querySelector('.paywall-cta-button__icon');
+  if (!button || !existingIcon) return;
+
+  // Create slot machine container
+  const slotContainer = document.createElement('div');
+  slotContainer.className = 'paywall-cta-slot';
+
+  const slotTrack = document.createElement('div');
+  slotTrack.className = 'paywall-cta-slot__track';
+
+  // Create slot items - duplicate first item at end for seamless loop
+  const allIcons = [...CTA_ICONS, CTA_ICONS[0]];
+
+  allIcons.forEach((src) => {
+    const item = document.createElement('div');
+    item.className = 'paywall-cta-slot__item';
+    const img = document.createElement('img');
+    img.src = src;
+    img.alt = '';
+    img.setAttribute('aria-hidden', 'true');
+    item.appendChild(img);
+    slotTrack.appendChild(item);
+  });
+
+  slotContainer.appendChild(slotTrack);
+  existingIcon.replaceWith(slotContainer);
+
+  // Preload all images
+  CTA_ICONS.forEach(src => {
+    const img = new Image();
+    img.src = src;
+  });
+
+  let currentIndex = 0;
+
+  function getItemHeight() {
+    const firstItem = slotTrack.querySelector('.paywall-cta-slot__item');
+    return firstItem ? firstItem.offsetHeight : 150;
+  }
+
+  function animateToNext() {
+    currentIndex++;
+    const itemHeight = getItemHeight();
+
+    // Enable smooth transition
+    slotTrack.style.transition = 'transform 0.8s cubic-bezier(0.33, 1, 0.68, 1)';
+    slotTrack.style.transform = `translateY(-${currentIndex * itemHeight}px)`;
+
+    // If we reach the duplicate (last item), reset to beginning
+    if (currentIndex >= CTA_ICONS.length) {
+      setTimeout(() => {
+        // Disable transition for instant reset
+        slotTrack.style.transition = 'none';
+        slotTrack.style.transform = 'translateY(0)';
+        currentIndex = 0;
+        // Force reflow
+        void slotTrack.offsetHeight;
+      }, 850); // Slightly after animation completes
+    }
+  }
+
+  setInterval(animateToNext, 1800);
 }

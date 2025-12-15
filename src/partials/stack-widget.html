@@ -1,10 +1,4 @@
 <aside class="stack" aria-label="Рекомендации" data-lazy="stack-carousel">
-  <div class="stack__image-container" style="margin-bottom: 24px;">
-    <img src="./assets/GoldenRetriever.png" alt="Recommendation Art"
-      style="width: 100%; border-radius: 16px; display: block;">
-  </div>
-  <!-- Label removed as requested -->
-
   <div class="stack__widget" data-stack-widget>
     <div class="stack-deck" data-stack-deck>
       <a class="stack-card" data-stack-card data-slug="focus-on-breath"
@@ -16,6 +10,9 @@
           <h3 class="stack-card__title">Фокус на дыхании для спокойствия ума</h3>
           <p class="stack-card__description">Глубокий вдох и медленный выдох вернут ясность ума и спокойствие.</p>
         </div>
+        <svg class="stack-card__tail" viewBox="0 0 60 13" aria-hidden="true">
+          <path d="M0 0 C20 0 20 13 30 13 C40 13 40 0 60 0 Z" />
+        </svg>
       </a>
 
       <a class="stack-card" data-stack-card data-slug="create-without-boundaries"
@@ -28,6 +25,9 @@
           <p class="stack-card__description">Творчество требует смелости экспериментировать и находить новые пути
             самовыражения.</p>
         </div>
+        <svg class="stack-card__tail" viewBox="0 0 60 13" aria-hidden="true">
+          <path d="M0 0 C20 0 20 13 30 13 C40 13 40 0 60 0 Z" />
+        </svg>
       </a>
 
       <a class="stack-card" data-stack-card data-slug="silence-is-golden"
@@ -40,6 +40,9 @@
           <p class="stack-card__description">Остановитесь и послушайте тишину, чтобы найти покой и восстановить силы.
           </p>
         </div>
+        <svg class="stack-card__tail" viewBox="0 0 60 13" aria-hidden="true">
+          <path d="M0 0 C20 0 20 13 30 13 C40 13 40 0 60 0 Z" />
+        </svg>
       </a>
 
       <a class="stack-card" data-stack-card data-slug="move-with-purpose"
@@ -51,43 +54,15 @@
           <h3 class="stack-card__title">Действуй осознанно каждый шаг пути</h3>
           <p class="stack-card__description">Важно двигаться с намерением и понимать, куда именно вы идете.</p>
         </div>
+        <svg class="stack-card__tail" viewBox="0 0 60 13" aria-hidden="true">
+          <path d="M0 0 C20 0 20 13 30 13 C40 13 40 0 60 0 Z" />
+        </svg>
       </a>
     </div>
 
-    <div class="stack__controls stack__controls--floating" aria-hidden="true">
-      <button class="stack__control stack__control--prev" type="button" data-stack-prev
-        aria-label="Предыдущая рекомендация">
-        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
-          <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
-            stroke-linejoin="round" fill="none" />
-        </svg>
-      </button>
-      <button class="stack__control stack__control--next" type="button" data-stack-next
-        aria-label="Следующая рекомендация">
-        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
-          <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
-            fill="none" />
-        </svg>
-      </button>
+    <!-- Dot Navigation -->
+    <div class="stack__dots" data-stack-dots aria-label="Навигация по карточкам">
+      <!-- Dots generated dynamically by JS -->
     </div>
-
-    <div class="stack__hint" data-stack-mobile-hint>Свайпайте</div>
-  </div>
-
-  <div class="stack__controls stack__controls--mobile">
-    <button class="stack__control stack__control--prev" type="button" data-stack-prev
-      aria-label="Предыдущая рекомендация">
-      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
-        <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
-          stroke-linejoin="round" fill="none" />
-      </svg>
-    </button>
-    <button class="stack__control stack__control--next" type="button" data-stack-next
-      aria-label="Следующая рекомендация">
-      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
-        <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
-          fill="none" />
-      </svg>
-    </button>
   </div>
 </aside>

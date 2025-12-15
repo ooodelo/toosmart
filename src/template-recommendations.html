@@ -4,44 +4,22 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    {{> yandex-metrika }}
     <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';" />
-    <title>UI-каркас (Recommendations)</title>
+        content="default-src 'self'; script-src 'self' 'unsafe-inline' https://mc.yandex.ru; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https://mc.yandex.ru; connect-src 'self' https://mc.yandex.ru; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://auth.robokassa.ru;" />
+    <title>Губка для уборки • Рекомендации</title>
     {{> head-scripts }}
+    <link rel="stylesheet" href="./progress-widget.css">
     <link rel="stylesheet" href="./styles.css">
+    <link rel="stylesheet" href="./bubble-carousel.css">
 </head>
 
 <body>
+    {{> yandex-metrika-noscript }}
     {{> header }}
 
     {{> menu }}
-    <!-- Mock Menu Content for Dev -->
-    <script>
-        (function () {
-            function initMenu() {
-                const menuList = document.querySelector('[data-build-slot="menu"]');
-                if (menuList && menuList.children.length <= 1) { // Check if empty or just has "loading"
-                    menuList.innerHTML = `
-            <li><a href="./template-index.html">1. Intro (Index)</a></li>
-            <li><a href="./template-paywall.html">2. Free Article (Paywall)</a></li>
-            <li><a href="./template-paywall.html">3. Another Free Article</a></li>
-            <li><a href="./template.html">4. Premium Article (Full)</a></li>
-            <li><a href="./template.html">5. Deep Cleaning</a></li>
-            <li><a href="./template.html">6. Kitchen Chemistry</a></li>
-            <li><a href="./template.html">7. Bathroom Science</a></li>
-            <li><a href="./template.html">8. Floor Care</a></li>
-            <li><a href="./template-recommendations.html">9. Recommendation Example</a></li>
-            <li><a href="./template.html">10. Safe Storage</a></li>
-          `;
-                }
-            }
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', initMenu);
-            } else {
-                initMenu();
-            }
-        })();
-    </script>
+    <script type="module" src="./js/dev-menu.js"></script>
 
     <div class="backdrop" aria-hidden="true"></div>
 
@@ -49,43 +27,102 @@
         <section class="panel" data-lazy="dots-nav progress-widget">
             <article class="text-box" aria-label="Основной материал" data-build-slot="body"
                 data-page-type="recommendation">
-                <section class="text-section">
-                    <h1>Топ-5 средств для ванной комнаты</h1>
-                    <p class="meta">Подборка эксперта</p>
-                </section>
+                <section class="text-section content-shell">
+                    <div class="content-body">
+                        <nav class="article-breadcrumb"><a href="#">Рекомендации</a><span class="separator"> ·
+                            </span><span class="current">Губка для уборки</span><span class="separator"> · </span><span
+                                class="reading-time-inline">~4 мин</span></nav>
+                        <h1>Хотите избавиться от грязи в квартире? Начните с губки</h1>
+                        <p class="article-subtitle">Самое грязное место в вашей квартире — не унитаз и не мусорное
+                            ведро.
+                        </p>
 
-                <section class="text-section">
-                    <h2>Критерии выбора</h2>
-                    <p>Мы оценивали средства по трем параметрам: эффективность против кальциевых отложений (налет),
-                        безопасность для хромированных поверхностей и запах. Важно, чтобы кислота в составе была
-                        достаточно сильной для растворения камня, но не разъедала металл смесителей.</p>
-                    <p>Многие дешевые средства содержат соляную кислоту, которая мгновенно убивает хром. В нашем
-                        рейтинге
-                        — только продукты на основе сульфаминовой, лимонной или ортофосфорной кислот.</p>
-                </section>
+                        <div class="article-lead">
+                            <p>Если спросить любого владельца квартиры, какое место в его жилище самое грязное, ответы
+                                будут
+                                предсказуемыми. Унитаз? Логично. Мусорное ведро? Разумно. Может быть, пространство за
+                                диваном или под
+                                кроватью, где пыль скапливается месяцами?</p>
+                            <p>Но правильный ответ удивит даже самых щепетильных хозяек: <strong>самое грязное
+                                    место</strong> в квартире
+                                — это губка, которой моют посуду.</p>
+                        </div>
 
-                <section class="text-section">
-                    <h3>Наш выбор</h3>
-                    <ul>
-                        <li><strong>1. AcidGel Pro:</strong> Лучшее средство от застарелого камня. Гелевая формула
-                            позволяет средству держаться на вертикальных поверхностях.</li>
-                        <li><strong>2. EcoClean Bath:</strong> Идеально для ежедневной уборки. Биоразлагаемое, без
-                            резкого запаха, на основе лимонной кислоты.</li>
-                        <li><strong>3. MoldOff Spray:</strong> Специализированное средство против черной плесени в швах
-                            плитки. Содержит активный хлор (осторожно, запах!).</li>
-                        <li><strong>4. ShineMaster:</strong> Полироль для смесителей. Создает водоотталкивающую пленку,
-                            предотвращая появление новых пятен.</li>
-                    </ul>
-                    <p>Используйте эти средства регулярно, и ваша ванная всегда будет сиять, как в пятизвездочном
-                        отеле.</p>
+                        <div class="article-divider"></div>
+
+                        <div class="section-label">Проблема</div>
+
+                        <h2>Биологическое оружие на вашей кухне</h2>
+                        <p>Исследования показывают шокирующую статистику: уже через несколько дней использования, на
+                            обычной
+                            кухонной
+                            губке будет <span class="emphasized-word">гораздо больше бактерий</span>, чем на крышке
+                            унитаза.
+                        </p>
+
+                        <blockquote class="composition-highlight">
+                            <p><span class="marker-highlight">В 90% губок</span> <span class="marker-highlight">для
+                                    посуды</span> <span class="marker-highlight">обнаруживаются</span> <span
+                                    class="marker-highlight">кишечная палочка</span>
+                                <span class="marker-highlight">и стафилококк.</span>
+                            </p>
+                        </blockquote>
+
+                        <div class="number-callout article-card">
+                            <div class="number-callout-label">Реальный срок жизни губки</div>
+                            <div class="number-callout-value">1 неделя</div>
+                            <div class="number-callout-text">
+                                После этого она становится союзником микробов. Большинство использует одну губку до тех
+                                пор,
+                                пока она не развалится.
+                            </div>
+                        </div>
+
+                        <div class="article-divider"></div>
+
+                        <div class="section-label">Решение</div>
+
+                        <h2>Системный подход</h2>
+
+                        <p>Хорошая новость: существует гораздо более эффективный и безопасный инвентарь. Однако
+                            инвентарь —
+                            это только
+                            50% успеха. Вторая половина — правильный выбор средства.</p>
+
+                        <div class="checklist article-card">
+                            <div class="checklist-title">Настоящая чистота начинается с понимания</div>
+                            <ul>
+                                <li>структуры загрязнений;</li>
+                                <li>физики инвентаря;</li>
+                                <li>химии средств;</li>
+                                <li>логики построения эффективных алгоритмов.</li>
+                            </ul>
+                        </div>
+
+                        <blockquote class="composition-highlight">
+                            <p><span class="marker-highlight">Если говорить честно,</span> <span
+                                    class="marker-highlight">губка — это
+                                    идеальный инвентарь</span> <span class="marker-highlight">в трех случаях:</span>
+                                <span class="marker-highlight">убить время,</span> <span
+                                    class="marker-highlight">накачать
+                                    плечевые
+                                    мышцы</span> <span class="marker-highlight">и, как повод</span> <span
+                                    class="marker-highlight">для
+                                    внепланового ремонта кухни.</span>
+                            </p>
+                        </blockquote>
+
+                        <footer class="article-footer">Узнайте больше о профессиональных методах уборки в нашем курсе.
+                        </footer>
+                    </div>
                 </section>
             </article>
             <nav class="dots-rail" aria-label="Навигация по разделам" data-lazy="dots-nav"></nav>
             <div class="dot-flyout is-hidden" hidden role="navigation" aria-label="Оглавление разделов"></div>
         </section>
-
-        {{> stack-widget }}
     </main>
+
+    {{> bubble-carousel }}
 
     <div class="dock" role="presentation">
         <button class="dock-handle" type="button" aria-controls="site-menu" aria-expanded="false">
@@ -94,9 +131,15 @@
     </div>
 
     {{> footer }}
+    {{> legal-modals }}
+    {{> login-modal }}
+    {{> cookie-banner }}
+    {{> modal-payment-success }}
+    {{> modal-payment-fail }}
+    {{> modal-settings }}
+    {{> modal-fallbacks }}
 
-    {{> modals }}
-
+    <script type="module" src="./js/bubble-carousel.js"></script>
     <script type="module" src="./entries/free.js"></script>
 </body>
 

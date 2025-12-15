@@ -15,16 +15,63 @@ require_once __DIR__ . '/security.php';
 Config::load();
 Security::initSession();
 
+function resolvePremiumHome(): string
+{
+    // 1) Пытаемся взять из собранного списка курса
+    $menuPath = __DIR__ . '/../shared/menu.json';
+    if (file_exists($menuPath)) {
+        $json = @file_get_contents($menuPath);
+        if ($json) {
+            $data = json_decode($json, true);
+            if (is_array($data)) {
+                $courseItems = array_values(array_filter($data, function ($item) {
+                    return isset($item['type']) && $item['type'] === 'course' && !empty($item['url']);
+                }));
+                if (!empty($courseItems)) {
+                    // Сортировка по order, если задан
+                    usort($courseItems, function ($a, $b) {
+                        $oa = $a['order'] ?? 0;
+                        $ob = $b['order'] ?? 0;
+                        return $oa <=> $ob;
+                    });
+                    $first = $courseItems[0];
+                    if (!empty($first['url'])) {
+                        return $first['url'];
+                    }
+                }
+            }
+        }
+    }
+
+    // 2) Фолбэк на первую страницу курса по маске
+    $courseDir = __DIR__ . '/../premium/course';
+    if (is_dir($courseDir)) {
+        $files = array_values(array_filter(scandir($courseDir), function ($f) {
+            return preg_match('/^p-\\d+-.*\\.html$/', $f);
+        }));
+        sort($files, SORT_NATURAL);
+        if (!empty($files)) {
+            return '/premium/course/' . $files[0];
+        }
+    }
+
+    // 3) Самый последний фолбэк
+    return '/premium/course/p-1-osnova.html';
+}
+
 // Security Headers
 header('Content-Type: text/html; charset=UTF-8');
 header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: SAMEORIGIN');
 header('X-XSS-Protection: 1; mode=block');
-header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';");
+header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://mc.yandex.ru; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https://mc.yandex.ru; connect-src 'self' https://mc.yandex.ru; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://auth.robokassa.ru;");
 
-// Если уже авторизован → редирект на главную
+// Куда отправлять авторизованного пользователя
+$premiumHome = resolvePremiumHome();
+
+// Если уже авторизован → редирект на главную страницу курса
 if (isset($_SESSION['premium_user'])) {
-    header('Location: home.html');
+    header("Location: {$premiumHome}");
     exit;
 }
 
@@ -89,6 +136,21 @@ if ($success === 'password_reset') {
     <meta charset="UTF-8">
     <meta name="robots" content="noindex, nofollow">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- Yandex.Metrika counter -->
+    <script type="text/javascript">
+        (function (m, e, t, r, i, k, a) {
+            m[i] = m[i] || function () { (m[i].a = m[i].a || []).push(arguments) };
+            m[i].l = 1 * new Date();
+            for (var j = 0; j < document.scripts.length; j++) { if (document.scripts[j].src === r) { return; } }
+            k = e.createElement(t), a = e.getElementsByTagName(t)[0], k.async = 1, k.src = r, a.parentNode.insertBefore(k, a)
+        })(window, document, 'script', 'https://mc.yandex.ru/metrika/tag.js?id=105634847', 'ym');
+
+        ym(105634847, 'init', { ssr: true, webvisor: true, clickmap: true, ecommerce: "dataLayer", accurateTrackBounce: true, trackLinks: true });
+    </script>
+    <noscript>
+        <div><img src="https://mc.yandex.ru/watch/105634847" style="position:absolute; left:-9999px;" alt=""></div>
+    </noscript>
+    <!-- /Yandex.Metrika counter -->
     <title>Вход в закрытую версию курса</title>
     <link rel="stylesheet" href="/assets/styles.css">
     <link rel="stylesheet" href="/premium/assets/auth.css">
@@ -125,10 +187,10 @@ if ($success === 'password_reset') {
         </form>
 
         <div class="help-text">
-            Забыли пароль? <a href="forgot-password.html">Восстановить</a><br>
+            Забыли пароль? <a href="forgot-password-form.php">Восстановить</a><br>
             Еще нет доступа? <a href="/">Вернуться к бесплатной версии</a><br>
             Проблемы со входом? <a
-                href="mailto:<?= htmlspecialchars(Config::get('MAIL_REPLY_TO', 'support@toosmart.com'), ENT_QUOTES, 'UTF-8') ?>">Напишите
+                href="mailto:<?= htmlspecialchars(Config::get('MAIL_REPLY_TO', 'support@toosmart.ru'), ENT_QUOTES, 'UTF-8') ?>">Напишите
                 нам</a>
         </div>
     </div>

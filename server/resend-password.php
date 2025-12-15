@@ -13,13 +13,14 @@
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/security.php';
 require_once __DIR__ . '/Database.php';
+require_once __DIR__ . '/src/mailer.php';
 
 Config::load();
 Security::initSession();
 
 // Only allow POST requests
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    header('Location: resend-password.html?error=invalid_method');
+    header('Location: resend-password-form.php?error=invalid_method');
     exit;
 }
 
@@ -33,7 +34,7 @@ if (!Security::validateCSRFToken($csrf_token)) {
         'email' => $email,
         'ip' => Security::getClientIP()
     ]);
-    header('Location: resend-password.html?error=csrf');
+    header('Location: resend-password-form.php?error=csrf');
     exit;
 }
 
@@ -41,7 +42,7 @@ if (!Security::validateCSRFToken($csrf_token)) {
 $validated_email = Security::validateEmail($email);
 if (!$validated_email) {
     Security::secureLog('WARNING', 'Invalid email format in resend password', ['email' => $email]);
-    header('Location: resend-password.html?error=invalid_email');
+    header('Location: resend-password-form.php?error=invalid_email');
     exit;
 }
 
@@ -52,7 +53,7 @@ if (!Security::checkRateLimit('resend_password_' . $validated_email, 2, 3600)) {
         'email' => $validated_email,
         'time_remaining' => $timeRemaining
     ]);
-    header("Location: resend-password.html?error=rate_limit&time=$timeRemaining");
+    header("Location: resend-password-form.php?error=rate_limit&time=$timeRemaining");
     exit;
 }
 
@@ -70,7 +71,7 @@ try {
             'email_hash' => md5($validated_email)
         ]);
         // Still show success message to prevent email enumeration
-        header('Location: resend-password.html?success=1');
+        header('Location: resend-password-form.php?success=1');
         exit;
     }
 
@@ -96,10 +97,9 @@ try {
         'user_id' => $user_id
     ]);
 
-    // 7. SEND EMAIL WITH NEW PASSWORD
-    $site_url = Config::get('SITE_URL', 'https://toosmart.com');
-    $mail_from = Config::get('MAIL_FROM', 'noreply@toosmart.com');
-    $mail_reply_to = Config::get('MAIL_REPLY_TO', 'support@toosmart.com');
+    // 7. SEND EMAIL WITH NEW PASSWORD via SMTP
+    $cfg = require __DIR__ . '/src/config_loader.php';
+    $site_url = $cfg['site']['base_url'] ?? 'https://toosmart.ru';
 
     $subject = 'Ваш новый пароль - Clean';
     $message = "
@@ -113,7 +113,7 @@ Email: $validated_email
 Новый пароль: $new_password
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Ссылка для входа: $site_url/premium/
+Ссылка для входа: $site_url/server/
 
 ⚠️ ВАЖНО: Сохраните это письмо - пароль больше нигде не отображается.
 
@@ -123,14 +123,8 @@ Email: $validated_email
 Команда TooSmart
 ";
 
-    $headers = [];
-    $headers[] = "From: $mail_from";
-    $headers[] = "Reply-To: $mail_reply_to";
-    $headers[] = "Content-Type: text/plain; charset=UTF-8";
-    $headers[] = "X-Mailer: PHP/" . phpversion();
-
-    if (mail($validated_email, $subject, $message, implode("\r\n", $headers))) {
-        Security::secureLog('INFO', 'Resend password email sent', [
+    if (send_mail($validated_email, $subject, $message, null, 'password_changed', $user_id)) {
+        Security::secureLog('INFO', 'Resend password email sent via SMTP', [
             'email_hash' => md5($validated_email),
             'user_id' => $user_id
         ]);
@@ -142,7 +136,7 @@ Email: $validated_email
     }
 
     // Always show success to prevent email enumeration
-    header('Location: resend-password.html?success=1');
+    header('Location: resend-password-form.php?success=1');
     exit;
 
 } catch (Exception $e) {
@@ -150,7 +144,7 @@ Email: $validated_email
         $pdo->rollBack();
     }
     Security::secureLog('ERROR', 'Database error in resend password', ['error' => $e->getMessage()]);
-    header('Location: resend-password.html?error=system');
+    header('Location: resend-password-form.php?error=system');
     exit;
 }
 ?>

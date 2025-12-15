@@ -79,6 +79,7 @@ let previousFocus = null;
 let trapDisposer = null;
 let observer = null;
 let observerDisposer = () => { };
+let contentBoundaryObserver = null;
 let edgeGestureHandler = null;
 let flyoutHideTimeoutCancel = null;
 let flyoutListenersAttached = false;
@@ -120,6 +121,34 @@ function escapeHTML(str) {
   const div = document.createElement('div');
   div.textContent = str;
   return div.innerHTML;
+}
+
+function refreshSectionsFromLabels() {
+  const labels = Array.from(document.querySelectorAll('.section-label'));
+  sections.length = 0;
+
+  labels.forEach((label, index) => {
+    const title = label.textContent?.trim();
+    if (!title) return;
+
+    if (!label.id) {
+      label.id = `section-label-${index + 1}`;
+    }
+
+    if (!label.dataset.section) {
+      label.dataset.section = title;
+    }
+
+    sections.push(label);
+  });
+
+  if (sections.length === 0) {
+    activeSectionId = null;
+  } else if (!sections.some((section) => section.id === activeSectionId)) {
+    activeSectionId = sections[0].id;
+  }
+
+  return sections;
 }
 
 function isMenuAvailable() {
@@ -265,6 +294,7 @@ let lastExternalSetActiveSection = null;
 const setActiveSectionListeners = new Map();
 let setActiveSectionListenerSeq = 0;
 let scrollLockOffset = 0;
+let skipNextScrollForDocking = false; // Skip first scroll after menu unlock to prevent jump
 
 function logFlyout(...args) {
   if (!DEBUG_FLYOUT) return;
@@ -1457,22 +1487,52 @@ function updateProgressWidgetFloatingAnchors(pwRoot) {
     return;
   }
 
-  const viewportWidth = window.innerWidth || document.documentElement?.clientWidth || 0;
-  const viewportHeight = window.innerHeight || document.documentElement?.clientHeight || 0;
+  // Use visualViewport for stable positioning when mobile browser bars show/hide
+  const viewport = (() => {
+    const vv = window.visualViewport;
+    if (vv && Number.isFinite(vv.width) && Number.isFinite(vv.height)) {
+      const layoutHeight = window.innerHeight || document.documentElement?.clientHeight || vv.height;
+      const safeBottom = Math.max(0, layoutHeight - (vv.height + (vv.offsetTop || 0)));
+      return {
+        width: vv.width,
+        height: vv.height,
+        offsetLeft: vv.offsetLeft || 0,
+        offsetTop: vv.offsetTop || 0,
+        safeBottom,
+      };
+    }
+    return {
+      width: window.innerWidth || document.documentElement?.clientWidth || 0,
+      height: window.innerHeight || document.documentElement?.clientHeight || 0,
+      offsetLeft: 0,
+      offsetTop: 0,
+      safeBottom: 0,
+    };
+  })();
+
   const anchorRect = anchor.getBoundingClientRect();
   const styles = window.getComputedStyle(pwRoot);
+  const widgetHeight = pwRoot.offsetHeight || parseCssNumber(styles.height) || parseCssNumber(styles.getPropertyValue('--pw-pill-height')) || 0;
+  const widgetWidth = pwRoot.offsetWidth || parseCssNumber(styles.width) || parseCssNumber(styles.getPropertyValue('--pw-pill-width')) || 0;
 
-  if (viewportWidth > 0 && anchorRect.width > 0) {
-    const pwWidth = Math.max(pwRoot.offsetWidth || 0, parseCssNumber(styles.width));
-    const maxLeft = Math.max(0, Math.min(anchorRect.left, viewportWidth - pwWidth));
+  if (viewport.width > 0 && anchorRect.width > 0) {
+    const maxLeft = Math.max(
+      0,
+      Math.min(anchorRect.left + viewport.offsetLeft, viewport.width - widgetWidth)
+    );
     pwRoot.style.setProperty('--pw-float-left', `${Math.round(maxLeft)}px`);
   }
 
-  if (viewportHeight > 0) {
+  if (viewport.height > 0) {
     const gap = 10;
-    const bottom = anchorRect.top > 0
-      ? Math.max(gap, Math.round(viewportHeight - anchorRect.top + gap))
-      : Math.max(gap, Math.round(parseCssNumber(styles.bottom)) || gap);
+    const verticalOffset = 67; // Position widget 67px ABOVE the anchor button
+    const anchorBottom = anchorRect.bottom + viewport.offsetTop;
+    const anchorHeight = anchorRect.height || 0;
+    const baseBottom = Math.max(
+      gap,
+      Math.round(viewport.height - anchorBottom + ((anchorHeight - widgetHeight) / 2 || 0)) + verticalOffset
+    );
+    const bottom = Math.max(gap, baseBottom + viewport.safeBottom);
     pwRoot.style.setProperty('--pw-float-bottom', `${bottom}px`);
   }
 
@@ -1540,7 +1600,8 @@ function recordViewportGeometry(viewport) {
 
 function syncScrollHideMode() {
   if (typeof scrollHideControls.setMode === 'function') {
-    const shouldEnable = currentMode === 'mobile' || currentMode === 'tablet';
+    // Хедер скрываем только на мобильных
+    const shouldEnable = currentMode === 'mobile';
     scrollHideControls.setMode(shouldEnable);
   }
 }
@@ -1652,6 +1713,7 @@ function configureDots() {
     }
     return;
   }
+  refreshSectionsFromLabels();
   if (!dotsRail) return;
   clearElement(dotsRail);
   const shouldEnable = (currentMode === 'desktop' || currentMode === 'desktop-wide') && sections.length >= 1;
@@ -1664,7 +1726,10 @@ function configureDots() {
     const dot = document.createElement('button');
     dot.type = 'button';
     dot.className = 'dots-rail__dot';
-    dot.setAttribute('aria-label', section.dataset.section || section.id);
+    const label = section.dataset.section || section.textContent?.trim() || section.id;
+    if (label) {
+      dot.setAttribute('aria-label', label);
+    }
     dot.addEventListener('click', () => {
       section.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
@@ -1704,7 +1769,7 @@ function setupSectionObserver() {
   );
   observerDisposer = trackObserver(observer, {
     label: 'section-progress',
-    target: '.text-section',
+    target: '.section-label',
   });
   sections.forEach((section) => observer.observe(section));
 }
@@ -1881,23 +1946,15 @@ function lockScroll() {
   const isLocked = body.dataset.lock === 'scroll';
 
   if (shouldLock && !isLocked) {
-    scrollLockOffset = window.scrollY || root.scrollTop || 0;
+    // Lock: just set data attribute, CSS handles the rest
+    // No position:fixed = no visual jump
     body.dataset.lock = 'scroll';
     root.dataset.lock = 'scroll';
-    body.style.position = 'fixed';
-    body.style.inset = '0';
-    body.style.width = '100%';
-    body.style.top = `-${scrollLockOffset}px`;
   } else if (!shouldLock && isLocked) {
+    // Unlock: just remove data attribute
+    // No scrollTo needed = no visual jump
     delete body.dataset.lock;
     delete root.dataset.lock;
-    body.style.position = '';
-    body.style.inset = '';
-    body.style.width = '';
-    body.style.top = '';
-    if (typeof window.scrollTo === 'function') {
-      window.scrollTo(0, scrollLockOffset);
-    }
   }
 }
 
@@ -1906,7 +1963,83 @@ function initDots() {
     return;
   }
   configureDots();
-  // IntersectionObserver уже обрабатывает активную секцию, scroll handler не нужен
+  setupContentBoundaryObserver();
+}
+
+/**
+ * Установка observer для скрытия dots-rail когда контент уходит из viewport
+ */
+function setupContentBoundaryObserver() {
+  // Очистка предыдущего observer
+  if (contentBoundaryObserver) {
+    contentBoundaryObserver.disconnect();
+    contentBoundaryObserver = null;
+  }
+
+  if (!dotsRail) return;
+
+  // Пропускаем если не в desktop режиме
+  if (currentMode !== 'desktop' && currentMode !== 'desktop-wide') {
+    dotsRail.classList.remove('is-fading');
+    return;
+  }
+
+  // Проверка поддержки IntersectionObserver
+  if (!('IntersectionObserver' in window)) {
+    return;
+  }
+
+  // Ищем контейнер контента
+  // Берём тот .content-body, который реально содержит section-label (основной текст),
+  // иначе — последний .content-body на странице, иначе — .text-box.
+  const allBodies = Array.from(document.querySelectorAll('.content-body'));
+  const bodyWithSections = allBodies.find(body => body.querySelector('.section-label'));
+  const contentBody = bodyWithSections || allBodies[allBodies.length - 1] || document.querySelector('.text-box');
+  if (!contentBody) {
+    return;
+  }
+
+  const updateDotsFade = () => {
+    if (!contentBody || !dotsRail) return;
+    const viewportHeight = window.innerHeight || root.clientHeight || 0;
+    const rect = contentBody.getBoundingClientRect();
+    const hide = rect.bottom <= viewportHeight - 10; // низ контента выше на 10px от низа вьюпорта
+    dotsRail.classList.toggle('is-fading', hide);
+  };
+
+  // rAF-троттлинг для scroll/resize
+  let fadeScheduled = false;
+  const scheduleFadeUpdate = () => {
+    if (fadeScheduled) return;
+    fadeScheduled = true;
+    requestAnimationFrame(() => {
+      fadeScheduled = false;
+      updateDotsFade();
+    });
+  };
+
+  contentBoundaryObserver = new IntersectionObserver(
+    () => updateDotsFade(),
+    {
+      root: null,
+      rootMargin: '0px 0px -10px 0px', // линия сдвинута на 10px от низа
+      threshold: 0
+    }
+  );
+
+  contentBoundaryObserver.observe(contentBody);
+  updateDotsFade();
+
+  // Следим за скроллом/resize, чтобы состояние обновлялось постоянно
+  trackEvent(window, 'scroll', scheduleFadeUpdate, { passive: true }, { module: 'dotsRail', target: 'window' });
+  trackEvent(window, 'resize', scheduleFadeUpdate, { passive: true }, { module: 'dotsRail', target: 'window' });
+
+  registerLifecycleDisposer(() => {
+    if (contentBoundaryObserver) {
+      contentBoundaryObserver.disconnect();
+      contentBoundaryObserver = null;
+    }
+  }, { module: 'dotsRail', kind: 'observer', detail: 'content boundary' });
 }
 
 /**
@@ -2022,6 +2155,8 @@ function initDotsFlyout() {
     releaseSetActiveSectionBridge('dotsFlyout.lazy-inactive');
     return;
   }
+
+  refreshSectionsFromLabels();
   logFlyout('[FLYOUT] initDotsFlyout START', {
     dotsRail: !!dotsRail,
     dotFlyout: !!dotFlyout,
@@ -2033,10 +2168,6 @@ function initDotsFlyout() {
     mode: currentMode,
     sections: sections.length,
   });
-
-  // Обновляем секции каждый раз (DOM может меняться)
-  sections.length = 0;
-  sections.push(...Array.from(document.querySelectorAll('.text-section')));
 
   if (!dotsRail || !dotFlyout) {
     console.error('[FLYOUT] ERROR: dotsRail or dotFlyout not found!', {
@@ -2080,12 +2211,11 @@ function initDotsFlyout() {
     let rendered = 0;
 
     sections.forEach((section, index) => {
-      const heading = section.querySelector('h2');
-      const sectionTitle = heading ? heading.textContent?.trim() || '' : '';
+      const sectionTitle = section.dataset.section || section.textContent?.trim() || '';
       if (!sectionTitle) return;
 
       if (!section.id) {
-        section.id = `section-${index + 1}`;
+        section.id = `section-label-${index + 1}`;
       }
 
       const btn = document.createElement('button');
@@ -2286,6 +2416,59 @@ function detectBackdropFilter() {
 }
 
 /**
+ * Fallback для CSS :has() селектора (iOS 15, Safari <16)
+ * Добавляет класс .text-section--before-paywall к секциям перед paywall
+ */
+function applyHasSelectorFallback() {
+  // Проверяем поддержку :has() селектора
+  let hasSupported = false;
+  try {
+    hasSupported = CSS.supports('selector(:has(+ *))');
+  } catch (e) {
+    hasSupported = false;
+  }
+
+  if (hasSupported) {
+    if (DEBUG_MODE_DETECTION) {
+      console.log('[FEATURE] CSS :has() supported ✓');
+    }
+    return;
+  }
+
+  if (DEBUG_MODE_DETECTION) {
+    console.log('[FEATURE] CSS :has() not supported, applying JS fallback');
+  }
+
+  // Находим все .paywall-block элементы
+  const paywallBlocks = document.querySelectorAll('.paywall-block');
+
+  paywallBlocks.forEach((paywall) => {
+    // Ищем предыдущий sibling .text-section
+    let prev = paywall.previousElementSibling;
+    while (prev) {
+      if (prev.classList.contains('text-section')) {
+        prev.classList.add('text-section--before-paywall');
+        break;
+      }
+      prev = prev.previousElementSibling;
+    }
+
+    // Также проверяем случай когда paywall внутри #article-content
+    const articleContent = paywall.closest('#article-content');
+    if (articleContent) {
+      let prevSection = articleContent.previousElementSibling;
+      while (prevSection) {
+        if (prevSection.classList.contains('text-section')) {
+          prevSection.classList.add('text-section--before-paywall');
+          break;
+        }
+        prevSection = prevSection.previousElementSibling;
+      }
+    }
+  });
+}
+
+/**
  * Helper: обновляет режим и синхронизирует observer с layout
  */
 function runModeUpdateFrame() {
@@ -2336,17 +2519,23 @@ function initMenuInteractions() {
   if (menuRail) {
     const stopBodyScrollFromMenu = (event) => {
       if (!(event?.target instanceof HTMLElement)) return;
-      if (!menuRail.contains(event.target)) return;
+      if (!body.classList.contains('menu-open')) return;
+      if (!siteMenu || !siteMenu.contains(event.target)) return;
       // Перехватываем колесо/трекпад чтобы курсор над меню не скролил основной контент
       if (siteMenu && typeof event.deltaY === 'number') {
         const maxScroll = Math.max(0, siteMenu.scrollHeight - siteMenu.clientHeight);
         if (maxScroll > 0) {
-          const nextScroll = Math.min(maxScroll, Math.max(0, siteMenu.scrollTop + event.deltaY));
+          const before = siteMenu.scrollTop;
+          const nextScroll = Math.min(maxScroll, Math.max(0, before + event.deltaY));
           siteMenu.scrollTop = nextScroll;
+          // Блокируем только если реально скроллили меню, иначе позволяем прокручивать страницу
+          if (nextScroll !== before) {
+            event.preventDefault();
+            event.stopPropagation();
+          }
+          return;
         }
       }
-      event.preventDefault();
-      event.stopPropagation();
     };
 
     trackEvent(menuRail, 'wheel', stopBodyScrollFromMenu, { passive: false }, {
@@ -2402,8 +2591,9 @@ function initMenuInteractions() {
   if (backdrop) {
     trackEvent(backdrop, 'click', () => {
       if (!body.classList.contains('menu-open')) return;
-      const origin = currentMode === 'mobile' ? dockHandle : menuHandle;
-      closeMenu({ focusOrigin: origin });
+      if (currentMode === 'mobile') {
+        closeMenu({ focusOrigin: dockHandle || backdrop });
+      }
     }, undefined, { module: 'menu.interactions', target: describeTarget(backdrop) });
   }
 
@@ -2712,6 +2902,7 @@ function initStackCarousel() {
 
   const mobileHint = stack.querySelector('[data-stack-mobile-hint]');
   const navButtons = Array.from(stack.querySelectorAll('[data-stack-prev], [data-stack-next]'));
+  const dotsContainer = stack.querySelector('[data-stack-dots]');
 
   const RECOMMENDATIONS_URL = '/shared/recommendations.json';
   const AUTOPLAY_INTERVAL = 4000;
@@ -2770,7 +2961,7 @@ function initStackCarousel() {
       : slug
         ? `/recommendations/${slug}.html`
         : '';
-    const cover = normalizeCover(rec.cover || rec.image || '');
+    const cover = normalizeCover(rec.cover || rec.emoji || rec.icon || rec.image || '');
 
     const id = slug || rec.id || `card-${idx}`;
 
@@ -2822,6 +3013,7 @@ function initStackCarousel() {
       stack.classList.add('stack--empty');
       stack.style.display = 'none';
       stopAutoplay();
+      renderDots();
       return;
     }
 
@@ -2837,9 +3029,47 @@ function initStackCarousel() {
     activeIndex = 0;
     hoveredId = null;
     isHovered = false;
+    renderDots();
     applyLayout();
     restartAutoplay();
     requestLayoutMetricsUpdate({ elementChanged: true });
+  }
+
+  function renderDots() {
+    if (!dotsContainer) return;
+    clearElement(dotsContainer);
+
+    const total = cardsData.length;
+    if (total <= 1) return;
+
+    for (let i = 0; i < total; i++) {
+      const dot = document.createElement('button');
+      dot.className = 'stack__dot';
+      dot.type = 'button';
+      dot.setAttribute('aria-label', `Перейти к карточке ${i + 1}`);
+      if (i === activeIndex) {
+        dot.setAttribute('aria-current', 'true');
+      }
+
+      disposers.push(trackEvent(dot, 'click', (event) => {
+        event.preventDefault();
+        setActiveIndex(i);
+      }, undefined, { module: 'stackCarousel', target: `dot-${i}` }));
+
+      dotsContainer.appendChild(dot);
+    }
+  }
+
+  function updateDots() {
+    if (!dotsContainer) return;
+    const dots = dotsContainer.querySelectorAll('.stack__dot');
+    dots.forEach((dot, index) => {
+      if (index === activeIndex) {
+        dot.setAttribute('aria-current', 'true');
+      } else {
+        dot.removeAttribute('aria-current');
+      }
+    });
   }
 
   function buildCover(card) {
@@ -2904,6 +3134,16 @@ function initStackCarousel() {
 
     node.appendChild(inner);
 
+    // Bubble tail SVG
+    const tail = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    tail.setAttribute('class', 'stack-card__tail');
+    tail.setAttribute('viewBox', '0 0 60 13');
+    tail.setAttribute('aria-hidden', 'true');
+    const tailPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    tailPath.setAttribute('d', 'M0 0 C20 0 20 13 30 13 C40 13 40 0 60 0 Z');
+    tail.appendChild(tailPath);
+    node.appendChild(tail);
+
     bindCardInteractions(node, index);
 
     return node;
@@ -2951,6 +3191,7 @@ function initStackCarousel() {
     if (total <= 1) {
       activeIndex = 0;
       applyLayout();
+      updateDots();
       stopAutoplay();
       return;
     }
@@ -2961,11 +3202,13 @@ function initStackCarousel() {
       const forcedIndex = (safeIndex + 1) % total;
       activeIndex = forcedIndex;
       applyLayout();
+      updateDots();
       return;
     }
 
     activeIndex = safeIndex;
     applyLayout();
+    updateDots();
     if (!fromAutoplay) {
       restartAutoplay();
     }
@@ -3062,7 +3305,7 @@ function initStackCarousel() {
         style.zIndex = 60;
         style.animation = 'flyOutMobile 800ms cubic-bezier(0.32, 0.72, 0, 1) forwards';
       } else {
-        const animName = activeIndex % 2 === 0 ? 'stackApproachEven' : 'stackApproachOdd';
+        const animName = 'stackTransform';
         style.zIndex = 40 - offset;
         style.animation = `${animName} var(--stack-animation-duration) linear forwards`;
       }
@@ -3477,21 +3720,24 @@ function initProgressWidget() {
 
   progressWidgetRoot = root;
 
-  let slot = textContainer.querySelector('.pw-slot');
+  // Slot is now outside main - look in document first
+  let slot = document.querySelector('.pw-slot');
   let slotCreated = false;
   if (!slot) {
+    // Fallback: create slot inside textContainer for backwards compat
     slot = document.createElement('div');
     slot.className = 'pw-slot';
     textContainer.appendChild(slot);
     slotCreated = true;
   }
 
-  const targetParent = document.body.contains(slot) ? slot : (document.body.contains(textContainer) ? textContainer : document.body);
-  if (root.parentElement !== targetParent) {
-    targetParent.appendChild(root);
-  } else if (!targetParent.contains(root)) {
-    targetParent.appendChild(root);
+  // Widget always stays in body for stable animations
+  if (root.parentElement !== document.body) {
+    document.body.appendChild(root);
   }
+
+  // Docking state
+  let isSlotDocked = false;
 
   root.dataset.pwContainer = containerInfo.selector;
   root.dataset.pwScrollMode = scrollInfo.mode;
@@ -3563,7 +3809,16 @@ function initProgressWidget() {
   }
 
   // 4. Определение URL следующей страницы
+  // Для index-страницы: проверяем авторизацию и используем premium URL если залогинен
   function detectNextUrl() {
+    // ПРИОРИТЕТ 0: Проверка авторизации для index-страницы
+    // Если есть data-next-page-premium, сначала проверяем логин
+    const premiumUrl = document.body.dataset.nextPagePremium;
+    if (premiumUrl) {
+      // Асинхронная проверка делается через checkAuthAndRedirect
+      // Здесь возвращаем free URL, а реальный редирект идёт через checkAuthAndRedirect
+    }
+
     // ПРИОРИТЕТ 1: data-next-page из article
     const article = document.querySelector('.text-box');
     const explicit = article?.dataset.nextPage ||
@@ -3592,6 +3847,33 @@ function initProgressWidget() {
     return '#';
   }
 
+  // Асинхронная проверка авторизации для index-страницы
+  async function checkAuthAndGetNextUrl() {
+    const premiumUrl = document.body.dataset.nextPagePremium;
+    const freeUrl = document.body.dataset.nextPage;
+
+    if (!premiumUrl) {
+      return freeUrl || detectNextUrl();
+    }
+
+    try {
+      const response = await fetch('/server/api/user-info.php', {
+        method: 'GET',
+        credentials: 'include'
+      });
+      const data = await response.json();
+      if (data.status === 'success' && data.email) {
+        // Пользователь залогинен → premium URL
+        return premiumUrl;
+      }
+    } catch (e) {
+      console.warn('[ProgressWidget] Auth check failed, using free URL:', e);
+    }
+
+    // Не залогинен → free URL
+    return freeUrl || detectNextUrl();
+  }
+
   const NEXT_URL = detectNextUrl();
 
   // Задача 2: Определяем тип страницы из data-атрибута
@@ -3602,6 +3884,7 @@ function initProgressWidget() {
   const isFreeVersion = pageType === 'free' || pageType === 'intro-free';
   const isRecommendation = pageType === 'recommendation';
   const isPremium = pageType === 'premium' || pageType === 'intro-premium';
+  const isIntroPage = pageType === 'intro-free' || pageType === 'intro-premium'; // Для проверки авторизации на index
 
   if (isFreeVersion) {
     root.setAttribute('data-free-version', 'true');
@@ -3686,6 +3969,84 @@ function initProgressWidget() {
       root.classList.remove('is-floating');
     }
   }
+
+  // === INSTANT SNAP DOCKING FUNCTIONS ===
+  // Logic: Dock when slot's Y <= floating button's Y
+  //        Undock when slot's Y > floating button's Y
+
+  function getFloatingBottomOffset() {
+    // Desktop/Tablet: CSS задаёт bottom: 24px
+    // Mobile: используется --pw-float-bottom или fallback 45px
+    const mode = body.dataset.mode;
+    if (mode === 'mobile') {
+      const parsed = parseFloat(root.style.getPropertyValue('--pw-float-bottom')) || 0;
+      return parsed > 0 ? parsed : 45;
+    }
+    return 24; // Desktop/Tablet
+  }
+
+  function getFloatingY() {
+    // Y position of floating button (center)
+    const bottomOffset = getFloatingBottomOffset();
+    const widgetHeight = root.offsetHeight || 44;
+    return window.innerHeight - bottomOffset - widgetHeight / 2;
+  }
+
+  function getSlotCenterY() {
+    if (!slot) return Infinity;
+    const rect = slot.getBoundingClientRect();
+    return rect.top + rect.height / 2;
+  }
+
+  function syncToSlotPosition() {
+    if (!slot) return;
+    const rect = slot.getBoundingClientRect();
+    // Используем top слота, а не center — чтобы translateY(0) работал без конфликтов
+    root.style.setProperty('--pw-dock-top', `${Math.round(rect.top)}px`);
+  }
+
+  function updateDockingState() {
+    // Skip first scroll after menu unlock (prevents jump)
+    if (skipNextScrollForDocking) {
+      skipNextScrollForDocking = false;
+      return;
+    }
+
+    // Docking works on all modes now (pw-slot is display:flex everywhere)
+
+    // Only dock when button is in "done" state (100%)
+    if (!doneState) {
+      if (isSlotDocked) {
+        root.classList.remove('is-docked');
+        root.style.removeProperty('--pw-dock-top');
+        isSlotDocked = false;
+      }
+      return;
+    }
+
+    const slotY = getSlotCenterY();
+    const floatingY = getFloatingY();
+
+    // Dock: slot is AT or ABOVE floating position
+    if (slotY <= floatingY) {
+      syncToSlotPosition();
+      if (!isSlotDocked) {
+        root.classList.remove('is-floating'); // Убираем чтобы не конфликтовал с is-docked
+        root.classList.add('is-docked');
+        isSlotDocked = true;
+      }
+    } else {
+      // Undock: slot is BELOW floating position
+      if (isSlotDocked) {
+        root.classList.remove('is-docked');
+        root.classList.add('is-floating'); // Возвращаем для floating режима
+        root.style.removeProperty('--pw-dock-top');
+        isSlotDocked = false;
+      }
+    }
+  }
+
+  // === END DOCKING FUNCTIONS ===
 
   ensureMobilePositioning();
 
@@ -3945,6 +4306,7 @@ function initProgressWidget() {
 
   // 6. Обновление на скролл
   function onScroll() {
+    // На intro-странице НЕ пропускаем скролл — нужно обновлять docking
     if (ticking) return;
     ticking = true;
     requestAnimationFrame(update);
@@ -3954,6 +4316,20 @@ function initProgressWidget() {
     ticking = false;
     ensureMobilePositioning();
 
+    // На intro-странице виджет всегда в состоянии "кнопка"
+    if (isIntroPage) {
+      if (!doneState) {
+        doneState = true;
+        setVisualState(true);
+        root.classList.add('is-done');
+        root.setAttribute('aria-disabled', 'false');
+        root.setAttribute('aria-label', 'Кнопка: Далее');
+      }
+      // Intro-страницы тоже должны обновлять docking
+      updateDockingState();
+      return;
+    }
+
     const p = measureProgress();
     const perc = Math.round(p * 100);
     pctSpan.textContent = perc + '%';
@@ -3962,20 +4338,42 @@ function initProgressWidget() {
 
     if (shouldBeDone) {
       startDoneAnimation(perc);
+      // Check docking after animation starts
+      updateDockingState();
       return;
     }
 
     resetProgressState(perc);
+    // Ensure undocked when not done
+    updateDockingState();
   }
 
   // 7. Клик
-  trackEvent(root, 'click', (e) => {
+  trackEvent(root, 'click', async (e) => {
     if (doneState) {
       // При 100%: проверяем тип версии
-      if (isFreeVersion && typeof window.openPaymentModal === 'function') {
-        // FREE версия - открываем модальное окно покупки
+      if (isFreeVersion && typeof window.openPaymentModal === 'function' && !isIntroPage) {
+        // FREE версия (не intro) - открываем модальное окно покупки
         e.preventDefault();
         window.openPaymentModal();
+      } else if (isIntroPage) {
+        // INTRO-страница - проверяем авторизацию и перенаправляем на первую страницу курса
+        e.preventDefault();
+        try {
+          const targetUrl = await checkAuthAndGetNextUrl();
+          if (targetUrl && targetUrl !== '#') {
+            saveLastPosition();
+            window.location.href = targetUrl;
+          } else {
+            console.warn('Progress Widget: следующая страница не найдена');
+          }
+        } catch (err) {
+          console.warn('[ProgressWidget] Auth check error, using free URL:', err);
+          const fallbackUrl = document.body.dataset.nextPage || NEXT_URL;
+          if (fallbackUrl && fallbackUrl !== '#') {
+            window.location.href = fallbackUrl;
+          }
+        }
       } else {
         // PREMIUM или рекомендации - переход на следующую страницу
         const targetUrl = getSmartNextUrl();
@@ -4026,10 +4424,23 @@ function initProgressWidget() {
   }
 
   // 10. Инициализация
-  dot.style.opacity = '1';
-  pill.style.opacity = '0';
-  pill.style.transform = 'translate(-50%,-50%) scaleX(0.001)';
-  setVisualState(false);
+  if (isIntroPage) {
+    // На главной странице (intro) — сразу показываем кнопку без прогресса
+    dot.style.opacity = '0';
+    pill.style.opacity = '1';
+    pill.style.transform = 'translate(-50%,-50%) scaleX(1)';
+    doneState = true;
+    setVisualState(true);
+    root.classList.add('is-done');
+    root.setAttribute('aria-disabled', 'false');
+    root.setAttribute('aria-label', 'Кнопка: Далее');
+  } else {
+    // Обычные страницы — начинаем с прогресса
+    dot.style.opacity = '1';
+    pill.style.opacity = '0';
+    pill.style.transform = 'translate(-50%,-50%) scaleX(0.001)';
+    setVisualState(false);
+  }
   updateProgressWidgetFloatingAnchors(root);
   update();
 
@@ -4196,10 +4607,7 @@ lazyFeatures.register('dots-nav', {
   onEnter: () => activateDotsNavigationFeature(),
 });
 
-lazyFeatures.register('stack-carousel', {
-  sticky: true,
-  onEnter: () => activateStackCarouselFeature(),
-});
+// NOTE: stack-carousel removed - replaced by bubble-carousel.js
 
 lazyFeatures.register('progress-widget', {
   sticky: true,
@@ -4224,7 +4632,7 @@ function ensureElements() {
   if (!menuCap) menuCap = document.querySelector('.menu-rail__cap');
   if (!progressWidgetRoot) progressWidgetRoot = document.getElementById('pw-root');
   if (sections.length === 0) {
-    sections.push(...Array.from(document.querySelectorAll('.text-section')));
+    refreshSectionsFromLabels();
   }
 }
 
@@ -4234,6 +4642,7 @@ function init() {
 
   // Feature detection
   detectBackdropFilter();
+  applyHasSelectorFallback();
 
   const modeState = updateMode();
 

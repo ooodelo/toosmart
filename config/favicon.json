@@ -1,0 +1,62 @@
+{
+  "filename": "favicon.svg",
+  "files": {
+    "favicon.svg": "favicon.svg",
+    "favicon-dark.svg": "favicon-dark.svg",
+    "favicon.ico": "favicon.ico",
+    "favicon-16x16.png": "favicon-16x16.png",
+    "favicon-32x32.png": "favicon-32x32.png",
+    "apple-touch-icon.png": "apple-touch-icon.png",
+    "android-chrome-192x192.png": "android-chrome-192x192.png",
+    "android-chrome-512x512.png": "android-chrome-512x512.png",
+    "web-app-manifest-192x192.png": "web-app-manifest-192x192.png",
+    "web-app-manifest-512x512.png": "web-app-manifest-512x512.png"
+  },
+  "originalNames": {
+    "favicon.svg": "favicon-dark.svg",
+    "favicon.ico": "favicon.ico",
+    "favicon-dark.svg": "favicon.svg",
+    "favicon-16x16.png": "favicon-96x96.png",
+    "favicon-32x32.png": "favicon-96x96.png",
+    "apple-touch-icon.png": "apple-touch-icon.png",
+    "android-chrome-192x192.png": "web-app-manifest-192x192.png",
+    "android-chrome-512x512.png": "web-app-manifest-512x512.png",
+    "web-app-manifest-192x192.png": "web-app-manifest-192x192.png",
+    "web-app-manifest-512x512.png": "web-app-manifest-512x512.png"
+  },
+  "manifest": {
+    "name": "СлишкомУмнаяУборка",
+    "short_name": "TooSmart",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#e4e4e4",
+    "theme_color": "#232020",
+    "icons": [
+      {
+        "src": "/assets/web-app-manifest-192x192.png",
+        "sizes": "192x192",
+        "type": "image/png",
+        "purpose": "maskable"
+      },
+      {
+        "src": "/assets/web-app-manifest-512x512.png",
+        "sizes": "512x512",
+        "type": "image/png",
+        "purpose": "maskable"
+      },
+      {
+        "src": "/assets/android-chrome-192x192.png",
+        "sizes": "192x192",
+        "type": "image/png",
+        "purpose": "any"
+      },
+      {
+        "src": "/assets/android-chrome-512x512.png",
+        "sizes": "512x512",
+        "type": "image/png",
+        "purpose": "any"
+      }
+    ]
+  },
+  "updatedAt": "2025-12-14T19:37:01.853Z"
+}

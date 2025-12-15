@@ -100,7 +100,7 @@ if (!file_exists($file)) {
 <body>
     <h1>404</h1>
     <p>Страница не найдена</p>
-    <p><a href="home.html">Вернуться на главную</a></p>
+    <p><a href="/premium/course/p-1-osnova.html">Вернуться на главную</a></p>
 </body>
 </html>';
     exit;

@@ -1,0 +1,1031 @@
+<!DOCTYPE html><html lang="ru"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';">
+  <title>РАЗДЕЛ 10: СПЕЦИАЛЬНЫЕ ЗАДАЧИ — Слишком Умная Уборка</title>
+  <script>
+      /**
+       * ModeUtils - модуль для определения режима отображения
+       * Inlined for critical rendering path (FOUC prevention)
+       */
+      (function () {
+          const doc = typeof document !== 'undefined' ? document : null;
+          const docElement = doc ? doc.documentElement : null;
+  
+          // Breakpoints для адаптивности
+          const BREAKPOINTS = {
+              MOBILE_MAX: 767,
+              TABLET_MIN: 768,
+              TABLET_MAX: 899,
+              DESKTOP_MIN: 900,
+              DESKTOP_MAX: 1279,
+              DESKTOP_WIDE_MIN: 1280
+          };
+  
+          function isNumber(value) {
+              return typeof value === 'number' && isFinite(value);
+          }
+  
+          function getMatchMediaResult(win, query) {
+              if (!win || typeof win.matchMedia !== 'function') {
+                  return false;
+              }
+              try {
+                  return win.matchMedia(query).matches;
+              } catch (error) {
+                  return false;
+              }
+          }
+  
+          function detectInputType(win) {
+              const host = win || window;
+              const hasCoarsePointer = getMatchMediaResult(host, '(any-pointer: coarse)');
+              const navigatorObject = host && host.navigator ? host.navigator : null;
+              const maxTouchPoints = navigatorObject && typeof navigatorObject.maxTouchPoints === 'number'
+                  ? navigatorObject.maxTouchPoints
+                  : 0;
+              const hasTouchPoints = maxTouchPoints > 0;
+  
+              return hasCoarsePointer || hasTouchPoints ? 'touch' : 'pointer';
+          }
+  
+          function classifyMode(width, inputType) {
+              const isTouchDevice = inputType === 'touch';
+  
+              if (isTouchDevice) {
+                  if (width < BREAKPOINTS.TABLET_MIN) {
+                      return 'mobile';
+                  }
+                  if (width < BREAKPOINTS.DESKTOP_MIN) {
+                      return 'tablet';
+                  }
+                  return 'desktop';
+              }
+  
+              if (width < BREAKPOINTS.TABLET_MIN) {
+                  return 'mobile';
+              }
+              if (width < BREAKPOINTS.DESKTOP_MIN) {
+                  return 'tablet';
+              }
+              if (width < BREAKPOINTS.DESKTOP_WIDE_MIN) {
+                  return 'desktop';
+              }
+              return 'desktop-wide';
+          }
+  
+          function collectWidthSources(win, element) {
+              const host = win || window;
+              const el = element || docElement;
+  
+              return [
+                  {
+                      source: 'visualViewportWidth',
+                      value: host && host.visualViewport && isNumber(host.visualViewport.width) && host.visualViewport.width > 0
+                          ? host.visualViewport.width
+                          : null,
+                  },
+                  {
+                      source: 'rootClientWidth',
+                      value: el && isNumber(el.clientWidth) && el.clientWidth > 0 ? el.clientWidth : null,
+                  },
+                  {
+                      source: 'innerWidth',
+                      value: host && isNumber(host.innerWidth) && host.innerWidth > 0 ? host.innerWidth : null,
+                  },
+                  {
+                      source: 'outerWidth',
+                      value: host && isNumber(host.outerWidth) && host.outerWidth > 0 ? host.outerWidth : null,
+                  },
+                  {
+                      source: 'screenWidth',
+                      value: host && host.screen && isNumber(host.screen.width) && host.screen.width > 0 ? host.screen.width : null,
+                  },
+              ];
+          }
+  
+          function detectModeInternal(win, element, inputType) {
+              const host = win || window;
+              const el = element || docElement;
+              const sources = collectWidthSources(host, el);
+  
+              for (let i = 0; i < sources.length; i += 1) {
+                  const entry = sources[i];
+                  const value = entry ? entry.value : null;
+                  if (isNumber(value) && value > 0) {
+                      return classifyMode(value, inputType);
+                  }
+              }
+  
+              const fallbackQueries = [
+                  ['mobile', '(max-width: 767px)'],
+                  ['tablet', '(min-width: 768px) and (max-width: 899px)'],
+                  ['desktop', '(min-width: 900px) and (max-width: 1279px)'],
+                  ['desktop-wide', '(min-width: 1280px)'],
+              ];
+  
+              for (let j = 0; j < fallbackQueries.length; j += 1) {
+                  const pair = fallbackQueries[j];
+                  if (getMatchMediaResult(host, pair[1])) {
+                      return pair[0];
+                  }
+              }
+  
+              return 'desktop';
+          }
+  
+          function detectInitialState(win, docObject) {
+              const host = win || window;
+              const documentObject = docObject || doc;
+              const element = documentObject && documentObject.documentElement ? documentObject.documentElement : docElement;
+              let width = null;
+  
+              if (host && isNumber(host.innerWidth) && host.innerWidth > 0) {
+                  width = host.innerWidth;
+              } else if (element && isNumber(element.clientWidth) && element.clientWidth > 0) {
+                  width = element.clientWidth;
+              }
+  
+              const inputType = detectInputType(host);
+              let mode = 'desktop';
+  
+              if (isNumber(width) && width > 0) {
+                  mode = classifyMode(width, inputType);
+              } else {
+                  mode = detectModeInternal(host, element, inputType);
+              }
+  
+              return {
+                  mode: mode,
+                  input: inputType,
+              };
+          }
+  
+          function applyModeToBody(docObject, mode) {
+              const documentObject = docObject || doc;
+              if (!documentObject || !documentObject.body) {
+                  return false;
+              }
+              documentObject.body.dataset.mode = mode;
+              return true;
+          }
+  
+          function applyStateToBody(docObject, state) {
+              const documentObject = docObject || doc;
+              if (!documentObject || !documentObject.body || !state) {
+                  return false;
+              }
+  
+              const bodyElement = documentObject.body;
+  
+              if (state.mode) {
+                  bodyElement.dataset.mode = state.mode;
+              }
+  
+              if (state.input) {
+                  bodyElement.dataset.input = state.input;
+              }
+  
+              return true;
+          }
+  
+          const ModeUtils = {
+              BREAKPOINTS,
+              classifyMode: (width, inputType) => classifyMode(width, inputType),
+              detectInput: (win) => detectInputType(win || window),
+              detectMode: (win, element, inputType) => detectModeInternal(win || window, element || docElement, inputType),
+              getWidthSources: (win, element) => collectWidthSources(win || window, element || docElement),
+              detectInitialState: (win, docObject) => detectInitialState(win || window, docObject || doc),
+              applyModeToBody: (docObject, mode) => applyModeToBody(docObject || doc, mode),
+              applyStateToBody: (docObject, state) => applyStateToBody(docObject || doc, state),
+          };
+  
+          if (typeof window !== 'undefined') {
+              window.ModeUtils = ModeUtils;
+          }
+      })();
+  </script>
+  <script>
+      (function () {
+          var win = window;
+          var d = win.document;
+          var ModeUtils = win.ModeUtils;
+  
+          if (!ModeUtils) {
+              return;
+          }
+  
+          var initialState = ModeUtils.detectInitialState(win, d);
+          var mode = initialState.mode;
+          var input = initialState.input;
+  
+          win.__INITIAL_MODE__ = mode;
+          if (typeof input === 'string') {
+              win.__INITIAL_INPUT__ = input;
+          }
+  
+          function applyInitialState() {
+              if (!ModeUtils.applyStateToBody(d, initialState)) {
+                  return false;
+              }
+              return true;
+          }
+  
+          if (!applyInitialState()) {
+              d.addEventListener('readystatechange', function onReady() {
+                  if (d.readyState !== 'loading' && applyInitialState()) {
+                      d.removeEventListener('readystatechange', onReady);
+                  }
+              });
+          }
+      })();
+  </script>
+  <script type="module" crossorigin="" src="/assets/templatePaywall.VYxF4_Zl.js"></script>
+  <link rel="modulepreload" crossorigin="" href="/assets/modulepreload-polyfill.B5Qt9EMX.js">
+  <link rel="modulepreload" crossorigin="" href="/assets/legal-modals.B2Gw208J.js">
+  <link rel="modulepreload" crossorigin="" href="/assets/free.DGmPI2sJ.js">
+  <link rel="stylesheet" crossorigin="" href="/assets/styles.CSMbyjPN.css">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link rel="manifest" href="/assets/site.webmanifest">
+<meta name="theme-color" content="#ffffff">
+  <meta name="description" content="10.1.1. Природа проблемы Что такое плесень биологически:">
+  <meta name="robots" content="index,follow">
+  <link rel="canonical" href="https://toosmart.ru/course/razdel-10-special-nye-zadachi.html">
+  <meta property="og:title" content="РАЗДЕЛ 10: СПЕЦИАЛЬНЫЕ ЗАДАЧИ — Слишком Умная Уборка">
+  <meta property="og:description" content="10.1.1. Природа проблемы Что такое плесень биологически:">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="toosmart.ru">
+  <meta property="og:url" content="https://toosmart.ru/course/razdel-10-special-nye-zadachi.html">
+  <meta property="og:image" content="https://toosmart.ru/assets/og-default.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="РАЗДЕЛ 10: СПЕЦИАЛЬНЫЕ ЗАДАЧИ — Слишком Умная Уборка">
+  <meta name="twitter:description" content="10.1.1. Природа проблемы Что такое плесень биологически:">
+  <meta name="twitter:image" content="https://toosmart.ru/assets/og-default.jpg">
+    <script>window.LEGAL_SLUG_MAP = {"terms":"usloviya-ispol-zovaniya-sayta","privacy":"politika-konfidencial-nosti","offer":"publichnaya-oferta-na-okazanie-informacionnyh-uslug","contacts":"kontaktnaya-informaciya","refund":"refund-policy","requisites":"contacts","cookies":"privacy-policy","default":"usloviya-ispol-zovaniya-sayta"};</script>
+  </head>
+
+<body>
+  <a href="/" aria-label="На главную страницу">
+      <img src="/assets/PointingToClean.A6VXIAnv.png" alt="Логотип" class="header__logo">
+  </a>
+  <header class="header" role="banner">
+      <a href="/" aria-label="На главную страницу" class="header__link">
+          <img src="/assets/CleanLogo.DQPwIYyO.svg" alt="Clean - Теория правильной уборки. Практикум" class="header__svg">
+      </a>
+  </header>
+
+  <aside class="menu-rail" aria-label="Структура курса">
+      <button class="menu-rail__cap" type="button" aria-label="Закрыть меню">
+          <span aria-hidden="true"></span>
+      </button>
+      <button class="menu-handle" type="button" aria-controls="site-menu" aria-expanded="false">
+          <div class="menu-handle__content">
+              <span class="menu-handle__label">Структура курса</span>
+              <div class="menu-handle__dots" aria-hidden="true">
+                  <div class="menu-handle__dot"></div>
+                  <div class="menu-handle__dot"></div>
+                  <div class="menu-handle__dot"></div>
+                  <div class="menu-handle__dot"></div>
+                  <div class="menu-handle__dot"></div>
+                  <div class="menu-handle__dot"></div>
+              </div>
+          </div>
+          
+      </button>
+      <div class="site-menu" id="site-menu" tabindex="-1">
+          <div class="site-menu__actions" style="margin-bottom: 16px;">
+              <a href="#" onclick="handleCabinetClick(); return false;" class="login-btn login-btn--lk">Войти в ЛК</a>
+          </div>
+          <ul class="site-menu__list" data-build-slot="menu"><li>
+      <a href="/course/razdel-1-osnovy-osnov.html">
+        <div>РАЗДЕЛ 1: ОСНОВЫ ОСНОВ</div><small>база на 2 часа</small>
+      </a>
+    </li>
+<li>
+      <a href="/course/razdel-2-instrumenty-fizika-i-primenenie.html">
+        <div>РАЗДЕЛ 2: ИНСТРУМЕНТЫ — ФИЗИКА И ПРИМЕНЕНИЕ</div>
+      </a>
+    </li>
+<li>
+      <a href="/course/razdel-3-himiya-sredstva-i-ih-celevoe-primenenie.html">
+        <div>РАЗДЕЛ 3: ХИМИЯ — СРЕДСТВА И ИХ ЦЕЛЕВОЕ ПРИМЕНЕНИЕ</div>
+      </a>
+    </li>
+<li>
+      <a href="/course/razdel-4-prakticheskaya-logika-i-algoritmy.html">
+        <div>РАЗДЕЛ 4: ПРАКТИЧЕСКАЯ ЛОГИКА И АЛГОРИТМЫ</div>
+      </a>
+    </li>
+<li>
+      <a href="/course/razdel-5-bezopasnost-i-predotvraschenie-oshibok.html">
+        <div>РАЗДЕЛ 5: БЕЗОПАСНОСТЬ И ПРЕДОТВРАЩЕНИЕ ОШИБОК</div>
+      </a>
+    </li>
+<li>
+      <a href="/course/razdel-6-kuhnya.html">
+        <div>РАЗДЕЛ 6: КУХНЯ</div>
+      </a>
+    </li>
+<li>
+      <a href="/course/razdel-7-vannaya.html">
+        <div>РАЗДЕЛ 7: ВАННАЯ</div>
+      </a>
+    </li>
+<li>
+      <a href="/course/razdel-8-okna.html">
+        <div>РАЗДЕЛ 8: ОКНА</div>
+      </a>
+    </li>
+<li>
+      <a href="/course/razdel-9-zhilye-komnaty.html">
+        <div>РАЗДЕЛ 9: ЖИЛЫЕ КОМНАТЫ</div>
+      </a>
+    </li>
+<li>
+      <a href="/course/razdel-10-special-nye-zadachi.html">
+        <div>РАЗДЕЛ 10: СПЕЦИАЛЬНЫЕ ЗАДАЧИ</div>
+      </a>
+    </li></ul>
+      </div>
+  </aside>
+  <!-- Mock Menu Content for Dev -->
+  <script>
+    (function () {
+      function initMenu() {
+        const menuList = document.querySelector('[data-build-slot="menu"]');
+        if (menuList && menuList.children.length <= 1) { // Check if empty or just has "loading"
+          menuList.innerHTML = `
+            <li><a href="./template-index.html">1. Intro (Index)</a></li>
+            <li><a href="./template-paywall.html">2. Free Article (Paywall)</a></li>
+            <li><a href="./template-paywall.html">3. Another Free Article</a></li>
+            <li><a href="./template.html">4. Premium Article (Full)</a></li>
+            <li><a href="./template.html">5. Deep Cleaning</a></li>
+            <li><a href="./template.html">6. Kitchen Chemistry</a></li>
+            <li><a href="./template.html">7. Bathroom Science</a></li>
+            <li><a href="./template.html">8. Floor Care</a></li>
+            <li><a href="./template-recommendations.html">9. Recommendation Example</a></li>
+            <li><a href="./template.html">10. Safe Storage</a></li>
+          `;
+        }
+      }
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initMenu);
+      } else {
+        initMenu();
+      }
+    })();
+  </script>
+
+  <div class="backdrop" aria-hidden="true"></div>
+
+  <main class="main">
+    <section class="panel" data-lazy="progress-widget">
+      <article class="text-box" data-button-text="Войти в полную версию" aria-label="Основной материал" data-build-slot="body" data-page-type="free">
+        <div class="text-box__intro">
+          <header>
+            <h1>РАЗДЕЛ 10: СПЕЦИАЛЬНЫЕ ЗАДАЧИ</h1>
+            <p class="meta">~20 минут чтения</p>
+          </header>
+          <hr>
+<h2>10.1. ПЛЕСЕНЬ</h2>
+<p>Плесень — это не просто косметический дефект. Это живой организм, грибок, который проникает в структуру материала и выделяет споры. Удалить плесень сложнее, чем обычные загрязнения, потому что здесь нужно не просто очистить поверхность, а уничтожить живую колонию.</p>
+
+        </div>
+
+        <div id="article-content">
+          <div class="paywall-block" data-paywall-root data-locked-src="/assets/content/paywall-course-razdel-10-special-nye-zadachi.json">
+            <section class="text-section paywall-text" data-locked-body>
+              <p class="paywall-text__hint">Нажмите «Добавить абзац», чтобы подгрузить следующую часть статьи.</p>
+            </section>
+
+            <div class="paywall-overlay" aria-hidden="true">
+              <div class="paywall-overlay__fluid" data-fluid-overlay></div>
+              <div class="paywall-overlay__cta">
+                <div class="paywall-overlay__cta-inner">
+                  <button class="paywall-cta-button cta-button" data-analytics="cta-premium" data-paywall-cta type="button">
+                    <span class="paywall-cta-button__icon" aria-hidden="true">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M17 11V8a5 5 0 10-10 0v3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <rect x="5" y="11" width="14" height="10" rx="2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <circle cx="12" cy="16" r="1.5" fill="currentColor"/>
+                      </svg>
+                    </span>
+                    <span>Войти в полную версию</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="paywall-fab" data-paywall-fab>
+            <button class="paywall-fab__btn" data-paywall-add type="button">
+              <span class="paywall-fab__icon" aria-hidden="true">+</span>
+              <span data-paywall-add-label>Добавить абзац</span>
+            </button>
+            <div class="paywall-fab__timer" data-paywall-timer hidden></div>
+          </div>
+        </div>
+  </article>
+
+    </section>
+
+    <aside class="stack" aria-label="Рекомендации" data-lazy="stack-carousel">
+      <div class="stack__image-container" style="margin-bottom: 24px;">
+        <img src="/assets/GoldenRetriever.DoIMFCLT.png" alt="Recommendation Art" style="width: 100%; border-radius: 16px; display: block;">
+      </div>
+      <!-- Label removed as requested -->
+    
+      <div class="stack__widget" data-stack-widget="">
+        <div class="stack-deck" data-stack-deck="">
+          <a class="stack-card" data-stack-card="" data-slug="focus-on-breath" data-title="Фокус на дыхании для спокойствия ума" data-description="Глубоко вдохните и медленно выдохните, чтобы собрать мысли, успокоить нервную систему и вернуть ясность ума в любой ситуации." data-cover="🌬️" data-url="./template-recommendations.html" href="./template-recommendations.html">
+            <div class="stack-card__inner">
+              <span class="stack-card__emoji" aria-hidden="true">🌬️</span>
+              <h3 class="stack-card__title">Фокус на дыхании для спокойствия ума</h3>
+              <p class="stack-card__description">Глубокий вдох и медленный выдох вернут ясность ума и спокойствие.</p>
+            </div>
+          </a>
+    
+          <a class="stack-card" data-stack-card="" data-slug="create-without-boundaries" data-title="Создавай без ограничений и страха ошибок" data-description="Творчество требует смелости экспериментировать и находить новые пути самовыражения." data-cover="🎨" data-url="./template-recommendations.html" href="./template-recommendations.html">
+            <div class="stack-card__inner">
+              <span class="stack-card__emoji" aria-hidden="true">🎨</span>
+              <h3 class="stack-card__title">Создавай без ограничений и страха ошибок</h3>
+              <p class="stack-card__description">Творчество требует смелости экспериментировать и находить новые пути
+                самовыражения.</p>
+            </div>
+          </a>
+    
+          <a class="stack-card" data-stack-card="" data-slug="silence-is-golden" data-title="Тишина дороже золота в шумном мире" data-description="Остановитесь и послушайте тишину, чтобы найти покой и восстановить силы." data-cover="🤫" data-url="./template-recommendations.html" href="./template-recommendations.html">
+            <div class="stack-card__inner">
+              <span class="stack-card__emoji" aria-hidden="true">🤫</span>
+              <h3 class="stack-card__title">Тишина дороже золота в шумном мире</h3>
+              <p class="stack-card__description">Остановитесь и послушайте тишину, чтобы найти покой и восстановить силы.
+              </p>
+            </div>
+          </a>
+    
+          <a class="stack-card" data-stack-card="" data-slug="move-with-purpose" data-title="Действуй осознанно каждый шаг пути" data-description="Важно двигаться с намерением и понимать, куда именно вы идете." data-cover="🐆" data-url="./template-recommendations.html" href="./template-recommendations.html">
+            <div class="stack-card__inner">
+              <span class="stack-card__emoji" aria-hidden="true">🐆</span>
+              <h3 class="stack-card__title">Действуй осознанно каждый шаг пути</h3>
+              <p class="stack-card__description">Важно двигаться с намерением и понимать, куда именно вы идете.</p>
+            </div>
+          </a>
+        </div>
+    
+        <div class="stack__controls stack__controls--floating" aria-hidden="true">
+          <button class="stack__control stack__control--prev" type="button" data-stack-prev="" aria-label="Предыдущая рекомендация">
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+              <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"></path>
+            </svg>
+          </button>
+          <button class="stack__control stack__control--next" type="button" data-stack-next="" aria-label="Следующая рекомендация">
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+              <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"></path>
+            </svg>
+          </button>
+        </div>
+    
+        <div class="stack__hint" data-stack-mobile-hint="">Свайпайте</div>
+      </div>
+    
+      <div class="stack__controls stack__controls--mobile">
+        <button class="stack__control stack__control--prev" type="button" data-stack-prev="" aria-label="Предыдущая рекомендация">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+            <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"></path>
+          </svg>
+        </button>
+        <button class="stack__control stack__control--next" type="button" data-stack-next="" aria-label="Следующая рекомендация">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+            <path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"></path>
+          </svg>
+        </button>
+      </div>
+    </aside>  </main>
+
+  <div class="dock" role="presentation">
+    <button class="dock-handle" type="button" aria-controls="site-menu" aria-expanded="false">
+      Структура курса
+    </button>
+  </div>
+
+  <footer class="site-footer">
+      <div class="footer-content">
+          <nav class="footer-nav" aria-label="Юридическая информация">
+              <ul class="footer-links">
+                  <li><a href="#" onclick="openLegalModal('terms'); return false;">Условия использования</a></li>
+                  <li><a href="#" onclick="openLegalModal('offer'); return false;">Публичная оферта</a></li>
+                  <li><a href="#" onclick="openLegalModal('privacy'); return false;">Политика конфиденциальности и
+                          Cookies</a></li>
+                  <li><a href="#" onclick="openLegalModal('contacts'); return false;">Контакты и реквизиты</a></li>
+              </ul>
+          </nav>
+          <div class="footer-info">
+              © 2025 ИП Константинова Софья Сергеевна · ИНН 780503823473
+          </div>
+      </div>
+  </footer>
+  <!-- МОДАЛЬНОЕ ОКНО ОПЛАТЫ -->
+  <div class="modal" id="cta-payment-modal" role="dialog" aria-modal="true" aria-labelledby="payment-modal-title" hidden="">
+      <div class="modal-overlay" onclick="closeCTAModal()"></div>
+      <div class="modal-content">
+          <ul class="modal-benefits" style="margin-bottom: 32px;">
+              <li>✅ 10 полных разделов с подробными объяснениями</li>
+              <li>✅ Практические рецепты и таблицы</li>
+              <li>✅ Пожизненный доступ к материалам</li>
+              <li>✅ Бесплатные обновления курса</li>
+          </ul>
+  
+          <p class="modal-price" style="justify-content: center; margin-bottom: 32px;">
+              <span class="price-old" style="font-size: 28px;">10 000 ₽</span>
+              <span class="price-current" style="font-size: 28px;">3 400 ₽</span>
+          </p>
+  
+          <div id="payment-error" style="display: none;" role="alert"></div>
+  
+          <form id="payment-form">
+              <div class="form-group">
+                  <input type="email" name="email" class="modal-input" placeholder="Введите ваш email" required="" autocomplete="email" aria-label="Email для доступа к курсу">
+              </div>
+  
+              <label class="modal-checkbox">
+                  <input type="checkbox" name="accept_offer" required="">
+                  <span>
+                      Согласен с
+                      <a href="#" onclick="openLegalModal('offer'); return false;">публичной офертой</a> и
+                      <a href="#" onclick="openLegalModal('privacy'); return false;">политикой конфиденциальности</a>
+                  </span>
+              </label>
+  
+              <button type="submit" class="modal-submit">
+                  Продолжить
+              </button>
+          </form>
+  
+          <p class="modal-security">
+              <span>🔒</span> Безопасная оплата через Robokassa
+          </p>
+      </div>
+      <button class="modal-close" type="button" onclick="closeCTAModal()" aria-label="Закрыть">×</button>
+  </div>
+  <!-- МОДАЛЬНЫЕ ОКНА ДЛЯ LEGAL РАЗДЕЛОВ -->
+  <div class="modal legal-modal" id="legal-terms-modal" hidden="">
+      <div class="modal-overlay" onclick="closeLegalModal('terms')"></div>
+      <div class="modal-content legal-modal-content">
+          <h2 class="modal-title">Условия использования</h2>
+          <div class="legal-text">
+              <p>Здесь будут размещены условия использования...</p>
+          </div>
+      </div>
+      <button class="modal-close" type="button" onclick="closeLegalModal('terms')" aria-label="Закрыть">×</button>
+  </div>
+  
+  <div class="modal legal-modal" id="legal-offer-modal" hidden="">
+      <div class="modal-overlay" onclick="closeLegalModal('offer')"></div>
+      <div class="modal-content legal-modal-content">
+          <h2 class="modal-title">Публичная оферта</h2>
+          <div class="legal-text">
+              <p>Здесь будет размещен текст публичной оферты...</p>
+          </div>
+      </div>
+      <button class="modal-close" type="button" onclick="closeLegalModal('offer')" aria-label="Закрыть">×</button>
+  </div>
+  
+  <div class="modal legal-modal" id="legal-privacy-modal" hidden="">
+      <div class="modal-overlay" onclick="closeLegalModal('privacy')"></div>
+      <div class="modal-content legal-modal-content">
+          <h2 class="modal-title">Политика конфиденциальности</h2>
+          <div class="legal-text">
+              <p>Здесь будет размещена политика конфиденциальности...</p>
+          </div>
+      </div>
+      <button class="modal-close" type="button" onclick="closeLegalModal('privacy')" aria-label="Закрыть">×</button>
+  </div>
+  
+  <div class="modal legal-modal" id="legal-refund-modal" hidden="">
+      <div class="modal-overlay" onclick="closeLegalModal('refund')"></div>
+      <div class="modal-content legal-modal-content">
+          <h2 class="modal-title">Порядок возврата</h2>
+          <div class="legal-text">
+              <p>Здесь будет размещен порядок возврата...</p>
+          </div>
+      </div>
+      <button class="modal-close" type="button" onclick="closeLegalModal('refund')" aria-label="Закрыть">×</button>
+  </div>
+  
+  <div class="modal legal-modal" id="legal-contacts-modal" hidden="">
+      <div class="modal-overlay" onclick="closeLegalModal('contacts')"></div>
+      <div class="modal-content legal-modal-content">
+          <h2 class="modal-title">Контакты и реквизиты</h2>
+          <div class="legal-text">
+              <p>Здесь будет размещена контактная информация...</p>
+          </div>
+      </div>
+      <button class="modal-close" type="button" onclick="closeLegalModal('contacts')" aria-label="Закрыть">×</button>
+  </div>
+  
+  <!-- МОДАЛЬНОЕ ОКНО ВХОДА В ЛК -->
+  <div class="modal" id="login-modal" role="dialog" aria-modal="true" aria-labelledby="login-modal-title" hidden="">
+      <div class="modal-overlay" onclick="closeLoginModal()"></div>
+      <div class="modal-content">
+          <h2 id="login-modal-title" class="modal-title">Войти в личный кабинет</h2>
+  
+          <p style="text-align: center; color: #666; margin-bottom: 32px; font-size: 15px; line-height: 1.5;">
+              Введите email, который использовали при покупке
+          </p>
+  
+          <div id="login-error" style="display: none;" role="alert"></div>
+  
+          <form id="login-form">
+              <div class="form-group">
+                  <input type="email" name="email" class="modal-input" placeholder="Введите ваш email" required="" autocomplete="email" aria-label="Email для входа">
+              </div>
+  
+              <div class="form-group">
+                  <input type="password" name="password" class="modal-input" placeholder="Введите пароль" required="" autocomplete="current-password" aria-label="Пароль">
+              </div>
+  
+              <button type="submit" class="modal-submit">
+                  Войти
+              </button>
+          </form>
+  
+          <p style="text-align: center; margin-top: 24px;">
+              <a href="/forgot-password.html" style="color: #667eea; text-decoration: none; font-size: 14px; font-weight: 500;">
+                  Забыли пароль?
+              </a>
+          </p>
+  
+          <p class="modal-security">
+              <span>🔒</span> Ваши данные надежно защищены
+          </p>
+      </div>
+      <button class="modal-close" type="button" onclick="closeLoginModal()" aria-label="Закрыть">×</button>
+  </div>
+  
+  <!-- COOKIE CONSENT (modal-style bottom sheet) -->
+  <div class="cookie-banner" id="cookie-banner" hidden="">
+      <div class="cookie-content-wrapper">
+          <button class="cookie-close" type="button" onclick="closeCookieBanner()" aria-label="Закрыть" data-cookie-action="close">×</button>
+          <div class="cookie-content">
+              <p class="cookie-text">
+                  🍪 Мы используем cookies для улучшения работы сайта и аналитики посещаемости.
+                  Продолжая использовать сайт, вы соглашаетесь с
+                  <a href="#" onclick="openLegalModal('privacy'); return false;">Политикой конфиденциальности</a>.
+              </p>
+              <div class="cookie-buttons">
+                  <button class="cookie-btn cookie-btn-accept" data-cookie-action="accept">Принять</button>
+                  <button class="cookie-btn cookie-btn-decline" data-cookie-action="decline">Отклонить</button>
+              </div>
+          </div>
+      </div>
+  </div>
+  
+  <!-- МОДАЛЬНОЕ ОКНО УСПЕШНОЙ ОПЛАТЫ -->
+  <div class="modal" id="payment-success-modal" role="dialog" aria-modal="true" aria-labelledby="payment-success-title" hidden="">
+      <div class="modal-overlay" onclick="closePaymentSuccessModal()"></div>
+      <div class="modal-content">
+          <div style="text-align: center;">
+              <div style="font-size: 64px; color: #4caf50; margin-bottom: 16px;">✓</div>
+              <h2 id="payment-success-title" class="modal-title">Оплата прошла успешно!</h2>
+              <p style="color: #666; margin-bottom: 24px;">Спасибо за покупку курса.</p>
+          </div>
+  
+          <div id="success-password-container" style="display: none;">
+              <div class="password-box" style="background: #fff3cd; border: 2px solid #ffc107; padding: 20px; border-radius: 12px; margin: 24px 0; text-align: center;">
+                  <h3 style="color: #856404; margin: 0 0 12px 0; font-size: 16px;">🔑 Ваш пароль для входа:</h3>
+                  <div id="success-password-display" style="background: white; padding: 12px; border-radius: 8px; font-family: monospace; font-size: 20px; font-weight: bold; letter-spacing: 1px; margin-bottom: 12px;">
+                  </div>
+                  <button type="button" onclick="copySuccessPassword()" class="modal-submit" style="background: #667eea; width: auto; padding: 8px 24px; font-size: 14px;">
+                      📋 Скопировать
+                  </button>
+                  <div style="font-size: 12px; color: #856404; margin-top: 12px;">
+                      ⚠️ Сохраните этот пароль! Он также отправлен на ваш email.
+                  </div>
+              </div>
+          </div>
+  
+          <div id="success-email-message" style="text-align: center; color: #666; margin-bottom: 24px;">
+              Мы отправили данные для входа на ваш email.
+          </div>
+  
+          <button type="button" class="modal-submit" onclick="closePaymentSuccessModal()">
+              Начать обучение
+          </button>
+      </div>
+      <button class="modal-close" type="button" onclick="closePaymentSuccessModal()" aria-label="Закрыть">×</button>
+  </div><!-- МОДАЛЬНОЕ ОКНО ОШИБКИ ОПЛАТЫ -->
+  <div class="modal" id="payment-fail-modal" role="dialog" aria-modal="true" aria-labelledby="payment-fail-title" hidden="">
+      <div class="modal-overlay" onclick="closePaymentFailModal()"></div>
+      <div class="modal-content">
+          <div style="text-align: center;">
+              <div style="font-size: 64px; color: #ff6b6b; margin-bottom: 16px;">✕</div>
+              <h2 id="payment-fail-title" class="modal-title">Оплата не прошла</h2>
+              <p style="color: #666; margin-bottom: 24px;">
+                  К сожалению, при обработке платежа произошла ошибка.
+              </p>
+          </div>
+  
+          <button type="button" class="modal-submit" onclick="closePaymentFailModal(); openCTAModal();">
+              Попробовать снова
+          </button>
+  
+          <p style="text-align: center; margin-top: 16px; font-size: 14px; color: #999;">
+              Нужна помощь? <a href="mailto:support@toosmart.ru">Напишите нам</a>
+          </p>
+      </div>
+      <button class="modal-close" type="button" onclick="closePaymentFailModal()" aria-label="Закрыть">×</button>
+  </div><!-- МОДАЛЬНОЕ ОКНО НАСТРОЕК -->
+  <div class="modal" id="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title" hidden="">
+      <div class="modal-overlay" onclick="closeSettingsModal()"></div>
+      <div class="modal-content">
+          <h2 id="settings-modal-title" class="modal-title">Настройки профиля</h2>
+  
+          <div class="settings-section" style="margin-bottom: 32px; padding-bottom: 32px; border-bottom: 1px solid #eee;">
+              <h3 style="font-size: 18px; margin-bottom: 12px; font-weight: 600;">Ваш аккаунт</h3>
+              <div id="settings-email" style="background: #f9f9f9; padding: 16px; border-radius: 12px; font-family: monospace; color: #333; font-size: 15px; border: 1px solid #eee;">
+                  Загрузка...
+              </div>
+          </div>
+  
+          <div class="settings-section">
+              <h3 style="font-size: 18px; margin-bottom: 20px; font-weight: 600;">Смена пароля</h3>
+  
+              <div id="settings-error" style="display: none; color: #c62828; background: #ffebee; padding: 12px; border-radius: 10px; margin-bottom: 20px; font-size: 14px;">
+              </div>
+              <div id="settings-success" style="display: none; color: #2e7d32; background: #e8f5e9; padding: 12px; border-radius: 10px; margin-bottom: 20px; font-size: 14px;">
+              </div>
+  
+              <form id="settings-password-form">
+                  <div class="form-group">
+                      <input type="password" name="current_password" class="modal-input" placeholder="Текущий пароль" required="" autocomplete="current-password">
+                  </div>
+                  <div class="form-group">
+                      <input type="password" name="new_password" class="modal-input" placeholder="Новый пароль (мин. 6 символов)" required="" autocomplete="new-password">
+                  </div>
+                  <div class="form-group">
+                      <input type="password" name="confirm_password" class="modal-input" placeholder="Подтвердите новый пароль" required="" autocomplete="new-password">
+                  </div>
+  
+                  <button type="submit" class="modal-submit">Изменить пароль</button>
+              </form>
+          </div>
+  
+          <div style="text-align: center; margin-top: 32px; padding-top: 20px; border-top: 1px solid #eee;">
+              <a href="/server/logout.php" style="color: #c62828; text-decoration: none; font-weight: 600; font-size: 15px;">Выйти из
+                  аккаунта</a>
+          </div>
+      </div>
+      <button class="modal-close" type="button" onclick="closeSettingsModal()" aria-label="Закрыть">×</button>
+  </div>
+  <script>
+      function isDevHost(hostname) {
+          return ['localhost', '127.0.0.1', '::1', '0.0.0.0'].includes(hostname)
+              || /^10\./.test(hostname)
+              || /^192\.168\./.test(hostname)
+              || /^172\.(1[6-9]|2[0-9]|3[01])\./.test(hostname)
+              || /\.local$/i.test(hostname);
+      }
+  
+      // На всякий случай прячем модалки, если плагин Vite не сработал
+      (function ensureHidden() {
+          document.querySelectorAll('.modal:not([hidden]), .cookie-banner:not([hidden])')
+              .forEach(el => el.setAttribute('hidden', ''));
+      })();
+  
+      // Функции для модальных окон с юридическими документами (если модульная версия недоступна)
+      if (typeof window.openLegalModal !== 'function') {
+          window.openLegalModal = function (type) {
+              const modalId = 'legal-' + type + '-modal';
+              const modal = document.getElementById(modalId);
+              if (modal) {
+                  modal.removeAttribute('hidden');
+                  document.body.style.overflow = 'hidden';
+              }
+          };
+      }
+  
+      if (typeof window.closeLegalModal !== 'function') {
+          window.closeLegalModal = function (type) {
+              const modalId = 'legal-' + type + '-modal';
+              const modal = document.getElementById(modalId);
+              if (modal) {
+                  modal.setAttribute('hidden', '');
+                  document.body.style.overflow = '';
+              }
+          };
+      }
+  
+      // Fallback-функции для cookie banner, если модульная версия не загрузилась
+      if (typeof window.closeCookieBanner !== 'function') {
+          window.closeCookieBanner = function () {
+              const banner = document.getElementById('cookie-banner');
+              if (banner) {
+                  banner.setAttribute('hidden', '');
+              }
+          };
+      }
+  
+      if (typeof window.openCookieBanner !== 'function') {
+          window.openCookieBanner = function () {
+              const banner = document.getElementById('cookie-banner');
+              if (banner) {
+                  banner.removeAttribute('hidden');
+              }
+          };
+      }
+  
+      if (typeof window.acceptCookies !== 'function') {
+          window.acceptCookies = function () {
+              try { localStorage.setItem('cookieConsent', 'accepted'); } catch (e) { }
+              window.closeCookieBanner();
+          };
+      }
+  
+      if (typeof window.declineCookies !== 'function') {
+          window.declineCookies = function () {
+              try { localStorage.setItem('cookieConsent', 'declined'); } catch (e) { }
+              window.closeCookieBanner();
+          };
+      }
+  
+      // Fallback биндинг на кнопки баннера, если модуль не успел
+      (function bindCookieFallbackOnce() {
+          const banner = document.getElementById('cookie-banner');
+          if (!banner || banner.dataset.bound) return;
+          banner.dataset.bound = 'true';
+          banner.addEventListener('click', function (event) {
+              const target = event.target.closest('[data-cookie-action]');
+              if (!target) return;
+              const action = target.getAttribute('data-cookie-action');
+              if (action === 'accept') {
+                  window.acceptCookies();
+              } else if (action === 'decline') {
+                  window.declineCookies();
+              } else if (action === 'close') {
+                  window.closeCookieBanner();
+              }
+          });
+      })();
+  
+      // Функции для модального окна входа в ЛК
+      function openLoginModal() {
+          const modal = document.getElementById('login-modal');
+          if (modal) {
+              modal.removeAttribute('hidden');
+              document.body.style.overflow = 'hidden';
+  
+              // Фокус на поле email
+              const emailInput = modal.querySelector('input[name="email"]');
+              if (emailInput) {
+                  setTimeout(() => emailInput.focus(), 100);
+              }
+          }
+      }
+  
+      function closeLoginModal() {
+          const modal = document.getElementById('login-modal');
+          if (modal) {
+              modal.setAttribute('hidden', '');
+              document.body.style.overflow = '';
+  
+              // Очистка ошибок
+              const errorDiv = document.getElementById('login-error');
+              if (errorDiv) {
+                  errorDiv.style.display = 'none';
+                  errorDiv.textContent = '';
+              }
+          }
+      }
+  
+      // Обработка формы входа
+      document.addEventListener('DOMContentLoaded', function () {
+          const loginForm = document.getElementById('login-form');
+          if (loginForm) {
+              // Локализация валидационных сообщений
+              const inputs = loginForm.querySelectorAll('input[required], input[type="email"]');
+              inputs.forEach(input => {
+                  input.addEventListener('invalid', function (e) {
+                      e.preventDefault();
+                      this.classList.add('invalid');
+                      if (this.validity.valueMissing) {
+                          if (this.type === 'email') {
+                              this.setCustomValidity('Пожалуйста, введите email');
+                          } else if (this.type === 'password') {
+                              this.setCustomValidity('Пожалуйста, введите пароль');
+                          } else {
+                              this.setCustomValidity('Пожалуйста, заполните это поле');
+                          }
+                      } else if (this.validity.typeMismatch && this.type === 'email') {
+                          this.setCustomValidity('Некорректный формат email');
+                      } else {
+                          this.setCustomValidity('');
+                          this.classList.remove('invalid');
+                      }
+                  });
+                  input.addEventListener('input', function () {
+                      this.setCustomValidity('');
+                      this.classList.remove('invalid');
+                  });
+              });
+  
+              loginForm.addEventListener('submit', function (e) {
+                  e.preventDefault();
+  
+                  const email = this.email.value.trim();
+                  const password = this.password.value;
+                  const errorDiv = document.getElementById('login-error');
+                  const submitBtn = this.querySelector('button[type="submit"]');
+  
+                  if (!email || !password) {
+                      if (errorDiv) {
+                          errorDiv.textContent = 'Пожалуйста, заполните все поля';
+                          errorDiv.style.display = 'block';
+                          errorDiv.style.background = '#fff5f5';
+                          errorDiv.style.color = '#c62828';
+                          errorDiv.style.padding = '12px 16px';
+                          errorDiv.style.borderRadius = '10px';
+                          errorDiv.style.fontSize = '14px';
+                          errorDiv.style.marginBottom = '16px';
+                          errorDiv.style.borderLeft = '3px solid #e53935';
+                      }
+                      return;
+                  }
+  
+                  // DEV MODE CHECK (compile-time flag preferred; fallback — host)
+                  const isDev = (typeof window.__DEV_LOGIN_BYPASS__ === 'boolean')
+                      ? window.__DEV_LOGIN_BYPASS__
+                      : isDevHost(window.location.hostname);
+  
+                  // Strict Email Validation (Required for both modes)
+                  const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+  
+                  if (!emailRegex.test(email)) {
+                      if (errorDiv) {
+                          errorDiv.textContent = 'Некорректный формат email';
+                          errorDiv.style.display = 'block';
+                          errorDiv.style.background = '#fff5f5';
+                          errorDiv.style.color = '#c62828';
+                          errorDiv.style.padding = '12px 16px';
+                          errorDiv.style.borderRadius = '10px';
+                          errorDiv.style.fontSize = '14px';
+                          errorDiv.style.marginBottom = '16px';
+                          errorDiv.style.borderLeft = '3px solid #e53935';
+                      }
+                      return;
+                  }
+  
+                  if (isDev) {
+                      // DEV MODE: Bypass password check
+                      console.log('Dev Mode: Login bypassed');
+                      window.location.href = '/template.html';
+                      return;
+                  }
+  
+                  // PROD MODE: Submit to server
+                  submitBtn.disabled = true;
+                  submitBtn.textContent = 'Вход...';
+  
+                  // Перенаправление на страницу авторизации с данными
+                  const form = document.createElement('form');
+                  form.method = 'POST';
+                  form.action = '/premium/';
+  
+                  const emailField = document.createElement('input');
+                  emailField.type = 'hidden';
+                  emailField.name = 'email';
+                  emailField.value = email;
+                  form.appendChild(emailField);
+  
+                  const passwordField = document.createElement('input');
+                  passwordField.type = 'hidden';
+                  passwordField.name = 'password';
+                  passwordField.value = password;
+                  form.appendChild(passwordField);
+  
+                  document.body.appendChild(form);
+                  form.submit();
+              });
+          }
+      });
+  
+      // Cookie consent logic moved to src/js/cookie-banner.js
+  
+      // Закрытие всех legal модальных окон по Escape
+      document.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape') {
+              closeLegalModal('terms');
+              closeLegalModal('offer');
+              closeLegalModal('privacy');
+              closeLegalModal('refund');
+              closeLegalModal('contacts');
+              closeLoginModal();
+              closeCookieBanner();
+          }
+      });
+  </script>
+
+
+
+
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"Article","headline":"РАЗДЕЛ 10: СПЕЦИАЛЬНЫЕ ЗАДАЧИ — Слишком Умная Уборка","description":"10.1.1. Природа проблемы Что такое плесень биологически:","author":{"@type":"Organization","name":"ИП Константинова Софья Сергеевна"},"publisher":{"@type":"Organization","name":"ИП Константинова Софья Сергеевна"},"image":"https://toosmart.ru/assets/og-default.jpg"}</script>
+  </body></html>

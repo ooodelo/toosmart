@@ -1,37 +1,42 @@
 {
   "db": {
-    "dsn": "mysql:host=localhost;dbname=toosmart;charset=utf8mb4",
-    "user": "toosmart_user",
-    "pass": "CHANGE_ME_DATABASE_PASSWORD"
+    "dsn": "mysql:host=localhost;dbname=u3345393_toosmart;charset=utf8mb4",
+    "user": "u3345393_toosmart",
+    "pass": "6ALYKmmb65C2hT7r"
   },
   "robokassa": {
-    "merchant_login": "CHANGE_ME",
-    "pass1": "CHANGE_ME",
-    "pass2": "CHANGE_ME",
+    "merchant_login": "toosmart",
+    "pass1": "bSlLNQ05Xd9KrexMS8v3",
+    "pass2": "tT7ZfK8rXp1RY9P9KsEh",
+    "test_password1": "n67AucI3p5bpUGJOxN3v",
+    "test_password2": "Hzu2rdP8C2nn7kBfcPV1",
     "is_test": true,
     "signature_alg": "md5",
-    "success_url": "https://toosmart.com/server/success.php",
-    "fail_url": "https://toosmart.com/",
+    "success_url": "https://toosmart.ru/premium/success.php",
+    "fail_url": "https://toosmart.ru/premium/fail.php",
     "default_sno": "usn_income",
     "default_tax": "none",
     "product_code": "premium_course"
   },
   "security": {
     "session_name": "toosmart_cabinet",
-    "admin_token": "CHANGE_ME_ADMIN_TOKEN_LONG_RANDOM_STRING"
+    "admin_token": "ts_admin_2024_xK9mP2nL5qR8vW3j"
   },
   "emails": {
-    "from": "noreply@toosmart.com",
-    "transport": "phpmail",
+    "from": "reply@toosmart.ru",
+    "from_name": "TooSmart",
+    "reply_to": "reply@toosmart.ru",
+    "transport": "smtp",
     "smtp": {
-      "host": "smtp.example.com",
+      "host": "server291.hosting.reg.ru",
       "port": 587,
-      "user": "user@example.com",
-      "pass": "CHANGE_ME_SMTP_PASSWORD",
+      "user": "reply@toosmart.ru",
+      "pass": "2000$martuser",
       "secure": "tls"
     }
   },
   "site": {
-    "base_url": "https://toosmart.com"
+    "base_url": "https://toosmart.ru",
+    "name": "TooSmart"
   }
 }

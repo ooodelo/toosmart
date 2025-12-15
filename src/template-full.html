@@ -4,8 +4,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  {{> yandex-metrika }}
   <meta http-equiv="Content-Security-Policy"
-    content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:;" />
+    content="default-src 'self'; script-src 'self' 'unsafe-inline' https://mc.yandex.ru; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https://mc.yandex.ru;" />
   <title>UI-каркас адаптивов</title>
   <!-- Inline ModeUtils init для предотвращения FOUC -->
   <script>
@@ -37,10 +38,13 @@
       }
     })();
   </script>
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="./progress-widget.css">
+  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./bubble-carousel.css">
 </head>
 
 <body>
+  {{> yandex-metrika-noscript }}
   <header class="header" role="banner">
     <img src="assets/PointingToClean.png" alt="Логотип" class="header__logo">
     <img src="assets/CleanLogo.svg" alt="Clean - Теория правильной уборки. Практикум" class="header__svg">
@@ -98,7 +102,8 @@
   <main class="main">
     <section class="panel" data-lazy="dots-nav progress-widget">
       <article class="text-box" aria-label="Основной материал">
-        <section id="grease-removal" class="text-section" data-section="Удаление жира">
+        <div class="content-body">
+        <section id="grease-removal" class="text-section content-shell" data-section="Удаление жира">
           <p>Здесь расположен основной материал. Тестовое содержание имитирует структуру урока и помогает оценить ширину
             колонки, переносы строк, якоря разделов и взаимодействие с «точками».</p>
 
@@ -159,16 +164,20 @@
             не даёт жиру накапливаться и полимеризоваться, что значительно облегчает уборку.</p>
         </section>
 
-        <!-- Слот для Progress Widget (кнопка "Далее" или альтернативная) -->
-        <div class="pw-slot"></div>
+        <!-- pw-slot moved outside - docking happens visually -->
 
+        </div>
       </article>
       <nav class="dots-rail" aria-label="Навигация по разделам" data-lazy="dots-nav"></nav>
       <div class="dot-flyout is-hidden" hidden role="navigation" aria-label="Оглавление разделов"></div>
     </section>
 
-    {{> stack-widget }}
   </main>
+
+  <!-- Progress Widget docking slot - BEFORE stack -->
+  <div class="pw-slot"></div>
+
+  {{> bubble-carousel }}
 
   <div class="dock" role="presentation">
     <button class="dock-handle" type="button" aria-controls="site-menu" aria-expanded="false">
@@ -472,17 +481,18 @@
     });
 
     // Закрытие всех модальных окон по Escape
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') {
-        closeLegalModal('terms');
-        closeLegalModal('offer');
-        closeLegalModal('privacy');
-        closeLegalModal('refund');
-        closeLegalModal('contacts');
-        closeCookieBanner();
-      }
-    });
-  </script>
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      closeLegalModal('terms');
+      closeLegalModal('offer');
+      closeLegalModal('privacy');
+      closeLegalModal('refund');
+      closeLegalModal('contacts');
+      closeCookieBanner();
+    }
+  });
+</script>
+  <script type="module" src="./js/bubble-carousel.js"></script>
 </body>
 
 </html>

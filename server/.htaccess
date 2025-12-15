@@ -33,13 +33,16 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
+    # Исключения: публичные PHP формы (не требуют авторизации)
+    RewriteRule ^(forgot-password-form|resend-password-form|reset-password-form)\.php$ - [L]
+    
     # Все запросы к .html файлам проксировать через check-auth.php
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule ^(.+)\.html$ check-auth.php?page=$1 [L,QSA]
     
-    # HTTPS Redirect
-    RewriteCond %{HTTPS} off
-    RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+    # HTTPS Redirect (отключено - настроено на уровне хостинга)
+    # RewriteCond %{HTTPS} off
+    # RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 </IfModule>
 
 # Отключить листинг директорий
@@ -60,7 +63,7 @@ Options -Indexes
 <IfModule mod_rewrite.c>
     RewriteEngine on
     RewriteCond %{HTTP_REFERER} !^$
-    RewriteCond %{HTTP_REFERER} !^https://(www\.)?toosmart\.com [NC]
+    RewriteCond %{HTTP_REFERER} !^https://(www\\.)?toosmart\\.ru [NC]
     RewriteRule \.(jpg|jpeg|png|gif|svg)$ - [F,L]
 </IfModule>
 

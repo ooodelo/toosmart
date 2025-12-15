@@ -181,6 +181,21 @@ dist/
     └── storage/                  # Создавать вручную на сервере!
 ```
 
+Загружайте на хост только содержимое `dist/` (не node_modules/исходники). Итоговая структура на сервере (например, `public_html/`):
+
+```
+public_html/
+├── index.html
+├── robots.txt
+├── sitemap.xml
+├── course/
+├── legal/
+├── recommendations/
+├── assets/        # включая .vite/manifest.json и хешированные CSS/JS
+├── shared/        # JSON данные
+└── premium/       # копируем целиком из dist/premium
+```
+
 ---
 
 ## ⚙️ Настройка хостинга
@@ -226,7 +241,14 @@ SSL будет автоматически продлеваться каждые 
 
 ⚠️ **ВАЖНО:** Без HTTPS платежи через Robokassa работать не будут!
 
-### Шаг 4: Создайте базу данных MySQL
+### Шаг 4: Разверните файлы dist
+
+1. Очистите старые файлы в webroot (`public_html/` или другой корень)
+2. Загрузите содержимое `dist/` с сохранением структуры
+3. Проверьте, что в `assets/` есть `.vite/manifest.json` и все хешированные CSS/JS
+4. Права: директории 755, файлы 644
+
+### Шаг 4: Создайте базу данных MySQL по и   
 
 **В панели управления хостингом:**
 
@@ -481,7 +503,7 @@ chmod 600 /var/www/html/premium/storage/products.json
 RewriteCond %{HTTP_REFERER} !^https://(www\.)?toosmart\.com [NC]
 ```
 
-Замените `toosmart.com` на **ваш домен**:
+Замените `toosmart.com` на **ваш домен** (по умолчанию используем `toosmart.ru`):
 
 ```apache
 RewriteCond %{HTTP_REFERER} !^https://(www\.)?yourdomain\.com [NC]

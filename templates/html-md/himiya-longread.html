@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Химия — средства и их целевое применение</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --page-bg: #f5f5f5;
+      --text-color: #202124;
+      --muted-color: #6b7280;
+      --accent-color: #111111;
+      --accent-soft: #ffffff;
+      --border-color: rgba(0, 0, 0, 0.08);
+      --marker-color: rgba(250, 148, 80, 0.4);
+
+      --radius-article: 32px;
+      --radius-card: 24px;
+      --radius-pill: 999px;
+      --shadow-soft: 0 20px 60px rgba(213, 216, 232, 1);
+
+      --article-max-width: 720px;
+      --article-padding-x-mobile: 20px;
+      --article-padding-x-desktop: 40px;
+      --article-padding-top-mobile: 32px;
+      --article-padding-bottom-mobile: 40px;
+      --article-padding-top-desktop: 40px;
+      --article-padding-bottom-desktop: 48px;
+
+      --font-size-base: 17px;
+      --line-height-base: 1.8;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      background-color: var(--page-bg);
+      color: var(--text-color);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
+        system-ui, -system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    .page {
+      padding: 64px 16px 80px;
+    }
+
+    @media (min-width: 768px) {
+      .page {
+        padding: 80px 24px 96px;
+      }
+    }
+
+    .article {
+      max-width: var(--article-max-width);
+      margin: 0 auto;
+      background-color: transparent;
+      border-radius: var(--radius-article);
+      padding: var(--article-padding-top-mobile) var(--article-padding-x-mobile) var(--article-padding-bottom-mobile);
+      position: relative;
+    }
+
+    @media (min-width: 900px) {
+      .article {
+        padding: var(--article-padding-top-desktop) var(--article-padding-x-desktop) var(--article-padding-bottom-desktop);
+      }
+    }
+
+    .article-meta {
+      font-size: 13px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted-color);
+      margin-bottom: 12px;
+    }
+
+    .article h1 {
+      font-size: clamp(30px, 4vw, 40px);
+      line-height: 1.12;
+      letter-spacing: -0.03em;
+      margin: 0 0 16px;
+    }
+
+    .article-subtitle {
+      font-size: 18px;
+      line-height: 1.6;
+      color: var(--muted-color);
+      margin-bottom: 28px;
+      max-width: 44rem;
+    }
+
+    .article-lead {
+      font-size: 18px;
+      line-height: 1.8;
+      margin-bottom: 28px;
+    }
+
+    .article-lead p {
+      margin: 0 0 14px;
+    }
+
+    .article-divider {
+      height: 1px;
+      width: 100%;
+      background: radial-gradient(circle at center, rgba(15, 23, 42, 0.25), rgba(15, 23, 42, 0.02));
+      margin: 24px 0 32px;
+      border-radius: 999px;
+    }
+
+    .article h2 {
+      font-size: clamp(22px, 2.4vw, 26px);
+      line-height: 1.3;
+      margin: 40px 0 16px;
+      letter-spacing: -0.02em;
+    }
+
+    .section-label {
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted-color);
+      margin-bottom: 8px;
+    }
+
+    .article h3 {
+      font-size: 19px;
+      line-height: 1.4;
+      margin: 28px 0 10px;
+      letter-spacing: -0.01em;
+    }
+
+    .article h4 {
+      font-size: 17px;
+      line-height: 1.4;
+      margin: 22px 0 8px;
+      font-weight: 600;
+    }
+
+    .article p {
+      margin: 0 0 14px;
+      font-size: var(--font-size-base);
+      line-height: var(--line-height-base);
+    }
+
+    .muted {
+      color: var(--muted-color);
+    }
+
+    .article strong {
+      font-weight: 600;
+    }
+
+    .article em {
+      font-style: italic;
+      color: var(--muted-color);
+    }
+
+    .marker-highlight {
+      position: relative;
+      display: inline-block;
+      padding: 0 0.12em;
+      border-radius: 0.6em;
+      background: transparent;
+    }
+
+    .marker-highlight::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      transform: scale(1.06, 1.25);
+      background-color: #D5D8E8;
+      filter: blur(6px);
+      z-index: -1;
+    }
+
+    .emphasized-word {
+      font-weight: 700;
+      text-decoration: underline;
+      text-decoration-color: #ffffff;
+      text-decoration-thickness: 6px;
+      text-underline-offset: 5px;
+      letter-spacing: 0.02em;
+    }
+
+    .article ul,
+    .article ol {
+      margin: 0 0 16px 1.4em;
+      padding: 0;
+      font-size: 17px;
+      line-height: 1.75;
+    }
+
+    .article li + li {
+      margin-top: 4px;
+    }
+
+    .article blockquote {
+      position: relative;
+      margin: 24px 0;
+      padding: 16px 20px;
+      text-align: center;
+      border: none;
+      background: transparent;
+      border-radius: var(--radius-pill);
+      font-size: 20px;
+      line-height: 1.6;
+      font-weight: 600;
+    }
+
+    .article blockquote p:last-child {
+      margin-bottom: 0;
+    }
+
+    .composition-highlight {
+      position: relative;
+      text-align: center;
+      border-left: none;
+      background: transparent;
+      padding: 16px 20px;
+    }
+
+    .composition-highlight p {
+      font-size: 20px;
+      font-weight: 600;
+      line-height: 1.6;
+    }
+
+    .article-card {
+      border-radius: var(--radius-card);
+      background: var(--accent-soft);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .pullquote {
+      margin: 28px 0;
+      padding: 18px 20px;
+      border-radius: 24px;
+      background: #ffffff;
+      color: #111111;
+      font-size: 18px;
+      line-height: 1.7;
+      font-weight: 500;
+      box-shadow: 0 20px 60px rgba(213, 216, 232, 1);
+    }
+
+    .pullquote small {
+      display: block;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      opacity: 0.5;
+      margin-bottom: 6px;
+    }
+
+    .number-callout {
+      margin: 28px 0 24px;
+      padding: 22px 20px 20px;
+      border-radius: 24px;
+      background: var(--accent-soft);
+      box-shadow: 0 20px 60px rgba(213, 216, 232, 1);
+    }
+
+    .number-callout-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--muted-color);
+      margin-bottom: 6px;
+    }
+
+    .number-callout-value {
+      font-size: 32px;
+      line-height: 1.1;
+      letter-spacing: -0.04em;
+      margin-bottom: 4px;
+    }
+
+    .number-callout-text {
+      font-size: 15px;
+      line-height: 1.7;
+      color: var(--muted-color);
+    }
+
+    .two-column-compare {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 12px;
+      margin: 16px 0 20px;
+    }
+
+    @media (min-width: 768px) {
+      .two-column-compare {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+    }
+
+    .compare-card {
+      border-radius: 24px;
+      padding: 14px 14px 14px;
+      background: var(--accent-soft);
+      box-shadow: 0 20px 60px rgba(213, 216, 232, 1);
+    }
+
+    .compare-card-title {
+      font-size: 13px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted-color);
+      margin-bottom: 6px;
+    }
+
+    .compare-card-heading {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .compare-card ul {
+      margin: 0 0 0 1.1em;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    .compare-card li + li {
+      margin-top: 2px;
+    }
+
+    .checklist {
+      margin: 14px 0 18px;
+      padding: 14px 16px 10px;
+      border-radius: 24px;
+      background: var(--accent-soft);
+      box-shadow: 0 20px 60px rgba(213, 216, 232, 1);
+    }
+
+    .checklist-title {
+      font-size: 13px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted-color);
+      margin-bottom: 6px;
+    }
+
+    .checklist ul {
+      margin: 0 0 0 1.1em;
+      font-size: 15px;
+      line-height: 1.7;
+    }
+
+    .checklist li + li {
+      margin-top: 2px;
+    }
+
+    .article-footer {
+      border-top: 1px solid var(--border-color);
+      margin-top: 28px;
+      padding-top: 18px;
+      font-size: 13px;
+      color: var(--muted-color);
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <article class="article">
+      <div class="article-meta">Раздел 3 · Клининг</div>
+      <h1>Химия — средства и их целевое применение</h1>
+      <p class="article-subtitle">
+        От хаоса бутылок к системе осознанных решений
+      </p>
+
+      <div class="article-lead">
+        <p>
+          Химия в клининге — это не набор рецептов. Это точная система, где каждое средство работает по конкретному механизму, решая определённую задачу. Понимание этих механизмов избавляет от слепого перебора бутылок и превращает вас в специалиста, способного принимать осознанные решения в любой ситуации.
+        </p>
+        <p>
+          В предыдущих разделах мы разобрались с природой загрязнений и ролью инструментов. Теперь посмотрим на химические средства — третий элемент системы. Правильно подобранное средство делает работу лёгкой и безопасной, неправильное — превращает уборку в борьбу с нулевым результатом или повреждает поверхность.
+        </p>
+      </div>
+
+      <div class="article-divider"></div>
+
+      <section>
+        <div class="section-label">Основа</div>
+        <h2>Классификация чистящих средств по уровню pH</h2>
+
+        <p>
+          Все средства для уборки можно разделить на группы по их кислотно-щелочному балансу. Это не просто теоретическая классификация — уровень pH определяет, с какими загрязнениями средство справляется и какие поверхности может повредить.
+        </p>
+
+        <blockquote class="composition-highlight">
+          <p>
+            <span class="marker-highlight">pH — главный,</span> <span class="marker-highlight">но не единственный</span> <span class="marker-highlight">фактор эффективности.</span> <span class="marker-highlight">За работу средства</span> <span class="marker-highlight">отвечают и другие компоненты:</span> <span class="marker-highlight">ПАВы, хелаторы,</span> <span class="marker-highlight">растворители, ферменты.</span>
+          </p>
+        </blockquote>
+
+        <h3>Шкала средств: от кислот до щелочей</h3>
+
+        <p>
+          <strong>Жёсткие кислотники (pH 0–1,5)</strong> — агрессивные средства для стойких минеральных отложений. Соляная, фосфорная, сульфаминовая кислоты в высокой концентрации. Унитазы с многолетним налётом, тяжёлый водный камень, ржавчина.
+        </p>
+
+        <p>
+          <strong>Мягкие кислотники (pH 1,5–5)</strong> — контролируемая сила для регулярного ухода. Лимонная, молочная, щавелевая кислоты. Ванные, душевые, смесители, антикальк для техники.
+        </p>
+
+        <p>
+          <strong>Нейтральные средства (pH 6–8)</strong> — безопасная универсальность. Работают за счёт ПАВов и вспомогательных компонентов, а <span class="emphasized-word">не</span> за счёт агрессивной химической реакции. Деликатные поверхности, натуральный камень, паркет, повседневная уборка.
+        </p>
+
+        <p>
+          <strong>Спиртовые средства (pH 6–8)</strong> — технически тоже нейтральные, но особый класс. Растворяют специфические органические загрязнения и дают быстрое высыхание без разводов. Стёкла, зеркала, глянцевые поверхности.
+        </p>
+
+        <p>
+          <strong>Слабощелочные средства (pH 9–11)</strong> — главные универсалы клининга. Карбонаты, мягкие амины. Основная масса средств для полов, кухни, повседневных загрязнений.
+        </p>
+
+        <p>
+          <strong>Сильнощелочные дегризеры (pH 12–14)</strong> — тяжёлая артиллерия. Гидроксиды натрия и калия, метасиликаты. Запечённый жир, духовки, грили, промышленные кухни.
+        </p>
+      </section>
+
+      <section>
+        <div class="section-label">Тип 1</div>
+        <h2>Кислотные средства — растворители минерального мира</h2>
+
+        <p>
+          Кислотные средства решают одну конкретную задачу — борьбу с неорганическими минеральными загрязнениями, которые не поддаются щелочным или универсальным средствам. Это узкоспециализированный инструмент, но в своей области он незаменим.
+        </p>
+
+        <h3>Принцип действия и целевые загрязнения</h3>
+
+        <p>
+          Кислота вступает в химическую реакцию с солями металлов, разрушая их кристаллическую структуру и переводя в растворимую форму. Это <span class="emphasized-word">не</span> физическое смывание — это химическая трансформация.
+        </p>
+
+        <div class="pullquote article-card">
+          <small>Что происходит на молекулярном уровне</small>
+          <p>
+            Возьмём водный камень — затвердевший карбонат кальция из жёсткой воды. Твёрдое кристаллическое вещество, которое обычной водой не смоешь. Когда на него попадает кислота, она атакует кристаллическую решётку и буквально растворяет её — кальций превращается в растворимую соль, которая легко смывается водой.
+          </p>
+        </div>
+
+        <h3>Основные мишени кислотных средств</h3>
+
+        <p>
+          <strong>Известковый налёт</strong> — карбонаты и бикарбонаты кальция и магния. Образуются при испарении жёсткой воды на сантехнике, смесителях, плитке, душевых кабинах. Белый или серовато-белый твёрдый налёт с шероховатой структурой.
+        </p>
+
+        <p>
+          <strong>Водный камень</strong> — по сути тот же известковый налёт, но сросшийся с поверхностью в плотный многослойный камень, который гораздо сложнее растворить и снять механически. <span class="emphasized-word">Именно</span> здесь приходится прибегать к жёстким кислотникам.
+        </p>
+
+        <p>
+          <strong>Мочевой камень</strong> — водный камень с примесью кристаллов солей мочи и органики, из-за чего он плотнее, пористее, сильнее удерживает запахи. Характерен для унитазов. Требует жёстких кислотников.
+        </p>
+
+        <p>
+          <strong>Ржавчина</strong> — оксиды и гидроксиды железа. Рыжие или коричневые пятна на сантехнике из-за окисления железа из водопроводных труб. Легче всего уходит от щавелевой кислоты.
+        </p>
+
+        <p>
+          <strong>Мыльный налёт</strong> — комплексное загрязнение, где остатки ПАВов смешаны с минеральными солями из жёсткой воды. Липкая плёнка на стенках душевых кабин и ванн. Легко уходит от мягких кислотников.
+        </p>
+
+        <h3>Жёсткие и мягкие кислоты: в чём разница</h3>
+
+        <p>
+          У сильных и слабых кислот одни и те же мишени — минеральные отложения. Различие в степени эффективности и безопасности. Выбор зависит от задачи: стойкость загрязнения vs. риск повреждения поверхности.
+        </p>
+
+        <div class="two-column-compare">
+          <div class="compare-card article-card">
+            <div class="compare-card-title">pH 0–1,5</div>
+            <div class="compare-card-heading">Жёсткие кислотники</div>
+            <ul>
+              <li>соляная кислота — классика для унитазов;</li>
+              <li>сульфаминовая кислота — сильная, но контролируемая;</li>
+              <li>фосфорная кислота в высокой концентрации — наиболее безопасная среди сильных.</li>
+            </ul>
+          </div>
+          <div class="compare-card article-card">
+            <div class="compare-card-title">pH 1,5–5</div>
+            <div class="compare-card-heading">Мягкие кислотники</div>
+            <ul>
+              <li>щавелевая кислота — против ржавчины;</li>
+              <li>лимонная кислота — главный мягкий дескалер;</li>
+              <li>молочная кислота — популярна в бытовых средствах;</li>
+              <li>муравьиная кислота — дескалинг + антимикроб.</li>
+            </ul>
+          </div>
+        </div>
+
+        <blockquote class="composition-highlight">
+          <p>
+            <span class="marker-highlight">Жёсткие кислоты —</span> <span class="marker-highlight">основной источник</span> <span class="marker-highlight">повреждений в ванной.</span> <span class="marker-highlight">Их стоит использовать</span> <span class="marker-highlight">только там,</span> <span class="marker-highlight">где есть необходимость</span> <span class="marker-highlight">в ударной обработке.</span>
+          </p>
+        </blockquote>
+
+        <h3>Правила безопасной работы с кислотами</h3>
+
+        <div class="pullquote article-card">
+          <small>Ключевой принцип безопасности</small>
+          <p>
+            Контроль времени экспозиции. Именно пересохшее средство чаще всего повреждает поверхности, а не сам факт использования агрессивной химии.
+          </p>
+        </div>
+
+        <p>
+          <em>Натуральный камень (мрамор, травертин, известняк, оникс) — абсолютное табу. Эти породы состоят из карбоната кальция — того же вещества, что и водный камень. Даже мягкая кислота вступает с ними в реакцию точно так же — полированная поверхность травится, становится матовой и шероховатой. Это химическое растворение поверхностного слоя, восстановить которое можно только профессиональной шлифовкой.</em>
+        </p>
+
+        <div class="checklist article-card">
+          <div class="checklist-title">Жёсткие кислотники повреждают</div>
+          <ul>
+            <li>все металлические элементы (хром, никель, нержавейка, алюминий, латунь, бронза);</li>
+            <li>материалы ванн (эмаль, акрил, сталь, литьевой камень, композит);</li>
+            <li>натуральный камень (мрамор, травертин, известняк, ракушечник, оникс);</li>
+            <li>пластики, уплотнители, шланги;</li>
+            <li>покрытые и окрашенные поверхности.</li>
+          </ul>
+        </div>
+
+        <div class="checklist article-card">
+          <div class="checklist-title">Безопасные зоны для жёстких кислот</div>
+          <ul>
+            <li>санитарный фарфор;</li>
+            <li>санитарный фаянс;</li>
+            <li>керамическая плитка.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-label">Тип 2</div>
+        <h2>Нейтральные средства — мягкая сила ПАВов и активов</h2>
+
+        <p>
+          Нейтральные средства (pH 6–8) работают по принципиально иному механизму, чем кислоты и щёлочи. У них нет агрессивной химической реакции с загрязнением — вместо этого они используют комбинацию мягких активных компонентов, каждый из которых выполняет свою функцию.
+        </p>
+
+        <h3>ПАВы — главный мотор нейтральных средств</h3>
+
+        <p>
+          ПАВы (поверхностно-активные вещества) — основа практически любого моющего средства. Но <span class="emphasized-word">именно</span> в нейтральных формулах они играют ключевую роль, потому что здесь нет сильной кислоты или щёлочи, которые бы «пробивали» загрязнение химической атакой.
+        </p>
+
+        <div class="pullquote article-card">
+          <small>Как работают ПАВы на молекулярном уровне</small>
+          <p>
+            Молекула ПАВ устроена необычно: один её конец любит воду (гидрофильный), другой — жир (гидрофобный). Именно эта структура определяет особые свойства ПАВов.
+          </p>
+        </div>
+
+        <h3>Основные функции ПАВов</h3>
+
+        <p>
+          <strong>Снижение поверхностного натяжения воды</strong> — вода лучше смачивает поверхность и проникает в микрорельеф. У чистой воды сверху как бы натянутый плёнкой слой: молекулы воды сильно тянут друг друга внутрь, поэтому капля старается быть круглой и плохо растекается. Когда ПАВы попадают в воду, они лезут именно на границу «вода–воздух»: голова тянет в воду, хвост — наружу. ПАВы частично вытесняют молекулы воды с поверхности — поверхностное натяжение падает, капля легче расползается.
+        </p>
+
+        <p>
+          <strong>Эмульгирование и удержание грязи во взвеси</strong> — ПАВы цепляются своими жирными хвостами за частички грязи и жира, при этом водные головы ПАВов создают вокруг этих частиц гидрофильные оболочки, отрывая частички грязи друг от друга и от поверхностей. Затем оторванные частички расползаются по водному раствору и смываются вместе с ним.
+        </p>
+
+        <p>
+          <strong>Пенообразование</strong> — пена помогает удерживать средство на вертикальных поверхностях.
+        </p>
+
+        <blockquote class="composition-highlight">
+          <p>
+            <span class="marker-highlight">Нейтральные средства —</span> <span class="marker-highlight">самый безопасный выбор</span> <span class="marker-highlight">для регулярного ухода</span> <span class="marker-highlight">за любыми</span> <span class="marker-highlight">деликатными поверхностями.</span>
+          </p>
+        </blockquote>
+      </section>
+
+      <section>
+        <div class="section-label">Тип 3</div>
+        <h2>Щелочные средства — универсалы против органики</h2>
+
+        <p>
+          Щелочные средства — главные рабочие лошадки клининга. Они эффективны против органических загрязнений: жиров, белков, углеводов. В отличие от кислот, которые узко специализированы на минеральных отложениях, щёлочь — это универсальный инструмент для повседневной уборки.
+        </p>
+
+        <h3>Принцип действия</h3>
+
+        <p>
+          Щёлочь работает через процесс, который называется омыление (сапонификация). Она расщепляет молекулы жира на глицерин и жирные кислоты, которые легко эмульгируются ПАВами и смываются водой. Чем выше pH — тем быстрее и глубже идёт процесс.
+        </p>
+
+        <div class="two-column-compare">
+          <div class="compare-card article-card">
+            <div class="compare-card-title">pH 9–11</div>
+            <div class="compare-card-heading">Слабощелочные средства</div>
+            <ul>
+              <li>карбонаты и бикарбонаты;</li>
+              <li>мягкие амины;</li>
+              <li>работают со свежими загрязнениями;</li>
+              <li>основная масса средств для полов и кухни.</li>
+            </ul>
+          </div>
+          <div class="compare-card article-card">
+            <div class="compare-card-title">pH 12–14</div>
+            <div class="compare-card-heading">Сильнощелочные дегризеры</div>
+            <ul>
+              <li>гидроксиды натрия и калия;</li>
+              <li>метасиликаты;</li>
+              <li>справляются с запечённым жиром;</li>
+              <li>духовки, грили, промышленные кухни.</li>
+            </ul>
+          </div>
+        </div>
+
+        <h3>Безопасность работы со щелочью</h3>
+
+        <p>
+          Сильные щёлочи (pH 12–14) могут повреждать алюминий, цинк, некоторые краски и лаки. Всегда тестируйте на незаметном участке. Контролируйте время экспозиции — пересохшее средство концентрируется и становится агрессивнее.
+        </p>
+      </section>
+
+      <section>
+        <div class="section-label">Тип 4</div>
+        <h2>Спиртовые средства — чистота без следов</h2>
+
+        <p>
+          Спиртовые средства технически нейтральны по pH (6–8), но выделяются в отдельную категорию благодаря своему основному компоненту — этиловому или изопропиловому спирту. Их главное преимущество — быстрое испарение без разводов и способность растворять специфические загрязнения.
+        </p>
+
+        <h3>Принцип действия и целевые поверхности</h3>
+
+        <p>
+          Спирт работает как растворитель: он разрушает жировые и органические плёнки, не оставляя после себя никаких следов, потому что быстро испаряется. Это делает спиртовые средства идеальными для поверхностей, где важен финишный блеск без разводов.
+        </p>
+
+        <div class="checklist article-card">
+          <div class="checklist-title">Идеальные зоны применения</div>
+          <ul>
+            <li>стёкла и зеркала — классическая задача;</li>
+            <li>глянцевые фасады мебели и техники;</li>
+            <li>мониторы и экраны (без касания матрицы);</li>
+            <li>хромированные элементы для финишного блеска;</li>
+            <li>любые гладкие поверхности, где нужна идеальная прозрачность.</li>
+          </ul>
+        </div>
+
+        <blockquote class="composition-highlight">
+          <p>
+            <span class="marker-highlight">Спиртовые средства —</span> <span class="marker-highlight">это финишный штрих,</span> <span class="marker-highlight">а не основной инструмент.</span> <span class="marker-highlight">Сначала очистите поверхность,</span> <span class="marker-highlight">потом придайте блеск.</span>
+          </p>
+        </blockquote>
+      </section>
+
+      <section>
+        <div class="section-label">Дополнительно</div>
+        <h2>Специальные компоненты и добавки</h2>
+
+        <p>
+          Помимо основных действующих веществ (кислот, щелочей, ПАВов), современные средства содержат вспомогательные компоненты, которые усиливают эффективность или решают узкие задачи.
+        </p>
+
+        <h3>Хелатирующие агенты</h3>
+
+        <p>
+          <strong>Что делают:</strong> Связывают ионы металлов (кальций, магний, железо), не давая им создавать налёт или снижать эффективность ПАВов в жёсткой воде.
+        </p>
+
+        <p>
+          <strong>Типичные компоненты:</strong> ЭДТА, фосфонаты, цитраты, глюконаты.
+        </p>
+
+        <p>
+          <em>Хелаторы работают как «молекулярные клешни» — захватывают ионы металлов и держат их в растворённом состоянии, не позволяя выпадать в осадок.</em>
+        </p>
+
+        <h3>Ферменты (энзимы)</h3>
+
+        <p>
+          <strong>Что делают:</strong> Биологически расщепляют сложные органические загрязнения, с которыми не справляются обычные ПАВы.
+        </p>
+
+        <p>
+          <strong>Типичные ферменты:</strong> Протеазы (белки, кровь), липазы (жировые пятна), амилазы (крахмалистые загрязнения).
+        </p>
+
+        <p>
+          <strong>Где применяются:</strong> Средства для ковров и мягкой мебели, пятновыводители для матрасов, специальные средства от запаха мочи животных.
+        </p>
+
+        <h3>Сильные органические растворители</h3>
+
+        <p>
+          <strong>Что делают:</strong> Удаляют то, с чем не справляются ни кислоты, ни щёлочи — клеи, скотч, жвачку, воски, лаки, битум, граффити.
+        </p>
+
+        <p>
+          <strong>Типичные компоненты:</strong> d-Лимонен и другие терпены, уайт-спирит, изопарафины, N-метилпирролидон.
+        </p>
+
+        <h3>Дезинфицирующие биоциды</h3>
+
+        <p>
+          <strong>Что делают:</strong> Убивают или подавляют бактерии, вирусы, грибы на поверхностях.
+        </p>
+
+        <p>
+          <strong>Типичные компоненты:</strong> Четвертичные аммониевые соединения (ЧАС/QUATs), бигуаниды (PHMB).
+        </p>
+
+        <p>
+          <em>Важно: Дезинфекция и очистка — разные задачи. ЧАС убивают микроорганизмы, но не обязательно удаляют видимую грязь. Для полноценной санитарной обработки нужно сначала очистить поверхность, потом продезинфицировать.</em>
+        </p>
+
+        <h3>Защитные полимеры и воски</h3>
+
+        <p>
+          <strong>Что делают:</strong> Создают защитную плёнку, уменьшающую впитываемость поверхности, облегчающую последующую уборку, придающую блеск.
+        </p>
+
+        <p>
+          <strong>Где применяются:</strong> Полироли для полов (ПВХ, линолеум), средства для ухода за мебелью и деревом, пропитки для камня.
+        </p>
+      </section>
+
+      <section>
+        <div class="section-label">Важно знать</div>
+        <h2>Компоненты, которые не влияют на эффективность уборки</h2>
+
+        <p>
+          Изучая состав средств, вы встретите множество компонентов, которые никак не участвуют в удалении загрязнений. Они нужны для других целей — стабильности продукта, удобства использования, маркетинга.
+        </p>
+
+        <h3>База и растворитель</h3>
+
+        <p>
+          <strong>Вода</strong> (умягчённая, деионизированная) — основной объём любого жидкого средства. 80–95% состава.
+        </p>
+
+        <p>
+          <strong>Многоатомные спирты и гликоли</strong> — стабилизаторы, предотвращают замерзание, улучшают растворение компонентов.
+        </p>
+
+        <h3>Загустители и регуляторы вязкости</h3>
+
+        <p>
+          Ксантановая камедь, целлюлозные полимеры, акрилатные загустители, поваренная соль — делают средство гелеобразным. Гель держится на вертикальной поверхности. Жидкость стекла бы, не успев подействовать. Загустители не усиливают моющую способность, но позволяют средству работать там, где нужно.
+        </p>
+
+        <h3>Консерванты</h3>
+
+        <p>
+          Изотиазолиноны (MIT, CMIT, BIT), органические кислоты и их соли — предотвращают порчу продукта. Без консервантов водный раствор с органическими компонентами быстро «зацветёт».
+        </p>
+
+        <h3>Отдушки и эфирные масла</h3>
+
+        <p>
+          Ароматизаторы, эфирные масла цитрусовых, лаванды, мяты — создают запах «чистоты».
+        </p>
+
+        <blockquote class="composition-highlight">
+          <p>
+            <span class="marker-highlight">Приятный запах</span> <span class="marker-highlight">после уборки —</span> <span class="marker-highlight">это отдушка,</span> <span class="marker-highlight">а не признак</span> <span class="marker-highlight">лучшего очищения.</span> <span class="marker-highlight">Средство без запаха</span> <span class="marker-highlight">может работать</span> <span class="marker-highlight">точно так же эффективно.</span>
+          </p>
+        </blockquote>
+
+        <h3>Красители и пена</h3>
+
+        <p>
+          Синтетические красители для придания цвета — чистый маркетинг и идентификация продукта. Голубое средство не моет лучше бесцветного.
+        </p>
+
+        <p>
+          <strong>Пена не моет. ПАВы моют.</strong> Много пены — не значит много моющей силы. В профессиональном клининге избыточная пена скорее мешает, создавая разводы и замедляя высыхание.
+        </p>
+      </section>
+
+      <section>
+        <div class="section-label">Итог</div>
+        <h2>Система выбора средств</h2>
+
+        <p>
+          Теперь у вас есть полная картина химических средств — не как набор бутылок с разноцветными жидкостями, а как система инструментов с понятной логикой.
+        </p>
+
+        <div class="checklist article-card">
+          <div class="checklist-title">Ключевые принципы выбора</div>
+          <ul>
+            <li>определите природу загрязнения → подберите соответствующее средство;</li>
+            <li>минеральное (белый налёт, ржавчина) → кислота;</li>
+            <li>органическое свежее (жир, следы пищи) → слабощелочное или нейтральное;</li>
+            <li>органическое застарелое → щелочной дегризер;</li>
+            <li>деликатные поверхности → нейтральное;</li>
+            <li>финишный блеск → спиртовое;</li>
+            <li>специфические задачи → специализированные средства.</li>
+          </ul>
+        </div>
+
+        <blockquote class="composition-highlight">
+          <p>
+            <span class="marker-highlight">Начинайте с минимально</span> <span class="marker-highlight">необходимой силы.</span> <span class="marker-highlight">Нейтральное средство →</span> <span class="marker-highlight">слабощелочное → дегризер.</span> <span class="marker-highlight">Эскалация только</span> <span class="marker-highlight">при необходимости.</span>
+          </p>
+        </blockquote>
+
+        <div class="pullquote article-card">
+          <small>Главное правило безопасности</small>
+          <p>
+            Пересохшее средство — концентрат. Именно нарушение экспозиции вызывает большинство повреждений, а не сам факт использования агрессивной химии.
+          </p>
+        </div>
+
+        <p>
+          Эта система универсальна. Вы можете столкнуться с загрязнением, которого нет в этом курсе, но если вы понимаете его химическую природу — вы найдёте правильное средство.
+        </p>
+      </section>
+
+      <footer class="article-footer">
+        Образовательный лонгрид на основе Раздела 3 курса по клинингу. Структура: классификация средств по pH, детальный разбор каждого типа, специальные компоненты и практические принципы выбора. Следующий раздел: практическая логика и алгоритмы.
+      </footer>
+    </article>
+  </main>
+</body>
+</html>

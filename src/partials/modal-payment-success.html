@@ -1,11 +1,12 @@
 <!-- МОДАЛЬНОЕ ОКНО УСПЕШНОЙ ОПЛАТЫ -->
 <div class="modal" id="payment-success-modal" role="dialog" aria-modal="true" aria-labelledby="payment-success-title">
     <div class="modal-overlay" onclick="closePaymentSuccessModal()"></div>
-    <div class="modal-content">
+    <div class="modal-content modal-content--airy" style="padding-bottom: 0 !important;">
         <div style="text-align: center;">
             <div style="font-size: 64px; color: #4caf50; margin-bottom: 16px;">✓</div>
-            <h2 id="payment-success-title" class="modal-title">Оплата прошла успешно!</h2>
-            <p style="color: #666; margin-bottom: 24px;">Спасибо за покупку курса.</p>
+            <h2 id="payment-success-title" class="modal-title" style="margin-bottom: 12px;">Оплата прошла успешно!</h2>
+            <p style="color: var(--gray-700); margin-bottom: 24px; font-family: var(--sans);">Спасибо за покупку курса.
+            </p>
         </div>
 
         <div id="success-password-container" style="display: none;">
@@ -16,7 +17,7 @@
                     style="background: white; padding: 12px; border-radius: 8px; font-family: monospace; font-size: 20px; font-weight: bold; letter-spacing: 1px; margin-bottom: 12px;">
                 </div>
                 <button type="button" onclick="copySuccessPassword()" class="modal-submit"
-                    style="background: #667eea; width: auto; padding: 8px 24px; font-size: 14px;">
+                    style="background: #667eea; width: auto; padding: 8px 24px; font-size: 14px; height: auto; margin: 0; box-shadow: none; border-radius: 8px;">
                     📋 Скопировать
                 </button>
                 <div style="font-size: 12px; color: #856404; margin-top: 12px;">
@@ -25,8 +26,10 @@
             </div>
         </div>
 
-        <div id="success-email-message" style="text-align: center; color: #666; margin-bottom: 24px;">
-            Мы отправили данные для входа на ваш email.
+        <div id="success-email-message"
+            style="text-align: center; color: var(--gray-600); margin-bottom: 24px; font-size: 14px; line-height: 1.5;">
+            📧 Пароль для входа выслан на вашу почту.<br>
+            <span style="color: var(--gray-500);">Изменить пароль можно в личном кабинете.</span>
         </div>
 
         <button type="button" class="modal-submit" onclick="closePaymentSuccessModal()">
