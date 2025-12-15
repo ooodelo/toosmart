@@ -18,6 +18,9 @@ private/
 .DS_Store
 *.log
 
+# Backup files
+*.backup
+
 # IDE
 .vscode/
 .idea/

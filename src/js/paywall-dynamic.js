@@ -1,11 +1,12 @@
 // Import all CTA icons for proper Vite asset handling in both dev and production
-import clothImg from '../assets/cloth.png';
-import gloveImg from '../assets/glove.png';
-import pumpBottleImg from '../assets/pump_bottle.png';
-import rectBrushImg from '../assets/rect_brush.png';
-import roundBrushImg from '../assets/round_brush.png';
-import toiletBrushImg from '../assets/toilet_brush.png';
-import triggerSprayImg from '../assets/trigger_spray.png';
+// Using optimized WebP format (256x256, ~7-12KB each vs original 1.4-2.2MB PNGs)
+import clothImg from '../assets/cloth.webp';
+import gloveImg from '../assets/glove.webp';
+import pumpBottleImg from '../assets/pump_bottle.webp';
+import rectBrushImg from '../assets/rect_brush.webp';
+import roundBrushImg from '../assets/round_brush.webp';
+import toiletBrushImg from '../assets/toilet_brush.webp';
+import triggerSprayImg from '../assets/trigger_spray.webp';
 
 const COOLDOWN_SECONDS = 15;
 const TIMER_SEGMENTS = 8;
@@ -505,10 +506,34 @@ const CTA_ICONS = [
   triggerSprayImg
 ];
 
-function initCtaIconAnimation() {
+async function initCtaIconAnimation() {
   const button = document.querySelector('.paywall-cta-button');
   const existingIcon = button?.querySelector('.paywall-cta-button__icon');
   if (!button || !existingIcon) return;
+
+  // OPTIMIZATION: Preload all images BEFORE creating DOM elements
+  // This ensures smooth animation from the start, especially with clean cache
+  const preloadPromises = CTA_ICONS.map(src => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(src);
+      img.onerror = () => {
+        console.warn(`[CTA Animation] Failed to preload ${src}`);
+        resolve(src); // Still resolve to not block animation
+      };
+      img.src = src;
+    });
+  });
+
+  // Wait for all images to load (with 3s timeout fallback)
+  try {
+    await Promise.race([
+      Promise.all(preloadPromises),
+      new Promise(resolve => setTimeout(resolve, 3000))
+    ]);
+  } catch (error) {
+    console.warn('[CTA Animation] Image preload error:', error);
+  }
 
   // Create slot machine container
   const slotContainer = document.createElement('div');
@@ -527,18 +552,14 @@ function initCtaIconAnimation() {
     img.src = src;
     img.alt = '';
     img.setAttribute('aria-hidden', 'true');
+    // Add decoding hint for better performance
+    img.decoding = 'async';
     item.appendChild(img);
     slotTrack.appendChild(item);
   });
 
   slotContainer.appendChild(slotTrack);
   existingIcon.replaceWith(slotContainer);
-
-  // Preload all images
-  CTA_ICONS.forEach(src => {
-    const img = new Image();
-    img.src = src;
-  });
 
   let currentIndex = 0;
 
