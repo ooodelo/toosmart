@@ -292,6 +292,15 @@ body[data-mode="mobile"] .bubble-carousel__dog {
     font-size: 44px;
     line-height: 1;
     margin-bottom: 12px;
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    /* Slight bounce effect */
+    transform-origin: left center;
+    /* Scale expands to the right */
+    will-change: transform;
+}
+
+.bubble-card:hover .bubble-card__emoji {
+    transform: scale(1.25);
 }
 
 .bubble-card__title {

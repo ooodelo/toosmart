@@ -4316,8 +4316,12 @@ function initProgressWidget() {
     ticking = false;
     ensureMobilePositioning();
 
-    // На intro-странице виджет всегда в состоянии "кнопка"
-    if (isIntroPage) {
+    // Проверяем режим десктопа (нужно для recommendation)
+    const isDesktopMode = currentMode === 'desktop' || currentMode === 'desktop-wide';
+    const alwaysShowButton = isIntroPage || (isRecommendation && isDesktopMode);
+
+    // На intro-странице и recommendation на десктопе виджет всегда в состоянии "кнопка"
+    if (alwaysShowButton) {
       if (!doneState) {
         doneState = true;
         setVisualState(true);
@@ -4325,7 +4329,7 @@ function initProgressWidget() {
         root.setAttribute('aria-disabled', 'false');
         root.setAttribute('aria-label', 'Кнопка: Далее');
       }
-      // Intro-страницы тоже должны обновлять docking
+      // Intro-страницы и recommendation на десктопе тоже должны обновлять docking
       updateDockingState();
       return;
     }
@@ -4424,8 +4428,12 @@ function initProgressWidget() {
   }
 
   // 10. Инициализация
-  if (isIntroPage) {
-    // На главной странице (intro) — сразу показываем кнопку без прогресса
+  // Для recommendation на десктопе: сразу кнопка (без кружка прогресса)
+  const isDesktopMode = currentMode === 'desktop' || currentMode === 'desktop-wide';
+  const showButtonDirectly = isIntroPage || (isRecommendation && isDesktopMode);
+
+  if (showButtonDirectly) {
+    // На главной странице (intro) или recommendation на десктопе — сразу показываем кнопку без прогресса
     dot.style.opacity = '0';
     pill.style.opacity = '1';
     pill.style.transform = 'translate(-50%,-50%) scaleX(1)';
@@ -4435,7 +4443,7 @@ function initProgressWidget() {
     root.setAttribute('aria-disabled', 'false');
     root.setAttribute('aria-label', 'Кнопка: Далее');
   } else {
-    // Обычные страницы — начинаем с прогресса
+    // Обычные страницы и recommendation на мобильном — начинаем с прогресса
     dot.style.opacity = '1';
     pill.style.opacity = '0';
     pill.style.transform = 'translate(-50%,-50%) scaleX(0.001)';
