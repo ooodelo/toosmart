@@ -55,6 +55,7 @@ $sign = rk_make_signature_start(
   $outSum,
   $invId,
   $pass1,
+  null, // Без Receipt - тестовая версия без фискализации
   $shp,
   $cfg['robokassa']['signature_alg'] ?? 'md5'
 );

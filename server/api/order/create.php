@@ -102,6 +102,7 @@ $sign = rk_make_signature_start(
   $outSum,
   $invId,
   $pass1,
+  $receipt_urlenc, // Receipt ОБЯЗАТЕЛЬНО участвует в подписи для режима Робочеки
   $shp,
   $cfg['robokassa']['signature_alg'] ?? 'md5'
 );
