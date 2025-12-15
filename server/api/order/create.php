@@ -116,7 +116,8 @@ $params = [
   'Description' => $product['name'],
   'SignatureValue' => $sign,
   'Email' => $email,
-  'Receipt' => $receipt_urlenc,
+  // Receipt параметр убран, так как в ЛК Robokassa выбрано "Самостоятельное" (без интеграции)
+  // Чек сохраняется в БД (receipt_json) для последующей самостоятельной фискализации
   'Shp_email' => $email,
   'Shp_product' => $product_code,
   'Culture' => 'ru',
@@ -143,7 +144,7 @@ $debug_info = [
     'amount' => $outSum,
     'invId' => $invId,
     'signature' => $sign,
-    'receipt_length' => strlen($receipt_urlenc)
+    'receipt_saved_to_db' => true // чек сохранен в БД для самостоятельной фискализации
   ]
 ];
 
