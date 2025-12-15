@@ -1,6 +1,8 @@
 const fs = require('fs');
 const fsp = fs.promises;
 const path = require('path');
+const os = require('os');
+const crypto = require('crypto');
 const { marked } = require('marked');
 const createDOMPurify = require('dompurify');
 const { JSDOM } = require('jsdom');
@@ -33,6 +35,9 @@ const PATHS = {
     legal: path.resolve(__dirname, '../../dist/legal'),
     // Серверные файлы (PHP API)
     server: path.resolve(__dirname, '../../dist/server')
+  },
+  cache: {
+    images: path.resolve(__dirname, '../../.cache/images.json')
   },
   config: {
     site: path.resolve(__dirname, '../../config/site.json'),
@@ -2757,23 +2762,99 @@ async function processGlobalAssets() {
   const globalRegistry = new Map();
 
   // 2. Оптимизация изображений
-  for (const imgPath of images) {
+  console.log(`📸 Найдено ${images.length} изображений для оптимизации...`);
+
+  // Загрузка кэша
+  let imageCache = {};
+  try {
+    if (fs.existsSync(PATHS.cache.images)) {
+      imageCache = JSON.parse(await fsp.readFile(PATHS.cache.images, 'utf8'));
+    }
+  } catch (err) {
+    console.log('⚠️  Не удалось загрузить кэш изображений, начинаем с пустого');
+  }
+
+  // Параллельная обработка с ограничением concurrency
+  const cpuCount = os.cpus().length;
+  const CONCURRENCY = Math.max(cpuCount - 1, 4); // Используем CPU-1 ядер, минимум 4
+  console.log(`⚡ Обработка с параллелизмом: ${CONCURRENCY} потоков`);
+
+  // Функция для вычисления хеша файла
+  const getFileHash = async (filePath) => {
+    const content = await fsp.readFile(filePath);
+    return crypto.createHash('md5').update(content).digest('hex');
+  };
+
+  // Функция для обработки одного изображения
+  const processImage = async (imgPath, index) => {
     const dir = path.dirname(imgPath);
     const filename = path.basename(imgPath);
     const ext = path.extname(filename);
     const baseName = path.basename(filename, ext);
 
-    // console.log(`Processing global asset: ${filename}`);
+    // Проверяем кэш
+    const fileHash = await getFileHash(imgPath);
+    const cacheKey = imgPath;
+
+    if (imageCache[cacheKey] && imageCache[cacheKey].hash === fileHash) {
+      // Проверяем, что выходные файлы существуют
+      const cached = imageCache[cacheKey];
+      let allExist = true;
+
+      if (cached.result && cached.result.variants) {
+        for (const [width, formats] of Object.entries(cached.result.variants)) {
+          if (!fs.existsSync(formats.avif) || !fs.existsSync(formats.webp) || !fs.existsSync(formats.fallback)) {
+            allExist = false;
+            break;
+          }
+        }
+      }
+
+      if (allExist) {
+        console.log(`[${index + 1}/${images.length}] ✓ Пропуск (кэш): ${filename}`);
+        return cached.result.processed && !cached.result.isSvg ? { filename, result: cached.result } : null;
+      }
+    }
+
+    console.log(`[${index + 1}/${images.length}] 🔨 Обработка: ${filename}`);
     const result = await processContentImage(imgPath, dir, baseName);
 
+    // Сохраняем в кэш
+    imageCache[cacheKey] = { hash: fileHash, result };
+
     if (result.processed && !result.isSvg) {
-      // Сохраняем результат для обновления HTML
-      globalRegistry.set(filename, result);
+      return { filename, result };
     }
+    return null;
+  };
+
+  // Обработка батчами для контроля памяти
+  for (let i = 0; i < images.length; i += CONCURRENCY) {
+    const batch = images.slice(i, i + CONCURRENCY);
+    const batchResults = await Promise.all(
+      batch.map((imgPath, batchIndex) => processImage(imgPath, i + batchIndex))
+    );
+
+    // Сохраняем результаты в registry
+    batchResults.forEach(item => {
+      if (item) {
+        globalRegistry.set(item.filename, item.result);
+      }
+    });
   }
 
   if (globalRegistry.size > 0) {
     console.log(`✅ Глобально оптимизировано ${globalRegistry.size} растровых изображений`);
+  }
+
+  // Сохраняем кэш
+  try {
+    const cacheDir = path.dirname(PATHS.cache.images);
+    await fsp.mkdir(cacheDir, { recursive: true });
+    await fsp.writeFile(PATHS.cache.images, JSON.stringify(imageCache, null, 2));
+    console.log(`💾 Кэш изображений сохранен`);
+  } catch (err) {
+    console.warn('⚠️  Не удалось сохранить кэш изображений:', err.message);
   }
 
   // 3. Обновление HTML файлов
