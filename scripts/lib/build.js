@@ -2590,8 +2590,8 @@ async function processGlobalAssets() {
   const allFiles = await getFiles(assetsDir);
   const images = allFiles.filter(f => {
     const ext = path.extname(f).toLowerCase();
-    // Пропускаем уже сгенерированные варианты (эвристика по суффиксу)
-    if (f.includes('-400w.') || f.includes('-800w.') || f.includes('-1600w.')) return false;
+    // Пропускаем уже сгенерированные варианты (любой суффикс -NNNw)
+    if (/-\d+w\./.test(f)) return false;
     return IMAGE_EXTENSIONS.includes(ext);
   });
 
