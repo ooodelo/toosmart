@@ -1775,7 +1775,7 @@ function preprocessMarkdownMedia(markdown, dirPath, assetRegistry) {
       const webPathBase = `/assets/content/${baseName}`;
 
       // Determine fallback extension: PNG keeps transparency, others become JPEG
-      const fallbackExt = originalExt === '.png' ? '.png' : '.jpg';
+      const fallbackExt = originalExt === '.svg' ? '.svg' : (originalExt === '.png' ? '.png' : '.jpg');
 
       // Register the asset for later processing
       if (!assetRegistry.has(resolvedPath)) {
@@ -1856,7 +1856,7 @@ function rewriteContentMedia(html, dirPath, assetRegistry) {
       const baseName = getBaseName(filename);
       webPathBase = `/assets/content/${baseName}`;
       // Determine fallback from current extension
-      fallbackExt = ext === '.png' ? '.png' : '.jpg';
+      fallbackExt = ext === '.svg' ? '.svg' : (ext === '.png' ? '.png' : '.jpg');
     } else {
       // Resolve new paths
       let resolvedPath = null;
@@ -1917,7 +1917,7 @@ function rewriteContentMedia(html, dirPath, assetRegistry) {
       const originalExt = path.extname(originalFilename).toLowerCase();
       const baseName = getBaseName(sanitizeFilename(originalFilename));
       webPathBase = `/assets/content/${baseName}`;
-      fallbackExt = originalExt === '.png' ? '.png' : '.jpg';
+      fallbackExt = originalExt === '.svg' ? '.svg' : (originalExt === '.png' ? '.png' : '.jpg');
 
       // Register the asset for later processing
       if (!assetRegistry.has(resolvedPath)) {
@@ -1935,6 +1935,12 @@ function rewriteContentMedia(html, dirPath, assetRegistry) {
 
     // Create <picture> element with AVIF, WebP, and fallback
     if (webPathBase && fallbackExt) {
+      // If SVG, just update src and don't wrap in picture
+      if (fallbackExt === '.svg') {
+        img.setAttribute('src', `${webPathBase}${fallbackExt}`);
+        return;
+      }
+
       const alt = img.getAttribute('alt') || '';
       const imgClass = img.getAttribute('class') || '';
       const imgId = img.getAttribute('id') || '';
@@ -2282,7 +2288,12 @@ async function copyContentAssets(assets) {
           assetInfo.imageFormats = result.formats;
           assetInfo.fallbackExt = result.fallbackExt;
           assetInfo.hasAlpha = result.hasAlpha;
-          console.log(`  📐 ${path.basename(sourcePath)}: ${result.originalWidth}→${result.targetWidth}px (AVIF+WebP+${result.fallbackExt})`);
+
+          if (result.isSvg) {
+            console.log(`  🎨 ${path.basename(sourcePath)}: Optimized SVG`);
+          } else {
+            console.log(`  📐 ${path.basename(sourcePath)}: ${result.originalWidth}→${result.targetWidth}px (AVIF+WebP+${result.fallbackExt})`);
+          }
         } else {
           copiedCount++;
         }

@@ -6,9 +6,10 @@
 const sharp = require('sharp');
 const path = require('path');
 const fs = require('fs');
+const { optimize } = require('svgo');
 
 // Supported image extensions for processing
-const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'];
+const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.svg'];
 
 // Max width for 2x retina (800px display × 2)
 const MAX_WIDTH = 1600;
@@ -65,6 +66,44 @@ async function processContentImage(sourcePath, destDir, baseName, options = {}) 
             original: destPath,
             formats: {}
         };
+    }
+
+    // Handle SVG optimization separately
+    if (ext === '.svg') {
+        try {
+            const svgContent = await fs.promises.readFile(sourcePath, 'utf8');
+            const result = optimize(svgContent, {
+                path: sourcePath,
+                multipass: true, // Enable multipass optimization
+                plugins: [
+                    'preset-default',
+                    'removeDimensions', // Remove width/height attributes (optional, good for responsive)
+                    'removeXMLNS'
+                ]
+            });
+
+            const destPath = path.join(destDir, `${baseName}.svg`);
+            await fs.promises.writeFile(destPath, result.data || svgContent); // Fallback to original if optimization failed (empty result)
+
+            return {
+                processed: true,
+                isSvg: true, // Marker for build script
+                original: destPath,
+                targetWidth: 'vector',
+                formats: {} // No raster formats for SVG
+            };
+        } catch (error) {
+            console.error(`❌ Error optimizing SVG ${sourcePath}:`, error.message);
+            // Fallback: just copy
+            const destPath = path.join(destDir, `${baseName}.svg`);
+            await fs.promises.copyFile(sourcePath, destPath);
+            return {
+                processed: false,
+                error: error.message,
+                original: destPath,
+                formats: {}
+            };
+        }
     }
 
     try {
