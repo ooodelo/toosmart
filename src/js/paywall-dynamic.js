@@ -1,3 +1,12 @@
+// Import all CTA icons for proper Vite asset handling in both dev and production
+import clothImg from '../assets/cloth.png';
+import gloveImg from '../assets/glove.png';
+import pumpBottleImg from '../assets/pump_bottle.png';
+import rectBrushImg from '../assets/rect_brush.png';
+import roundBrushImg from '../assets/round_brush.png';
+import toiletBrushImg from '../assets/toilet_brush.png';
+import triggerSprayImg from '../assets/trigger_spray.png';
+
 const COOLDOWN_SECONDS = 15;
 const TIMER_SEGMENTS = 8;
 const MAX_FPS = 16;
@@ -487,13 +496,13 @@ export function initDynamicPaywall() {
  * CTA Icon Animation - cycles through cleaning tool images
  */
 const CTA_ICONS = [
-  '/assets/cloth.png',
-  '/assets/glove.png',
-  '/assets/pump_bottle.png',
-  '/assets/rect_brush.png',
-  '/assets/round_brush.png',
-  '/assets/toilet_brush.png',
-  '/assets/trigger_spray.png'
+  clothImg,
+  gloveImg,
+  pumpBottleImg,
+  rectBrushImg,
+  roundBrushImg,
+  toiletBrushImg,
+  triggerSprayImg
 ];
 
 function initCtaIconAnimation() {
