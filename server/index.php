@@ -88,7 +88,9 @@ $successModalHtml = '';
 $successPayload = null;
 
 // Обработка успешной оплаты - ПРОСТАЯ ВЕРСИЯ БЕЗ ПРОВЕРОК
+// VERSION: 2024-12-16-FINAL
 if (isset($_GET['payment']) && $_GET['payment'] === 'success') {
+    echo "<!-- V3 -->"; // Маркер новой версии
     $invId = isset($_GET['InvId']) ? (int)$_GET['InvId'] : null;
     $urlEmail = isset($_GET['Shp_email']) ? urldecode($_GET['Shp_email']) : null;
 
