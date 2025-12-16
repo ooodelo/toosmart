@@ -172,7 +172,6 @@ if ($successPayload) {
             $showSuccessModal = true;
         }
     }
-}
 
 // Получение кода ошибки
 $error = $_GET['error'] ?? '';
