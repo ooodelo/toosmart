@@ -78,6 +78,74 @@ if (isset($_SESSION['premium_user'])) {
 // Генерация CSRF токена
 $csrf_token = Security::generateCSRFToken();
 
+// Обработка успешной оплаты
+$showSuccessModal = false;
+$successModalHtml = '';
+
+if (isset($_GET['payment']) && $_GET['payment'] === 'success') {
+    // Проверяем, есть ли пароль в сессии
+    if (isset($_SESSION['new_password']) && isset($_SESSION['new_password_email'])) {
+
+        $password = $_SESSION['new_password'];
+        $email = $_SESSION['new_password_email'];
+
+        // Читаем HTML-шаблон модалки
+        $template_path = __DIR__ . '/templates/payment-success.html';
+        if (file_exists($template_path)) {
+            $template = file_get_contents($template_path);
+
+            // Читаем тексты из JSON
+            $texts_path = __DIR__ . '/storage/success-modal-texts.json';
+            $texts = file_exists($texts_path)
+                ? json_decode(file_get_contents($texts_path), true)
+                : [
+                    'intro_hooks' => ['✅ Оплата прошла успешно!', 'Добро пожаловать в курс'],
+                    'credentials_label' => 'Ваши данные для входа:',
+                    'outro_hooks' => ['💾 Пароль также отправлен на ваш email'],
+                    'button_text' => 'Войти в курс'
+                ];
+
+            // Формируем хуки в HTML
+            $intro_hooks_html = '';
+            foreach ($texts['intro_hooks'] as $hook) {
+                $intro_hooks_html .= '<p class="modal-hook">' . htmlspecialchars($hook, ENT_QUOTES, 'UTF-8') . '</p>';
+            }
+
+            $outro_hooks_html = '';
+            foreach ($texts['outro_hooks'] as $hook) {
+                $outro_hooks_html .= '<p>' . htmlspecialchars($hook, ENT_QUOTES, 'UTF-8') . '</p>';
+            }
+
+            // Создаем токен для авто-логина (криптографически безопасный)
+            $auto_login_token = bin2hex(random_bytes(32));
+            $_SESSION['auto_login_token'] = $auto_login_token;
+            $_SESSION['auto_login_email'] = $email;
+
+            // Заменяем плейсхолдеры
+            $successModalHtml = str_replace(
+                ['{{INTRO_HOOKS}}', '{{CREDENTIALS_LABEL}}', '{{EMAIL}}', '{{PASSWORD}}', '{{OUTRO_HOOKS}}', '{{AUTO_LOGIN_URL}}', '{{BUTTON_TEXT}}'],
+                [
+                    $intro_hooks_html,
+                    htmlspecialchars($texts['credentials_label'], ENT_QUOTES, 'UTF-8'),
+                    htmlspecialchars($email, ENT_QUOTES, 'UTF-8'),
+                    htmlspecialchars($password, ENT_QUOTES, 'UTF-8'),
+                    $outro_hooks_html,
+                    '/server/auto-login.php?token=' . $auto_login_token,
+                    htmlspecialchars($texts['button_text'], ENT_QUOTES, 'UTF-8')
+                ],
+                $template
+            );
+
+            // УДАЛЯЕМ пароль из сессии (одноразовый показ!)
+            unset($_SESSION['new_password']);
+            unset($_SESSION['new_password_email']);
+            unset($_SESSION['new_password_timestamp']);
+
+            $showSuccessModal = true;
+        }
+    }
+}
+
 // Получение кода ошибки
 $error = $_GET['error'] ?? '';
 $errorMessage = '';
@@ -194,6 +262,14 @@ if ($success === 'password_reset') {
                 нам</a>
         </div>
     </div>
+
+    <?php if ($showSuccessModal): ?>
+        <?= $successModalHtml ?>
+        <script>
+            // Автоматически показываем модалку
+            document.body.style.overflow = 'hidden';
+        </script>
+    <?php endif; ?>
 </body>
 
 </html>
