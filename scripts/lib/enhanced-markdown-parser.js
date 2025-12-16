@@ -106,7 +106,9 @@ function renderBreadcrumb(breadcrumbText) {
     } else {
         // First part(s) as links, last as current
         for (let i = 0; i < parts.length - 1; i++) {
-            html += `<a href="#">${escapeHtml(parts[i])}</a>`;
+            // First breadcrumb links to homepage, others use #
+            const href = i === 0 ? '/' : '#';
+            html += `<a href="${href}">${escapeHtml(parts[i])}</a>`;
             if (i < parts.length - 2) {
                 html += '<span class="separator"> · </span>';
             }

@@ -158,27 +158,27 @@ try {
 $site_url = $cfg['site']['base_url'] ?? 'https://toosmart.ru';
 $mail_reply_to = $cfg['emails']['reply_to'] ?? 'reply@toosmart.ru';
 
-$subject = 'Ваш доступ к курсу Clean - Теория правильной уборки';
-$message = "
-Здравствуйте!
+// Загрузка email-шаблона из JSON
+$templates_path = __DIR__ . '/storage/email-templates.json';
+$templates = file_exists($templates_path)
+    ? json_decode(file_get_contents($templates_path), true)
+    : null;
 
-Спасибо за покупку курса «Clean - Теория правильной уборки».
+if (!$templates || !isset($templates['welcome'])) {
+    Security::secureLog('ERROR', 'Email template not found', [
+        'template_path' => $templates_path
+    ]);
+    http_response_code(500);
+    die('Email template error');
+}
 
-Ваши данные для входа в закрытую версию:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Email: $validated_email
-Пароль: $password
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Ссылка для входа: $site_url/server/
-
-⚠️ ВАЖНО: Сохраните это письмо - пароль больше нигде не отображается.
-
-Если у вас возникли проблемы со входом, напишите нам на $mail_reply_to
-
-С уважением,
-Команда TooSmart
-";
+$template = $templates['welcome'];
+$subject = $template['subject'];
+$message = str_replace(
+    ['{{email}}', '{{password}}', '{{site_url}}', '{{reply_to}}'],
+    [$validated_email, $password, $site_url, $mail_reply_to],
+    $template['body']
+);
 
 // Получаем user_id для логирования
 $user_id = get_user_id_by_email($validated_email);

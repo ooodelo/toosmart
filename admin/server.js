@@ -443,6 +443,12 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // PHP API proxy для /admin/api/*
+    if (pathname.startsWith('/admin/api/')) {
+      await handlePhpApi(req, res, pathname);
+      return;
+    }
+
     // Статические файлы
     await serveStatic(req, res, pathname);
 
@@ -2068,6 +2074,103 @@ async function handleResetFavicon(req, res) {
   } catch (error) {
     res.writeHead(500, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ error: 'Ошибка сброса: ' + error.message }));
+  }
+}
+
+// Обработка PHP API запросов
+async function handlePhpApi(req, res, pathname) {
+  try {
+    // Получаем путь к PHP файлу
+    const phpFile = pathname.replace('/admin/api/', '');
+    const phpPath = path.join(ADMIN_DIR, 'api', phpFile);
+
+    // Проверка безопасности
+    if (!phpPath.startsWith(path.join(ADMIN_DIR, 'api')) || !phpPath.endsWith('.php')) {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Forbidden' }));
+      return;
+    }
+
+    if (!fs.existsSync(phpPath)) {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Not found' }));
+      return;
+    }
+
+    // Собираем тело запроса для POST/PATCH
+    let body = '';
+    if (req.method === 'POST' || req.method === 'PATCH') {
+      await new Promise((resolve) => {
+        req.on('data', chunk => body += chunk.toString());
+        req.on('end', resolve);
+      });
+    }
+
+    // Подготовка окружения для PHP
+    const env = {
+      ...process.env,
+      REQUEST_METHOD: req.method,
+      CONTENT_TYPE: req.headers['content-type'] || '',
+      CONTENT_LENGTH: body.length.toString(),
+      HTTP_X_ADMIN_TOKEN: req.headers['x-admin-token'] || '',
+      SCRIPT_FILENAME: phpPath,
+      REDIRECT_STATUS: '200'
+    };
+
+    // Выполнение PHP скрипта
+    const { exec } = require('child_process');
+    const phpCommand = body
+      ? `echo ${JSON.stringify(body)} | php -q "${phpPath}"`
+      : `php -q "${phpPath}"`;
+
+    exec(phpCommand, { env, cwd: path.dirname(phpPath) }, (error, stdout, stderr) => {
+      if (error) {
+        console.error('PHP execution error:', error.message);
+        console.error('Stderr:', stderr);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'PHP execution failed' }));
+        return;
+      }
+
+      // PHP скрипты возвращают заголовки и тело
+      // Разделяем их
+      const output = stdout.toString();
+      const headerEnd = output.indexOf('\r\n\r\n');
+
+      if (headerEnd !== -1) {
+        const headers = output.substring(0, headerEnd);
+        const responseBody = output.substring(headerEnd + 4);
+
+        // Парсим заголовки
+        const headerLines = headers.split('\r\n');
+        let statusCode = 200;
+        const responseHeaders = {};
+
+        headerLines.forEach(line => {
+          if (line.startsWith('HTTP/')) {
+            const match = line.match(/HTTP\/\d\.\d (\d+)/);
+            if (match) statusCode = parseInt(match[1]);
+          } else if (line.includes(':')) {
+            const colonIndex = line.indexOf(':');
+            const key = line.substring(0, colonIndex).trim();
+            const value = line.substring(colonIndex + 1).trim();
+            responseHeaders[key] = value;
+          }
+        });
+
+        res.writeHead(statusCode, responseHeaders);
+        res.end(responseBody);
+      } else {
+        // Нет разделения на заголовки - отправляем как JSON
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(output);
+      }
+    });
+
+  } catch (error) {
+    console.error('PHP API handler error:', error);
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: error.message }));
   }
 }
 

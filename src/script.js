@@ -4650,6 +4650,95 @@ function ensureElements() {
   }
 }
 
+/**
+ * Content Protection
+ * Prevents copying, right-click context menu, and text selection
+ */
+function initContentProtection() {
+  const disposers = [];
+
+  // Prevent right-click context menu
+  const handleContextMenu = (e) => {
+    e.preventDefault();
+    return false;
+  };
+
+  // Prevent text selection and copying
+  const handleSelectStart = (e) => {
+    e.preventDefault();
+    return false;
+  };
+
+  // Prevent copy via keyboard
+  const handleCopy = (e) => {
+    e.preventDefault();
+    return false;
+  };
+
+  // Prevent cut
+  const handleCut = (e) => {
+    e.preventDefault();
+    return false;
+  };
+
+  // Prevent drag
+  const handleDragStart = (e) => {
+    e.preventDefault();
+    return false;
+  };
+
+  // Attach to document
+  disposers.push(trackEvent(document, 'contextmenu', handleContextMenu, undefined, {
+    module: 'content.protection',
+    target: 'document'
+  }));
+
+  disposers.push(trackEvent(document, 'selectstart', handleSelectStart, undefined, {
+    module: 'content.protection',
+    target: 'document'
+  }));
+
+  disposers.push(trackEvent(document, 'copy', handleCopy, undefined, {
+    module: 'content.protection',
+    target: 'document'
+  }));
+
+  disposers.push(trackEvent(document, 'cut', handleCut, undefined, {
+    module: 'content.protection',
+    target: 'document'
+  }));
+
+  disposers.push(trackEvent(document, 'dragstart', handleDragStart, undefined, {
+    module: 'content.protection',
+    target: 'document'
+  }));
+
+  // Anti-screenshot: blur content when page visibility changes (mobile)
+  const handleVisibilityChange = () => {
+    if (document.hidden) {
+      document.body.style.filter = 'blur(10px)';
+    } else {
+      document.body.style.filter = '';
+    }
+  };
+
+  disposers.push(trackEvent(document, 'visibilitychange', handleVisibilityChange, undefined, {
+    module: 'content.protection',
+    target: 'document'
+  }));
+
+  // Cleanup function
+  registerLifecycleDisposer(() => {
+    for (const dispose of disposers) {
+      try {
+        dispose();
+      } catch (error) {
+        console.error('[ContentProtection] Failed to dispose listener', error);
+      }
+    }
+  }, { module: 'content.protection', kind: 'cleanup' });
+}
+
 function init() {
   // Safari fix: Убедимся что все элементы DOM найдены
   ensureElements();
@@ -4665,6 +4754,7 @@ function init() {
   attachMenuSwipes(); // Swipe support for touch devices
   attachScrollHideHeader(); // Auto-hide header/dock on scroll
   initMenuLinks();
+  initContentProtection(); // Content protection
 
   lazyFeatures.observeAll();
 

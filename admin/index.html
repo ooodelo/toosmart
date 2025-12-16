@@ -1142,6 +1142,7 @@
         <button class="tab active" data-section="content">📚 Контент</button>
         <button class="tab" data-section="settings">⚙️ Настройки</button>
         <button class="tab" data-section="build">🚀 Сборка</button>
+        <button class="tab" data-section="payments">💳 Платежи</button>
       </nav>
 
       <section class="section active" data-section="content">
@@ -1535,6 +1536,136 @@
                 <iframe class="wysiwyg-frame" id="wysiwygFrame" style="display:none;" title="WYSIWYG редактор"></iframe>
                 <textarea class="form-textarea code-area" id="htmlBlockContent"
                   placeholder="Выберите блок и нажмите «Загрузить»"></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" data-section="payments">
+        <div class="section-header">
+          <h1 class="section-title">Управление платежами</h1>
+          <p class="section-subtitle">Настройка продукта, email-писем и модального окна успеха</p>
+        </div>
+
+        <!-- РАЗДЕЛ 1: ПРОДУКТ -->
+        <div class="card">
+          <div class="card-header">
+            <h2 style="margin: 0; font-size: 16px; font-weight: 600;">📦 Продукт</h2>
+            <p style="margin: 4px 0 0; font-size: 13px; color: var(--text-muted);">Название и цена товара в Robokassa</p>
+          </div>
+          <div class="card-body">
+            <div style="display: grid; gap: 16px;">
+              <div>
+                <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--text-secondary);">Название товара</label>
+                <input type="text" id="productName" style="width: 100%; padding: 10px 12px; border: 1.5px solid var(--border-light); border-radius: 8px; font-size: 14px; transition: var(--transition);" placeholder='Курс "Clean - Теория правильной уборки"'>
+                <small style="display: block; margin-top: 4px; font-size: 12px; color: var(--text-muted);">Отображается в окне оплаты Robokassa</small>
+              </div>
+              <div style="max-width: 200px;">
+                <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--text-secondary);">Цена, ₽</label>
+                <input type="number" id="productPrice" step="0.01" min="1" style="width: 100%; padding: 10px 12px; border: 1.5px solid var(--border-light); border-radius: 8px; font-size: 14px; transition: var(--transition);" placeholder="5490">
+              </div>
+              <div>
+                <button id="saveProduct" style="padding: 10px 20px; background: var(--accent); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: var(--transition);">
+                  💾 Сохранить
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- РАЗДЕЛ 2: EMAIL ШАБЛОН -->
+        <div class="card">
+          <div class="card-header">
+            <h2 style="margin: 0; font-size: 16px; font-weight: 600;">✉️ Email после оплаты</h2>
+            <p style="margin: 4px 0 0; font-size: 13px; color: var(--text-muted);">Письмо с паролем, отправляемое покупателю</p>
+          </div>
+          <div class="card-body">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+              <!-- Левая колонка: Редактирование -->
+              <div>
+                <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">Редактирование</h3>
+                <div style="margin-bottom: 16px;">
+                  <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--text-secondary);">Тема письма</label>
+                  <input type="text" id="emailSubject" style="width: 100%; padding: 10px 12px; border: 1.5px solid var(--border-light); border-radius: 8px; font-size: 14px;">
+                </div>
+                <div style="margin-bottom: 16px;">
+                  <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--text-secondary);">Текст письма</label>
+                  <textarea id="emailBody" rows="12" style="width: 100%; padding: 10px 12px; border: 1.5px solid var(--border-light); border-radius: 8px; font-size: 13px; font-family: 'SF Mono', Monaco, monospace; line-height: 1.6; resize: vertical;"></textarea>
+                  <small style="display: block; margin-top: 6px; font-size: 12px; color: var(--text-muted);">
+                    Доступные переменные: <code>{{email}}</code>, <code>{{password}}</code>, <code>{{site_url}}</code>, <code>{{reply_to}}</code>
+                  </small>
+                </div>
+                <button id="saveEmail" style="padding: 10px 20px; background: var(--accent); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: var(--transition);">
+                  💾 Сохранить
+                </button>
+              </div>
+
+              <!-- Правая колонка: Live Preview -->
+              <div>
+                <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">Live Preview</h3>
+                <div style="background: var(--bg-hover); padding: 16px; border-radius: 8px; border: 1px solid var(--border-light);">
+                  <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">
+                    <strong>От:</strong> noreply@toosmart.ru<br>
+                    <strong>Кому:</strong> test@example.com<br>
+                    <strong>Тема:</strong> <span id="emailPreviewSubject"></span>
+                  </div>
+                  <div style="background: white; padding: 16px; border-radius: 6px; font-size: 13px; line-height: 1.8; white-space: pre-wrap; font-family: -apple-system, sans-serif; max-height: 400px; overflow-y: auto;" id="emailPreviewBody"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- РАЗДЕЛ 3: МОДАЛЬНОЕ ОКНО УСПЕХА -->
+        <div class="card">
+          <div class="card-header">
+            <h2 style="margin: 0; font-size: 16px; font-weight: 600;">✅ Модальное окно успеха</h2>
+            <p style="margin: 4px 0 0; font-size: 13px; color: var(--text-muted);">Окно, которое видит покупатель сразу после оплаты</p>
+          </div>
+          <div class="card-body">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+              <!-- Левая колонка: Редактирование -->
+              <div>
+                <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">Редактирование</h3>
+
+                <div style="margin-bottom: 20px; padding: 12px; background: var(--bg-hover); border-radius: 8px;">
+                  <h4 style="font-size: 13px; font-weight: 600; margin-bottom: 8px;">Вводные хуки</h4>
+                  <div id="introHooksContainer"></div>
+                  <button id="addIntroHook" style="padding: 6px 12px; background: var(--bg-card); border: 1px dashed var(--border-medium); border-radius: 6px; font-size: 12px; cursor: pointer; margin-top: 8px;">+ Добавить хук</button>
+                </div>
+
+                <div style="margin-bottom: 20px; padding: 12px; background: var(--bg-hover); border-radius: 8px;">
+                  <h4 style="font-size: 13px; font-weight: 600; margin-bottom: 8px;">Блок с данными</h4>
+                  <label style="display: block; font-size: 12px; margin-bottom: 4px; color: var(--text-secondary);">Подпись блока</label>
+                  <input type="text" id="credentialsLabel" style="width: 100%; padding: 8px 10px; border: 1.5px solid var(--border-light); border-radius: 6px; font-size: 13px;" placeholder="Ваши данные для входа:">
+                  <small style="display: block; margin-top: 6px; font-size: 11px; color: var(--text-muted);">Email и пароль отображаются автоматически</small>
+                </div>
+
+                <div style="margin-bottom: 20px; padding: 12px; background: var(--bg-hover); border-radius: 8px;">
+                  <h4 style="font-size: 13px; font-weight: 600; margin-bottom: 8px;">Финальные хуки</h4>
+                  <div id="outroHooksContainer"></div>
+                  <button id="addOutroHook" style="padding: 6px 12px; background: var(--bg-card); border: 1px dashed var(--border-medium); border-radius: 6px; font-size: 12px; cursor: pointer; margin-top: 8px;">+ Добавить хук</button>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                  <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--text-secondary);">Текст кнопки</label>
+                  <input type="text" id="buttonText" style="width: 100%; padding: 8px 10px; border: 1.5px solid var(--border-light); border-radius: 6px; font-size: 13px;" placeholder="Войти в курс">
+                </div>
+
+                <button id="saveModal" style="padding: 10px 20px; background: var(--accent); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: var(--transition);">
+                  💾 Сохранить
+                </button>
+              </div>
+
+              <!-- Правая колонка: Live Preview -->
+              <div>
+                <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">Live Preview</h3>
+                <div style="background: rgba(0,0,0,0.05); padding: 20px; border-radius: 8px; display: flex; align-items: center; justify-content: center; min-height: 500px;">
+                  <div id="modalPreview" style="background: white; border-radius: 20px; max-width: 400px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.2); overflow: hidden;">
+                    <!-- Превью модалки будет здесь -->
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -3126,6 +3257,407 @@
         showToast('Ошибка загрузки иконки', 'error');
       }
     }
+
+    // =====================================================
+    // PAYMENTS TAB LOGIC
+    // =====================================================
+
+    // Helper: API calls для PHP backend с токеном
+    async function apiCall(url, options = {}) {
+      // Получаем admin token из localStorage или prompt
+      let adminToken = localStorage.getItem('adminToken');
+      if (!adminToken) {
+        adminToken = prompt('Введите Admin Token из server/storage/settings.json:');
+        if (adminToken) {
+          localStorage.setItem('adminToken', adminToken);
+        }
+      }
+
+      const headers = {
+        'Content-Type': 'application/json',
+        'X-Admin-Token': adminToken,
+        ...options.headers
+      };
+
+      const response = await fetch(url, {
+        ...options,
+        headers
+      });
+
+      if (!response.ok && response.status === 403) {
+        localStorage.removeItem('adminToken');
+        throw new Error('Invalid admin token');
+      }
+
+      return response.json();
+    }
+
+    // Состояние для таба Платежи
+    const paymentsState = {
+      product: null,
+      emailTemplate: null,
+      modalTexts: null
+    };
+
+    // Загрузка данных для таба Платежи
+    async function loadPaymentsData() {
+      try {
+        const [product, email, modal] = await Promise.all([
+          apiCall('/admin/api/get-product.php'),
+          apiCall('/admin/api/get-email-template.php'),
+          apiCall('/admin/api/get-success-modal.php')
+        ]);
+
+        if (product.success) {
+          paymentsState.product = product.product;
+          document.getElementById('productName').value = product.product.name;
+          document.getElementById('productPrice').value = product.product.price;
+        }
+
+        if (email.success) {
+          paymentsState.emailTemplate = email.template;
+          document.getElementById('emailSubject').value = email.template.subject;
+          document.getElementById('emailBody').value = email.template.body;
+          updateEmailPreview();
+        }
+
+        if (modal.success) {
+          paymentsState.modalTexts = modal.texts;
+          renderModalEditor(modal.texts);
+          updateModalPreview();
+        }
+      } catch (error) {
+        console.error('Error loading payments data:', error);
+        showToast('Ошибка загрузки данных платежей', 'error');
+      }
+    }
+
+    // Сохранение продукта
+    async function saveProduct() {
+      const name = document.getElementById('productName').value.trim();
+      const price = parseFloat(document.getElementById('productPrice').value);
+
+      if (!name || !price || price <= 0) {
+        showFieldError('productName');
+        showFieldError('productPrice');
+        return;
+      }
+
+      const saveBtn = document.getElementById('saveProduct');
+      saveBtn.disabled = true;
+
+      try {
+        const result = await apiCall('/admin/api/update-product.php', {
+          method: 'POST',
+          body: JSON.stringify({ name, price })
+        });
+
+        if (result.success) {
+          showFieldSuccess('productName');
+          showFieldSuccess('productPrice');
+          setTimeout(() => {
+            resetFieldStyle('productName');
+            resetFieldStyle('productPrice');
+          }, 2000);
+        } else {
+          showFieldError('productName');
+          showFieldError('productPrice');
+        }
+      } catch (error) {
+        showFieldError('productName');
+        showFieldError('productPrice');
+      } finally {
+        saveBtn.disabled = false;
+      }
+    }
+
+    // Сохранение email шаблона
+    async function saveEmailTemplate() {
+      const subject = document.getElementById('emailSubject').value.trim();
+      const body = document.getElementById('emailBody').value;
+
+      if (!subject || !body) {
+        showFieldError('emailSubject');
+        showFieldError('emailBody');
+        return;
+      }
+
+      if (!body.includes('{{email}}') || !body.includes('{{password}}')) {
+        showFieldError('emailBody');
+        return;
+      }
+
+      const saveBtn = document.getElementById('saveEmail');
+      saveBtn.disabled = true;
+
+      try {
+        const result = await apiCall('/admin/api/update-email-template.php', {
+          method: 'POST',
+          body: JSON.stringify({ subject, body })
+        });
+
+        if (result.success) {
+          showFieldSuccess('emailSubject');
+          showFieldSuccess('emailBody');
+          setTimeout(() => {
+            resetFieldStyle('emailSubject');
+            resetFieldStyle('emailBody');
+          }, 2000);
+        } else {
+          showFieldError('emailSubject');
+          showFieldError('emailBody');
+        }
+      } catch (error) {
+        showFieldError('emailSubject');
+        showFieldError('emailBody');
+      } finally {
+        saveBtn.disabled = false;
+      }
+    }
+
+    // Сохранение модального окна
+    async function saveSuccessModal() {
+      const introHooks = Array.from(document.querySelectorAll('#introHooksContainer input'))
+        .map(inp => inp.value.trim())
+        .filter(Boolean);
+
+      const credentialsLabel = document.getElementById('credentialsLabel').value.trim();
+
+      const outroHooks = Array.from(document.querySelectorAll('#outroHooksContainer input'))
+        .map(inp => inp.value.trim())
+        .filter(Boolean);
+
+      const buttonText = document.getElementById('buttonText').value.trim();
+
+      if (introHooks.length === 0 || !credentialsLabel || outroHooks.length === 0 || !buttonText) {
+        return;
+      }
+
+      const saveBtn = document.getElementById('saveModal');
+      saveBtn.disabled = true;
+
+      try {
+        const result = await apiCall('/admin/api/update-success-modal.php', {
+          method: 'POST',
+          body: JSON.stringify({
+            intro_hooks: introHooks,
+            credentials_label: credentialsLabel,
+            outro_hooks: outroHooks,
+            button_text: buttonText
+          })
+        });
+
+        if (result.success) {
+          showFieldSuccess('credentialsLabel');
+          showFieldSuccess('buttonText');
+          setTimeout(() => {
+            resetFieldStyle('credentialsLabel');
+            resetFieldStyle('buttonText');
+          }, 2000);
+        }
+      } finally {
+        saveBtn.disabled = false;
+      }
+    }
+
+    // Live Preview для Email
+    function updateEmailPreview() {
+      const subject = document.getElementById('emailSubject')?.value || '';
+      const body = document.getElementById('emailBody')?.value || '';
+
+      const subjectEl = document.getElementById('emailPreviewSubject');
+      if (subjectEl) subjectEl.textContent = subject;
+
+      const previewBody = body
+        .replace(/\{\{email\}\}/g, 'test@example.com')
+        .replace(/\{\{password\}\}/g, 'DemoPassword123')
+        .replace(/\{\{site_url\}\}/g, 'https://toosmart.ru')
+        .replace(/\{\{reply_to\}\}/g, 'support@toosmart.ru');
+
+      const bodyEl = document.getElementById('emailPreviewBody');
+      if (bodyEl) bodyEl.textContent = previewBody;
+    }
+
+    // Render модального редактора
+    function renderModalEditor(texts) {
+      // Вводные хуки
+      const introContainer = document.getElementById('introHooksContainer');
+      if (introContainer) {
+        introContainer.innerHTML = '';
+        texts.intro_hooks.forEach((hook, index) => {
+          const div = document.createElement('div');
+          div.style.cssText = 'display: flex; gap: 8px; margin-bottom: 8px;';
+          div.innerHTML = `
+            <input type="text" value="${hook.replace(/"/g, '&quot;')}" style="flex: 1; padding: 8px 10px; border: 1.5px solid var(--border-light); border-radius: 6px; font-size: 13px;" oninput="updateModalPreview()">
+            <button onclick="removeHook('intro', ${index})" style="padding: 8px 12px; background: var(--danger-soft); color: var(--danger); border: none; border-radius: 6px; cursor: pointer;">×</button>
+          `;
+          introContainer.appendChild(div);
+        });
+      }
+
+      // Финальные хуки
+      const outroContainer = document.getElementById('outroHooksContainer');
+      if (outroContainer) {
+        outroContainer.innerHTML = '';
+        texts.outro_hooks.forEach((hook, index) => {
+          const div = document.createElement('div');
+          div.style.cssText = 'display: flex; gap: 8px; margin-bottom: 8px;';
+          div.innerHTML = `
+            <input type="text" value="${hook.replace(/"/g, '&quot;')}" style="flex: 1; padding: 8px 10px; border: 1.5px solid var(--border-light); border-radius: 6px; font-size: 13px;" oninput="updateModalPreview()">
+            <button onclick="removeHook('outro', ${index})" style="padding: 8px 12px; background: var(--danger-soft); color: var(--danger); border: none; border-radius: 6px; cursor: pointer;">×</button>
+          `;
+          outroContainer.appendChild(div);
+        });
+      }
+
+      const credLabel = document.getElementById('credentialsLabel');
+      if (credLabel) credLabel.value = texts.credentials_label;
+
+      const btnText = document.getElementById('buttonText');
+      if (btnText) btnText.value = texts.button_text;
+    }
+
+    // Добавить хук
+    function addIntroHook() {
+      const container = document.getElementById('introHooksContainer');
+      if (!container) return;
+      const index = container.children.length;
+      const div = document.createElement('div');
+      div.style.cssText = 'display: flex; gap: 8px; margin-bottom: 8px;';
+      div.innerHTML = `
+        <input type="text" placeholder="Новый хук" style="flex: 1; padding: 8px 10px; border: 1.5px solid var(--border-light); border-radius: 6px; font-size: 13px;" oninput="updateModalPreview()">
+        <button onclick="removeHook('intro', ${index})" style="padding: 8px 12px; background: var(--danger-soft); color: var(--danger); border: none; border-radius: 6px; cursor: pointer;">×</button>
+      `;
+      container.appendChild(div);
+    }
+
+    function addOutroHook() {
+      const container = document.getElementById('outroHooksContainer');
+      if (!container) return;
+      const index = container.children.length;
+      const div = document.createElement('div');
+      div.style.cssText = 'display: flex; gap: 8px; margin-bottom: 8px;';
+      div.innerHTML = `
+        <input type="text" placeholder="Новый хук" style="flex: 1; padding: 8px 10px; border: 1.5px solid var(--border-light); border-radius: 6px; font-size: 13px;" oninput="updateModalPreview()">
+        <button onclick="removeHook('outro', ${index})" style="padding: 8px 12px; background: var(--danger-soft); color: var(--danger); border: none; border-radius: 6px; cursor: pointer;">×</button>
+      `;
+      container.appendChild(div);
+    }
+
+    function removeHook(type, index) {
+      const containerId = type === 'intro' ? 'introHooksContainer' : 'outroHooksContainer';
+      const container = document.getElementById(containerId);
+      if (container && container.children[index]) {
+        container.children[index].remove();
+        updateModalPreview();
+      }
+    }
+
+    // Live Preview для модального окна
+    function updateModalPreview() {
+      const introContainer = document.getElementById('introHooksContainer');
+      const introHooks = introContainer ? Array.from(introContainer.querySelectorAll('input'))
+        .map(inp => inp.value || inp.placeholder)
+        .filter(Boolean) : [];
+
+      const credentialsLabel = document.getElementById('credentialsLabel')?.value || 'Ваши данные для входа:';
+
+      const outroContainer = document.getElementById('outroHooksContainer');
+      const outroHooks = outroContainer ? Array.from(outroContainer.querySelectorAll('input'))
+        .map(inp => inp.value || inp.placeholder)
+        .filter(Boolean) : [];
+
+      const buttonText = document.getElementById('buttonText')?.value || 'Войти в курс';
+
+      const preview = document.getElementById('modalPreview');
+      if (!preview) return;
+
+      preview.innerHTML = `
+        <div style="padding: 28px 20px 24px; text-align: center;">
+          ${introHooks.map(hook => `<p style="font-size: 16px; font-weight: 500; margin: 6px 0; color: #1a1a1a;">${hook}</p>`).join('')}
+        </div>
+        <div style="padding: 0 20px 24px;">
+          <div style="background: #f8f9fa; padding: 16px; border-radius: 14px; margin-bottom: 16px;">
+            <p style="font-size: 13px; font-weight: 600; margin-bottom: 12px; text-align: center;">${credentialsLabel}</p>
+            <div style="margin: 10px 0;">
+              <span style="display: block; font-size: 10px; color: #666; margin-bottom: 3px; text-transform: uppercase; font-weight: 600;">Email:</span>
+              <code style="display: block; font-size: 13px; background: white; padding: 10px; border-radius: 8px; border: 1px solid #e0e0e0;">test@example.com</code>
+            </div>
+            <div style="margin: 10px 0;">
+              <span style="display: block; font-size: 10px; color: #666; margin-bottom: 3px; text-transform: uppercase; font-weight: 600;">Пароль:</span>
+              <code style="display: block; font-size: 13px; background: white; padding: 10px; border-radius: 8px; border: 1px solid #e0e0e0;">DemoPass123</code>
+            </div>
+          </div>
+          <div style="text-align: center; margin-bottom: 20px;">
+            ${outroHooks.map(hook => `<p style="font-size: 12px; color: #666; margin: 4px 0;">${hook}</p>`).join('')}
+          </div>
+          <button style="width: 100%; padding: 14px; background: linear-gradient(135deg, #4CAF50, #45a049); color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 600;">${buttonText}</button>
+        </div>
+      `;
+    }
+
+    // Цветовая индикация полей (без текста)
+    function showFieldSuccess(fieldId) {
+      const field = document.getElementById(fieldId);
+      if (field) {
+        field.style.borderColor = '#4CAF50';
+        field.style.backgroundColor = '#e8f5e9';
+      }
+    }
+
+    function showFieldError(fieldId) {
+      const field = document.getElementById(fieldId);
+      if (field) {
+        field.style.borderColor = '#d32f2f';
+        field.style.backgroundColor = '#ffebee';
+      }
+    }
+
+    function resetFieldStyle(fieldId) {
+      const field = document.getElementById(fieldId);
+      if (field) {
+        field.style.borderColor = '';
+        field.style.backgroundColor = '';
+      }
+    }
+
+    // Event listeners для таба Платежи
+    function initPaymentsTab() {
+      // Кнопки сохранения
+      document.getElementById('saveProduct')?.addEventListener('click', saveProduct);
+      document.getElementById('saveEmail')?.addEventListener('click', saveEmailTemplate);
+      document.getElementById('saveModal')?.addEventListener('click', saveSuccessModal);
+
+      // Live preview для email
+      document.getElementById('emailSubject')?.addEventListener('input', updateEmailPreview);
+      document.getElementById('emailBody')?.addEventListener('input', updateEmailPreview);
+
+      // Live preview для модалки
+      document.getElementById('credentialsLabel')?.addEventListener('input', updateModalPreview);
+      document.getElementById('buttonText')?.addEventListener('input', updateModalPreview);
+
+      // Кнопки добавления хуков
+      document.getElementById('addIntroHook')?.addEventListener('click', addIntroHook);
+      document.getElementById('addOutroHook')?.addEventListener('click', addOutroHook);
+    }
+
+    // Добавляем инициализацию в DOMContentLoaded
+    const originalInit = window.onload || (() => {});
+    window.addEventListener('DOMContentLoaded', () => {
+      originalInit();
+
+      // Инициализация при переключении на таб
+      const tabs = document.querySelectorAll('.tab[data-section="payments"]');
+      tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          if (!paymentsState.product) {
+            loadPaymentsData();
+          }
+        });
+      });
+
+      initPaymentsTab();
+    });
   </script>
 </body>
 

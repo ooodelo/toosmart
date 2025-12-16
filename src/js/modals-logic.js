@@ -181,8 +181,28 @@ function closePaymentSuccessModal() {
 
 function copySuccessPassword() {
     const text = document.getElementById('success-password-display').textContent;
+    const button = document.querySelector('[onclick="copySuccessPassword()"]');
+
     navigator.clipboard.writeText(text).then(() => {
-        alert('Пароль скопирован!');
+        // Visual feedback: flash green border on button
+        if (button) {
+            button.style.borderColor = '#4CAF50';
+            button.style.backgroundColor = '#e8f5e9';
+            setTimeout(() => {
+                button.style.borderColor = '';
+                button.style.backgroundColor = '';
+            }, 1500);
+        }
+    }).catch(() => {
+        // Visual feedback: flash red border on error
+        if (button) {
+            button.style.borderColor = '#d32f2f';
+            button.style.backgroundColor = '#ffebee';
+            setTimeout(() => {
+                button.style.borderColor = '';
+                button.style.backgroundColor = '';
+            }, 1500);
+        }
     });
 }
 
@@ -234,10 +254,15 @@ function closeSettingsModal() {
     if (modal) {
         modal.setAttribute('hidden', '');
         document.body.style.overflow = '';
-        // Reset form
-        document.getElementById('settings-password-form').reset();
-        document.getElementById('settings-error').style.display = 'none';
-        document.getElementById('settings-success').style.display = 'none';
+        // Reset form and clear field colors
+        const form = document.getElementById('settings-password-form');
+        if (form) {
+            form.reset();
+            form.querySelectorAll('input').forEach(input => {
+                input.style.borderColor = '';
+                input.style.backgroundColor = '';
+            });
+        }
     }
 }
 
@@ -267,11 +292,13 @@ function setupSettingsModal() {
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const formData = new FormData(form);
-        const errorDiv = document.getElementById('settings-error');
-        const successDiv = document.getElementById('settings-success');
+        const formInputs = form.querySelectorAll('input');
 
-        errorDiv.style.display = 'none';
-        successDiv.style.display = 'none';
+        // Reset all field colors
+        formInputs.forEach(input => {
+            input.style.borderColor = '';
+            input.style.backgroundColor = '';
+        });
 
         try {
             const response = await fetch('/server/change-password.php', {
@@ -282,16 +309,32 @@ function setupSettingsModal() {
             const data = await response.json();
 
             if (data.status === 'success') {
-                successDiv.textContent = data.message;
-                successDiv.style.display = 'block';
-                form.reset();
+                // Success: green borders on all fields
+                formInputs.forEach(input => {
+                    input.style.borderColor = '#4CAF50';
+                    input.style.backgroundColor = '#e8f5e9';
+                });
+                // Reset form after brief delay
+                setTimeout(() => {
+                    form.reset();
+                    formInputs.forEach(input => {
+                        input.style.borderColor = '';
+                        input.style.backgroundColor = '';
+                    });
+                }, 2000);
             } else {
-                errorDiv.textContent = data.message;
-                errorDiv.style.display = 'block';
+                // Error: red borders on all fields
+                formInputs.forEach(input => {
+                    input.style.borderColor = '#d32f2f';
+                    input.style.backgroundColor = '#ffebee';
+                });
             }
         } catch (e) {
-            errorDiv.textContent = 'Ошибка сети';
-            errorDiv.style.display = 'block';
+            // Network error: red borders on all fields
+            formInputs.forEach(input => {
+                input.style.borderColor = '#d32f2f';
+                input.style.backgroundColor = '#ffebee';
+            });
         }
     });
 }
