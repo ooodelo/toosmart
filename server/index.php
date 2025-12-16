@@ -97,17 +97,9 @@ if (isset($_GET['payment']) && $_GET['payment'] === 'success') {
 
     // Упрощённо: не проверяем подпись и сумму, достаточно InvId и записи в store
     if ($invId) {
-        // Попробуем несколько раз с небольшой задержкой (callback может прийти с задержкой)
-        for ($attempt = 0; $attempt < 3; $attempt++) {
-            $payload = payment_success_consume($invId);
-            if ($payload) {
-                $successPayload = $payload;
-                break;
-            }
-            // Ждём 500ms перед следующей попыткой
-            if ($attempt < 2) {
-                usleep(500000);
-            }
+        $payload = payment_success_consume($invId);
+        if ($payload) {
+            $successPayload = $payload;
         }
     }
 }
@@ -186,29 +178,65 @@ if ($successPayload) {
         }
     }
 
-// Если данных нет, но есть payment=success и InvId - показываем loading-модалку с polling
-if (!$showSuccessModal && isset($_GET['payment']) && $_GET['payment'] === 'success' && $paymentInvId) {
-    $loading_template_path = __DIR__ . '/templates/payment-loading.html';
-    if (file_exists($loading_template_path)) {
-        $loading_template = file_get_contents($loading_template_path);
+// Если данных из store нет, но есть payment=success - показываем fallback-модалку с email из URL
+if (!$showSuccessModal && isset($_GET['payment']) && $_GET['payment'] === 'success') {
+    // Получаем email из URL параметра Shp_email
+    $fallbackEmail = isset($_GET['Shp_email']) ? urldecode($_GET['Shp_email']) : null;
 
-        // Читаем тексты из JSON или используем дефолтные
+    if ($fallbackEmail && filter_var($fallbackEmail, FILTER_VALIDATE_EMAIL)) {
+        // Читаем тексты из JSON
         $texts_path = __DIR__ . '/storage/success-modal-texts.json';
         $texts = file_exists($texts_path)
             ? json_decode(file_get_contents($texts_path), true)
             : [];
 
-        $loadingModalHtml = str_replace(
-            ['{{TITLE}}', '{{SUBTITLE}}', '{{HINT}}'],
-            [
-                htmlspecialchars($texts['loading_title'] ?? 'Обрабатываем оплату...', ENT_QUOTES, 'UTF-8'),
-                htmlspecialchars($texts['loading_subtitle'] ?? 'Пожалуйста, подождите несколько секунд', ENT_QUOTES, 'UTF-8'),
-                htmlspecialchars($texts['loading_hint'] ?? 'Обычно это занимает не более 10 секунд', ENT_QUOTES, 'UTF-8')
-            ],
-            $loading_template
-        );
+        // Создаём fallback модалку - без пароля, только email
+        $fallbackModalHtml = '
+<div class="modal modal-success" id="payment-fallback-modal">
+    <div class="modal-overlay"></div>
+    <div class="modal-content modal-content--airy">
+        <header class="modal-hooks">
+            <p class="modal-hook">' . htmlspecialchars($texts['fallback_title'] ?? 'Оплата прошла успешно!', ENT_QUOTES, 'UTF-8') . '</p>
+            <p class="modal-hook" style="font-size: 16px; font-weight: 400; color: #666;">' . htmlspecialchars($texts['fallback_subtitle'] ?? 'Добро пожаловать в курс', ENT_QUOTES, 'UTF-8') . '</p>
+        </header>
+        <section class="modal-body">
+            <div class="success-credentials">
+                <p class="success-label">' . htmlspecialchars($texts['fallback_credentials_label'] ?? 'Данные для входа отправлены на:', ENT_QUOTES, 'UTF-8') . '</p>
+                <div class="credential-block">
+                    <span class="credential-label">Email:</span>
+                    <code class="credential-value">' . htmlspecialchars($fallbackEmail, ENT_QUOTES, 'UTF-8') . '</code>
+                </div>
+            </div>
+            <div class="success-outro">
+                <p>' . htmlspecialchars($texts['fallback_hint'] ?? 'Проверьте почту — пароль уже там!', ENT_QUOTES, 'UTF-8') . '</p>
+            </div>
+            <button class="modal-submit" onclick="document.getElementById(\'payment-fallback-modal\').style.display=\'none\'; document.body.style.overflow=\'\';">
+                ' . htmlspecialchars($texts['fallback_button'] ?? 'Понятно', ENT_QUOTES, 'UTF-8') . '
+            </button>
+        </section>
+    </div>
+</div>
+<style>
+.modal-success { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9999; display: flex; align-items: center; justify-content: center; animation: fadeIn 0.2s ease; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.modal-success .modal-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); }
+.modal-success .modal-content--airy { position: relative; background: white; border-radius: 24px; max-width: 480px; width: calc(100% - 32px); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); animation: slideUp 0.3s ease; }
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.modal-success .modal-hooks { padding: 32px 24px 24px; text-align: center; }
+.modal-success .modal-hook { font-size: 22px; font-weight: 600; line-height: 1.4; margin: 8px 0; color: #1a1a1a; }
+.modal-success .modal-body { padding: 0 24px 32px; }
+.success-credentials { background: #f8f9fa; padding: 20px; border-radius: 16px; margin-bottom: 20px; }
+.success-label { font-size: 14px; font-weight: 600; margin-bottom: 16px; color: #333; text-align: center; }
+.credential-block { margin: 12px 0; }
+.credential-label { display: block; font-size: 11px; color: #666; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+.credential-value { display: block; font-family: monospace; font-size: 15px; font-weight: 500; background: white; padding: 12px 14px; border-radius: 10px; border: 1.5px solid #e0e0e0; color: #1a1a1a; }
+.success-outro { text-align: center; margin-bottom: 24px; }
+.success-outro p { font-size: 13px; color: #666; margin: 6px 0; }
+.modal-success .modal-submit { width: 100%; padding: 16px; background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3); }
+</style>';
 
         $showLoadingModal = true;
+        $loadingModalHtml = $fallbackModalHtml;
     }
 }
 
@@ -339,69 +367,7 @@ if ($success === 'password_reset') {
 
     <?php if ($showLoadingModal): ?>
         <?= $loadingModalHtml ?>
-        <script>
-            // Polling для ожидания данных от callback
-            (function() {
-                var invId = <?= json_encode($paymentInvId) ?>;
-                var maxAttempts = 30; // 30 попыток по 2 секунды = 60 секунд макс
-                var attempt = 0;
-
-                document.body.style.overflow = 'hidden';
-
-                function checkPaymentReady() {
-                    attempt++;
-                    if (attempt > maxAttempts) {
-                        // Timeout - показываем сообщение
-                        var hint = document.querySelector('.loading-hint');
-                        if (hint) {
-                            hint.textContent = 'Данные для входа отправлены на ваш email';
-                        }
-                        var spinner = document.querySelector('.spinner');
-                        if (spinner) {
-                            spinner.style.display = 'none';
-                        }
-                        // Добавляем кнопку закрытия
-                        var body = document.querySelector('.modal-loading .modal-body');
-                        if (body) {
-                            var btn = document.createElement('button');
-                            btn.className = 'modal-submit';
-                            btn.style.marginTop = '16px';
-                            btn.style.background = 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)';
-                            btn.style.color = 'white';
-                            btn.style.border = 'none';
-                            btn.style.padding = '14px 24px';
-                            btn.style.borderRadius = '12px';
-                            btn.style.fontSize = '15px';
-                            btn.style.fontWeight = '600';
-                            btn.style.cursor = 'pointer';
-                            btn.textContent = 'Закрыть';
-                            btn.onclick = function() { window.location.href = '/server/'; };
-                            body.appendChild(btn);
-                        }
-                        return;
-                    }
-
-                    fetch('/server/api/check-payment-success.php?inv_id=' + invId)
-                        .then(function(r) { return r.json(); })
-                        .then(function(data) {
-                            if (data.ready) {
-                                // Данные готовы - перезагружаем страницу
-                                window.location.reload();
-                            } else {
-                                // Пробуем ещё через 2 секунды
-                                setTimeout(checkPaymentReady, 2000);
-                            }
-                        })
-                        .catch(function() {
-                            // Ошибка сети - пробуем ещё
-                            setTimeout(checkPaymentReady, 2000);
-                        });
-                }
-
-                // Начинаем polling через 2 секунды
-                setTimeout(checkPaymentReady, 2000);
-            })();
-        </script>
+        <script>document.body.style.overflow = 'hidden';</script>
     <?php endif; ?>
 </body>
 
