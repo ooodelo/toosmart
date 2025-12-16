@@ -83,7 +83,8 @@ const PATHS = {
       'sql',
       'storage',
       'assets',
-      'config'
+      'config',
+      'templates'
     ],
     // Старые файлы для обратной совместимости (deprecated)
     legacyFiles: [
