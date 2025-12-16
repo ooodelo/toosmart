@@ -183,6 +183,7 @@ if ($successPayload) {
 
         // Читаем HTML-шаблон модалки
         $template_path = __DIR__ . '/templates/payment-success.html';
+        echo "<!-- DEBUG: template_path=$template_path exists=" . (file_exists($template_path) ? 'YES' : 'NO') . " -->";
         if (file_exists($template_path)) {
             $template = file_get_contents($template_path);
 
@@ -232,6 +233,9 @@ if ($successPayload) {
             unset($_SESSION['new_password'], $_SESSION['new_password_email'], $_SESSION['new_password_timestamp']);
 
             $showSuccessModal = true;
+            echo "<!-- DEBUG: showSuccessModal set to TRUE -->";
+        } else {
+            echo "<!-- DEBUG: Template NOT found! -->";
         }
     }
 
