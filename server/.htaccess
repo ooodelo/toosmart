@@ -36,6 +36,9 @@ DirectoryIndex index.php
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
+    # Если запрашивают index.html - редирект на index.php
+    RewriteRule ^index\.html$ index.php [L,QSA]
+
     # Исключения: публичные PHP формы (не требуют авторизации)
     RewriteRule ^(forgot-password-form|resend-password-form|reset-password-form)\.php$ - [L]
     
@@ -55,6 +58,12 @@ DirectoryIndex index.php
 
 # Отключить листинг директорий
 Options -Indexes
+
+# Разрешить index.html (будет переписан на index.php через RewriteRule)
+<Files "index.html">
+    Order Allow,Deny
+    Allow from all
+</Files>
 
 # Защитить прямой доступ к HTML, JS, CSS файлам
 <FilesMatch "\.(html|js|css)$">
