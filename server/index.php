@@ -170,10 +170,14 @@ if (isset($_GET['payment']) && $_GET['payment'] === 'success') {
     // DEBUG: Если дошли сюда и нет payload - выводим причину
     if (!$successPayload) {
         error_log("No successPayload: invId=$invId, urlEmail=$urlEmail, store=" . ($payload ?? 'null'));
+        echo "<!-- DEBUG: No payload! invId=$invId, urlEmail=$urlEmail -->";
+    } else {
+        echo "<!-- DEBUG: Got payload! email={$successPayload['email']} -->";
     }
 }
 
 if ($successPayload) {
+    echo "<!-- DEBUG: Building modal for {$successPayload['email']} -->";
     $password = $successPayload['password'];
     $email = $successPayload['email'];
 
