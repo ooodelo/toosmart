@@ -84,39 +84,82 @@ $csrf_token = Security::generateCSRFToken();
 
 // Обработка успешной оплаты
 $showSuccessModal = false;
-$showLoadingModal = false;
 $successModalHtml = '';
-$loadingModalHtml = '';
 $successPayload = null;
-$paymentInvId = null;
 
-// Попытка получить данные успеха через Robokassa SuccessURL (с подписью)
+// Обработка успешной оплаты - ПРОСТАЯ ВЕРСИЯ БЕЗ ПРОВЕРОК
 if (isset($_GET['payment']) && $_GET['payment'] === 'success') {
     $invId = isset($_GET['InvId']) ? (int)$_GET['InvId'] : null;
-    $paymentInvId = $invId;
+    $urlEmail = isset($_GET['Shp_email']) ? urldecode($_GET['Shp_email']) : null;
 
-    // Упрощённо: не проверяем подпись и сумму, достаточно InvId и записи в store
+    // 1. Сначала пробуем получить из store (если callback успел записать)
     if ($invId) {
         $payload = payment_success_consume($invId);
         if ($payload) {
             $successPayload = $payload;
         }
     }
-}
 
-if (isset($_GET['payment']) && $_GET['payment'] === 'success') {
-    // Проверяем, есть ли пароль в сессии
+    // 2. Если нет в store - пробуем сессию
     if (!$successPayload && isset($_SESSION['new_password']) && isset($_SESSION['new_password_email'])) {
-
         $successPayload = [
             'password' => $_SESSION['new_password'],
             'email' => $_SESSION['new_password_email']
         ];
+        unset($_SESSION['new_password'], $_SESSION['new_password_email'], $_SESSION['new_password_timestamp']);
+    }
 
-        // УДАЛЯЕМ пароль из сессии (одноразовый показ!)
-        unset($_SESSION['new_password']);
-        unset($_SESSION['new_password_email']);
-        unset($_SESSION['new_password_timestamp']);
+    // 3. Если всё ещё нет данных, но есть email в URL - создаём пользователя прямо здесь
+    if (!$successPayload && $urlEmail && filter_var($urlEmail, FILTER_VALIDATE_EMAIL)) {
+        require_once __DIR__ . '/Database.php';
+
+        // Генерируем пароль
+        $password = Security::generatePassword(6);
+        $password_hash = password_hash($password, PASSWORD_DEFAULT);
+
+        try {
+            $pdo = Database::getConnection();
+
+            // Проверяем есть ли уже пользователь
+            $stmt = $pdo->prepare("SELECT id, password_hash FROM users WHERE email = ? LIMIT 1");
+            $stmt->execute([$urlEmail]);
+            $existingUser = $stmt->fetch();
+
+            if ($existingUser) {
+                // Пользователь есть - обновляем пароль
+                $stmt = $pdo->prepare("UPDATE users SET password_hash = ? WHERE email = ?");
+                $stmt->execute([$password_hash, $urlEmail]);
+            } else {
+                // Создаём нового
+                $stmt = $pdo->prepare("INSERT INTO users (email, password_hash, created_at) VALUES (?, ?, ?)");
+                $stmt->execute([$urlEmail, $password_hash, date('Y-m-d H:i:s')]);
+            }
+
+            $successPayload = [
+                'email' => $urlEmail,
+                'password' => $password
+            ];
+
+            // Отправляем email с паролем (не блокируем если не отправится)
+            require_once __DIR__ . '/src/mailer.php';
+            $templates_path = __DIR__ . '/storage/email-templates.json';
+            $templates = file_exists($templates_path) ? json_decode(file_get_contents($templates_path), true) : null;
+            if ($templates && isset($templates['welcome'])) {
+                $site_url = $cfg['site']['base_url'] ?? 'https://toosmart.ru';
+                $mail_reply_to = $cfg['emails']['reply_to'] ?? 'reply@toosmart.ru';
+                $subject = $templates['welcome']['subject'];
+                $message = str_replace(
+                    ['{{email}}', '{{password}}', '{{site_url}}', '{{reply_to}}'],
+                    [$urlEmail, $password, $site_url, $mail_reply_to],
+                    $templates['welcome']['body']
+                );
+                @send_mail($urlEmail, $subject, $message);
+            }
+
+        } catch (Exception $e) {
+            // Если ошибка БД - просто не показываем модалку с паролем
+            $successPayload = null;
+        }
     }
 }
 
@@ -177,68 +220,6 @@ if ($successPayload) {
             $showSuccessModal = true;
         }
     }
-
-// Если данных из store нет, но есть payment=success - показываем fallback-модалку с email из URL
-if (!$showSuccessModal && isset($_GET['payment']) && $_GET['payment'] === 'success') {
-    // Получаем email из URL параметра Shp_email
-    $fallbackEmail = isset($_GET['Shp_email']) ? urldecode($_GET['Shp_email']) : null;
-
-    if ($fallbackEmail && filter_var($fallbackEmail, FILTER_VALIDATE_EMAIL)) {
-        // Читаем тексты из JSON
-        $texts_path = __DIR__ . '/storage/success-modal-texts.json';
-        $texts = file_exists($texts_path)
-            ? json_decode(file_get_contents($texts_path), true)
-            : [];
-
-        // Создаём fallback модалку - без пароля, только email
-        $fallbackModalHtml = '
-<div class="modal modal-success" id="payment-fallback-modal">
-    <div class="modal-overlay"></div>
-    <div class="modal-content modal-content--airy">
-        <header class="modal-hooks">
-            <p class="modal-hook">' . htmlspecialchars($texts['fallback_title'] ?? 'Оплата прошла успешно!', ENT_QUOTES, 'UTF-8') . '</p>
-            <p class="modal-hook" style="font-size: 16px; font-weight: 400; color: #666;">' . htmlspecialchars($texts['fallback_subtitle'] ?? 'Добро пожаловать в курс', ENT_QUOTES, 'UTF-8') . '</p>
-        </header>
-        <section class="modal-body">
-            <div class="success-credentials">
-                <p class="success-label">' . htmlspecialchars($texts['fallback_credentials_label'] ?? 'Данные для входа отправлены на:', ENT_QUOTES, 'UTF-8') . '</p>
-                <div class="credential-block">
-                    <span class="credential-label">Email:</span>
-                    <code class="credential-value">' . htmlspecialchars($fallbackEmail, ENT_QUOTES, 'UTF-8') . '</code>
-                </div>
-            </div>
-            <div class="success-outro">
-                <p>' . htmlspecialchars($texts['fallback_hint'] ?? 'Проверьте почту — пароль уже там!', ENT_QUOTES, 'UTF-8') . '</p>
-            </div>
-            <button class="modal-submit" onclick="document.getElementById(\'payment-fallback-modal\').style.display=\'none\'; document.body.style.overflow=\'\';">
-                ' . htmlspecialchars($texts['fallback_button'] ?? 'Понятно', ENT_QUOTES, 'UTF-8') . '
-            </button>
-        </section>
-    </div>
-</div>
-<style>
-.modal-success { position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9999; display: flex; align-items: center; justify-content: center; animation: fadeIn 0.2s ease; }
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-.modal-success .modal-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); }
-.modal-success .modal-content--airy { position: relative; background: white; border-radius: 24px; max-width: 480px; width: calc(100% - 32px); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); animation: slideUp 0.3s ease; }
-@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-.modal-success .modal-hooks { padding: 32px 24px 24px; text-align: center; }
-.modal-success .modal-hook { font-size: 22px; font-weight: 600; line-height: 1.4; margin: 8px 0; color: #1a1a1a; }
-.modal-success .modal-body { padding: 0 24px 32px; }
-.success-credentials { background: #f8f9fa; padding: 20px; border-radius: 16px; margin-bottom: 20px; }
-.success-label { font-size: 14px; font-weight: 600; margin-bottom: 16px; color: #333; text-align: center; }
-.credential-block { margin: 12px 0; }
-.credential-label { display: block; font-size: 11px; color: #666; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
-.credential-value { display: block; font-family: monospace; font-size: 15px; font-weight: 500; background: white; padding: 12px 14px; border-radius: 10px; border: 1.5px solid #e0e0e0; color: #1a1a1a; }
-.success-outro { text-align: center; margin-bottom: 24px; }
-.success-outro p { font-size: 13px; color: #666; margin: 6px 0; }
-.modal-success .modal-submit { width: 100%; padding: 16px; background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3); }
-</style>';
-
-        $showLoadingModal = true;
-        $loadingModalHtml = $fallbackModalHtml;
-    }
-}
 
 // Получение кода ошибки
 $error = $_GET['error'] ?? '';
@@ -359,14 +340,6 @@ if ($success === 'password_reset') {
 
     <?php if ($showSuccessModal): ?>
         <?= $successModalHtml ?>
-        <script>
-            // Автоматически показываем модалку
-            document.body.style.overflow = 'hidden';
-        </script>
-    <?php endif; ?>
-
-    <?php if ($showLoadingModal): ?>
-        <?= $loadingModalHtml ?>
         <script>document.body.style.overflow = 'hidden';</script>
     <?php endif; ?>
 </body>
