@@ -92,6 +92,9 @@ if (isset($_GET['payment']) && $_GET['payment'] === 'success') {
     $invId = isset($_GET['InvId']) ? (int)$_GET['InvId'] : null;
     $urlEmail = isset($_GET['Shp_email']) ? urldecode($_GET['Shp_email']) : null;
 
+    // DEBUG - временно выводим что получили
+    // echo "<!-- DEBUG: invId=$invId, urlEmail=$urlEmail -->";
+
     // 1. Сначала пробуем получить из store (если callback успел записать)
     if ($invId) {
         $payload = payment_success_consume($invId);
@@ -157,9 +160,16 @@ if (isset($_GET['payment']) && $_GET['payment'] === 'success') {
             }
 
         } catch (Exception $e) {
+            // DEBUG: показываем ошибку
+            error_log("Success modal error: " . $e->getMessage());
             // Если ошибка БД - просто не показываем модалку с паролем
             $successPayload = null;
         }
+    }
+
+    // DEBUG: Если дошли сюда и нет payload - выводим причину
+    if (!$successPayload) {
+        error_log("No successPayload: invId=$invId, urlEmail=$urlEmail, store=" . ($payload ?? 'null'));
     }
 }
 
