@@ -87,31 +87,79 @@ $showSuccessModal = false;
 $successModalHtml = '';
 $successPayload = null;
 
-// Попытка получить данные успеха через Robokassa SuccessURL (с подписью)
+// Обработка успешной оплаты - ПРОСТАЯ ВЕРСИЯ БЕЗ ПРОВЕРОК
 if (isset($_GET['payment']) && $_GET['payment'] === 'success') {
     $invId = isset($_GET['InvId']) ? (int)$_GET['InvId'] : null;
-    // Упрощённо: не проверяем подпись и сумму, достаточно InvId и записи в store
+    $urlEmail = isset($_GET['Shp_email']) ? urldecode($_GET['Shp_email']) : null;
+
+    // 1. Сначала пробуем получить из store (если callback успел записать)
     if ($invId) {
         $payload = payment_success_consume($invId);
         if ($payload) {
             $successPayload = $payload;
         }
     }
-}
 
-if (isset($_GET['payment']) && $_GET['payment'] === 'success') {
-    // Проверяем, есть ли пароль в сессии
+    // 2. Если нет в store - пробуем сессию
     if (!$successPayload && isset($_SESSION['new_password']) && isset($_SESSION['new_password_email'])) {
-
         $successPayload = [
             'password' => $_SESSION['new_password'],
             'email' => $_SESSION['new_password_email']
         ];
+        unset($_SESSION['new_password'], $_SESSION['new_password_email'], $_SESSION['new_password_timestamp']);
+    }
 
-        // УДАЛЯЕМ пароль из сессии (одноразовый показ!)
-        unset($_SESSION['new_password']);
-        unset($_SESSION['new_password_email']);
-        unset($_SESSION['new_password_timestamp']);
+    // 3. Если всё ещё нет данных, но есть email в URL - создаём пользователя прямо здесь
+    if (!$successPayload && $urlEmail && filter_var($urlEmail, FILTER_VALIDATE_EMAIL)) {
+        require_once __DIR__ . '/Database.php';
+
+        // Генерируем пароль
+        $password = Security::generatePassword(6);
+        $password_hash = password_hash($password, PASSWORD_DEFAULT);
+
+        try {
+            $pdo = Database::getConnection();
+
+            // Проверяем есть ли уже пользователь
+            $stmt = $pdo->prepare("SELECT id, password_hash FROM users WHERE email = ? LIMIT 1");
+            $stmt->execute([$urlEmail]);
+            $existingUser = $stmt->fetch();
+
+            if ($existingUser) {
+                // Пользователь есть - обновляем пароль
+                $stmt = $pdo->prepare("UPDATE users SET password_hash = ? WHERE email = ?");
+                $stmt->execute([$password_hash, $urlEmail]);
+            } else {
+                // Создаём нового
+                $stmt = $pdo->prepare("INSERT INTO users (email, password_hash, created_at) VALUES (?, ?, ?)");
+                $stmt->execute([$urlEmail, $password_hash, date('Y-m-d H:i:s')]);
+            }
+
+            $successPayload = [
+                'email' => $urlEmail,
+                'password' => $password
+            ];
+
+            // Отправляем email с паролем (не блокируем если не отправится)
+            require_once __DIR__ . '/src/mailer.php';
+            $templates_path = __DIR__ . '/storage/email-templates.json';
+            $templates = file_exists($templates_path) ? json_decode(file_get_contents($templates_path), true) : null;
+            if ($templates && isset($templates['welcome'])) {
+                $site_url = $cfg['site']['base_url'] ?? 'https://toosmart.ru';
+                $mail_reply_to = $cfg['emails']['reply_to'] ?? 'reply@toosmart.ru';
+                $subject = $templates['welcome']['subject'];
+                $message = str_replace(
+                    ['{{email}}', '{{password}}', '{{site_url}}', '{{reply_to}}'],
+                    [$urlEmail, $password, $site_url, $mail_reply_to],
+                    $templates['welcome']['body']
+                );
+                @send_mail($urlEmail, $subject, $message);
+            }
+
+        } catch (Exception $e) {
+            // Если ошибка БД - просто не показываем модалку с паролем
+            $successPayload = null;
+        }
     }
 }
 
@@ -292,10 +340,7 @@ if ($success === 'password_reset') {
 
     <?php if ($showSuccessModal): ?>
         <?= $successModalHtml ?>
-        <script>
-            // Автоматически показываем модалку
-            document.body.style.overflow = 'hidden';
-        </script>
+        <script>document.body.style.overflow = 'hidden';</script>
     <?php endif; ?>
 </body>
 
