@@ -92,8 +92,8 @@ if (isset($_GET['payment']) && $_GET['payment'] === 'success') {
     $invId = isset($_GET['InvId']) ? (int)$_GET['InvId'] : null;
     $urlEmail = isset($_GET['Shp_email']) ? urldecode($_GET['Shp_email']) : null;
 
-    // DEBUG - временно выводим что получили
-    // echo "<!-- DEBUG: invId=$invId, urlEmail=$urlEmail -->";
+    // DEBUG - показываем что версия кода новая
+    echo "<!-- CODE_VERSION: 2024-12-16-v2 invId=$invId urlEmail=$urlEmail -->";
 
     // 1. Сначала пробуем получить из store (если callback успел записать)
     if ($invId) {
