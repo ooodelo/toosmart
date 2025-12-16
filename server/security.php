@@ -220,10 +220,10 @@ class Security
     /**
      * Генерация криптографически безопасного пароля
      */
-    public static function generatePassword($length = 16)
+    public static function generatePassword($length = 6)
     {
-        if ($length < 12) {
-            $length = 12; // Минимум 12 символов
+        if ($length < 6) {
+            $length = 6; // Минимум 6 символов по требованию
         }
         return bin2hex(random_bytes(ceil($length / 2)));
     }

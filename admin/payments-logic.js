@@ -180,7 +180,7 @@ function updateEmailPreview() {
     .replace(/\{\{email\}\}/g, 'test@example.com')
     .replace(/\{\{password\}\}/g, 'DemoPassword123')
     .replace(/\{\{site_url\}\}/g, 'https://toosmart.ru')
-    .replace(/\{\{reply_to\}\}/g, 'support@toosmart.ru');
+    .replace(/\{\{reply_to\}\}/g, 'reply@toosmart.ru');
 
   document.getElementById('emailPreviewBody').textContent = previewBody;
 }
@@ -261,25 +261,124 @@ function updateModalPreview() {
 
   const preview = document.getElementById('modalPreview');
   preview.innerHTML = `
-    <div style="padding: 28px 20px 24px; text-align: center;">
-      ${introHooks.map(hook => `<p style="font-size: 16px; font-weight: 500; margin: 6px 0; color: #1a1a1a;">${hook}</p>`).join('')}
-    </div>
-    <div style="padding: 0 20px 24px;">
-      <div style="background: #f8f9fa; padding: 16px; border-radius: 14px; margin-bottom: 16px;">
-        <p style="font-size: 13px; font-weight: 600; margin-bottom: 12px; text-align: center;">${credentialsLabel}</p>
-        <div style="margin: 10px 0;">
-          <span style="display: block; font-size: 10px; color: #666; margin-bottom: 3px; text-transform: uppercase; font-weight: 600;">Email:</span>
-          <code style="display: block; font-size: 13px; background: white; padding: 10px; border-radius: 8px; border: 1px solid #e0e0e0;">test@example.com</code>
+    <style>
+      .success-preview-shell {
+        background: linear-gradient(140deg, #f5f7fb, #eef1f7);
+        padding: 18px;
+        border-radius: 22px;
+        box-shadow: 0 18px 48px rgba(0,0,0,0.12), 0 4px 18px rgba(0,0,0,0.06);
+        display: flex;
+        justify-content: center;
+      }
+      .success-card {
+        background: #ffffff;
+        border-radius: 30px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.08);
+        width: 100%;
+        max-width: 520px;
+        padding: 34px 32px 0 32px;
+        overflow: hidden;
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+        color: #0f1629;
+      }
+      .success-head {
+        text-align: center;
+        margin-bottom: 24px;
+      }
+      .success-head .icon {
+        font-size: 32px;
+        margin-bottom: 6px;
+      }
+      .success-head p {
+        margin: 6px 0;
+        line-height: 1.4;
+      }
+      .success-head p:first-of-type { font-size: 20px; font-weight: 700; }
+      .success-head p:nth-of-type(2),
+      .success-head p:nth-of-type(3) { font-size: 18px; font-weight: 600; }
+      .success-creds {
+        background: #f6f8fb;
+        border: 1px solid #e9edf5;
+        border-radius: 20px;
+        padding: 18px;
+        margin-bottom: 18px;
+      }
+      .success-creds-title {
+        margin: 0 0 12px 0;
+        font-size: 15px;
+        font-weight: 700;
+        color: #0f1f3c;
+        text-align: center;
+      }
+      .success-field label {
+        display: block;
+        font-size: 11px;
+        font-weight: 700;
+        color: #6a7385;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin-bottom: 6px;
+      }
+      .success-field .value {
+        background: #fff;
+        border: 1px solid rgba(0,0,0,0.12);
+        border-radius: 12px;
+        padding: 12px 14px;
+        font-size: 15px;
+        color: #0f1f3c;
+        font-family: 'SF Mono', Menlo, Consolas, monospace;
+      }
+      .success-outro {
+        text-align: center;
+        margin: 0 8px 18px 8px;
+        color: #5c6475;
+        font-size: 13px;
+        line-height: 1.6;
+      }
+      .success-outro p { margin: 4px 0; }
+      .success-cta {
+        width: calc(100% + 64px);
+        margin: 0 -32px -2px -32px;
+        height: 60px;
+        border: 1px solid #000000;
+        border-radius: 0 0 30px 30px;
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+        background: #000;
+        color: #ffffff;
+        box-shadow: none;
+      }
+      @media (max-width: 640px) {
+        .success-card { padding: 24px 22px 0 22px; max-width: 100%; }
+        .success-cta { width: calc(100% + 44px); margin: 0 -22px -2px -22px; }
+      }
+    </style>
+    <div class="success-preview-shell">
+      <div class="success-card">
+        <div class="success-head">
+          <div class="icon">✅</div>
+          ${introHooks.map(hook => `<p>${hook}</p>`).join('')}
         </div>
-        <div style="margin: 10px 0;">
-          <span style="display: block; font-size: 10px; color: #666; margin-bottom: 3px; text-transform: uppercase; font-weight: 600;">Пароль:</span>
-          <code style="display: block; font-size: 13px; background: white; padding: 10px; border-radius: 8px; border: 1px solid #e0e0e0;">DemoPass123</code>
+
+        <div class="success-creds">
+          <p class="success-creds-title">${credentialsLabel}</p>
+          <div class="success-field">
+            <label>Email:</label>
+            <div class="value">test@example.com</div>
+          </div>
+          <div class="success-field" style="margin-top: 12px;">
+            <label>Пароль:</label>
+            <div class="value">DemoPass123</div>
+          </div>
         </div>
+
+        <div class="success-outro">
+          ${outroHooks.map(hook => `<p>${hook}</p>`).join('')}
+        </div>
+
+        <button class="success-cta">${buttonText}</button>
       </div>
-      <div style="text-align: center; margin-bottom: 20px;">
-        ${outroHooks.map(hook => `<p style="font-size: 12px; color: #666; margin: 4px 0;">${hook}</p>`).join('')}
-      </div>
-      <button style="width: 100%; padding: 14px; background: linear-gradient(135deg, #4CAF50, #45a049); color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 600;">${buttonText}</button>
     </div>
   `;
 }

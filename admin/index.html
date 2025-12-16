@@ -1552,21 +1552,32 @@
         <div class="card">
           <div class="card-header">
             <h2 style="margin: 0; font-size: 16px; font-weight: 600;">📦 Продукт</h2>
-            <p style="margin: 4px 0 0; font-size: 13px; color: var(--text-muted);">Название и цена товара в Robokassa</p>
+            <p style="margin: 4px 0 0; font-size: 13px; color: var(--text-muted);">Название и цена товара в Robokassa
+            </p>
           </div>
           <div class="card-body">
             <div style="display: grid; gap: 16px;">
               <div>
-                <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--text-secondary);">Название товара</label>
-                <input type="text" id="productName" style="width: 100%; padding: 10px 12px; border: 1.5px solid var(--border-light); border-radius: 8px; font-size: 14px; transition: var(--transition);" placeholder='Курс "Clean - Теория правильной уборки"'>
-                <small style="display: block; margin-top: 4px; font-size: 12px; color: var(--text-muted);">Отображается в окне оплаты Robokassa</small>
+                <label
+                  style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--text-secondary);">Название
+                  товара</label>
+                <input type="text" id="productName"
+                  style="width: 100%; padding: 10px 12px; border: 1.5px solid var(--border-light); border-radius: 8px; font-size: 14px; transition: var(--transition);"
+                  placeholder='Курс "Clean - Теория правильной уборки"'>
+                <small style="display: block; margin-top: 4px; font-size: 12px; color: var(--text-muted);">Отображается
+                  в окне оплаты Robokassa</small>
               </div>
               <div style="max-width: 200px;">
-                <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--text-secondary);">Цена, ₽</label>
-                <input type="number" id="productPrice" step="0.01" min="1" style="width: 100%; padding: 10px 12px; border: 1.5px solid var(--border-light); border-radius: 8px; font-size: 14px; transition: var(--transition);" placeholder="5490">
+                <label
+                  style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--text-secondary);">Цена,
+                  ₽</label>
+                <input type="number" id="productPrice" step="0.01" min="1"
+                  style="width: 100%; padding: 10px 12px; border: 1.5px solid var(--border-light); border-radius: 8px; font-size: 14px; transition: var(--transition);"
+                  placeholder="5490">
               </div>
               <div>
-                <button id="saveProduct" style="padding: 10px 20px; background: var(--accent); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: var(--transition);">
+                <button id="saveProduct"
+                  style="padding: 10px 20px; background: var(--accent); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: var(--transition);">
                   💾 Сохранить
                 </button>
               </div>
@@ -1578,25 +1589,63 @@
         <div class="card">
           <div class="card-header">
             <h2 style="margin: 0; font-size: 16px; font-weight: 600;">✉️ Email после оплаты</h2>
-            <p style="margin: 4px 0 0; font-size: 13px; color: var(--text-muted);">Письмо с паролем, отправляемое покупателю</p>
+            <p style="margin: 4px 0 0; font-size: 13px; color: var(--text-muted);">Письмо с паролем, отправляемое
+              покупателю</p>
           </div>
           <div class="card-body">
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
               <!-- Левая колонка: Редактирование -->
               <div>
                 <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">Редактирование</h3>
+
                 <div style="margin-bottom: 16px;">
-                  <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--text-secondary);">Тема письма</label>
-                  <input type="text" id="emailSubject" style="width: 100%; padding: 10px 12px; border: 1.5px solid var(--border-light); border-radius: 8px; font-size: 14px;">
+                  <label
+                    style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--text-secondary);">Тема
+                    письма</label>
+                  <input type="text" id="emailSubject"
+                    style="width: 100%; padding: 10px 12px; border: 1.5px solid var(--border-light); border-radius: 8px; font-size: 14px;"
+                    oninput="updateEmailPreview()">
                 </div>
-                <div style="margin-bottom: 16px;">
-                  <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--text-secondary);">Текст письма</label>
-                  <textarea id="emailBody" rows="12" style="width: 100%; padding: 10px 12px; border: 1.5px solid var(--border-light); border-radius: 8px; font-size: 13px; font-family: 'SF Mono', Monaco, monospace; line-height: 1.6; resize: vertical;"></textarea>
-                  <small style="display: block; margin-top: 6px; font-size: 12px; color: var(--text-muted);">
-                    Доступные переменные: <code>{{email}}</code>, <code>{{password}}</code>, <code>{{site_url}}</code>, <code>{{reply_to}}</code>
-                  </small>
+
+                <div style="margin-bottom: 16px; padding: 12px; background: var(--bg-hover); border-radius: 8px;">
+                  <h4 style="font-size: 13px; font-weight: 600; margin-bottom: 8px;">🎉 Заголовок</h4>
+                  <input type="text" id="emailTitle"
+                    style="width: 100%; padding: 8px 10px; border: 1.5px solid var(--border-light); border-radius: 6px; font-size: 13px; margin-bottom: 8px;"
+                    placeholder="Спасибо за покупку!" oninput="updateEmailPreview()">
+                  <input type="text" id="emailSubtitle"
+                    style="width: 100%; padding: 8px 10px; border: 1.5px solid var(--border-light); border-radius: 6px; font-size: 13px;"
+                    placeholder="Курс «Слишком умная уборка»" oninput="updateEmailPreview()">
                 </div>
-                <button id="saveEmail" style="padding: 10px 20px; background: var(--accent); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: var(--transition);">
+
+                <div style="margin-bottom: 16px; padding: 12px; background: var(--bg-hover); border-radius: 8px;">
+                  <h4 style="font-size: 13px; font-weight: 600; margin-bottom: 8px;">🔑 Блок с данными</h4>
+                  <label
+                    style="display: block; font-size: 12px; margin-bottom: 4px; color: var(--text-secondary);">Подпись
+                    блока</label>
+                  <input type="text" id="emailCredentialsLabel"
+                    style="width: 100%; padding: 8px 10px; border: 1.5px solid var(--border-light); border-radius: 6px; font-size: 13px;"
+                    placeholder="Ваши данные для входа:" oninput="updateEmailPreview()">
+                  <small style="display: block; margin-top: 6px; font-size: 11px; color: var(--text-muted);">Email и
+                    пароль подставляются автоматически</small>
+                </div>
+
+                <div style="margin-bottom: 16px; padding: 12px; background: var(--bg-hover); border-radius: 8px;">
+                  <h4 style="font-size: 13px; font-weight: 600; margin-bottom: 8px;">🔗 Кнопка</h4>
+                  <input type="text" id="emailButtonText"
+                    style="width: 100%; padding: 8px 10px; border: 1.5px solid var(--border-light); border-radius: 6px; font-size: 13px;"
+                    placeholder="Войти в личный кабинет" oninput="updateEmailPreview()">
+                </div>
+
+                <div style="margin-bottom: 16px; padding: 12px; background: var(--bg-hover); border-radius: 8px;">
+                  <h4 style="font-size: 13px; font-weight: 600; margin-bottom: 8px;">⚠️ Предупреждение</h4>
+                  <input type="text" id="emailWarning"
+                    style="width: 100%; padding: 8px 10px; border: 1.5px solid var(--border-light); border-radius: 6px; font-size: 13px;"
+                    placeholder="Сохраните это письмо — пароль больше нигде не отображается"
+                    oninput="updateEmailPreview()">
+                </div>
+
+                <button id="saveEmail"
+                  style="padding: 10px 20px; background: var(--accent); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: var(--transition);">
                   💾 Сохранить
                 </button>
               </div>
@@ -1604,13 +1653,17 @@
               <!-- Правая колонка: Live Preview -->
               <div>
                 <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">Live Preview</h3>
-                <div style="background: var(--bg-hover); padding: 16px; border-radius: 8px; border: 1px solid var(--border-light);">
+                <div
+                  style="background: var(--bg-hover); padding: 16px; border-radius: 8px; border: 1px solid var(--border-light);">
                   <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 8px;">
                     <strong>От:</strong> noreply@toosmart.ru<br>
                     <strong>Кому:</strong> test@example.com<br>
                     <strong>Тема:</strong> <span id="emailPreviewSubject"></span>
                   </div>
-                  <div style="background: white; padding: 16px; border-radius: 6px; font-size: 13px; line-height: 1.8; white-space: pre-wrap; font-family: -apple-system, sans-serif; max-height: 400px; overflow-y: auto;" id="emailPreviewBody"></div>
+                  <div style="background: white; border-radius: 6px; overflow: hidden; max-height: 400px;">
+                    <iframe id="emailPreviewBody" style="width: 100%; height: 350px; border: none; border-radius: 6px;"
+                      sandbox="allow-same-origin"></iframe>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1621,7 +1674,8 @@
         <div class="card">
           <div class="card-header">
             <h2 style="margin: 0; font-size: 16px; font-weight: 600;">✅ Модальное окно успеха</h2>
-            <p style="margin: 4px 0 0; font-size: 13px; color: var(--text-muted);">Окно, которое видит покупатель сразу после оплаты</p>
+            <p style="margin: 4px 0 0; font-size: 13px; color: var(--text-muted);">Окно, которое видит покупатель сразу
+              после оплаты</p>
           </div>
           <div class="card-body">
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
@@ -1632,28 +1686,42 @@
                 <div style="margin-bottom: 20px; padding: 12px; background: var(--bg-hover); border-radius: 8px;">
                   <h4 style="font-size: 13px; font-weight: 600; margin-bottom: 8px;">Вводные хуки</h4>
                   <div id="introHooksContainer"></div>
-                  <button id="addIntroHook" style="padding: 6px 12px; background: var(--bg-card); border: 1px dashed var(--border-medium); border-radius: 6px; font-size: 12px; cursor: pointer; margin-top: 8px;">+ Добавить хук</button>
+                  <button id="addIntroHook"
+                    style="padding: 6px 12px; background: var(--bg-card); border: 1px dashed var(--border-medium); border-radius: 6px; font-size: 12px; cursor: pointer; margin-top: 8px;">+
+                    Добавить хук</button>
                 </div>
 
                 <div style="margin-bottom: 20px; padding: 12px; background: var(--bg-hover); border-radius: 8px;">
                   <h4 style="font-size: 13px; font-weight: 600; margin-bottom: 8px;">Блок с данными</h4>
-                  <label style="display: block; font-size: 12px; margin-bottom: 4px; color: var(--text-secondary);">Подпись блока</label>
-                  <input type="text" id="credentialsLabel" style="width: 100%; padding: 8px 10px; border: 1.5px solid var(--border-light); border-radius: 6px; font-size: 13px;" placeholder="Ваши данные для входа:">
-                  <small style="display: block; margin-top: 6px; font-size: 11px; color: var(--text-muted);">Email и пароль отображаются автоматически</small>
+                  <label
+                    style="display: block; font-size: 12px; margin-bottom: 4px; color: var(--text-secondary);">Подпись
+                    блока</label>
+                  <input type="text" id="credentialsLabel"
+                    style="width: 100%; padding: 8px 10px; border: 1.5px solid var(--border-light); border-radius: 6px; font-size: 13px;"
+                    placeholder="Ваши данные для входа:">
+                  <small style="display: block; margin-top: 6px; font-size: 11px; color: var(--text-muted);">Email и
+                    пароль отображаются автоматически</small>
                 </div>
 
                 <div style="margin-bottom: 20px; padding: 12px; background: var(--bg-hover); border-radius: 8px;">
                   <h4 style="font-size: 13px; font-weight: 600; margin-bottom: 8px;">Финальные хуки</h4>
                   <div id="outroHooksContainer"></div>
-                  <button id="addOutroHook" style="padding: 6px 12px; background: var(--bg-card); border: 1px dashed var(--border-medium); border-radius: 6px; font-size: 12px; cursor: pointer; margin-top: 8px;">+ Добавить хук</button>
+                  <button id="addOutroHook"
+                    style="padding: 6px 12px; background: var(--bg-card); border: 1px dashed var(--border-medium); border-radius: 6px; font-size: 12px; cursor: pointer; margin-top: 8px;">+
+                    Добавить хук</button>
                 </div>
 
                 <div style="margin-bottom: 20px;">
-                  <label style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--text-secondary);">Текст кнопки</label>
-                  <input type="text" id="buttonText" style="width: 100%; padding: 8px 10px; border: 1.5px solid var(--border-light); border-radius: 6px; font-size: 13px;" placeholder="Войти в курс">
+                  <label
+                    style="display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--text-secondary);">Текст
+                    кнопки</label>
+                  <input type="text" id="buttonText"
+                    style="width: 100%; padding: 8px 10px; border: 1.5px solid var(--border-light); border-radius: 6px; font-size: 13px;"
+                    placeholder="Войти в курс">
                 </div>
 
-                <button id="saveModal" style="padding: 10px 20px; background: var(--accent); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: var(--transition);">
+                <button id="saveModal"
+                  style="padding: 10px 20px; background: var(--accent); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: var(--transition);">
                   💾 Сохранить
                 </button>
               </div>
@@ -1661,8 +1729,10 @@
               <!-- Правая колонка: Live Preview -->
               <div>
                 <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">Live Preview</h3>
-                <div style="background: rgba(0,0,0,0.05); padding: 20px; border-radius: 8px; display: flex; align-items: center; justify-content: center; min-height: 500px;">
-                  <div id="modalPreview" style="background: white; border-radius: 20px; max-width: 400px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.2); overflow: hidden;">
+                <div
+                  style="background: rgba(0,0,0,0.05); padding: 20px; border-radius: 8px; display: flex; align-items: center; justify-content: center; min-height: 500px;">
+                  <div id="modalPreview"
+                    style="background: white; border-radius: 20px; max-width: 400px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.2); overflow: hidden;">
                     <!-- Превью модалки будет здесь -->
                   </div>
                 </div>
@@ -3262,34 +3332,20 @@
     // PAYMENTS TAB LOGIC
     // =====================================================
 
-    // Helper: API calls для PHP backend с токеном
+    // Helper: API calls для PHP backend без авторизации
     async function apiCall(url, options = {}) {
-      // Получаем admin token из localStorage или prompt
-      let adminToken = localStorage.getItem('adminToken');
-      if (!adminToken) {
-        adminToken = prompt('Введите Admin Token из server/storage/settings.json:');
-        if (adminToken) {
-          localStorage.setItem('adminToken', adminToken);
-        }
-      }
-
       const headers = {
         'Content-Type': 'application/json',
-        'X-Admin-Token': adminToken,
         ...options.headers
       };
 
-      const response = await fetch(url, {
-        ...options,
-        headers
-      });
-
-      if (!response.ok && response.status === 403) {
-        localStorage.removeItem('adminToken');
-        throw new Error('Invalid admin token');
+      const response = await fetch(url, { ...options, headers });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        const message = data?.error || 'request_failed';
+        throw new Error(message);
       }
-
-      return response.json();
+      return data;
     }
 
     // Состояние для таба Платежи
@@ -3316,8 +3372,12 @@
 
         if (email.success) {
           paymentsState.emailTemplate = email.template;
-          document.getElementById('emailSubject').value = email.template.subject;
-          document.getElementById('emailBody').value = email.template.body;
+          document.getElementById('emailSubject').value = email.template.subject || '';
+          document.getElementById('emailTitle').value = email.template.title || 'Спасибо за покупку!';
+          document.getElementById('emailSubtitle').value = email.template.subtitle || 'Курс «Слишком умная уборка»';
+          document.getElementById('emailCredentialsLabel').value = email.template.credentials_label || 'Ваши данные для входа:';
+          document.getElementById('emailButtonText').value = email.template.button_text || 'Войти в личный кабинет';
+          document.getElementById('emailWarning').value = email.template.warning || 'Сохраните это письмо — пароль больше нигде не отображается';
           updateEmailPreview();
         }
 
@@ -3374,16 +3434,15 @@
     // Сохранение email шаблона
     async function saveEmailTemplate() {
       const subject = document.getElementById('emailSubject').value.trim();
-      const body = document.getElementById('emailBody').value;
+      const title = document.getElementById('emailTitle').value.trim();
+      const subtitle = document.getElementById('emailSubtitle').value.trim();
+      const credentialsLabel = document.getElementById('emailCredentialsLabel').value.trim();
+      const buttonText = document.getElementById('emailButtonText').value.trim();
+      const warning = document.getElementById('emailWarning').value.trim();
 
-      if (!subject || !body) {
+      if (!subject || !title) {
         showFieldError('emailSubject');
-        showFieldError('emailBody');
-        return;
-      }
-
-      if (!body.includes('{{email}}') || !body.includes('{{password}}')) {
-        showFieldError('emailBody');
+        showFieldError('emailTitle');
         return;
       }
 
@@ -3393,23 +3452,21 @@
       try {
         const result = await apiCall('/admin/api/update-email-template.php', {
           method: 'POST',
-          body: JSON.stringify({ subject, body })
+          body: JSON.stringify({ subject, title, subtitle, credentials_label: credentialsLabel, button_text: buttonText, warning })
         });
 
         if (result.success) {
           showFieldSuccess('emailSubject');
-          showFieldSuccess('emailBody');
+          showFieldSuccess('emailTitle');
           setTimeout(() => {
             resetFieldStyle('emailSubject');
-            resetFieldStyle('emailBody');
+            resetFieldStyle('emailTitle');
           }, 2000);
         } else {
           showFieldError('emailSubject');
-          showFieldError('emailBody');
         }
       } catch (error) {
         showFieldError('emailSubject');
-        showFieldError('emailBody');
       } finally {
         saveBtn.disabled = false;
       }
@@ -3460,22 +3517,24 @@
       }
     }
 
-    // Live Preview для Email
+    // Live Preview для Email (HTML)
     function updateEmailPreview() {
-      const subject = document.getElementById('emailSubject')?.value || '';
-      const body = document.getElementById('emailBody')?.value || '';
+      const subject = document.getElementById('emailSubject')?.value || 'Слишком Умная Уборка — Ваш доступ к курсу';
+      const title = document.getElementById('emailTitle')?.value || 'Спасибо за покупку!';
+      const subtitle = document.getElementById('emailSubtitle')?.value || 'Курс «Слишком умная уборка»';
+      const credentialsLabel = document.getElementById('emailCredentialsLabel')?.value || 'Ваши данные для входа:';
+      const buttonText = document.getElementById('emailButtonText')?.value || 'Войти в личный кабинет';
+      const warning = document.getElementById('emailWarning')?.value || 'Сохраните это письмо — пароль больше нигде не отображается';
 
       const subjectEl = document.getElementById('emailPreviewSubject');
       if (subjectEl) subjectEl.textContent = subject;
 
-      const previewBody = body
-        .replace(/\{\{email\}\}/g, 'test@example.com')
-        .replace(/\{\{password\}\}/g, 'DemoPassword123')
-        .replace(/\{\{site_url\}\}/g, 'https://toosmart.ru')
-        .replace(/\{\{reply_to\}\}/g, 'support@toosmart.ru');
+      const html = `<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;padding:0;background:#f5f5f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;"><table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f7;padding:40px 20px;"><tr><td align="center"><table width="100%" style="max-width:480px;background:#ffffff;border-radius:24px;box-shadow:0 4px 24px rgba(0,0,0,0.08);overflow:hidden;"><tr><td style="padding:40px 32px 24px;text-align:center;"><div style="font-size:32px;margin-bottom:12px;">🎉</div><h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#1a1a1a;">${title}</h1><p style="margin:0;font-size:15px;color:#666;">${subtitle}</p></td></tr><tr><td style="padding:0 32px 32px;"><div style="background:#f8f9fa;border-radius:16px;padding:24px;"><p style="margin:0 0 16px;font-size:14px;font-weight:600;color:#333;text-align:center;">${credentialsLabel}</p><div style="margin-bottom:12px;"><span style="display:block;font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;font-weight:600;">Email</span><div style="background:#fff;border:1.5px solid #e0e0e0;border-radius:10px;padding:12px 14px;font-size:15px;color:#1a1a1a;font-family:monospace;">test@example.com</div></div><div><span style="display:block;font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;font-weight:600;">Пароль</span><div style="background:#fff;border:1.5px solid #e0e0e0;border-radius:10px;padding:12px 14px;font-size:15px;color:#1a1a1a;font-family:monospace;">DemoPassword123</div></div></div></td></tr><tr><td style="padding:0 32px 24px;text-align:center;"><a href="https://toosmart.ru" style="display:inline-block;background:#1a1a1a;color:#fff;text-decoration:none;padding:14px 32px;border-radius:12px;font-size:16px;font-weight:600;">${buttonText}</a></td></tr><tr><td style="padding:0 32px 32px;text-align:center;"><p style="margin:0 0 8px;font-size:12px;color:#999;">⚠️ ${warning}</p><p style="margin:0;font-size:12px;color:#999;">Вопросы? Напишите на <a href="mailto:reply@toosmart.ru" style="color:#667eea;">reply@toosmart.ru</a></p></td></tr></table></td></tr></table></body></html>`;
 
-      const bodyEl = document.getElementById('emailPreviewBody');
-      if (bodyEl) bodyEl.textContent = previewBody;
+      const iframe = document.getElementById('emailPreviewBody');
+      if (iframe) {
+        iframe.srcdoc = html;
+      }
     }
 
     // Render модального редактора
@@ -3567,31 +3626,33 @@
         .map(inp => inp.value || inp.placeholder)
         .filter(Boolean) : [];
 
-      const buttonText = document.getElementById('buttonText')?.value || 'Войти в курс';
+      const buttonText = document.getElementById('buttonText')?.value || 'Начать обучение';
 
       const preview = document.getElementById('modalPreview');
       if (!preview) return;
 
       preview.innerHTML = `
-        <div style="padding: 28px 20px 24px; text-align: center;">
-          ${introHooks.map(hook => `<p style="font-size: 16px; font-weight: 500; margin: 6px 0; color: #1a1a1a;">${hook}</p>`).join('')}
-        </div>
-        <div style="padding: 0 20px 24px;">
-          <div style="background: #f8f9fa; padding: 16px; border-radius: 14px; margin-bottom: 16px;">
-            <p style="font-size: 13px; font-weight: 600; margin-bottom: 12px; text-align: center;">${credentialsLabel}</p>
-            <div style="margin: 10px 0;">
-              <span style="display: block; font-size: 10px; color: #666; margin-bottom: 3px; text-transform: uppercase; font-weight: 600;">Email:</span>
-              <code style="display: block; font-size: 13px; background: white; padding: 10px; border-radius: 8px; border: 1px solid #e0e0e0;">test@example.com</code>
+        <div style="background:#f5f5f7;border-radius:28px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+          <div style="padding: 48px 48px 24px; text-align: center;">
+            ${introHooks.map((hook, i) => `<p style="font-size: ${i === 0 ? '22px' : '15px'}; font-weight: ${i === 0 ? '700' : '500'}; margin: ${i === 0 ? '0 0 8px' : '0'}; color: ${i === 0 ? '#1a1a1a' : '#888'};">${hook}</p>`).join('')}
+          </div>
+          <div style="padding: 0 48px 24px;">
+            <div style="background: #fff; padding: 16px; border-radius: 16px; margin-bottom: 16px;">
+              <p style="font-size: 13px; font-weight: 600; margin-bottom: 12px; text-align: center; color: #333;">${credentialsLabel}</p>
+              <div style="margin: 10px 0;">
+                <span style="display: block; font-size: 11px; color: #888; margin-bottom: 4px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Email:</span>
+                <code style="display: block; font-size: 15px; background: #f8f9fa; padding: 12px 14px; border-radius: 10px; border: 1.5px solid #e0e0e0; font-family: monospace;">test@example.com</code>
+              </div>
+              <div style="margin: 10px 0;">
+                <span style="display: block; font-size: 11px; color: #888; margin-bottom: 4px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Пароль:</span>
+                <code style="display: block; font-size: 15px; background: #f8f9fa; padding: 12px 14px; border-radius: 10px; border: 1.5px solid #e0e0e0; font-family: monospace;">DemoPass123</code>
+              </div>
             </div>
-            <div style="margin: 10px 0;">
-              <span style="display: block; font-size: 10px; color: #666; margin-bottom: 3px; text-transform: uppercase; font-weight: 600;">Пароль:</span>
-              <code style="display: block; font-size: 13px; background: white; padding: 10px; border-radius: 8px; border: 1px solid #e0e0e0;">DemoPass123</code>
+            <div style="text-align: center; margin-bottom: 24px;">
+              ${outroHooks.map(hook => `<p style="font-size: 13px; color: #888; margin: 4px 0;">${hook}</p>`).join('')}
             </div>
           </div>
-          <div style="text-align: center; margin-bottom: 20px;">
-            ${outroHooks.map(hook => `<p style="font-size: 12px; color: #666; margin: 4px 0;">${hook}</p>`).join('')}
-          </div>
-          <button style="width: 100%; padding: 14px; background: linear-gradient(135deg, #4CAF50, #45a049); color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 600;">${buttonText}</button>
+          <button style="width: 100%; padding: 20px; background: #1a1a1a; color: #f5f5f7; border: none; border-radius: 0 0 28px 28px; font-size: 19px; font-weight: 600; cursor: pointer;">${buttonText}</button>
         </div>
       `;
     }
@@ -3642,7 +3703,7 @@
     }
 
     // Добавляем инициализацию в DOMContentLoaded
-    const originalInit = window.onload || (() => {});
+    const originalInit = window.onload || (() => { });
     window.addEventListener('DOMContentLoaded', () => {
       originalInit();
 

@@ -399,6 +399,7 @@ async function build({ target } = {}) {
 }
 
 async function buildAll() {
+  const siteConfig = await loadSiteConfig();
   await cleanTargetsForAll();
   await ensureViteAssets();
   // Исправляем пути в Vite preload helper (динамические импорты)
@@ -409,7 +410,7 @@ async function buildAll() {
   await buildPremium();
   await buildRecommendations();
   // Копируем серверные файлы в dist/server для API-эндпоинтов
-  await copyServerFiles(PATHS.dist.server);
+  await copyServerFiles(PATHS.dist.server, siteConfig);
   console.log('✅ Серверные файлы скопированы в dist/server/');
   // Копируем страницы ошибок из public
   await copyErrorPages();
@@ -563,7 +564,7 @@ async function buildPremium() {
   await ensureDir(PATHS.dist.premium);
   await copyContentAssets(contentAssets);
   await writeLockedContentFiles(content.course);
-  await copyServerFiles(PATHS.dist.premium);
+  await copyServerFiles(PATHS.dist.premium, config);
 
   const menuItems = buildMenuItems(content, 'premium');
   const menuHtml = generateMenuItemsHtml(menuItems);
@@ -2260,7 +2261,7 @@ async function copyContentAssets(assets) {
   }
 }
 
-async function copyServerFiles(dest) {
+async function copyServerFiles(dest, config = null) {
   // Создаём директорию если не существует
   await ensureDir(dest);
 
@@ -2293,6 +2294,42 @@ async function copyServerFiles(dest) {
       }
     }
   }
+
+  // Подправляем success/fail URL Robokassa в settings.json на основе конфигурации домена
+  const baseUrl = getBaseUrl(config);
+  const destSettings = path.join(dest, 'storage', 'settings.json');
+  if (baseUrl && fs.existsSync(destSettings)) {
+    try {
+      const raw = await fsp.readFile(destSettings, 'utf8');
+      const json = JSON.parse(raw);
+      json.robokassa = json.robokassa || {};
+      json.robokassa.success_url = `${baseUrl}/server/success.php`;
+      json.robokassa.fail_url = `${baseUrl}/server/fail.php`;
+
+      // Перезапись кредов из env, если заданы (упрощаем деплой без ручного редактирования)
+      const envMap = {
+        merchant_login: process.env.ROBOKASSA_LOGIN,
+        pass1: process.env.ROBOKASSA_PASS1,
+        pass2: process.env.ROBOKASSA_PASS2,
+        test_password1: process.env.ROBOKASSA_TEST_PASS1,
+        test_password2: process.env.ROBOKASSA_TEST_PASS2,
+        signature_alg: process.env.ROBOKASSA_SIGNATURE_ALG
+      };
+      for (const [key, val] of Object.entries(envMap)) {
+        if (val) {
+          json.robokassa[key] = val;
+        }
+      }
+      if (process.env.ROBOKASSA_IS_TEST !== undefined) {
+        json.robokassa.is_test = String(process.env.ROBOKASSA_IS_TEST).toLowerCase() === 'true';
+      }
+
+      await fsp.writeFile(destSettings, JSON.stringify(json, null, 2), 'utf8');
+      console.log(`🔧 Обновлены Robokassa success/fail URL в ${path.relative(PROJECT_ROOT, destSettings)}`);
+    } catch (error) {
+      console.warn('⚠️  Не удалось обновить settings.json:', error.message);
+    }
+  }
 }
 
 /**
@@ -2312,6 +2349,16 @@ async function copyDirectory(src, dest) {
       await fsp.copyFile(srcPath, destPath);
     }
   }
+}
+
+function getBaseUrl(config) {
+  if (!config) return null;
+  if (config.site && config.site.base_url) return config.site.base_url.replace(/\/+$/, '');
+  if (config.domain) {
+    const clean = String(config.domain).replace(/^https?:\/\//i, '').replace(/\/+$/, '');
+    return clean ? `https://${clean}` : null;
+  }
+  return null;
 }
 
 /**

@@ -2522,7 +2522,8 @@ body[data-mode="tablet"] #pw-root {
   bottom: calc(24px + env(safe-area-inset-bottom, 0px));
   margin: 0;
   order: 2;
-  width: min(var(--pw-pill-width), 90%); /* Fix: явная ширина для iPad */
+  width: min(var(--pw-pill-width), 90%);
+  /* Fix: явная ширина для iPad */
 }
 
 /* Mobile: fixed слева пока < 100%, потом переезжает в центр */
@@ -3491,6 +3492,132 @@ body[data-mode="mobile"] .paywall-cta-button span {
 
   .modal-content--airy .price-old {
     font-size: 28px;
+  }
+}
+
+.payment-success-card {
+  padding: 48px 48px 0 48px;
+  text-align: center;
+}
+
+.payment-success-head {
+  margin-bottom: 20px;
+}
+
+.payment-success-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-color);
+  margin: 0 0 8px 0;
+  letter-spacing: -0.01em;
+}
+
+.payment-success-subtitle {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--gray-500);
+  margin: 0;
+}
+
+.payment-success-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-bottom: 0;
+}
+
+.payment-success-note {
+  font-size: 13px;
+  color: var(--gray-500);
+  margin: 0;
+}
+
+.payment-success-row {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  background: var(--page-bg);
+  padding: 16px;
+  border-radius: 16px;
+}
+
+.payment-success-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gray-700);
+  text-align: left;
+  margin: 0 0 2px 0;
+}
+
+.payment-success-inputs {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.payment-success-inputs .modal-input {
+  flex: 1;
+}
+
+.payment-success-inputs .promo-submit {
+  height: 56px;
+  padding: 0 20px;
+  border-radius: 16px;
+  border: none;
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--text-color);
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.payment-success-email {
+  font-size: 13px;
+  color: var(--gray-500);
+  margin-bottom: 24px !important;
+}
+
+.payment-success-email span {
+  color: var(--gray-500);
+  display: block;
+  margin-top: 4px;
+}
+
+/* Flush button for Success modal - matches Login modal style */
+.payment-success-card .modal-submit {
+  width: calc(100% + 96px);
+  margin: 24px -48px -1px -48px;
+  height: 64px;
+  border-radius: 0 0 28px 28px;
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  background: var(--accent);
+  color: var(--accent-soft);
+  box-shadow: none;
+}
+
+.payment-success-card .modal-submit:hover {
+  opacity: 0.95;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Mobile adaptation for Success modal */
+@media (max-width: 600px) {
+  .payment-success-card {
+    padding: 32px 24px 0 24px;
+  }
+
+  .payment-success-card .modal-submit {
+    width: calc(100% + 48px);
+    margin: 24px -24px -1px -24px;
+    border-radius: 0 0 28px 28px;
+  }
+
+  .payment-success-title {
+    font-size: 20px;
   }
 }
 

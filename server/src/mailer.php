@@ -44,7 +44,7 @@ function send_mail(
     if ($transport === 'smtp') {
       $success = send_mail_smtp($to, $subject_enc, $body, $from, $config['emails']['smtp'] ?? []);
     } else {
-      $headers = "From: {$from}\r\nContent-Type: text/plain; charset=UTF-8\r\n";
+      $headers = "From: {$from}\r\nContent-Type: text/html; charset=UTF-8\r\n";
       $success = @mail($to, $subject_enc, $body, $headers);
     }
   } catch (Exception $e) {
@@ -144,7 +144,7 @@ function send_mail_smtp(string $to, string $subject, string $body, string $from,
     "To: {$to}",
     "Subject: {$subject}",
     "MIME-Version: 1.0",
-    "Content-Type: text/plain; charset=UTF-8",
+    "Content-Type: text/html; charset=UTF-8",
   ];
   $data = implode("\r\n", $headers) . "\r\n\r\n" . $body . "\r\n.";
   fwrite($fp, $data . "\r\n");

@@ -1,7 +1,7 @@
 {
   "premium_course": {
-    "name": "Курс \"Clean - Теория правильной уборки\"",
-    "price": 5490.0,
+    "name": "Курс \"Слишком Умная Уборка\"",
+    "price": 5490,
     "tax": "none",
     "payment_method": "full_payment",
     "payment_object": "service"

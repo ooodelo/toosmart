@@ -29,6 +29,9 @@
     Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
 </IfModule>
 
+# Индексный файл по умолчанию
+DirectoryIndex index.php
+
 # Включить mod_rewrite
 <IfModule mod_rewrite.c>
     RewriteEngine On
@@ -39,6 +42,11 @@
     # Все запросы к .html файлам проксировать через check-auth.php
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule ^(.+)\.html$ check-auth.php?page=$1 [L,QSA]
+
+    # Фолбэк: всё остальное отдаём через index.php (для /server/?payment=success и др.)
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ index.php [QSA,L]
     
     # HTTPS Redirect (отключено - настроено на уровне хостинга)
     # RewriteCond %{HTTPS} off

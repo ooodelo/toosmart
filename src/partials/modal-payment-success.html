@@ -1,40 +1,34 @@
 <!-- МОДАЛЬНОЕ ОКНО УСПЕШНОЙ ОПЛАТЫ -->
 <div class="modal" id="payment-success-modal" role="dialog" aria-modal="true" aria-labelledby="payment-success-title">
-    <div class="modal-overlay" onclick="closePaymentSuccessModal()"></div>
-    <div class="modal-content modal-content--airy" style="padding-bottom: 0 !important;">
-        <div style="text-align: center;">
-            <div style="font-size: 64px; color: #4caf50; margin-bottom: 16px;">✓</div>
-            <h2 id="payment-success-title" class="modal-title" style="margin-bottom: 12px;">Оплата прошла успешно!</h2>
-            <p style="color: var(--gray-700); margin-bottom: 24px; font-family: var(--sans);">Спасибо за покупку курса.
-            </p>
-        </div>
+  <div class="modal-overlay" onclick="closePaymentSuccessModal()"></div>
+  <div class="modal-content modal-content--airy payment-success-card">
+    <header class="payment-success-head">
+      <p class="payment-success-title" id="payment-success-title">Оплата прошла успешно!</p>
+      <p class="payment-success-subtitle">Спасибо за покупку курса.</p>
+    </header>
 
-        <div id="success-password-container" style="display: none;">
-            <div class="password-box"
-                style="background: #fff3cd; border: 2px solid #ffc107; padding: 20px; border-radius: 12px; margin: 24px 0; text-align: center;">
-                <h3 style="color: #856404; margin: 0 0 12px 0; font-size: 16px;">🔑 Ваш пароль для входа:</h3>
-                <div id="success-password-display"
-                    style="background: white; padding: 12px; border-radius: 8px; font-family: monospace; font-size: 20px; font-weight: bold; letter-spacing: 1px; margin-bottom: 12px;">
-                </div>
-                <button type="button" onclick="copySuccessPassword()" class="modal-submit"
-                    style="background: #667eea; width: auto; padding: 8px 24px; font-size: 14px; height: auto; margin: 0; box-shadow: none; border-radius: 8px;">
-                    📋 Скопировать
-                </button>
-                <div style="font-size: 12px; color: #856404; margin-top: 12px;">
-                    ⚠️ Сохраните этот пароль! Он также отправлен на ваш email.
-                </div>
-            </div>
-        </div>
+    <section class="modal-body payment-success-body">
+      <div class="modal-security payment-success-note">
+        🎉 Пароль нужен для входа в личный кабинет.
+      </div>
 
-        <div id="success-email-message"
-            style="text-align: center; color: var(--gray-600); margin-bottom: 24px; font-size: 14px; line-height: 1.5;">
-            📧 Пароль для входа выслан на вашу почту.<br>
-            <span style="color: var(--gray-500);">Изменить пароль можно в личном кабинете.</span>
+      <div id="success-password-container" class="payment-success-row" style="display: none;">
+        <label class="payment-success-label">🔑 Ваш пароль для входа:</label>
+        <div class="payment-success-inputs">
+          <input type="text" id="success-password-display" class="modal-input" readonly aria-label="Пароль для входа">
+          <button type="button" class="promo-submit" onclick="copySuccessPassword()">Скопировать</button>
         </div>
+      </div>
 
-        <button type="button" class="modal-submit" onclick="closePaymentSuccessModal()">
-            Начать обучение
-        </button>
-    </div>
-    <button class="modal-close" type="button" onclick="closePaymentSuccessModal()" aria-label="Закрыть">×</button>
+      <div id="success-email-message" class="modal-security payment-success-email">
+        📧 Пароль для входа выслан на вашу почту.<br>
+        <span>Изменить пароль можно в личном кабинете.</span>
+      </div>
+
+      <button type="button" class="modal-submit" onclick="closePaymentSuccessModal()">
+        Начать обучение
+      </button>
+    </section>
+  </div>
+  <button class="modal-close" type="button" onclick="closePaymentSuccessModal()" aria-label="Закрыть">×</button>
 </div>

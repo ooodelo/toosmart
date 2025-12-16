@@ -78,7 +78,7 @@ try {
     $user_id = $user['id'];
 
     // 5. GENERATE NEW PASSWORD
-    $new_password = Security::generatePassword(16);
+    $new_password = Security::generatePassword(6);
     $password_hash = password_hash($new_password, PASSWORD_DEFAULT);
 
     // 6. UPDATE PASSWORD IN DATABASE

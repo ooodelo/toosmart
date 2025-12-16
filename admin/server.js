@@ -25,6 +25,10 @@ const CONFIG_PATH = path.join(__dirname, '..', 'config', 'site.json');
 const CONTENT_META_PATH = path.join(__dirname, '..', 'config', 'content-meta.json');
 const IMAGES_META_PATH = path.join(__dirname, '..', 'config', 'images-meta.json');
 const LEGAL_CONFIG_PATH = path.join(__dirname, '..', 'config', 'legal.json');
+const STORAGE_DIR = path.join(__dirname, '..', 'server', 'storage');
+const PRODUCTS_PATH = path.join(STORAGE_DIR, 'products.json');
+const EMAIL_TEMPLATES_PATH = path.join(STORAGE_DIR, 'email-templates.json');
+const SUCCESS_MODAL_PATH = path.join(STORAGE_DIR, 'success-modal-texts.json');
 const ADMIN_DIR = __dirname;
 const PROJECT_ROOT = path.join(__dirname, '..');
 const PREVIEW_DEFAULT_PORT = process.env.BUILD_PREVIEW_PORT || process.env.PREVIEW_PORT || 4040;
@@ -62,6 +66,27 @@ function writeJsonSafe(filePath, data) {
     console.warn(`⚠️  Ошибка записи ${filePath}:`, error.message);
     return false;
   }
+}
+
+async function readJsonBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    req.on('data', chunk => body += chunk.toString());
+    req.on('error', reject);
+    req.on('end', () => {
+      if (!body) return resolve(null);
+      try {
+        resolve(JSON.parse(body));
+      } catch (error) {
+        reject(error);
+      }
+    });
+  });
+}
+
+function sendJson(res, status, payload) {
+  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
+  res.end(JSON.stringify(payload));
 }
 
 const DEFAULT_SITE_CONFIG = {
@@ -443,6 +468,37 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // Admin payments APIs (Node implementation, no PHP needed)
+    if (pathname === '/admin/api/get-product.php' && req.method === 'GET') {
+      await handleAdminGetProduct(req, res);
+      return;
+    }
+
+    if (pathname === '/admin/api/update-product.php' && req.method === 'POST') {
+      await handleAdminUpdateProduct(req, res);
+      return;
+    }
+
+    if (pathname === '/admin/api/get-email-template.php' && req.method === 'GET') {
+      await handleAdminGetEmailTemplate(req, res);
+      return;
+    }
+
+    if (pathname === '/admin/api/update-email-template.php' && req.method === 'POST') {
+      await handleAdminUpdateEmailTemplate(req, res);
+      return;
+    }
+
+    if (pathname === '/admin/api/get-success-modal.php' && req.method === 'GET') {
+      await handleAdminGetSuccessModal(req, res);
+      return;
+    }
+
+    if (pathname === '/admin/api/update-success-modal.php' && req.method === 'POST') {
+      await handleAdminUpdateSuccessModal(req, res);
+      return;
+    }
+
     // PHP API proxy для /admin/api/*
     if (pathname.startsWith('/admin/api/')) {
       await handlePhpApi(req, res, pathname);
@@ -617,6 +673,236 @@ async function handleSaveLegal(req, res) {
       res.end(JSON.stringify({ error: 'Ошибка сохранения legal: ' + error.message }));
     }
   });
+}
+
+// ===== Admin payments APIs (Node) =====
+async function handleAdminGetProduct(req, res) {
+  try {
+    if (!fs.existsSync(PRODUCTS_PATH)) {
+      sendJson(res, 404, { error: 'products_not_found' });
+      return;
+    }
+
+    const products = JSON.parse(fs.readFileSync(PRODUCTS_PATH, 'utf8'));
+    const product = products?.premium_course;
+    if (!product) {
+      sendJson(res, 404, { error: 'product_not_found' });
+      return;
+    }
+
+    sendJson(res, 200, {
+      success: true,
+      product: {
+        name: product.name,
+        price: product.price,
+        tax: product.tax ?? 'none',
+        payment_method: product.payment_method ?? 'full_payment',
+        payment_object: product.payment_object ?? 'service'
+      }
+    });
+  } catch (error) {
+    sendJson(res, 500, { error: 'server_error', details: error.message });
+  }
+}
+
+async function handleAdminUpdateProduct(req, res) {
+  let data;
+  try {
+    data = await readJsonBody(req);
+  } catch (error) {
+    sendJson(res, 400, { error: 'invalid_json' });
+    return;
+  }
+
+  if (!data) {
+    sendJson(res, 400, { error: 'invalid_json' });
+    return;
+  }
+
+  const name = (data.name || '').toString().trim();
+  const price = Number(data.price);
+
+  if (!name || name.length > 255) {
+    sendJson(res, 400, { error: 'invalid_name' });
+    return;
+  }
+
+  if (!Number.isFinite(price) || price <= 0 || price > 999999) {
+    sendJson(res, 400, { error: 'invalid_price' });
+    return;
+  }
+
+  if (!fs.existsSync(PRODUCTS_PATH)) {
+    sendJson(res, 404, { error: 'products_not_found' });
+    return;
+  }
+
+  try {
+    const productsRaw = JSON.parse(fs.readFileSync(PRODUCTS_PATH, 'utf8'));
+    const products = (productsRaw && typeof productsRaw === 'object') ? productsRaw : {};
+    const current = products.premium_course || {};
+
+    products.premium_course = {
+      ...current,
+      name,
+      price: price
+    };
+
+    writeJsonSafe(PRODUCTS_PATH, products);
+    sendJson(res, 200, { success: true });
+  } catch (error) {
+    sendJson(res, 500, { error: 'server_error', details: error.message });
+  }
+}
+
+async function handleAdminGetEmailTemplate(req, res) {
+  try {
+    if (!fs.existsSync(EMAIL_TEMPLATES_PATH)) {
+      sendJson(res, 404, { error: 'templates_not_found' });
+      return;
+    }
+
+    const templates = JSON.parse(fs.readFileSync(EMAIL_TEMPLATES_PATH, 'utf8'));
+    const template = templates?.welcome;
+    if (!template) {
+      sendJson(res, 404, { error: 'template_not_found' });
+      return;
+    }
+
+    sendJson(res, 200, {
+      success: true,
+      template: {
+        subject: template.subject,
+        body: template.body
+      }
+    });
+  } catch (error) {
+    sendJson(res, 500, { error: 'server_error', details: error.message });
+  }
+}
+
+async function handleAdminUpdateEmailTemplate(req, res) {
+  let data;
+  try {
+    data = await readJsonBody(req);
+  } catch (error) {
+    sendJson(res, 400, { error: 'invalid_json' });
+    return;
+  }
+
+  if (!data) {
+    sendJson(res, 400, { error: 'invalid_json' });
+    return;
+  }
+
+  const subject = (data.subject || '').toString().trim();
+  const body = (data.body || '').toString();
+
+  if (!subject || subject.length > 255) {
+    sendJson(res, 400, { error: 'invalid_subject' });
+    return;
+  }
+
+  if (!body || body.length > 10000) {
+    sendJson(res, 400, { error: 'invalid_body' });
+    return;
+  }
+
+  if (!body.includes('{{email}}') || !body.includes('{{password}}')) {
+    sendJson(res, 400, { error: 'missing_required_placeholders' });
+    return;
+  }
+
+  if (!fs.existsSync(EMAIL_TEMPLATES_PATH)) {
+    sendJson(res, 404, { error: 'templates_not_found' });
+    return;
+  }
+
+  try {
+    const templatesRaw = JSON.parse(fs.readFileSync(EMAIL_TEMPLATES_PATH, 'utf8'));
+    const templates = (templatesRaw && typeof templatesRaw === 'object') ? templatesRaw : {};
+    const existing = (templates.welcome && typeof templates.welcome === 'object') ? templates.welcome : {};
+    templates.welcome = { ...existing, subject, body };
+
+    writeJsonSafe(EMAIL_TEMPLATES_PATH, templates);
+    sendJson(res, 200, { success: true });
+  } catch (error) {
+    sendJson(res, 500, { error: 'server_error', details: error.message });
+  }
+}
+
+async function handleAdminGetSuccessModal(req, res) {
+  try {
+    if (!fs.existsSync(SUCCESS_MODAL_PATH)) {
+      sendJson(res, 404, { error: 'texts_not_found' });
+      return;
+    }
+
+    const texts = JSON.parse(fs.readFileSync(SUCCESS_MODAL_PATH, 'utf8'));
+    sendJson(res, 200, { success: true, texts });
+  } catch (error) {
+    sendJson(res, 500, { error: 'server_error', details: error.message });
+  }
+}
+
+async function handleAdminUpdateSuccessModal(req, res) {
+  let data;
+  try {
+    data = await readJsonBody(req);
+  } catch (error) {
+    sendJson(res, 400, { error: 'invalid_json' });
+    return;
+  }
+
+  if (!data) {
+    sendJson(res, 400, { error: 'invalid_json' });
+    return;
+  }
+
+  const intro_hooks = Array.isArray(data.intro_hooks) ? data.intro_hooks : [];
+  const outro_hooks = Array.isArray(data.outro_hooks) ? data.outro_hooks : [];
+  const credentials_label = (data.credentials_label || '').toString().trim();
+  const button_text = (data.button_text || '').toString().trim();
+
+  if (intro_hooks.length === 0) {
+    sendJson(res, 400, { error: 'invalid_intro_hooks' });
+    return;
+  }
+
+  if (!credentials_label || credentials_label.length > 500) {
+    sendJson(res, 400, { error: 'invalid_credentials_label' });
+    return;
+  }
+
+  if (outro_hooks.length === 0) {
+    sendJson(res, 400, { error: 'invalid_outro_hooks' });
+    return;
+  }
+
+  if (!button_text || button_text.length > 500) {
+    sendJson(res, 400, { error: 'invalid_button_text' });
+    return;
+  }
+
+  const hooks = [...intro_hooks, ...outro_hooks];
+  if (hooks.some(hook => typeof hook !== 'string' || hook.length > 500)) {
+    sendJson(res, 400, { error: 'invalid_hook_length' });
+    return;
+  }
+
+  const payload = {
+    intro_hooks,
+    credentials_label,
+    outro_hooks,
+    button_text
+  };
+
+  try {
+    writeJsonSafe(SUCCESS_MODAL_PATH, payload);
+    sendJson(res, 200, { success: true });
+  } catch (error) {
+    sendJson(res, 500, { error: 'server_error', details: error.message });
+  }
 }
 
 // Запуск сборки

@@ -12,8 +12,8 @@
     "test_password2": "Hzu2rdP8C2nn7kBfcPV1",
     "is_test": true,
     "signature_alg": "md5",
-    "success_url": "https://toosmart.ru/premium/success.php",
-    "fail_url": "https://toosmart.ru/premium/fail.php",
+    "success_url": "https://toosmart.ru/server/success.php",
+    "fail_url": "https://toosmart.ru/server/fail.php",
     "default_sno": "usn_income",
     "default_tax": "none",
     "product_code": "premium_course"

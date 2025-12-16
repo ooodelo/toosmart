@@ -18,6 +18,7 @@ require_once __DIR__ . '/src/robokassa/helpers.php';
 require_once __DIR__ . '/src/utils.php';
 require_once __DIR__ . '/src/config_loader.php';
 require_once __DIR__ . '/src/mailer.php';
+require_once __DIR__ . '/src/payment_success_store.php';
 
 // Загрузить конфигурацию
 Config::load();
@@ -73,7 +74,7 @@ if (!$validated_email) {
 }
 
 // 3. ГЕНЕРАЦИЯ БЕЗОПАСНОГО ПАРОЛЯ
-$password = Security::generatePassword(16); // Криптографически безопасный, 16+ символов
+$password = Security::generatePassword(6); // Криптографически безопасный, 6 символов по требованию
 $password_hash = password_hash($password, PASSWORD_DEFAULT);
 
 // 4. ДОБАВЛЕНИЕ ПОЛЬЗОВАТЕЛЯ В БАЗУ С FILE LOCKING
@@ -141,6 +142,9 @@ try {
     Security::secureLog('INFO', 'Password stored in session for success page', [
         'email_hash' => md5($validated_email)
     ]);
+
+    // Дополнительно: сохранить данные в file-store, чтобы success-страница могла их показать по InvId
+    payment_success_store((int)$inv_id, $validated_email, $password, (float)$out_sum, 900);
 
 } catch (Exception $e) {
     if ($pdo->inTransaction()) {

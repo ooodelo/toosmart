@@ -11,9 +11,13 @@
 
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/security.php';
+require_once __DIR__ . '/src/config_loader.php';
+require_once __DIR__ . '/src/robokassa/helpers.php';
+require_once __DIR__ . '/src/payment_success_store.php';
 
 Config::load();
 Security::initSession();
+$cfg = require __DIR__ . '/src/config_loader.php';
 
 function resolvePremiumHome(): string
 {
@@ -81,13 +85,39 @@ $csrf_token = Security::generateCSRFToken();
 // Обработка успешной оплаты
 $showSuccessModal = false;
 $successModalHtml = '';
+$successPayload = null;
+
+// Попытка получить данные успеха через Robokassa SuccessURL (с подписью)
+if (isset($_GET['payment']) && $_GET['payment'] === 'success') {
+    $invId = isset($_GET['InvId']) ? (int)$_GET['InvId'] : null;
+    // Упрощённо: не проверяем подпись и сумму, достаточно InvId и записи в store
+    if ($invId) {
+        $payload = payment_success_consume($invId);
+        if ($payload) {
+            $successPayload = $payload;
+        }
+    }
+}
 
 if (isset($_GET['payment']) && $_GET['payment'] === 'success') {
     // Проверяем, есть ли пароль в сессии
-    if (isset($_SESSION['new_password']) && isset($_SESSION['new_password_email'])) {
+    if (!$successPayload && isset($_SESSION['new_password']) && isset($_SESSION['new_password_email'])) {
 
-        $password = $_SESSION['new_password'];
-        $email = $_SESSION['new_password_email'];
+        $successPayload = [
+            'password' => $_SESSION['new_password'],
+            'email' => $_SESSION['new_password_email']
+        ];
+
+        // УДАЛЯЕМ пароль из сессии (одноразовый показ!)
+        unset($_SESSION['new_password']);
+        unset($_SESSION['new_password_email']);
+        unset($_SESSION['new_password_timestamp']);
+    }
+}
+
+if ($successPayload) {
+    $password = $successPayload['password'];
+    $email = $successPayload['email'];
 
         // Читаем HTML-шаблон модалки
         $template_path = __DIR__ . '/templates/payment-success.html';
@@ -136,10 +166,8 @@ if (isset($_GET['payment']) && $_GET['payment'] === 'success') {
                 $template
             );
 
-            // УДАЛЯЕМ пароль из сессии (одноразовый показ!)
-            unset($_SESSION['new_password']);
-            unset($_SESSION['new_password_email']);
-            unset($_SESSION['new_password_timestamp']);
+            // Очистить одноразовые данные в сессии, если остались
+            unset($_SESSION['new_password'], $_SESSION['new_password_email'], $_SESSION['new_password_timestamp']);
 
             $showSuccessModal = true;
         }

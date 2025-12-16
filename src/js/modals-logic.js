@@ -157,8 +157,10 @@ async function openPaymentSuccessModal() {
         const data = await response.json();
 
         if (data.status === 'success' && data.password) {
-            document.getElementById('success-password-display').textContent = data.password;
-            document.getElementById('success-password-container').style.display = 'block';
+            const passwordField = document.getElementById('success-password-display');
+            const container = document.getElementById('success-password-container');
+            if (passwordField) passwordField.value = data.password;
+            if (container) container.style.display = 'flex';
         } else {
             // Password expired or not found
             document.getElementById('success-password-container').style.display = 'none';
@@ -180,7 +182,8 @@ function closePaymentSuccessModal() {
 }
 
 function copySuccessPassword() {
-    const text = document.getElementById('success-password-display').textContent;
+    const field = document.getElementById('success-password-display');
+    const text = field?.value || field?.textContent || '';
     const button = document.querySelector('[onclick="copySuccessPassword()"]');
 
     navigator.clipboard.writeText(text).then(() => {
