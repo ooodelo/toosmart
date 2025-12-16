@@ -92,9 +92,6 @@ if (isset($_GET['payment']) && $_GET['payment'] === 'success') {
     $invId = isset($_GET['InvId']) ? (int)$_GET['InvId'] : null;
     $urlEmail = isset($_GET['Shp_email']) ? urldecode($_GET['Shp_email']) : null;
 
-    // DEBUG - показываем что версия кода новая
-    echo "<!-- CODE_VERSION: 2024-12-16-v2 invId=$invId urlEmail=$urlEmail -->";
-
     // 1. Сначала пробуем получить из store (если callback успел записать)
     if ($invId) {
         $payload = payment_success_consume($invId);
@@ -160,31 +157,19 @@ if (isset($_GET['payment']) && $_GET['payment'] === 'success') {
             }
 
         } catch (Exception $e) {
-            // DEBUG: показываем ошибку
             error_log("Success modal error: " . $e->getMessage());
-            // Если ошибка БД - просто не показываем модалку с паролем
             $successPayload = null;
         }
-    }
-
-    // DEBUG: Если дошли сюда и нет payload - выводим причину
-    if (!$successPayload) {
-        error_log("No successPayload: invId=$invId, urlEmail=$urlEmail, store=" . ($payload ?? 'null'));
-        echo "<!-- DEBUG: No payload! invId=$invId, urlEmail=$urlEmail -->";
-    } else {
-        echo "<!-- DEBUG: Got payload! email={$successPayload['email']} -->";
     }
 }
 
 if ($successPayload) {
-    echo "<!-- DEBUG: Building modal for {$successPayload['email']} -->";
     $password = $successPayload['password'];
     $email = $successPayload['email'];
 
-        // Читаем HTML-шаблон модалки
-        $template_path = __DIR__ . '/templates/payment-success.html';
-        echo "<!-- DEBUG: template_path=$template_path exists=" . (file_exists($template_path) ? 'YES' : 'NO') . " -->";
-        if (file_exists($template_path)) {
+    // Читаем HTML-шаблон модалки
+    $template_path = __DIR__ . '/templates/payment-success.html';
+    if (file_exists($template_path)) {
             $template = file_get_contents($template_path);
 
             // Читаем тексты из JSON
@@ -232,12 +217,9 @@ if ($successPayload) {
             // Очистить одноразовые данные в сессии, если остались
             unset($_SESSION['new_password'], $_SESSION['new_password_email'], $_SESSION['new_password_timestamp']);
 
-            $showSuccessModal = true;
-            echo "<!-- DEBUG: showSuccessModal set to TRUE -->";
-        } else {
-            echo "<!-- DEBUG: Template NOT found! -->";
-        }
+        $showSuccessModal = true;
     }
+}
 
 // Получение кода ошибки
 $error = $_GET['error'] ?? '';
