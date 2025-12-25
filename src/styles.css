@@ -183,7 +183,11 @@
   letter-spacing: 0.18em;
 }
 
-html,
+html {
+  margin: 0;
+  padding: 0;
+}
+
 body {
   margin: 0;
   padding: 0;
@@ -192,7 +196,6 @@ body {
   font-size: var(--text-size);
   line-height: var(--text-lh);
   background: var(--page-bg);
-  min-height: 100%;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -205,6 +208,20 @@ body {
 
   /* Prevent touch callout on iOS */
   -webkit-touch-callout: none;
+
+  /* Layout properties - merged from second body declaration */
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  /* Fallback */
+  min-height: 100dvh;
+  /* Dynamic viewport height - doesn't jump on mobile */
+  overflow-x: hidden;
+  max-width: 100%;
+  /* Было: 100vw - включало scrollbar и вызывало overflow */
+  position: relative;
+  overscroll-behavior-x: none;
+  /* Отключить bounce эффект в горизонтали */
 }
 
 /* Allow text selection in form inputs */
@@ -632,20 +649,14 @@ a:hover {
   /* Мятный цвет */
 }
 
-body {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  /* Fallback */
-  min-height: 100dvh;
-  /* Dynamic viewport height - doesn't jump on mobile */
-  overflow-x: hidden;
-  max-width: 100%;
-  /* Было: 100vw - включало scrollbar и вызывало overflow */
-  position: relative;
-  overscroll-behavior-x: none;
-  /* Отключить bounce эффект в горизонтали */
+/* Hide breadcrumbs on mobile */
+@media (max-width: 767px) {
+  .article-breadcrumb {
+    display: none;
+  }
 }
+
+/* Removed duplicate body declaration - merged with main body declaration above (line 191) */
 
 html {
   scroll-behavior: smooth;
@@ -925,8 +936,7 @@ body[data-input="pointer"].is-slid .menu-rail {
   grid-column: 2;
   grid-row: 1;
   writing-mode: vertical-rl;
-  text-orientation: upright;
-  /* Буквы стоят вертикально, не повернуты */
+  /* Fallback для Safari 16 и старых браузеров - буквы повёрнуты на 90° */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -943,6 +953,14 @@ body[data-input="pointer"].is-slid .menu-rail {
   height: 100%;
   position: relative;
   overflow: visible;
+}
+
+/* Для браузеров с поддержкой text-orientation (современные Chrome, Firefox, Safari 16.4+) */
+@supports (text-orientation: upright) {
+  .menu-handle {
+    text-orientation: upright;
+    /* Буквы стоят вертикально, не повернуты */
+  }
 }
 
 /* Контейнер для контента (буквы + точки) с фиксированной шириной */
@@ -1433,7 +1451,7 @@ body[data-mode="mobile"] .text-section table {
   .dot-flyout {
     background: rgba(255, 255, 255, 0.4);
     backdrop-filter: saturate(1.1) blur(40px);
-    -webkit-backdrop-filter: blur(10px) saturate(1.1);
+    -webkit-backdrop-filter: saturate(1.1) blur(40px);
   }
 }
 
@@ -3217,10 +3235,19 @@ body[data-mode="mobile"] .paywall-cta-button span {
   height: 20px;
   margin: 0;
   cursor: pointer;
-  accent-color: #667eea;
   flex-shrink: 0;
   border-radius: 4px;
   transition: all 0.2s ease;
+  /* Fallback для Safari < 15.4 */
+  border: 2px solid #667eea;
+}
+
+/* Для браузеров с поддержкой accent-color (Safari 15.4+) */
+@supports (accent-color: #667eea) {
+  .modal-checkbox input[type="checkbox"] {
+    accent-color: #667eea;
+    border: none;
+  }
 }
 
 .modal-checkbox input[type="checkbox"].invalid {

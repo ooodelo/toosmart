@@ -1,223 +1,112 @@
 <div class="modal modal-success" id="payment-success-modal">
     <div class="modal-overlay"></div>
-    <div class="modal-content modal-content--airy">
-        <!-- ВВОДНЫЕ ХУКИ -->
-        <header class="modal-hooks">
+    <div class="success-preview">
+        <div class="success-head">
             {{INTRO_HOOKS}}
-        </header>
-
-        <section class="modal-body">
-            <!-- БЛОК С ПЕРЕМЕННЫМИ -->
+        </div>
+        <div class="success-body">
             <div class="success-credentials">
-                <p class="success-label">{{CREDENTIALS_LABEL}}</p>
-
-                <div class="credential-block">
-                    <span class="credential-label">Email:</span>
-                    <code class="credential-value">{{EMAIL}}</code>
+                <p class="success-credentials__title">{{CREDENTIALS_LABEL}}</p>
+                <div class="success-credentials__field">
+                    <span class="success-credentials__label">Email:</span>
+                    <code class="success-credentials__value">{{EMAIL}}</code>
                 </div>
-
-                <div class="credential-block">
-                    <span class="credential-label">Пароль:</span>
-                    <code class="credential-value">{{PASSWORD}}</code>
+                <div class="success-credentials__field">
+                    <span class="success-credentials__label">Пароль:</span>
+                    <code class="success-credentials__value">{{PASSWORD}}</code>
                 </div>
             </div>
-
-            <!-- ФИНАЛЬНЫЕ ХУКИ -->
             <div class="success-outro">
                 {{OUTRO_HOOKS}}
             </div>
-
-            <!-- КНОПКА -->
-            <button class="modal-submit" onclick="window.location.href='{{AUTO_LOGIN_URL}}'">
-                {{BUTTON_TEXT}}
-            </button>
-        </section>
+        </div>
+        <button class="success-cta" onclick="window.location.href='{{AUTO_LOGIN_URL}}'">
+            {{BUTTON_TEXT}}
+        </button>
     </div>
 </div>
 
 <style>
-/* Модальное окно успеха - минимализм как в окне оплаты */
-.modal-success {
+  .modal-success{
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    inset: 0;
     z-index: 9999;
     display: flex;
     align-items: center;
     justify-content: center;
-    animation: fadeIn 0.2s ease;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-.modal-success .modal-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
+  }
+  .modal-success .modal-overlay{
+    position:absolute;
+    inset:0;
+    background: rgba(0,0,0,0.5);
     backdrop-filter: blur(4px);
-}
-
-.modal-success .modal-content--airy {
+  }
+  .success-preview{
     position: relative;
-    background: white;
-    border-radius: 24px;
-    max-width: 480px;
-    width: calc(100% - 32px);
-    max-height: 90vh;
-    overflow-y: auto;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-    animation: slideUp 0.3s ease;
-}
-
-@keyframes slideUp {
-    from {
-        transform: translateY(20px);
-        opacity: 0;
-    }
-    to {
-        transform: translateY(0);
-        opacity: 1;
-    }
-}
-
-.modal-success .modal-hooks {
-    padding: 32px 24px 24px;
-    text-align: center;
-}
-
-.modal-success .modal-hook {
-    font-size: 18px;
-    font-weight: 500;
-    line-height: 1.4;
-    margin: 8px 0;
-    color: #1a1a1a;
-}
-
-.modal-success .modal-hook:first-child {
-    font-size: 22px;
-    font-weight: 600;
-    margin-bottom: 12px;
-}
-
-.modal-success .modal-body {
-    padding: 0 24px 32px;
-}
-
-/* Блок с учетными данными */
-.success-credentials {
-    background: #f8f9fa;
-    padding: 20px;
+    width: min(560px, calc(100% - 32px));
+    background:#f5f5f7;
+    border-radius:28px;
+    overflow:hidden;
+    box-shadow:0 4px 24px rgba(0,0,0,0.18);
+  }
+  .success-head{
+    padding: 48px 48px 24px;
+    text-align:center;
+  }
+  .success-body{
+    padding: 0 48px 24px;
+  }
+  .success-credentials{
+    background: #fff;
+    padding: 16px;
     border-radius: 16px;
-    margin-bottom: 20px;
-}
-
-.success-label {
-    font-size: 14px;
+    margin: 0 0 16px;
+  }
+  .success-credentials__title{
+    font-size: 13px;
     font-weight: 600;
-    margin-bottom: 16px;
-    color: #333;
+    margin: 0 0 12px;
     text-align: center;
-}
-
-.credential-block {
-    margin: 12px 0;
-}
-
-.credential-label {
+    color: #333;
+  }
+  .success-credentials__field{
+    margin: 10px 0;
+  }
+  .success-credentials__label{
     display: block;
     font-size: 11px;
-    color: #666;
+    color: #888;
     margin-bottom: 4px;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
     font-weight: 600;
-}
-
-.credential-value {
+    letter-spacing: 0.5px;
+  }
+  .success-credentials__value{
     display: block;
-    font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
     font-size: 15px;
-    font-weight: 500;
-    background: white;
+    background: #f8f9fa;
     padding: 12px 14px;
     border-radius: 10px;
     border: 1.5px solid #e0e0e0;
-    user-select: all;
-    cursor: text;
-    color: #1a1a1a;
-    transition: all 0.15s ease;
-}
-
-.credential-value:hover {
-    border-color: #4CAF50;
-    background: #f9fff9;
-}
-
-/* Финальные хуки */
-.success-outro {
+    font-family: monospace;
+  }
+  .success-outro{
     text-align: center;
     margin-bottom: 24px;
-}
-
-.success-outro p {
-    font-size: 13px;
-    color: #666;
-    margin: 6px 0;
-    line-height: 1.5;
-}
-
-/* Кнопка */
-.modal-success .modal-submit {
+  }
+  .success-cta{
     width: 100%;
-    padding: 16px;
-    background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
-    color: white;
+    padding: 20px;
+    background: #1a1a1a;
+    color: #f5f5f7;
     border: none;
-    border-radius: 12px;
-    font-size: 16px;
+    border-radius: 0 0 28px 28px;
+    font-size: 19px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s ease;
-    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
-}
-
-.modal-success .modal-submit:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(76, 175, 80, 0.4);
-}
-
-.modal-success .modal-submit:active {
-    transform: translateY(0);
-}
-
-/* Адаптив */
-@media (max-width: 480px) {
-    .modal-success .modal-content--airy {
-        border-radius: 20px;
-    }
-
-    .modal-success .modal-hooks {
-        padding: 24px 20px 20px;
-    }
-
-    .modal-success .modal-hook {
-        font-size: 16px;
-    }
-
-    .modal-success .modal-hook:first-child {
-        font-size: 20px;
-    }
-
-    .modal-success .modal-body {
-        padding: 0 20px 24px;
-    }
-}
+  }
+  @media (max-width: 640px){
+    .success-head{ padding: 36px 24px 24px; }
+    .success-body{ padding: 0 24px 24px; }
+  }
 </style>

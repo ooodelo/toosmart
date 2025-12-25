@@ -2306,6 +2306,10 @@ async function copyServerFiles(dest, config = null) {
       json.robokassa = json.robokassa || {};
       json.robokassa.success_url = `${baseUrl}/server/success.php`;
       json.robokassa.fail_url = `${baseUrl}/server/fail.php`;
+      // Готовая боевые настройки по умолчанию
+      json.robokassa.pass1 = 'yoe468QZk5c5IyeERzqL';
+      json.robokassa.pass2 = 'CqK4r3iiX25zqLYZcqH2';
+      json.robokassa.is_test = false;
 
       // Перезапись кредов из env, если заданы (упрощаем деплой без ручного редактирования)
       const envMap = {
@@ -2437,7 +2441,9 @@ async function createPremiumHtaccess() {
 }
 
 async function generateRobotsTxt(dest, config) {
-  await fsp.writeFile(path.join(dest, 'robots.txt'), `User-agent: *\nDisallow: /premium/\n`, 'utf8');
+  const domain = config.domain || 'toosmart.ru';
+  const sitemapUrl = `https://${domain}/sitemap.xml`;
+  await fsp.writeFile(path.join(dest, 'robots.txt'), `User-agent: *\nDisallow: /premium/\n\nSitemap: ${sitemapUrl}\n`, 'utf8');
 }
 
 async function generateSitemap(content, dest, config) {

@@ -1,8 +1,6 @@
 {
-  "filename": "favicon.svg",
+  "filename": "favicon.ico",
   "files": {
-    "favicon.svg": "favicon.svg",
-    "favicon-dark.svg": "favicon-dark.svg",
     "favicon.ico": "favicon.ico",
     "favicon-16x16.png": "favicon-16x16.png",
     "favicon-32x32.png": "favicon-32x32.png",
@@ -13,9 +11,7 @@
     "web-app-manifest-512x512.png": "web-app-manifest-512x512.png"
   },
   "originalNames": {
-    "favicon.svg": "favicon-dark.svg",
     "favicon.ico": "favicon.ico",
-    "favicon-dark.svg": "favicon.svg",
     "favicon-16x16.png": "favicon-96x96.png",
     "favicon-32x32.png": "favicon-96x96.png",
     "apple-touch-icon.png": "apple-touch-icon.png",
@@ -58,5 +54,5 @@
       }
     ]
   },
-  "updatedAt": "2025-12-14T19:37:01.853Z"
+  "updatedAt": "2025-12-25T00:12:43.038Z"
 }

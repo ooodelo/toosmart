@@ -3612,8 +3612,39 @@
       }
     }
 
-    // Live Preview для модального окна
-    function updateModalPreview() {
+    // Live Preview для модального окна (рендерим из реального шаблона server/templates/payment-success.html)
+    let successModalTemplateParts = null;
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, (ch) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      }[ch]));
+    }
+
+    async function loadSuccessModalTemplateParts() {
+      if (successModalTemplateParts) return successModalTemplateParts;
+
+      const res = await fetch('/api/html-block?name=successModalTemplate');
+      if (!res.ok) throw new Error('Не удалось загрузить шаблон success-модалки');
+
+      const raw = await res.text();
+      const doc = new DOMParser().parseFromString(raw, 'text/html');
+      const previewEl = doc.querySelector('.success-preview');
+      const styleEl = doc.querySelector('style');
+
+      successModalTemplateParts = {
+        baseHtml: previewEl ? previewEl.outerHTML : raw,
+        baseStyle: styleEl ? `<style>${styleEl.innerHTML}</style>` : ''
+      };
+
+      return successModalTemplateParts;
+    }
+
+    async function updateModalPreview() {
       const introContainer = document.getElementById('introHooksContainer');
       const introHooks = introContainer ? Array.from(introContainer.querySelectorAll('input'))
         .map(inp => inp.value || inp.placeholder)
@@ -3631,28 +3662,39 @@
       const preview = document.getElementById('modalPreview');
       if (!preview) return;
 
+      // Хуки генерим так же, как на сервере (inline стили)
+      const introHtml = introHooks
+        .map((hook, i) => `<p style="font-size: ${i === 0 ? '22px' : '15px'}; font-weight: ${i === 0 ? '700' : '500'}; margin: ${i === 0 ? '0 0 8px' : '0'}; color: ${i === 0 ? '#1a1a1a' : '#888'};">${escapeHtml(hook)}</p>`)
+        .join('');
+
+      const outroHtml = outroHooks
+        .map(hook => `<p style="font-size: 13px; color: #888; margin: 4px 0;">${escapeHtml(hook)}</p>`)
+        .join('');
+
+      let parts;
+      try {
+        parts = await loadSuccessModalTemplateParts();
+      } catch (e) {
+        preview.innerHTML = `<div style="color: var(--danger); font-size: 13px;">${escapeHtml(e.message || 'Ошибка загрузки шаблона')}</div>`;
+        return;
+      }
+
+      let html = parts.baseHtml;
+      html = html
+        .replace(/\{\{INTRO_HOOKS\}\}/g, introHtml)
+        .replace(/\{\{CREDENTIALS_LABEL\}\}/g, escapeHtml(credentialsLabel))
+        .replace(/\{\{EMAIL\}\}/g, 'test@example.com')
+        .replace(/\{\{PASSWORD\}\}/g, 'DemoPass123')
+        .replace(/\{\{OUTRO_HOOKS\}\}/g, outroHtml)
+        .replace(/\{\{BUTTON_TEXT\}\}/g, escapeHtml(buttonText))
+        .replace(/\{\{AUTO_LOGIN_URL\}\}/g, '#')
+        // В preview не навигируем
+        .replace(/onclick="window\\.location\\.href='[^']*'"/g, '');
+
       preview.innerHTML = `
-        <div style="background:#f5f5f7;border-radius:28px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
-          <div style="padding: 48px 48px 24px; text-align: center;">
-            ${introHooks.map((hook, i) => `<p style="font-size: ${i === 0 ? '22px' : '15px'}; font-weight: ${i === 0 ? '700' : '500'}; margin: ${i === 0 ? '0 0 8px' : '0'}; color: ${i === 0 ? '#1a1a1a' : '#888'};">${hook}</p>`).join('')}
-          </div>
-          <div style="padding: 0 48px 24px;">
-            <div style="background: #fff; padding: 16px; border-radius: 16px; margin-bottom: 16px;">
-              <p style="font-size: 13px; font-weight: 600; margin-bottom: 12px; text-align: center; color: #333;">${credentialsLabel}</p>
-              <div style="margin: 10px 0;">
-                <span style="display: block; font-size: 11px; color: #888; margin-bottom: 4px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Email:</span>
-                <code style="display: block; font-size: 15px; background: #f8f9fa; padding: 12px 14px; border-radius: 10px; border: 1.5px solid #e0e0e0; font-family: monospace;">test@example.com</code>
-              </div>
-              <div style="margin: 10px 0;">
-                <span style="display: block; font-size: 11px; color: #888; margin-bottom: 4px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px;">Пароль:</span>
-                <code style="display: block; font-size: 15px; background: #f8f9fa; padding: 12px 14px; border-radius: 10px; border: 1.5px solid #e0e0e0; font-family: monospace;">DemoPass123</code>
-              </div>
-            </div>
-            <div style="text-align: center; margin-bottom: 24px;">
-              ${outroHooks.map(hook => `<p style="font-size: 13px; color: #888; margin: 4px 0;">${hook}</p>`).join('')}
-            </div>
-          </div>
-          <button style="width: 100%; padding: 20px; background: #1a1a1a; color: #f5f5f7; border: none; border-radius: 0 0 28px 28px; font-size: 19px; font-weight: 600; cursor: pointer;">${buttonText}</button>
+        <div style="display:flex;justify-content:center;padding:16px;">
+          ${parts.baseStyle}
+          ${html}
         </div>
       `;
     }

@@ -132,6 +132,11 @@ function detectPageContext() {
 }
 
 function handleCabinetClick() {
+    // Яндекс.Метрика: Клик на Войти в ЛК
+    if (typeof ym !== 'undefined') {
+        ym(105634847, 'reachGoal', 'login_click');
+    }
+
     // Dev/premium/paywall behavior is decided in JS, not inline HTML
     const { isPaywall, isPremium } = detectPageContext();
 
@@ -150,6 +155,11 @@ function handleCabinetClick() {
 async function openPaymentSuccessModal() {
     const modal = document.getElementById('payment-success-modal');
     if (!modal) return;
+
+    // Яндекс.Метрика: Успешная оплата
+    if (typeof ym !== 'undefined') {
+        ym(105634847, 'reachGoal', 'payment_success');
+    }
 
     // Fetch password data
     try {
@@ -186,27 +196,65 @@ function copySuccessPassword() {
     const text = field?.value || field?.textContent || '';
     const button = document.querySelector('[onclick="copySuccessPassword()"]');
 
-    navigator.clipboard.writeText(text).then(() => {
-        // Visual feedback: flash green border on button
-        if (button) {
-            button.style.borderColor = '#4CAF50';
-            button.style.backgroundColor = '#e8f5e9';
-            setTimeout(() => {
-                button.style.borderColor = '';
-                button.style.backgroundColor = '';
-            }, 1500);
+    // Try modern Clipboard API first
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+            showCopySuccess(button);
+        }).catch(() => {
+            // Fallback to execCommand for Safari in iframe or older browsers
+            fallbackCopyToClipboard(text, button);
+        });
+    } else {
+        // Fallback for older browsers or Safari restrictions
+        fallbackCopyToClipboard(text, button);
+    }
+}
+
+function fallbackCopyToClipboard(text, button) {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.top = '0';
+    textArea.style.left = '0';
+    textArea.style.opacity = '0';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+
+    try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+            showCopySuccess(button);
+        } else {
+            showCopyError(button);
         }
-    }).catch(() => {
-        // Visual feedback: flash red border on error
-        if (button) {
-            button.style.borderColor = '#d32f2f';
-            button.style.backgroundColor = '#ffebee';
-            setTimeout(() => {
-                button.style.borderColor = '';
-                button.style.backgroundColor = '';
-            }, 1500);
-        }
-    });
+    } catch (err) {
+        showCopyError(button);
+    }
+
+    document.body.removeChild(textArea);
+}
+
+function showCopySuccess(button) {
+    if (button) {
+        button.style.borderColor = '#4CAF50';
+        button.style.backgroundColor = '#e8f5e9';
+        setTimeout(() => {
+            button.style.borderColor = '';
+            button.style.backgroundColor = '';
+        }, 1500);
+    }
+}
+
+function showCopyError(button) {
+    if (button) {
+        button.style.borderColor = '#d32f2f';
+        button.style.backgroundColor = '#ffebee';
+        setTimeout(() => {
+            button.style.borderColor = '';
+            button.style.backgroundColor = '';
+        }, 1500);
+    }
 }
 
 // --- Payment Fail Modal ---

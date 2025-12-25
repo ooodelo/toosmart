@@ -185,15 +185,23 @@ if ($successPayload) {
                     'button_text' => 'Войти в курс'
                 ];
 
-            // Формируем хуки в HTML
+            // Формируем хуки в HTML (совпадает с Live Preview в админке)
             $intro_hooks_html = '';
-            foreach ($texts['intro_hooks'] as $hook) {
-                $intro_hooks_html .= '<p class="modal-hook">' . htmlspecialchars($hook, ENT_QUOTES, 'UTF-8') . '</p>';
+            foreach (($texts['intro_hooks'] ?? []) as $i => $hook) {
+                $fontSize = $i === 0 ? '22px' : '15px';
+                $fontWeight = $i === 0 ? '700' : '500';
+                $margin = $i === 0 ? '0 0 8px' : '0';
+                $color = $i === 0 ? '#1a1a1a' : '#888';
+                $intro_hooks_html .= '<p style="font-size: ' . $fontSize . '; font-weight: ' . $fontWeight . '; margin: ' . $margin . '; color: ' . $color . ';">'
+                    . htmlspecialchars($hook, ENT_QUOTES, 'UTF-8')
+                    . '</p>';
             }
 
             $outro_hooks_html = '';
-            foreach ($texts['outro_hooks'] as $hook) {
-                $outro_hooks_html .= '<p>' . htmlspecialchars($hook, ENT_QUOTES, 'UTF-8') . '</p>';
+            foreach (($texts['outro_hooks'] ?? []) as $hook) {
+                $outro_hooks_html .= '<p style="font-size: 13px; color: #888; margin: 4px 0;">'
+                    . htmlspecialchars($hook, ENT_QUOTES, 'UTF-8')
+                    . '</p>';
             }
 
             // Создаем токен для авто-логина (криптографически безопасный)
@@ -335,7 +343,7 @@ if ($success === 'password_reset') {
             Забыли пароль? <a href="forgot-password-form.php">Восстановить</a><br>
             Еще нет доступа? <a href="/">Вернуться к бесплатной версии</a><br>
             Проблемы со входом? <a
-                href="mailto:<?= htmlspecialchars(Config::get('MAIL_REPLY_TO', 'support@toosmart.ru'), ENT_QUOTES, 'UTF-8') ?>">Напишите
+                href="mailto:<?= htmlspecialchars(Config::get('MAIL_REPLY_TO', 'reply@toosmart.ru'), ENT_QUOTES, 'UTF-8') ?>">Напишите
                 нам</a>
         </div>
     </div>

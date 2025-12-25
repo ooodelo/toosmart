@@ -166,6 +166,10 @@ const HTML_BLOCKS = {
     label: 'Модальное окно оплаты',
     path: path.join(PROJECT_ROOT, 'src', 'partials', 'payment-modal.html')
   },
+  successModalTemplate: {
+    label: 'Шаблон success-модалки (server/templates/payment-success.html)',
+    path: path.join(PROJECT_ROOT, 'server', 'templates', 'payment-success.html')
+  },
   legalModals: {
     label: 'Legal-модалки (terms/offer/privacy/contacts)',
     path: path.join(PROJECT_ROOT, 'src', 'partials', 'legal-modals.html')
@@ -1959,7 +1963,8 @@ const REQUIRED_FAVICON_FILES = [
   'web-app-manifest-512x512.png'
 ];
 const ASSET_UPLOAD_DIR = path.join(PROJECT_ROOT, 'dist', 'assets', 'uploaded');
-const PROMO_CONFIG_PATH = path.join(PROJECT_ROOT, 'config', 'promo.json');
+// Единый источник промо — тот же файл, что читает PHP
+const PROMO_CONFIG_PATH = path.join(PROJECT_ROOT, 'server', 'config', 'promo.json');
 async function ensureDir(dir) {
   await fsp.mkdir(dir, { recursive: true });
 }
@@ -2107,6 +2112,7 @@ function loadPromoConfig() {
 
 function savePromoConfig(promos) {
   const safeArray = Array.isArray(promos) ? promos : [];
+  fs.mkdirSync(path.dirname(PROMO_CONFIG_PATH), { recursive: true });
   fs.writeFileSync(PROMO_CONFIG_PATH, JSON.stringify(safeArray, null, 2), 'utf8');
 }
 

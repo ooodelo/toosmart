@@ -4974,6 +4974,15 @@ function bindPageLifecycle(dispose) {
     window.addEventListener('pagehide', onPageHide);
     removers.push(() => window.removeEventListener('pagehide', onPageHide));
 
+    const onPageShow = (event) => {
+      if (event?.persisted) {
+        // Страница восстановлена из bfcache - переинициализируем интерактивность
+        resumeApp({ reason: 'pageshow-bfcache' });
+      }
+    };
+    window.addEventListener('pageshow', onPageShow);
+    removers.push(() => window.removeEventListener('pageshow', onPageShow));
+
     const onBeforeUnload = () => {
       safeDispose('beforeunload');
     };

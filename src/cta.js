@@ -78,6 +78,11 @@ function openCTAModal(event) {
   modal.removeAttribute('hidden');
   document.body.style.overflow = 'hidden';
 
+  // Яндекс.Метрика: Открыл форму оплаты
+  if (typeof ym !== 'undefined') {
+    ym(105634847, 'reachGoal', 'payment_form_open');
+  }
+
   // Фокус на поле email
   const emailInput = modal.querySelector('input[name="email"]');
   if (emailInput) {
@@ -219,6 +224,11 @@ async function applyPromo() {
     statusEl.style.display = 'none';
     promoInput.style.borderColor = '#4CAF50';
     promoInput.style.backgroundColor = '#e8f5e9';
+
+    // Яндекс.Метрика: Применил промокод
+    if (typeof ym !== 'undefined') {
+      ym(105634847, 'reachGoal', 'promo_applied');
+    }
   } catch (error) {
     appliedPromo = null;
     priceCurrent.textContent = priceCurrent.dataset.basePrice || priceCurrent.textContent;
@@ -245,6 +255,8 @@ function setupInlineValidation(form) {
   const checkbox = form.querySelector('input[name="accept_offer"]');
   const errorDiv = document.getElementById('payment-error');
 
+  let emailFilled = false;
+
   const validateEmail = () => {
     const email = emailInput.value.trim();
     const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
@@ -263,6 +275,15 @@ function setupInlineValidation(form) {
         errorDiv.style.display = 'none';
       }
       emailInput.classList.remove('invalid');
+
+      // Яндекс.Метрика: Ввел email (только один раз)
+      if (!emailFilled && email) {
+        emailFilled = true;
+        if (typeof ym !== 'undefined') {
+          ym(105634847, 'reachGoal', 'email_filled');
+        }
+      }
+
       return true;
     }
   };
@@ -354,6 +375,11 @@ async function handlePayment(event) {
 
   if (errorDiv) {
     errorDiv.style.display = 'none';
+  }
+
+  // Яндекс.Метрика: Нажал Продолжить
+  if (typeof ym !== 'undefined') {
+    ym(105634847, 'reachGoal', 'payment_submit');
   }
 
   try {
